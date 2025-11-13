@@ -1,0 +1,13 @@
+{
+  "strings": "#2aa198",
+  "comments": "#586e75",
+  "keywords": "#cb4b16",
+  "builtin_functions": "#b58900",
+  "constants": "#d33682",
+  "arithmetic_operators": "#839496",
+  "assignment_operators": "#859900",
+  "comparison_operators": "#268bd2",
+  "logical_operators": "#6c71c4",
+  "brackets": "#93a1a1",
+  "numbers": "#d33682"
+}

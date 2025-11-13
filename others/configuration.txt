@@ -1,0 +1,28 @@
+COPYRIGHT 2026 EX Technologies
+CONFIGURATION, AND INSTALLATION FILES
+
+Before you read, we recommend you reading the documentation PDF, available with your edition
+
+######################## SOFTDREAM CONFIGURATION ########################
+Softdream is a free software to download. However some special utilities requires subscription, 
+and the software is restricted to safe-use only, meaning you are not allowed to edit any of the 
+source code of the software, nor edit the software packages under any reasons without the prior
+permission hand-written by the authors. 
+
+######################## MINIMAL SOFTWARE TOOLS  ########################
+Once the package wizard is installed, you are asked to download the packages, ideally you need 
+to download the following packages:
+1. Softdream IDE
+2. B# Integrated Terminal 
+3. B# Packages
+4. Softdream Development Kit
+5. Debugging Manager Toolkit
+6. DayDream File Manager Terminal (Console)
+7. Software Manager Tools
+8. Packages Manager Toolkit
+9. Manuals and Documentation Files
+
+Ideally, these all come in a package, and they all come for free. As said earlier, your using of
+the software means you have agreed to the terms of service and policies of the authors. 
+
+EX Technologies
