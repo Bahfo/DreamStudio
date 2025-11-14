@@ -1,3 +1,9 @@
+"""
+main.py
+handles first layer: Graphical User Interface Layer (GUI Layer)
+application supported for C/C++, Python, and web type scripting languages
+"""
+
 license_text = """
 Copyright 2026 EX Technologies
 An Integrated Development Environment (IDE) designed to be light, professional, and user-friendly.
@@ -8,7 +14,6 @@ Softdream is free to download and use, but the user is restricted to the followi
     - The software is free to use (gratis).
     - Users cannot modify the software.
     - Users cannot sell or distribute it.
-    - You may use this software for personal or internal purposes only.
     - You may not modify, reverse engineer, or create derivative works.
     - You may not redistribute, sell, or sublicense this software.
 
@@ -31,6 +36,7 @@ import ctypes
 import pyperclip
 import subprocess
 import consoles.file_manager as file_manager
+import consoles.command_window as command_window
 
 ################################################################################################
 # MAIN WINDOW
@@ -1125,7 +1131,7 @@ class App:
                                             image=self.manage,
                                             width=25, fg_color=self.status_bar.cget("fg_color"),
                                             height=8, corner_radius=0,
-                                            command=self.open_file_manager)
+                                            command=self.open_command_window)
         self.file_manager_button.pack(padx=(2,2),side="right",pady=(2,2))
         uniwidgets.ToolTip(self.file_manager_button, "Opens file management terminal")
 
@@ -1628,6 +1634,10 @@ class App:
     def open_file_manager(self,event=None):
         file_manager.main_terminal()
 
+    def open_command_window(self):
+        shell = command_window.PromptXShell(self.window)
+        shell.grab_set() 
+
     def open_settings(self,event=None):
         settings_window = SettingsWindow(self, status_button=self.status_button)
         settings_window.show()
@@ -1666,7 +1676,7 @@ class App:
                 main_app.status_button.configure(text="Operation Failed")
 
     def onOpenMacros(self,event=None):
-        macrosTab = home.AddMacrosTab(self,master=self.window,text_editor=self.text_editor)
+        macrosTab = home.AddMacrosTab(self,master=self.window,text_editor=self.text_editor, switcher=self.switcher)
         macrosTab.run()
 
     def onOpenSyntax(self, event=None):
