@@ -30,7 +30,6 @@ import tkinter as tk
 import re
 import os
 import time
-import json
 import home
 import ctypes
 import pyperclip
@@ -41,17 +40,16 @@ import consoles.command_window as command_window
 ################################################################################################
 # MAIN WINDOW
 ################################################################################################
+
 class App:
     def __init__(self):
-        # Root window
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
-        self.window.iconbitmap(r"")  # set your icon path
+        self.window.iconbitmap(r"")
         self.window.geometry("1000x700")
         self.window.configure(bg="#1e1e1e")
         self.window.resizable(True, True)
 
-        # Load theme
         ctk.set_default_color_theme(r"themes\metal.json")
         ctk.set_appearance_mode("dark")
 
@@ -1123,7 +1121,7 @@ class App:
                                         image=self.console,
                                         fg_color=self.status_bar.cget("fg_color"),
                                         height=8, corner_radius=0,
-                                        command=self.open_terminal)
+                                        command=self.ports_and_terminals_open)
         self.Terminal_button.pack(padx=(2,2),side="right",pady=(2,2))
         uniwidgets.ToolTip(self.Terminal_button, "Opens a new terminal, restricted by the device terminal type")
 
@@ -1336,13 +1334,9 @@ class App:
                                 foreground= "#2B2B2B" if self.mode == 'Light' else "#CCCCCC")
 
         self.window.bind("<Button-1>", self.click_outside)
-        # double-click to open files
         self.file_tree.bind("<Double-1>", self.open_tree_selected_file)
-
         self.file_tree.bind("<Button-1>", self.on_tree_click)
-
         self.file_tree.bind("<Motion>", self.on_tree_hover)
-
 
         self.style = ttk.Style()
         self.style.theme_use('default')
@@ -1364,7 +1358,6 @@ class App:
         self.style.layout("Treeview", [('Treeview.treearea', {'sticky': 'nswe'})])
 
         self.tree_scrollbar.configure(command=self.file_tree.yview)
-
 
     def remove_hover_effects(self):
         for item in self.file_tree.get_children():
@@ -1653,6 +1646,10 @@ class App:
     def open_license(self,event=None):
         license_window = LicenseOpen(self, status_button=self.status_button)
         license_window.show()
+
+    def ports_and_terminals_open(self, event=None):
+        terminals = DebugAndTerminal(self, status_button=self.status_button)
+        terminals.show_terminal()
 
     def open_current_file(main_app):
         if main_app.status_button:
@@ -2054,6 +2051,60 @@ class LicenseOpen(ctk.CTkToplevel):
         self.deiconify()
         self.lift()
 
+class DebugAndTerminal(ctk.CTkToplevel):
+    def __init__(self, main_app, status_button=None):
+        super().__init__(main_app.window)
+        self.main_app = main_app
+        self.status_button = status_button
+
+        self.mode = ctk.get_appearance_mode()
+
+        self.configure(fg_color="#1C1C1C" if self.mode == 'Dark' else "#BDBDBD")
+
+        if self.status_button:
+            self.status_button.configure(text="Terminal Opened")
+
+        self.overrideredirect(True)
+        self.geometry("1000x250")
+        self.resizable(False, False)
+        self.attributes("-topmost", True)
+        self.withdraw()
+        self.transient(main_app.window)
+
+        self.terminal_box = ctk.CTkTextbox(
+            self, corner_radius=0, font=("Consolas", 14), width=990, height=205,
+            bg_color="#0F0F0F" if self.mode == 'Dark' else "#ACACAC",
+            fg_color="#0F0F0F" if self.mode == 'Dark' else "#ACACAC")
+        self.terminal_box.place(x=5, y=40)
+        btn_size = 20
+
+        self.title = ctk.CTkLabel(self, width=40, height=20, corner_radius=0, 
+                                  text="TERMINALS AND DEBUGGING", font=("Segoe UI",13))
+        self.title.place(x=20, y=10)
+
+        self.closeBtn = ctk.CTkButton(self, width=btn_size, height=btn_size, corner_radius=0,
+                                      border_color="#5E5E5E", border_width=1, text="✕",
+                                      command=self.exitTerminal)
+        self.closeBtn.place(x=965, y=10)
+
+        self.minimizeBtn = ctk.CTkButton(self, width=btn_size, height=btn_size, corner_radius=0,
+                                         border_color="#5E5E5E", border_width=1, text="─")
+        self.minimizeBtn.place(x=940, y=10)
+
+        self.moreActionsBtn = ctk.CTkButton(self, width=btn_size, height=btn_size, corner_radius=0,
+                                            border_color="#5E5E5E", border_width=1, text="...")
+        self.moreActionsBtn.place(x=915, y=10)
+
+    def exitTerminal(self):
+        self.destroy()
+
+    def showInitialText(self):
+        self.terminal_box.insert("1.0",f"{os.getcwd()} >>> ")
+
+    def show_terminal(self):
+        self.showInitialText()
+        self.deiconify()
+        self.lift()
 
 #################################################################################################
 # EMBEDDED SERVICES
