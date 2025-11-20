@@ -1,7 +1,7 @@
 """
-main.py
-handles first layer: Graphical User Interface Layer (GUI Layer)
-application supported for C/C++, Python, and web type scripting languages
+Handles first layer: Graphical User Interface Layer (GUI Layer)
+\nDreamStudio is now only supported for some languages:
+\nLua, Python, and JavaScript
 """
 
 license_text = """
@@ -21,6 +21,8 @@ For more info, download the full documentation.
 """
 
 import widgets.universal_widgets as uniwidgets
+from intellisense.highlighter import PythonHighlighter as pylight
+from intellisense.dreamintellisense import PythonIntellisense as pysense
 from tkinter import ttk, messagebox
 from tkinter import filedialog
 from PIL import Image, ImageTk
@@ -29,7 +31,7 @@ import customtkinter as ctk
 import tkinter as tk
 import re
 import os
-import time
+import ast
 import home
 import ctypes
 import pyperclip
@@ -1225,7 +1227,7 @@ class App:
             corner_radius=0,
             text_color="#c4c4c4" if self.mode == 'Dark' else "#3F3F3F",
             font=self.editor_font,
-            fg_color="#303030" if self.mode == 'Dark' else "#C4C4C4",
+            fg_color="#1D1D1D" if self.mode == 'Dark' else "#E0E0E0",
             wrap=None)
 
         self.line_number_canvas.pack(side="left", fill="y")
@@ -1242,7 +1244,6 @@ class App:
 
         self.text_editor.bind("<KeyRelease>", self.update_number_of_lines)
         self.text_editor.bind("<Button-1>", self.update_number_of_lines)
-
         self.text_editor.bind("<Control-c>", self.copy_text_event)
         self.text_editor.bind("<Control-x>", self.cut_text_event)
         self.text_editor.bind("<Control-v>", self.paste_text_event)
@@ -1251,11 +1252,17 @@ class App:
         self.text_editor.bind("<Control-f>", self.open_search)
         self.text_editor.bind("<BackSpace>", self.delete_selected_text)
         self.text_editor.bind("<Delete>"   , self.delete_selected_text)
+
+        self.text_editor.tag_config("function_name", foreground="orange")
+        self.text_editor.tag_config("class_name", foreground="purple")
+        self.text_editor.tag_config("variable_name", foreground="teal")
+
         self.divider.bind("<Button-1>", self.start_drag)
         self.divider.bind("<B1-Motion>", self.on_drag)
 
-        self.update_number_of_lines(self)
-
+        helper = pylight(self.text_editor)
+        intellisense = pysense(widget=self.window, text_box=self.text_editor, path=None)
+        intellisense.bindings()
 
         #################################################################################################
         # FILE EXPLORER TREEVIEW
@@ -1696,7 +1703,6 @@ def darken_color(hex_color, factor=0.8):
 
 class CTkFrameDarker(ctk.CTkFrame):
     def __init__(self, master,**kwargs):
-        # Get current theme fg_color automatically
         theme_colors = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
         self.mode_index = 0 if ctk.get_appearance_mode() == "Light" else 1
         color = darken_color(theme_colors[self.mode_index], factor=0.75)  # Slightly darker
@@ -1913,12 +1919,10 @@ class SettingsWindow(ctk.CTkToplevel):
         )
         font_family_combo.grid(row=1, column=1, padx=(0, 20), pady=(20, 10), sticky="e")
 
-        # Editor Theme Changer
         text_editor_theme_label = ctk.CTkLabel(
             appearance_frame,
             text="Text Editor Theme",
-            font=ctk.CTkFont(family="Segoe UI", size=14)
-        )
+            font=ctk.CTkFont(family="Segoe UI", size=14))
         text_editor_theme_label.grid(row=2, column=0, padx=(20, 10), pady=(0, 10), sticky="w")
 
         editor_themes_var = ctk.StringVar(value="Dark")
@@ -1938,8 +1942,7 @@ class SettingsWindow(ctk.CTkToplevel):
             values=["Blue","Red","Dark","Light"],
             variable=editor_themes_var,
             width=150,
-            command=theme_changer
-        )
+            command=theme_changer)
         frame_theme_changer_combo.grid(row=2, column=1, padx=(0, 20), pady=(0, 10), sticky="e")
 
     def show(self):
@@ -1954,7 +1957,7 @@ class SaveFile(ctk.CTkToplevel):
         workspace_container: dict/object containing current workspace path
         status_button: optional, for updating status
         """
-        super().__init__(main_app.window)  # parent is main app window
+        super().__init__(main_app.window)
         self.main_app = main_app
         self.workspace_container = workspace_container
         self.status_button = status_button
@@ -1982,8 +1985,7 @@ class SaveFile(ctk.CTkToplevel):
                 uniwidgets.ScreenShakeAnimation(file_naming_box, orig_x=55, orig_y=50)
                 file_naming_box.configure(
                     placeholder_text="Please enter a file name",
-                    placeholder_text_color="#ffb2b2"
-                )
+                    placeholder_text_color="#ffb2b2")
                 return
 
             if self.workspace_container.get("path") is None:
@@ -2105,61 +2107,6 @@ class DebugAndTerminal(ctk.CTkToplevel):
         self.showInitialText()
         self.deiconify()
         self.lift()
-
-#################################################################################################
-# EMBEDDED SERVICES
-#################################################################################################
-
-#################################################################################################
-# CUSTOM UTILITIES
-#################################################################################################
-
-def loading_screen():
-    ctk.set_appearance_mode('dark')
-    ctk.set_default_color_theme(r'themes\breeze.json')
-    splash = ctk.CTk()
-    splash.resizable(False, False)
-    splash.overrideredirect(False)
-    splash.title("EX Technologies")
-    splash.iconbitmap(r"icons\softdream.ico")
-
-    window_width = 400
-    window_height = 300
-
-    splash.update_idletasks()
-
-    screen_width = splash.winfo_screenwidth()
-    screen_height = splash.winfo_screenheight()
-    x = (screen_width // 2) - (window_width // 2)
-    y = (screen_height // 2) - (window_height // 2)
-
-    splash.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-    logo_image = ctk.CTkImage(
-        light_image=Image.open(r"icons\logo.png"),
-        dark_image=Image.open(r"icons\logo.png"),
-        size=(180, 180))
-
-    image_label = ctk.CTkLabel(splash, image=logo_image, text="")
-    image_label.pack(pady=20)
-
-    progress_bar = ctk.CTkProgressBar(splash, width=270)
-    progress_bar.pack(pady=10)
-    progress_bar.set(0)
-
-    loading_label = ctk.CTkLabel(splash, text="Loading ...", font=("Segoe UI", 12))
-    loading_label.pack(pady=10)
-
-    for i in range(101): 
-        progress_bar.set(i / 100) 
-        if i == 25: loading_label.configure(text="Loading Modules ...") 
-        elif i == 50: loading_label.configure(text="Setting up Interface ...") 
-        elif i == 75: loading_label.configure(text="Initializing Components ...") 
-        elif i == 90: loading_label.configure(text="Finalizing ...") 
-        splash.update() 
-        time.sleep(0.05)
-
-    splash.destroy()
 
 #####################################################################################################
 # RUN AND MODIFY

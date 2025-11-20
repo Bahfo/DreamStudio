@@ -1,604 +1,269 @@
 import re
+import ast
 
-class PythonHighlighter():
-    def __init__(self):
-        self.blue_words = ["and", "class", "def", "False", "global", "in", "is", "lambda", "None", "nonlocal",
-                           "not", "or", "True","self"]
-
-        self.pink_words = ["as", "assert", "async", "await", "break", "case", "continue", "del",
-                           "elif", "else", "except", "finally", "for", "from", "if", "import",
-                           "match", "pass", "raise", "return", "try", "while", "with", "yield"]
-
-        self.yellow_functions = ["abs", "all", "any", "ascii", "bin", "bool", "bytearray", "bytes",
-                                 "chr", "complex", "dict", "divmod", "enumerate", "filter", "float",
-                                 "format", "frozenset", "hash", "hex", "id", "int", "len", "list",
-                                 "map", "max", "min", "next", "oct", "ord", "pow", "range", "repr",
-                                 "reversed", "round", "set", "slice", "sorted", "str", "sum", "tuple",
-                                 "type", "zip", "print", "input", "dir", "help", "globals", "locals"]
-        
-        self.green_functions = ["callable", "classmethod", "compile", "delattr", "eval", "exec",
-                                "getattr", "hasattr", "isinstance", "issubclass", "memoryview",
-                                "object", "property", "setattr", "staticmethod", "super", "vars",
-                                "__import__"]
-        
-        self.yellow_functions_strings = ["capitalize", "casefold", "center", "count", "encode", "endswith",
-                                         "expandtabs", "find", "format", "format_map", "index", "isalnum",
-                                         "isalpha", "isdecimal", "isdigit", "isidentifier", "islower",
-                                         "isnumeric", "isprintable", "isspace", "istitle", "isupper",
-                                         "join", "ljust", "lower", "lstrip", "maketrans", "partition",
-                                         "replace", "rfind", "rindex", "rjust", "rpartition", "rsplit",
-                                         "rstrip", "split", "splitlines", "startswith", "strip", "swapcase",
-                                         "title", "translate", "upper", "zfill"]
-        
-        self.yellow_functions_lists = ["append", "extend", "insert", "remove", "pop", "clear",
-                                       "index", "count", "sort", "reverse", "copy"]
-
-        self.yellow_functions_dict = ["clear", "copy", "fromkeys", "get", "items", "keys",
-                                      "pop", "popitem", "setdefault", "update", "values"]
-        
-        self.yellow_functions_tuple = ["count", "index"]
-
-        self.yellow_functions_set = ["add", "clear", "copy", "difference", "difference_update",
-                                     "discard", "intersection", "intersection_update", "isdisjoint",
-                                     "issubset", "issuperset", "pop", "remove", "symmetric_difference",
-                                     "symmetric_difference_update", "union", "update"]
-        
-        self.orange_reddish = ["BaseException", "Exception", "ArithmeticError", "AssertionError",
-                               "AttributeError", "BufferError", "EOFError", "FloatingPointError",
-                               "GeneratorExit", "ImportError", "ModuleNotFoundError", "IndexError",
-                               "KeyError", "KeyboardInterrupt", "MemoryError", "NameError",
-                               "NotImplementedError", "OSError", "OverflowError", "RecursionError",
-                               "ReferenceError", "RuntimeError", "StopIteration",
-                               "StopAsyncIteration", "SyntaxError", "IndentationError", "TabError",
-                               "SystemError", "SystemExit", "TypeError", "UnboundLocalError",
-                               "ValueError", "ZeroDivisionError"]
-        
-        self.purple = ["+", "-", "*", "/", "//", "%", "**", "@"]
-
-        self.purple2 = ["=", "+=", "-=", "*=", "/=", "//=", "%=", "**=", "@=", "&=", "|=",
-                        "^=", ">>=", "<<="]
-        
-        self.greenish = ["==", "!=", ">", "<", ">=", "<="]
-
-        self.blueish = ["&", "|", "^", "~", "<<", ">>"]
-
-        self.yellow = ["(",")","{","}","[","]"]
-
-        self.special = ["if not","is not","is True","is False"]
-
-        # Use \b for keywords to match whole words, escape all items to handle special chars (e.g., **)
-        self.dictionary = {
-            "python_logic_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "python_control_keywords": rf"\b({'|'.join(re.escape(w) for w in self.pink_words)})\b",
-            "python_builtin_simple_returns": rf"\b({'|'.join(re.escape(w) for w in self.yellow_functions)})\b",
-            "python_builtin_complex_returns": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "python_string_methods": rf"\b({'|'.join(re.escape(w) for w in self.yellow_functions_strings)})\b",
-            "python_list_methods": rf"\b({'|'.join(re.escape(w) for w in self.yellow_functions_lists)})\b",
-            "python_dictionary_methods": rf"\b({'|'.join(re.escape(w) for w in self.yellow_functions_dict)})\b",
-            "python_tuple_methods": rf"\b({'|'.join(re.escape(w) for w in self.yellow_functions_tuple)})\b",
-            "python_set_methods": rf"\b({'|'.join(re.escape(w) for w in self.yellow_functions_set)})\b",
-            "python_exceptions_list": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "python_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "python_assignments_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "python_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "python_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "python_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "python_special_logic_statments":rf"({'|'.join(re.escape(op) for op in self.special)})",
-            "strings": r"(\".*?\"|'.*?')",
-            "comments": r"#.*",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
+class PythonHighlighter:
+    def __init__(self, text_box, path=None):
+        self.text_box = text_box
+        self.path = path
+        self._after_id = None
+        self.completions = []
+        self.suggestions_frame = None
+        self.buttons = []
+        self.selected_index = 0
+        self.identifier_cache = {"functions": set(),
+                                 "classes": set(),
+                                 "variables": set()}
+        self.imports = set()
 
         self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "python_logic_keywords": "#569CD6",
-            "python_control_keywords": "#C586C0",
-            "python_builtin_simple_returns": "#DCDCAA",
-            "python_builtin_complex_returns": "#3FC8AD",
-            "python_string_methods": "#DCDCAA",
-            "python_list_methods": "#DCDCAA",
-            "python_dictionary_methods": "#DCDCAA",
-            "python_tuple_methods": "#DCDCAA",
-            "python_set_methods": "#DCDCAA",
-            "python_exceptions_list": "#F44747",
-            "python_arithmetic_operators": "#D4D4D4",
-            "python_assignments_operators": "#916484",
-            "python_comparison_operators": "#B5CEA8",
-            "python_logical_operators": "#5656D6",
-            "python_brackets": "#ffff00",
-            "python_numbers": "#CEA8A8",
-            "variables":"#9CDCFE",
-            "special_statements":"#8D59FF"
+            "blue_keyword": "#569CD6",
+            "pink_keyword": "#C586C0",
+            "yellow_function": "#DFDAA7",
+            "green_function": "#B5CEA8",
+            "exception": "#FF6A6A",
+            "function": "#FFEAB0",
+            "class": "#3CAB95",
+            "variable": "#9CDCFE",
+            "attribute": "#9CDCFE",
+            "module": "#3CAB95",
+            "string": "#C77859",
+            "comment": "#6A9955",
+            "number": "#A8BECE",
+            "operator": "#D4D4D4",
+            "bracket": "#D4D4D4",
+            "special_keyword": "#D0A8D4",
         }
 
-        self.token_pattern = r"#.*|\".*?\"|\b\d+(\.\d+)?([eE][-+]?\d+)?\b|'.*?'|\b\w+\b|==|!=|>=|<=|//|<<|>>|[-+*/%&|^~@]=?|[(){}\[\],.:]"
-        self.special_logic_pattern = re.compile(r'\b(?:is\s+not|is\s+True|is\s+False|if\s+not)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-    
-
-class CHighlighter():
-    def __init__(self):
-        self.blue_words = ["auto", "break", "case", "char", "const", "continue", "default",
-                           "do", "double", "else", "enum", "extern", "float", "for", "goto",
-                           "if", "inline", "int", "long", "register", "restrict", "return",
-                           "short", "signed", "sizeof", "static", "struct", "switch", "typedef",
-                           "union", "unsigned", "void", "volatile", "while", "_Alignas", "_Alignof",
-                           "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary", "_Noreturn", "_Static_assert", "_Thread_local"]
-
-        self.library_definition = ["#include", "#define", "#ifdef", "#ifndef", "#endif"]
-        
-        self.green_functions = ["printf", "scanf", "sprintf", "sscanf", "fopen", "fclose", 
-                                "fread", "fwrite", "malloc", "calloc", "free", "exit", "atoi",
-                                "atof", "strcpy", "strncpy", "strlen", "strcmp", "strcat"]
-        
-        self.orange_reddish = ["NULL", "EOF", "EXIT_SUCCESS", "EXIT_FAILURE"]
-
-        self.purple = ["+", "-", "*", "/", "%", "++", "--"]
-        self.purple2 = ["=", "+=", "-=", "*=", "/=", "%="]
-        self.greenish = ["==", "!=", ">", "<", ">=", "<="]
-        self.blueish = ["&", "|", "^", "~", "<<", ">>", "&&", "||", "!"]
-        self.yellow = ["(",")","{","}","[","]",";",","]
-
-        # Dictionary with regex for tags
-        self.dictionary = {
-            "c_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "c_builtin_functions": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "c_constants": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "c_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "c_assignment_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "c_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "c_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "c_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "c_library": rf"({'|'.join(re.escape(op) for op in self.library_definition)})",
-            "strings": r"(\".*?\"|'.*?')",
-            "comments": r"(//.*|/\*[\s\S]*?\*/)",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "c_keywords": "#569CD6",
-            "c_builtin_functions": "#DCDCAA",
-            "c_constants": "#F44747",
-            "c_arithmetic_operators": "#D4D4D4",
-            "c_assignment_operators": "#916484",
-            "c_comparison_operators": "#B5CEA8",
-            "c_logical_operators": "#5656D6",
-            "c_brackets": "#ffff00",
-            "numbers": "#CEA8A8",
-            "variables":"#9CDCFE",
-            "c_library": "#C586C0"
-        }
-
-        self.token_pattern = r"(?:#\w+)|//.*|/\*[\s\S]*?\*/|\".*?\"|'.*?'|\b\d+(\.\d+)?\b|\b\w+\b|==|!=|>=|<=|\+\+|--|[-+*/%&|^~<>]=?|[(){}\[\],.;]"
-        self.special_logic_pattern = re.compile(r'\b(?:==|!=|>=|<=)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-
-class CPPHighlighter():
-    def __init__(self):
-        self.blue_words = ["alignas","alignof","and","and_eq","asm","auto","bitand","bitor","bool",
-                           "break","case","catch","char","char16_t","char32_t","class","compl","const",
-                           "constexpr","const_cast","continue","decltype","default","delete","do","double",
-                           "dynamic_cast","else","enum","explicit","export","extern","false","float","for",
-                           "friend","goto","if","inline","int","long","mutable","namespace","new","noexcept",
-                           "not","not_eq","nullptr","operator","or","or_eq","private","protected","public",
-                           "register","reinterpret_cast","return","short","signed","sizeof","static",
-                           "static_assert","static_cast","struct","switch","template","this","thread_local",
-                           "throw","true","try","typedef","typeid","typename","union","unsigned","using",
-                           "virtual","void","volatile","wchar_t","while","xor","xor_eq"]
-
-        self.green_functions = ["std::cout","std::cin","printf","scanf","sprintf","sscanf","fopen","fclose",
-                                "fread","fwrite","malloc","calloc","free","exit","atoi","atof","strcpy",
-                                "strncpy","strlen","strcmp","strcat"]
-
-        self.orange_reddish = ["NULL","EOF","EXIT_SUCCESS","EXIT_FAILURE"]
-
-        self.purple = ["+", "-", "*", "/", "%", "++", "--"]
-        self.purple2 = ["=", "+=", "-=", "*=", "/=", "%="]
-        self.greenish = ["==", "!=", ">", "<", ">=", "<="]
-        self.blueish = ["&","|","^","~","<<",">>","&&","||","!"]
-        self.yellow = ["(",")","{","}","[","]",";",","]
-
-        self.library_definition = ["#include","#define","#ifdef","#ifndef","#endif"]
-
-        self.dictionary = {
-            "cpp_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "cpp_builtin_functions": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "cpp_constants": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "cpp_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "cpp_assignment_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "cpp_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "cpp_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "cpp_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "cpp_library": rf"({'|'.join(re.escape(op) for op in self.library_definition)})",
-            "strings": r"(\".*?\"|'.*?')",
-            "comments": r"(//.*|/\*[\s\S]*?\*/)",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "cpp_keywords":"#569CD6",
-            "cpp_builtin_functions":"#DCDCAA",
-            "cpp_constants":"#F44747",
-            "cpp_arithmetic_operators":"#D4D4D4",
-            "cpp_assignment_operators":"#916484",
-            "cpp_comparison_operators":"#B5CEA8",
-            "cpp_logical_operators":"#5656D6",
-            "cpp_brackets":"#ffff00",
-            "numbers":"#CEA8A8",
-            "variables":"#9CDCFE",
-            "cpp_library":"#C586C0"
-        }
-
-        self.token_pattern = r"(?:#\w+)|//.*|/\*[\s\S]*?\*/|\".*?\"|'.*?'|\b\d+(\.\d+)?\b|\b\w+\b|==|!=|>=|<=|\+\+|--|[-+*/%&|^~<>]=?|[(){}\[\],.;]"
-        self.special_logic_pattern = re.compile(r'\b(?:==|!=|>=|<=)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-    
-
-class JavaHighlighter():
-    def __init__(self):
-        self.blue_words = ["abstract","assert","boolean","break","byte","case","catch","char",
-                           "class","const","continue","default","do","double","else","enum",
-                           "extends","final","finally","float","for","goto","if","implements",
-                           "import","instanceof","int","interface","long","native","new","package",
-                           "private","protected","public","return","short","static","strictfp",
-                           "super","switch","synchronized","this","throw","throws","transient",
-                           "try","void","volatile","while","true","false","null"]
-
-        self.green_functions = ["System.out.println","Math.abs","Math.max","Math.min","Integer.parseInt",
-                                "Double.parseDouble","String.valueOf","Arrays.sort","Collections.sort"]
-
-        self.orange_reddish = ["Integer","Double","Float","String","Boolean","Character","Long","Short","Byte","Void"]
-
-        self.purple = ["+", "-", "*", "/", "%"]
-        self.purple2 = ["=", "+=", "-=", "*=", "/=", "%="]
-        self.greenish = ["==","!=","<",">","<=",">="]
-        self.blueish = ["&","|","^","~","&&","||","!"]
-        self.yellow = ["(",")","{","}","[","]",";",",","."]
-
-        self.dictionary = {
-            "java_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "java_builtin_functions": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "java_constants": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "java_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "java_assignment_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "java_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "java_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "java_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "strings": r"(\".*?\"|'.*?')",
-            "comments": r"(//.*|/\*[\s\S]*?\*/)",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "java_keywords":"#569CD6",
-            "java_builtin_functions":"#DCDCAA",
-            "java_constants":"#F44747",
-            "java_arithmetic_operators":"#D4D4D4",
-            "java_assignment_operators":"#916484",
-            "java_comparison_operators":"#B5CEA8",
-            "java_logical_operators":"#5656D6",
-            "java_brackets":"#ffff00",
-            "numbers":"#CEA8A8",
-            "variables":"#9CDCFE"
-        }
-
-        self.token_pattern = r"//.*|/\*[\s\S]*?\*/|\".*?\"|'.*?'|\b\d+(\.\d+)?\b|\b\w+\b|==|!=|>=|<=|[-+*/%&|^~!]=?|[(){}\[\],.;]"
-        self.special_logic_pattern = re.compile(r'\b(?:==|!=|>=|<=)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-
-
-class JavascriptHighlighter():
-    def __init__(self):
-        self.blue_words = ["break","case","catch","class","const","continue","debugger","default","delete",
-                           "do","else","export","extends","finally","for","function","if","import","in",
-                           "instanceof","let","new","return","super","switch","this","throw","try","typeof",
-                           "var","void","while","with","yield","true","false","null","undefined"]
-
-        self.green_functions = ["alert","console.log","parseInt","parseFloat","isNaN","isFinite",
-                                "decodeURI","decodeURIComponent","encodeURI","encodeURIComponent","Number",
-                                "String","Boolean","Object","Array","Date","Math"]
-
-        self.orange_reddish = ["Infinity","NaN"]
-
-        self.purple = ["+","-","*","/","%","**","++","--"]
-        self.purple2 = ["=","+=","-=","*=","/=","%=","**="]
-        self.greenish = ["==","===","!=","!==",">","<",">=","<="]
-        self.blueish = ["&","|","^","~","&&","||","!","??"]
-        self.yellow = ["(",")","{","}","[","]",";",",","."]
-
-        self.dictionary = {
-            "js_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "js_builtin_functions": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "js_constants": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "js_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "js_assignment_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "js_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "js_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "js_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "strings": r"(\".*?\"|'.*?'|`.*?`)",
-            "comments": r"(//.*|/\*[\s\S]*?\*/)",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "js_keywords":"#569CD6",
-            "js_builtin_functions":"#DCDCAA",
-            "js_constants":"#F44747",
-            "js_arithmetic_operators":"#D4D4D4",
-            "js_assignment_operators":"#916484",
-            "js_comparison_operators":"#B5CEA8",
-            "js_logical_operators":"#5656D6",
-            "js_brackets":"#ffff00",
-            "numbers":"#CEA8A8",
-            "variables":"#9CDCFE"
-        }
-
-        self.token_pattern = r"//.*|/\*[\s\S]*?\*/|\".*?\"|'.*?'|`.*?`|\b\d+(\.\d+)?\b|\b\w+\b|==|!=|===|!==|>=|<=|[-+*/%&|^~!]=?|[(){}\[\],.;]"
-        self.special_logic_pattern = re.compile(r'\b(?:==|===|!=|!==|>=|<=)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-
-
-class RustHighlighter():
-    def __init__(self):
-        self.blue_words = ["as","break","const","continue","crate","else","enum","extern","false",
-                           "fn","for","if","impl","in","let","loop","match","mod","move","mut",
-                           "pub","ref","return","self","Self","static","struct","super","trait",
-                           "true","type","unsafe","use","where","while","dyn","async","await","try"]
-
-        self.green_functions = ["println!","format!","vec!","String::from","Vec::new","Box::new"]
-
-        self.orange_reddish = ["Some","None","Ok","Err"]
-
-        self.purple = ["+","-","*","/","%","^"]
-        self.purple2 = ["=","+=","-=","*=","/=","%=","^="]
-        self.greenish = ["==","!=","<",">","<=",">="]
-        self.blueish = ["&","|","&&","||","!","<<",">>"]
-        self.yellow = ["(",")","{","}","[","]",";",",","."]
-
-        self.dictionary = {
-            "rust_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "rust_builtin_functions": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "rust_constants": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "rust_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "rust_assignment_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "rust_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "rust_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "rust_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "strings": r"(\".*?\"|'.*?')",
-            "comments": r"(//.*|/\*[\s\S]*?\*/|#!\[.*\])",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "rust_keywords":"#569CD6",
-            "rust_builtin_functions":"#DCDCAA",
-            "rust_constants":"#F44747",
-            "rust_arithmetic_operators":"#D4D4D4",
-            "rust_assignment_operators":"#916484",
-            "rust_comparison_operators":"#B5CEA8",
-            "rust_logical_operators":"#5656D6",
-            "rust_brackets":"#ffff00",
-            "numbers":"#CEA8A8",
-            "variables":"#9CDCFE"
-        }
-
-        self.token_pattern = r"//.*|/\*[\s\S]*?\*/|\".*?\"|'.*?'|\b\d+(\.\d+)?\b|\b\w+\b|==|!=|>=|<=|[-+*/%&|^~!]=?|[(){}\[\],.;]"
-        self.special_logic_pattern = re.compile(r'\b(?:==|!=|>=|<=)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-
-
-class CSharpHighlighter():
-    def __init__(self):
-        self.blue_words = ["abstract","as","base","bool","break","byte","case","catch","char","checked",
-                           "class","const","continue","decimal","default","delegate","do","double","else",
-                           "enum","event","explicit","extern","false","finally","fixed","float","for","foreach",
-                           "goto","if","implicit","in","int","interface","internal","is","lock","long",
-                           "namespace","new","null","object","operator","out","override","params","private",
-                           "protected","public","readonly","ref","return","sbyte","sealed","short","sizeof",
-                           "stackalloc","static","string","struct","switch","this","throw","true","try",
-                           "typeof","uint","ulong","unchecked","unsafe","ushort","using","virtual","void",
-                           "volatile","while"]
-
-        self.green_functions = ["Console.WriteLine","Console.ReadLine","Math.Abs","Math.Max","Math.Min","int.Parse","double.Parse","Convert.ToInt32"]
-
-        self.orange_reddish = ["true","false","null"]
-
-        self.purple = ["+", "-", "*", "/", "%","++","--"]
-        self.purple2 = ["=", "+=", "-=", "*=", "/=", "%="]
-        self.greenish = ["==","!=",">","<",">=","<="]
-        self.blueish = ["&","|","^","~","&&","||","!"]
-        self.yellow = ["(",")","{","}","[","]",";",",","."]
-
-        self.dictionary = {
-            "csharp_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "csharp_builtin_functions": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "csharp_constants": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "csharp_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "csharp_assignment_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "csharp_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "csharp_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "csharp_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "strings": r"(\".*?\"|'.*?')",
-            "comments": r"(//.*|/\*[\s\S]*?\*/)",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "csharp_keywords":"#569CD6",
-            "csharp_builtin_functions":"#DCDCAA",
-            "csharp_constants":"#F44747",
-            "csharp_arithmetic_operators":"#D4D4D4",
-            "csharp_assignment_operators":"#916484",
-            "csharp_comparison_operators":"#B5CEA8",
-            "csharp_logical_operators":"#5656D6",
-            "csharp_brackets":"#ffff00",
-            "numbers":"#CEA8A8",
-            "variables":"#9CDCFE"
-        }
-
-        self.token_pattern = r"//.*|/\*[\s\S]*?\*/|\".*?\"|'.*?'|\b\d+(\.\d+)?\b|\b\w+\b|==|!=|>=|<=|[-+*/%&|^~!]=?|[(){}\[\],.;]"
-        self.special_logic_pattern = re.compile(r'\b(?:==|!=|>=|<=)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-
-
-class HTMLHighlighter():
-    def __init__(self):
-        self.blue_words = ["html","head","title","body","div","span","h1","h2","h3","h4","h5","h6",
-                           "p","a","ul","ol","li","table","tr","td","th","thead","tbody","footer",
-                           "header","nav","section","article","main","form","input","button","textarea",
-                           "label","select","option","link","meta","script","style","img"]
-        self.purple = ["+","-","*","/","%"]
-        self.purple2 = ["="]
-        self.greenish = []
-        self.blueish = []
-        self.yellow = ["<",">","/",'"',"="]
-
-        self.dictionary = {
-            "html_tags": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "html_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "strings": r"\".*?\"",
-            "comments": r"(<!--[\s\S]*?-->)"
-        }
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "html_tags": "#569CD6",
-            "html_brackets": "#ffff00"
-        }
-
-        self.token_pattern = r"<!--.*?-->|<\s*/?\w+|\b\w+\b|\".*?\"|=|[<>]|/?>"
-        self.special_logic_pattern = re.compile(r'<!--.*?-->')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
-
-
-class PHPHighlighter():
-    def __init__(self):
-        self.blue_words = ["abstract","and","array","as","break","callable","case","catch","class",
-                           "clone","const","continue","declare","default","die","do","echo","else",
-                           "elseif","empty","enddeclare","endfor","endforeach","endif","endswitch",
-                           "endwhile","eval","exit","extends","final","finally","for","foreach",
-                           "function","global","goto","if","implements","include","include_once",
-                           "instanceof","insteadof","interface","isset","list","namespace","new",
-                           "or","print","private","protected","public","require","require_once",
-                           "return","static","switch","throw","trait","try","unset","use","var",
-                           "while","xor","yield","true","false","null"]
-
-        self.green_functions = ["array_merge","array_push","array_pop","count","in_array","sort",
-                                "ksort","asort","explode","implode","htmlspecialchars","htmlentities",
-                                "strlen","substr","strpos","trim","print_r","var_dump"]
-
-        self.orange_reddish = ["TRUE","FALSE","NULL"]
-
-        self.purple = ["+","-","*","/","%","**","++","--"]
-        self.purple2 = ["=","+=","-=","*=","/=","%=","**="]
-        self.greenish = ["==","===","!=","!==",">","<",">=","<="]
-        self.blueish = ["&","|","^","~","&&","||","!","??"]
-        self.yellow = ["(",")","{","}","[","]",";",",",".","$"]
-
-        self.dictionary = {
-            "php_keywords": rf"\b({'|'.join(re.escape(w) for w in self.blue_words)})\b",
-            "php_builtin_functions": rf"\b({'|'.join(re.escape(w) for w in self.green_functions)})\b",
-            "php_constants": rf"\b({'|'.join(re.escape(w) for w in self.orange_reddish)})\b",
-            "php_arithmetic_operators": rf"({'|'.join(re.escape(op) for op in self.purple)})",
-            "php_assignment_operators": rf"({'|'.join(re.escape(op) for op in self.purple2)})",
-            "php_comparison_operators": rf"({'|'.join(re.escape(op) for op in self.greenish)})",
-            "php_logical_operators": rf"({'|'.join(re.escape(op) for op in self.blueish)})",
-            "php_brackets": rf"({'|'.join(re.escape(op) for op in self.yellow)})",
-            "strings": r"(\".*?\"|'.*?')",
-            "comments": r"(//.*|#.*|/\*[\s\S]*?\*/)",
-            "numbers": r"\b\d+(\.\d+)?([eE][-+]?\d+)?\b"
-        }
-
-        self.variables = r"\$[a-zA-Z_][a-zA-Z0-9_]*\b"
-
-        self.colors = {
-            "strings":"#C77859",
-            "comments":"#6A9955",
-            "php_keywords":"#569CD6",
-            "php_builtin_functions":"#DCDCAA",
-            "php_constants":"#F44747",
-            "php_arithmetic_operators":"#D4D4D4",
-            "php_assignment_operators":"#916484",
-            "php_comparison_operators":"#B5CEA8",
-            "php_logical_operators":"#5656D6",
-            "php_brackets":"#ffff00",
-            "numbers":"#CEA8A8",
-            "variables":"#9CDCFE"
-        }
-
-        self.token_pattern = r"//.*|#.*|/\*[\s\S]*?\*/|\".*?\"|'.*?'|\$?\b\d+(\.\d+)?\b|\b\w+\b|==|===|!=|!==|>=|<=|[-+*/%&|^~!]=?|[(){}\[\],.;]"
-        self.special_logic_pattern = re.compile(r'\b(?:==|===|!=|!==|>=|<=)\b')
-
-    def highlight_token(self, token):
-        for category, pattern in self.dictionary.items():
-            if re.fullmatch(pattern, token):
-                return category
-        return None
+        self.BLUE_WORDS = {"and","class","def","False","global","in","is","lambda",
+                           "None","nonlocal","not","or","True","self"}
+        self.PINK_WORDS  = {"as","assert","async","await","break","case","continue",
+                            "del","elif","else","except","finally","for","from","if",
+                            "import","match","pass","raise","return","try","while",
+                            "with","yield"}
+        self.YELLOW_FUNCTIONS = {"abs","all","any","ascii","bin","bool","bytearray",
+                                 "bytes","chr","complex","dict","divmod","enumerate",
+                                 "filter","float","format","frozenset","hash","hex",
+                                 "id","int","len","list","map","max","min","next",
+                                 "oct","ord","pow","range","repr","reversed","round",
+                                 "set","slice","sorted","str","sum","tuple","type",
+                                 "zip","print","input","dir","help","globals",
+                                 "locals","capitalize","casefold","center","count",
+                                 "encode","endswith","expandtabs","find","format_map",
+                                 "index","isalnum","isalpha","isdecimal","isdigit",
+                                 "isidentifier","islower","isnumeric","isprintable",
+                                 "isspace","istitle","isupper","join","ljust","lower",
+                                 "lstrip","maketrans","partition","replace","rfind",
+                                 "rindex","rjust","rpartition","rsplit","rstrip",
+                                 "split","splitlines","startswith","strip","swapcase",
+                                 "title","translate","upper","zfill","append","extend",
+                                 "insert","remove","pop","clear","sort","reverse",
+                                 "copy","add","difference","difference_update",
+                                 "discard","intersection","intersection_update",
+                                 "isdisjoint","issubset","issuperset",
+                                 "symmetric_difference","symmetric_difference_update",
+                                 "union","update"}
+        self.GREEN_FUNCTIONS = {"callable","classmethod","compile","delattr","eval","exec","getattr",
+                                "hasattr","isinstance","issubclass","memoryview","object","property",
+                                "setattr","staticmethod","super","vars","__import__"}
+        self.ORANGE_REDDISH = {"BaseException","Exception","ArithmeticError","AssertionError",
+                               "AttributeError","BufferError","EOFError","FloatingPointError",
+                               "GeneratorExit","ImportError","ModuleNotFoundError","IndexError",
+                               "KeyError","KeyboardInterrupt","MemoryError","NameError",
+                               "NotImplementedError","OSError","OverflowError","RecursionError",
+                               "ReferenceError","RuntimeError","StopIteration","StopAsyncIteration",
+                               "SyntaxError","IndentationError","TabError","SystemError",
+                               "SystemExit","TypeError","UnboundLocalError","ValueError",
+                               "ZeroDivisionError"}
+        self.PURPLE = {"+","-","*","/","//","%","**","@", "=", "+=", "-=", "*=", "/=", "//=","%=",
+                        "**=", "@=", "&=","|=","^=","<<=","<<",">>="}
+        self.GREENISH = {"==","!=",">","<",">=","<="}
+        self.BLUEISH = {"&","|","^","~","<<",">>"}
+        self.YELLOW = {"(",")","{","}","[","]"}
+        self.SPECIAL = {"if not","is not","is True","is False"}
+
+        self._blue_re = self._make_word_re(self.BLUE_WORDS)
+        self._pink_re = self._make_word_re(self.PINK_WORDS)
+        self._special_re = self._make_word_re(self.SPECIAL)
+        self._yellow_func_re = self._make_word_re(self.YELLOW_FUNCTIONS)
+        self._green_func_re = self._make_word_re(self.GREEN_FUNCTIONS)
+        self._exception_re = self._make_word_re(self.ORANGE_REDDISH)
+        self._ops_re = re.compile('|'.join(sorted(map(re.escape, self.PURPLE | self.GREENISH | self.BLUEISH), key=len, reverse=True)))
+        self._number_re = re.compile(r'\b\d+(\.\d+)?\b')
+        self._dot_call_re = re.compile(r'\b([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)\s*(?=\()')
+        self._dot_attr_re = re.compile(r'([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)')
+        self._import_re = re.compile(r'\bimport\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)')
+        self._from_import_re = re.compile(r'\bfrom\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s+import\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)')
+        self._triple_string_re = re.compile(r"('''.*?'''|\"\"\".*?\"\"\")", re.DOTALL)
+        self._single_string_re = re.compile(r"(\".*?\"|'.*?')")
+
+        self.text_box.bind("<KeyRelease>", self._on_key_release)
+
+    def _make_word_re(self, words):
+        if not words: return re.compile(r'(?!x)x')
+        esc = sorted((re.escape(w) for w in words), key=len, reverse=True)
+        return re.compile(r'\b(?:' + '|'.join(esc) + r')\b')
+
+    def _abs_to_index(self, abs_pos, code):
+        line = code.count('\n', 0, abs_pos) + 1
+        last_n = code.rfind('\n', 0, abs_pos)
+        col = abs_pos - last_n - 1 if last_n != -1 else abs_pos
+        return f"{line}.{col}"
+
+    def _overlaps_any(self, start, end, spans):
+        for a,b in spans:
+            if not (end <= a or start >= b): return True
+        return False
+
+    def _on_key_release(self, event):
+        if self._after_id:
+            self.text_box.after_cancel(self._after_id)
+        self._after_id = self.text_box.after(100, self.update_highlight_and_completions)
+
+    def update_highlight_and_completions(self):
+        code = self.text_box.get("1.0", "end-1c")
+        ids, imports = self.parse_identifiers_and_imports(code)
+        self.identifier_cache = ids
+        self.imports = imports
+        self.highlight_code(code)
+
+    def highlight_code(self, code):
+        self.text_box.tag_remove("all", "1.0", "end")
+        triple_spans = [(m.start(), m.end()) for m in self._triple_string_re.finditer(code)]
+        single_spans = [(m.start(), m.end()) for m in self._single_string_re.finditer(code)]
+        comment_spans = [(m.start(), m.end()) for m in re.finditer(r'#.*', code)]
+        protected_spans = triple_spans + single_spans + comment_spans
+
+        for s,e in triple_spans + single_spans:
+            self.text_box.tag_add(f"string_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+            self.text_box.tag_config(f"string_{s}", foreground=self.colors["string"])
+        for s,e in comment_spans:
+            self.text_box.tag_add(f"comment_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+            self.text_box.tag_config(f"comment_{s}", foreground=self.colors["comment"])
+
+        abs_pos = 0
+        mcall_spans = []
+        lines = code.splitlines(keepends=True)
+        for line in lines:
+            line_start = abs_pos
+            line_end = abs_pos + len(line)
+
+            for m in self._number_re.finditer(line):
+                s = line_start + m.start(); e = line_start + m.end()
+                if self._overlaps_any(s,e,protected_spans): continue
+                self.text_box.tag_add(f"num_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                self.text_box.tag_config(f"num_{s}", foreground=self.colors["number"])
+
+            for regex,color in [(self._blue_re,"blue_keyword"),(self._pink_re,"pink_keyword"),(self._special_re,"special_keyword")]:
+                for m in regex.finditer(line):
+                    s = line_start + m.start(); e = line_start + m.end()
+                    if self._overlaps_any(s,e,protected_spans): continue
+                    self.text_box.tag_add(f"kw_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                    self.text_box.tag_config(f"kw_{s}", foreground=self.colors[color])
+
+            for regex,color,words in [(self._yellow_func_re,"yellow_function",self.identifier_cache.get("functions",set())),
+                                       (self._green_func_re,"green_function",self.GREEN_FUNCTIONS),
+                                       (self._exception_re,"exception",self.ORANGE_REDDISH)]:
+                for m in regex.finditer(line):
+                    s = line_start + m.start(); e = line_start + m.end()
+                    if self._overlaps_any(s,e,protected_spans): continue
+                    self.text_box.tag_add(f"func_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                    self.text_box.tag_config(f"func_{s}", foreground=self.colors[color])
+
+            for m in self._ops_re.finditer(line):
+                s = line_start + m.start(); e = line_start + m.end()
+                if self._overlaps_any(s,e,protected_spans): continue
+                self.text_box.tag_add(f"op_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                self.text_box.tag_config(f"op_{s}", foreground=self.colors["operator"])
+
+            for br in self.YELLOW:
+                for mm in re.finditer(re.escape(br), line):
+                    s = line_start + mm.start(); e = line_start + mm.end()
+                    if self._overlaps_any(s,e,protected_spans): continue
+                    self.text_box.tag_add(f"br_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                    self.text_box.tag_config(f"br_{s}", foreground=self.colors["bracket"])
+
+            for kind, color in [("functions","function"),("classes","class"),("variables","variable")]:
+                for word in self.identifier_cache.get(kind, ()):
+                    for m in re.finditer(rf"\b{re.escape(word)}\b", line):
+                        s = line_start + m.start(); e = line_start + m.end()
+                        if self._overlaps_any(s,e,protected_spans): continue
+                        self.text_box.tag_add(f"{kind}_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                        self.text_box.tag_config(f"{kind}_{s}", foreground=self.colors[color])
+
+            for m in self._dot_call_re.finditer(line):
+                qual = m.group(1); name = m.group(2)
+                s_qual = line_start + m.start(1); e_qual = s_qual + len(qual)
+                s_name = line_start + m.start(2); e_name = s_name + len(name)
+                if self._overlaps_any(s_qual, e_name, protected_spans): continue
+                if qual in self.imports:
+                    self.text_box.tag_add(f"modq_{s_qual}", self._abs_to_index(s_qual, code), self._abs_to_index(e_qual, code))
+                    self.text_box.tag_config(f"modq_{s_qual}", foreground=self.colors["class"])
+                self.text_box.tag_add(f"mcall_{s_name}", self._abs_to_index(s_name, code), self._abs_to_index(e_name, code))
+                self.text_box.tag_config(f"mcall_{s_name}", foreground=self.colors["function"])
+                mcall_spans.append((s_name, e_name))
+
+            for m in self._dot_attr_re.finditer(line):
+                qual,name = m.group(1),m.group(2)
+                s_qual = line_start + m.start(1); e_qual = line_start + m.end(1)
+                s = line_start + m.start(2); e = line_start + m.end(2)
+                if self._overlaps_any(s,e, protected_spans + mcall_spans): continue
+                if qual in self.imports:
+                    self.text_box.tag_add(f"modq2_{s_qual}", self._abs_to_index(s_qual, code), self._abs_to_index(e_qual, code))
+                    self.text_box.tag_config(f"modq2_{s_qual}", foreground=self.colors["class"])
+                self.text_box.tag_add(f"attr_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                self.text_box.tag_config(f"attr_{s}", foreground=self.colors["attribute"])
+
+            for m in self._import_re.finditer(line):
+                names = [n.strip() for n in m.group(1).split(',')]
+                for n in names:
+                    s = line_start + m.start(1) + m.group(1).find(n); e = s + len(n)
+                    if self._overlaps_any(s,e,protected_spans): continue
+                    self.imports.add(n)
+                    self.text_box.tag_add(f"imp_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                    self.text_box.tag_config(f"imp_{s}", foreground=self.colors["module"])
+            for m in self._from_import_re.finditer(line):
+                pkg = m.group(1); items_str = m.group(2)
+                pkg_s = line_start + m.start(1); pkg_e = pkg_s + len(pkg)
+                if not self._overlaps_any(pkg_s,pkg_e,protected_spans):
+                    self.imports.add(pkg.split('.')[0])
+                    self.text_box.tag_add(f"pkg_{pkg_s}", self._abs_to_index(pkg_s, code), self._abs_to_index(pkg_e, code))
+                    self.text_box.tag_config(f"pkg_{pkg_s}", foreground=self.colors["module"])
+                items = [it.strip() for it in items_str.split(',')]
+                for it in items:
+                    it_offset = items_str.find(it)
+                    s = line_start + m.start(2) + it_offset; e = s + len(it)
+                    if self._overlaps_any(s,e,protected_spans): continue
+                    self.imports.add(it)
+                    self.text_box.tag_add(f"imp2_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
+                    self.text_box.tag_config(f"imp2_{s}", foreground=self.colors["module"])
+
+            abs_pos += len(line)
+
+    def parse_identifiers_and_imports(self, code):
+        identifiers = {"functions": set(), "classes": set(), "variables": set()}
+        imports = set()
+        try:
+            tree = ast.parse(code)
+        except Exception:
+            return identifiers, imports
+
+        class Visitor(ast.NodeVisitor):
+            def visit_FunctionDef(self, node):
+                identifiers["functions"].add(node.name)
+                self.generic_visit(node)
+            def visit_ClassDef(self,node):
+                identifiers["classes"].add(node.name)
+                self.generic_visit(node)
+            def visit_Assign(self,node):
+                for t in node.targets:
+                    if isinstance(t, ast.Name):
+                        identifiers["variables"].add(t.id)
+                self.generic_visit(node)
+            def visit_Import(self,node):
+                for n in node.names:
+                    imports.add(n.name)
+            def visit_ImportFrom(self,node):
+                for n in node.names:
+                    imports.add(n.name)
+        Visitor().visit(tree)
+        return identifiers, imports

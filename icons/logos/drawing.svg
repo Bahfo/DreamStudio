@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="700"
+   height="400"
+   viewBox="0 0 185.20833 105.83333"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   sodipodi:docname="drawing.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.93214286"
+     inkscape:cx="343.83142"
+     inkscape:cy="195.78544"
+     inkscape:window-width="1920"
+     inkscape:window-height="991"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient3846">
+      <stop
+         style="stop-color:#00050a;stop-opacity:1;"
+         offset="0"
+         id="stop3842" />
+      <stop
+         style="stop-color:#005ca7;stop-opacity:1;"
+         offset="1"
+         id="stop3844" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3846"
+       id="linearGradient3848"
+       x1="0"
+       y1="105.83333"
+       x2="185.20833"
+       y2="0"
+       gradientUnits="userSpaceOnUse" />
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath6682">
+      <rect
+         style="fill:#005ca7;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         id="rect6684"
+         width="185.21037"
+         height="83.000389"
+         x="-0.008986528"
+         y="22.841349" />
+    </clipPath>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:url(#linearGradient3848);stroke:none;stroke-width:0.1;fill-opacity:1"
+       id="rect3035"
+       width="185.20833"
+       height="105.83333"
+       x="0"
+       y="0" />
+    <g
+       id="g6678"
+       clip-path="url(#clipPath6682)">
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.00170457,29.340918 C 52.783815,23.665402 86.134612,107.01775 139.07551,95.636539 c 22.70123,-4.8803 24.81878,-30.430845 46.12758,-33.612065"
+         id="path5731" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.00170219,32.262068 C 52.783813,26.586552 86.13461,109.93891 139.07551,98.557691 c 22.70123,-4.8803 24.81878,-30.430847 46.12758,-33.612067"
+         id="path5731-6" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.00170219,35.183221 C 52.783812,29.507706 86.134609,112.86004 139.07551,101.47884 161.77674,96.598544 163.89429,71.047998 185.20309,67.866777"
+         id="path5731-6-6" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.0106911,38.10437 C 52.792801,32.428855 86.143598,115.78118 139.0845,104.39999 161.78572,99.519693 163.90328,73.969147 185.21207,70.787926"
+         id="path5731-6-6-1" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M -0.00898653,41.025521 C 52.773124,35.350005 86.123921,118.70235 139.06482,107.32114 161.76605,102.44084 163.8836,76.890297 185.1924,73.709077"
+         id="path6537" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M -0.00898891,43.946669 C 52.773122,38.271153 86.123919,121.6235 139.06482,110.24229 161.76605,105.36199 163.8836,79.811445 185.1924,76.630225"
+         id="path6539" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M -0.00898891,46.867816 C 52.773121,41.192301 86.123918,124.54464 139.06482,113.16344 161.76605,108.28314 163.8836,82.732593 185.1924,79.551372"
+         id="path6541" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="m 0,49.788969 c 52.78211,-5.675515 86.132907,77.676811 139.07381,66.295621 22.70122,-4.8803 24.81878,-30.430844 46.12757,-33.612065"
+         id="path6543" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.00170457,52.710117 C 52.783815,47.034601 86.134612,130.38695 139.07551,119.00574 c 22.70123,-4.8803 24.81878,-30.430847 46.12758,-33.612067"
+         id="path6646" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.00170219,55.631271 C 52.783813,49.955755 86.13461,133.30811 139.07551,121.92689 c 22.70123,-4.8803 24.81878,-30.430843 46.12758,-33.612063"
+         id="path6648" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.00170219,58.552423 C 52.783812,52.876908 86.134609,136.22925 139.07551,124.84805 c 22.70123,-4.8803 24.81878,-30.43085 46.12758,-33.612071"
+         id="path6650" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.0106911,61.473574 C 52.792801,55.798059 86.143598,139.15039 139.0845,127.7692 c 22.70122,-4.88031 24.81878,-30.430849 46.12757,-33.61207"
+         id="path6652" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M -0.00898653,64.394728 C 52.773124,58.719212 86.123921,142.07156 139.06482,130.69035 161.76605,125.81005 163.8836,100.2595 185.1924,97.078284"
+         id="path6654" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M -0.00898891,67.315879 C 52.773122,61.640363 86.123919,144.99271 139.06482,133.6115 161.76605,128.7312 163.8836,103.18065 185.1924,99.99943"
+         id="path6656" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M -0.00898891,70.23703 C 52.773121,64.561515 86.123918,147.91386 139.06482,136.53266 c 22.70123,-4.8803 24.81878,-30.43085 46.12758,-33.61207"
+         id="path6658" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0,73.158185 C 52.78211,67.48267 86.132907,150.835 139.07381,139.45381 c 22.70122,-4.8803 24.81878,-30.43085 46.12757,-33.61207"
+         id="path6660" />
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:14.1111px;font-family:Consolas;-inkscape-font-specification:'Consolas Bold';fill:#005ca7;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+       x="86.658676"
+       y="22.841349"
+       id="text6740"><tspan
+         sodipodi:role="line"
+         id="tspan6738"
+         style="fill:#ffffff;fill-opacity:1;stroke-width:0.2"
+         x="86.658676"
+         y="22.841349">DREAMSTUDIO</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:4.44162px;font-family:Consolas;-inkscape-font-specification:'Consolas Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+       x="6.544179"
+       y="99.567642"
+       id="text6796"><tspan
+         sodipodi:role="line"
+         id="tspan6794"
+         style="font-size:4.44162px;stroke-width:0.2"
+         x="6.544179"
+         y="99.567642">EX-TECHNOLOGIES</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:7.05556px;font-family:Consolas;-inkscape-font-specification:'Consolas Bold';fill:#005ca7;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+       x="121.49883"
+       y="32.655087"
+       id="text6800"><tspan
+         sodipodi:role="line"
+         id="tspan6798"
+         style="fill:#ffffff;fill-opacity:1;stroke-width:0.2"
+         x="121.49883"
+         y="32.655087">VERSION 1.0.0</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:4.44162px;font-family:Consolas;-inkscape-font-specification:'Consolas Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+       x="6.544179"
+       y="93.512131"
+       id="text6854"><tspan
+         sodipodi:role="line"
+         id="tspan6852"
+         style="font-size:4.44162px;stroke-width:0.2"
+         x="6.544179"
+         y="93.512131">2026</tspan></text>
+    <g
+       id="g6922"
+       transform="translate(-19.769753,-9.8346994)">
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:16.2609px;font-family:Consolas;-inkscape-font-specification:'Consolas Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         x="24.566967"
+         y="26.509562"
+         id="text6912"><tspan
+           sodipodi:role="line"
+           id="tspan6910"
+           style="stroke-width:0.2"
+           x="24.566967"
+           y="26.509562">D</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:4.9389px;font-family:Consolas;-inkscape-font-specification:'Consolas Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1"
+         x="27.820066"
+         y="22.895597"
+         id="text6916"><tspan
+           sodipodi:role="line"
+           id="tspan6914"
+           style="stroke-width:0.2"
+           x="27.820066"
+           y="22.895597">S</tspan></text>
+    </g>
+  </g>
+</svg>

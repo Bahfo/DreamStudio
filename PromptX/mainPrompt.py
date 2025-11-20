@@ -16,7 +16,6 @@ Welcome to PromptX Shell!
 Type 'help' to see available commands.
 """
 
-import re
 import os
 import cmd
 import glob
@@ -68,8 +67,50 @@ class mainAppWindow:
         self.bottomFrame.pack(side="bottom", fill='x')
 
         self.cmd_shell = CommandLine(stdout=GUIStdout(self.terminalBox))
-        self.multiline_buffer = ""
-        self.readonly_index = "1.0"
+        self.commandBox.bind("<Return>", self.onEnter)
+
+    def execute_command(self, line: str):
+        import time
+        if not line.strip():
+            return 
+        
+        if line.strip() == "clear":
+            self.terminalBox.configure(state=ctk.NORMAL)
+            self.terminalBox.delete("1.0","end")
+            return
+        
+        try:
+            if line.startswith("quit"):
+                self.print_output("\nExiting ...\n")
+                time.sleep(3)
+                self.mainWindow.destroy()
+                return
+
+            result = self.cmd_shell.onecmd(line)
+            
+            if result is True:
+                self.print_output("\nStopping Shell\n")
+                time.sleep(3)
+                self.mainWindow.destroy()
+            elif isinstance(result, str):
+                result:str
+                if result.lower().startswith("error"):
+                    self.print_output("\n" + result + "\n")
+                else:
+                    self.print_output("\n" + result + "\n")
+
+        except Exception as e:
+            self.print_output("\nError: " + str(e) + "\n")
+
+    def onEnter(self, event=None):
+        user_input = self.commandBox.get().strip()
+        self.execute_command(user_input)
+
+    def print_output(self, message):
+        self.terminalBox.configure(state=ctk.NORMAL)
+        self.terminalBox.insert(ctk.END, message)
+        self.terminalBox.see(ctk.END)
+        self.terminalBox.configure(state=ctk.DISABLED)
 
     def show(self):
         self.mainWindow.mainloop()
@@ -81,8 +122,10 @@ class GUIStdout:
 
     def write(self, text):
         if text.strip():
-            self.textbox.insert("end", "\n" + text, "output")
+            self.textbox.configure(state=ctk.NORMAL)
+            self.textbox.insert("end", text + "\n")
             self.textbox.see("end")
+            self.textbox.configure(state=ctk.DISABLED)
 
     def flush(self):
         pass
@@ -133,10 +176,7 @@ class CommandLine(cmd.Cmd):
             return self._history[self._history_index]
         self._history_index = len(self._history)
         return ""
-    
-    # -------------------- Logo --------------------
-    def do_logo(self, arg=None):
-        return f"\n{logo_ascii}\n"
+
 
     # -------------------- Help --------------------
     def do_help(self, arg):
@@ -146,7 +186,7 @@ Provides help for functions.
 Type in the function name or topic after typing 'help'.
 Example: help changedir.
         """
-        return super().do_help(arg)
+        return logo_ascii
 
     # -------------------- Quit --------------------
     def do_quit(self, arg=None):

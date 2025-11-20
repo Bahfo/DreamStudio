@@ -1,53 +1,37 @@
 import customtkinter as ctk
 from PIL import Image
-import time
+import main
 
 def loading_screen():
     splash = ctk.CTk()
     splash.resizable(False, False)
-    splash.anchor('center')
     splash.overrideredirect(True)
     splash.attributes("-topmost", True)
-    # transparent_color = "#010101"
-    # splash.config(bg=transparent_color)
-    # splash.attributes("-transparentcolor", transparent_color)
-
-    window_width = 600
-    window_height = 450
-
-    splash.update_idletasks()
+    window_width = 700
+    window_height = 400
 
     screen_width = splash.winfo_screenwidth()
     screen_height = splash.winfo_screenheight()
     x = (screen_width // 2) - (window_width // 2)
     y = (screen_height // 2) - (window_height // 2)
-
     splash.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     logo_image = ctk.CTkImage(
-        light_image=Image.open(r"icons\types\logo.png"),
-        dark_image=Image.open(r"icons\types\logo.png"),
-        size=(220, 220))
+        light_image=Image.open(r"icons\logos\logo.png"),
+        dark_image=Image.open(r"icons\logos\logo.png"),
+        size=(700, 400)
+    )
 
     image_label = ctk.CTkLabel(splash, image=logo_image, text="")
-    image_label.place(x=30,y=20)
+    image_label.place(x=0, y=0)
 
-    progress_bar = ctk.CTkProgressBar(splash, width=270)
-    progress_bar.place()
-    progress_bar.set(0)
+    def start_main_app():
+        splash.destroy()
+        mainApp = main.App()
+        mainApp.run()
 
-    loading_label = ctk.CTkLabel(splash, text="Loading ...", font=("Segoe UI", 12))
-    loading_label.pack(pady=10)
+    splash.after(5000, start_main_app)
 
-    for i in range(101): 
-        progress_bar.set(i / 100) 
-        if i == 25: loading_label.configure(text="Loading Modules ...") 
-        elif i == 50: loading_label.configure(text="Setting up Interface ...") 
-        elif i == 75: loading_label.configure(text="Initializing Components ...") 
-        elif i == 90: loading_label.configure(text="Finalizing ...") 
-        splash.update() 
-        time.sleep(0.05)
-
-    splash.destroy()
+    splash.mainloop()
 
 loading_screen()

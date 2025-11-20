@@ -1243,7 +1243,6 @@ class PromptXShell(ctk.CTkToplevel):
         if not line.strip():
             return
 
-        # Clear command
         if line.strip() == "clear":
             self.textbox.configure(state=ctk.NORMAL)
             self.textbox.delete("1.0", "end")
@@ -1258,19 +1257,6 @@ class PromptXShell(ctk.CTkToplevel):
 
             result = self.cmd_shell.onecmd(line)
 
-            if result is True:
-                self.print_output("\nShell stopped.\n", "output")
-                self.destroy()
-            elif isinstance(result, str):
-                if result.lower().startswith("error"):
-                    self.print_output("\n" + result + "\n", "error")
-                else:
-                    self.print_output("\n" + result + "\n", "output")
-
-        except Exception as e:
-            self.print_output("\nError: " + str(e) + "\n", "error")
-
-            # ----- OUTPUT HANDLING -----
             if result is True:
                 self.print_output("\nShell stopped.\n", "output")
                 self.destroy()

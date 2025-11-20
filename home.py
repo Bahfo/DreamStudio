@@ -1,10 +1,12 @@
-import widgets.universal_widgets as uniwidgets
+"""
+The home menu application functionality layer
+\nHandles home menu services, and calls second layer support if required
+\nSecond Layer Support (SLS): handles syntax highlighting, and intellisense for Python
+"""
+
 from tkinter import messagebox
 import customtkinter as ctk
-from PIL import Image
 import textwrap
-import json
-import main
 
 def new_tab(app):
     """
