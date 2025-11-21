@@ -31,7 +31,6 @@ import customtkinter as ctk
 import tkinter as tk
 import re
 import os
-import ast
 import home
 import ctypes
 import pyperclip

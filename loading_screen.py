@@ -12,15 +12,14 @@ def loading_screen():
 
     screen_width = splash.winfo_screenwidth()
     screen_height = splash.winfo_screenheight()
-    x = (screen_width // 2) - (window_width // 2)
-    y = (screen_height // 2) - (window_height // 2)
+    x = (screen_width // 2) - (window_width // 2) + 90
+    y = (screen_height // 2) - (window_height // 2) + 50
     splash.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     logo_image = ctk.CTkImage(
         light_image=Image.open(r"icons\logos\logo.png"),
         dark_image=Image.open(r"icons\logos\logo.png"),
-        size=(700, 400)
-    )
+        size=(700, 400))
 
     image_label = ctk.CTkLabel(splash, image=logo_image, text="")
     image_label.place(x=0, y=0)
@@ -30,7 +29,7 @@ def loading_screen():
         mainApp = main.App()
         mainApp.run()
 
-    splash.after(5000, start_main_app)
+    splash.after(7000, start_main_app)
 
     splash.mainloop()
 
