@@ -1,5 +1,8 @@
+import os
+import sys
 import customtkinter as ctk
 from PIL import Image, ImageTk, ImageSequence
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import main
 
 def agreement_registeration():
@@ -250,7 +253,8 @@ def agreement_registeration():
 
     def loading_main_program():
         window.destroy()
-        main.loading_screen()
+        app = main.App()
+        app.run()
 
     button_next_2 = ctk.CTkButton(
         frame_4,
@@ -261,8 +265,7 @@ def agreement_registeration():
         width=45,
         height=25,
         corner_radius=5,
-        command=loading_main_program
-    )
+        command=loading_main_program)
     button_next_2.pack(padx=10, pady=(0,50), side='bottom')
 
 

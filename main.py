@@ -19,7 +19,7 @@ Softdream is free to download and use, but the user is restricted to the followi
 
 For more info, download the full documentation.
 """
-
+import widgets.menus.home as home
 import widgets.universal_widgets as uniwidgets
 from intellisense.highlighter import PythonHighlighter as pylight
 from intellisense.dreamintellisense import PythonIntellisense as pysense
@@ -31,7 +31,7 @@ import customtkinter as ctk
 import tkinter as tk
 import re
 import os
-import home
+import json
 import ctypes
 import pyperclip
 import subprocess
@@ -48,11 +48,12 @@ class App:
         self.window.title("Dream Studio")
         self.window.iconbitmap(r"")
         self.window.geometry("1000x700")
-        self.window.configure(bg="#1e1e1e")
         self.window.resizable(True, True)
 
+        self.CONFIG_FILE = r"themes\config\config.json"
         ctk.set_default_color_theme(r"themes\metal.json")
-        ctk.set_appearance_mode("dark")
+        self.mode = self.load_theme()
+        ctk.set_appearance_mode(self.mode)
 
         ######################################################
         # HIGH DPI AWARENESS ENABLED
@@ -67,7 +68,6 @@ class App:
 #################################################################################################
 
         self.version = "0.0.1 BETA"
-
         self.workspace = {"path": None}
 
         self.REFRESH_INTERVAL_MINUTES = 2
@@ -1685,6 +1685,18 @@ class App:
     def onOpenSyntax(self, event=None):
         syntaxTab = home.ConfigureSyntax(self, master=self.window, text_editor=self.text_editor)
         syntaxTab.run()
+
+    def load_theme(self):
+        if os.path.exists(self.CONFIG_FILE):
+            try:
+                with open(self.CONFIG_FILE, "r") as f:
+                    config = json.load(f)
+                    theme = config.get("theme")
+                    if theme in ["Light", "Dark"]:
+                        return theme
+            except json.JSONDecodeError:
+                pass
+        return "Dark"
 
     def run(self):
         self.window.mainloop()
