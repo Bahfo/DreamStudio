@@ -2,325 +2,170 @@ import tkinter as tk
 from PIL import Image
 import customtkinter as ctk
 from typing import List,Dict
-from tkinter import messagebox
-import tkinter.font as tkFont
+from typing import List, Dict, Any
+from tkinter import messagebox as mb
 
 """
 EX TECHNOLOGIES SPECIAL WIDGETS IMPLEMENTATION
 COPYRIGHT 2026
 """
+CONFIG_FILE = r"DreamStudioIDE\themes\config\config.json"
 
 ########################################################################################
 # WIDGETS
 ########################################################################################
-
-class CTkTabSwitcher(ctk.CTkFrame):
-    """
-    A tab switcher widget for managing multiple tabs with a shared textbox.
-    Allows adding, closing, and switching between tabs.
-    """
-    def __init__(self, master, tab_names, textbox, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-
-        self.textbox = textbox
-        self.placeholder = "Build code with EtherAI or start typing to dismiss"
-        self.placeholder_active = False
-        self.mode = self.master._get_appearance_mode()
-
-        self.tabs_frame = ctk.CTkFrame(self, height=29, 
-                                       fg_color = "#C4C4C4" if self.mode == 'light' else "#303030")
-        self.tabs_frame.pack(fill="x")
-        self.tabs_frame.pack_propagate(False)
-
-        self.tab_order = tab_names.copy()
-        self.tab_labels = {}
-        self.tab_contents = {name: "" for name in tab_names}
-        self.tab_saved = {name: True for name in tab_names}
-        self.active_tab = None
-        self.tab_count = len(tab_names)
-
-        for name in self.tab_order:
-            self._add_tab_header(name)
-
-        self.add_tab_button = ctk.CTkButton(
-            self.tabs_frame, text="+", width=30, height=30, corner_radius=0,
-            command=self._add_new_tab,
-            fg_color="#303030" if self.mode == 'dark' else "#C4C4C4")
-        self.add_tab_button.pack(side="right", padx=(5,0), pady=(0,2))
-
-        if self.tab_order:
-            self._set_active_tab(self.tab_order[0])
-
-        self.textbox.bind("<FocusIn>", self._on_focus_in)
-        self.textbox.bind("<FocusOut>", self._on_focus_out)
-        self.textbox.bind("<Key>", self._on_key_pressed)
-
-        self._show_placeholder()
-
-    def _add_tab_header(self, name):
-        tab_frame = ctk.CTkFrame(self.tabs_frame, fg_color="transparent", corner_radius=0)
-        tab_frame.pack(side="left", padx=(2,0), pady=(0,2))
-
-        label = ctk.CTkLabel(tab_frame, text=name, corner_radius=0, fg_color="#404040", width=60, height=30)
-        label.pack(side="left", fill="y")
-        label.bind("<Button-1>", lambda e, n=name: self._set_active_tab(n))
-
-        self.btn = ctk.CTkButton(tab_frame, text="x", width=25, height=30, corner_radius=0,
-                            fg_color="#303030" if self.mode == 'dark' else "#C4C4C4",
-                            text_color="#303030" if self.mode == 'light' else "#C4C4C4",
-                            border_width=0,
-                            command=lambda n=name: self._close_tab(n))
-        self.btn.pack(side="left", fill="y")
-
-        self.tab_labels[name] = (label, self.btn, tab_frame)
-        self.tab_saved[name] = True
-
-    def _set_active_tab(self, name):
-        if name == self.active_tab:
-            return
-
-        if self.active_tab:
-            content = "" if self.placeholder_active else self.textbox.get("1.0", "end-1c")
-            self.tab_contents[self.active_tab] = content
-            self.tab_saved[self.active_tab] = False
-
-        if self.active_tab and self.active_tab in self.tab_labels:
-            label, btn, _ = self.tab_labels[self.active_tab]
-            label.configure(fg_color="#303030" if self.mode == 'dark' else "#C4C4C4",font=("Segoe UI",14))
-            btn.configure(fg_color="#303030" if self.mode == 'dark' else "#C4C4C4")
-
-        if name in self.tab_labels:
-            label, btn, _ = self.tab_labels[name]
-            label.configure(fg_color="#1A1A1A" if self.mode == 'dark' else "#A3A3A3")
-            btn.configure(fg_color="#1A1A1A" if self.mode == 'dark' else "#A3A3A3")
-            label.configure(font=("Segoe UI Italic",14))
-
-        self.active_tab = name
-
-        self.textbox.delete("1.0", "end")
-        content = self.tab_contents.get(name, "")
-        if content.strip():
-            self.textbox.insert("1.0", content)
-            self.placeholder_active = False
-        else:
-            self._show_placeholder()
-
-        self.tab_saved[name] = True
-
-    def _close_tab(self, name):
-        if len(self.tab_order) == 1:
-            return
-
-        if not self.tab_saved.get(name, True):
-            result = messagebox.askyesno("Unsaved Content", f"Tab '{name}' has unsaved content. Close anyway?")
-            if not result:
-                return
-
-        if name in self.tab_labels:
-            _, _, tab_frame = self.tab_labels[name]
-            tab_frame.destroy()
-            del self.tab_labels[name]
-
-        for d in [self.tab_order, self.tab_contents, self.tab_saved]:
-            if name in d:
-                d.pop(name, None)
-
-        if self.active_tab == name and self.tab_order:
-            self._set_active_tab(self.tab_order[0])
-
-    def _add_new_tab(self):
-        if len(self.tab_order) >= 7:
-            messagebox.showwarning("Tab Limit Reached", "Cannot open more than 7 tabs.")
-            return
-
-        self.tab_count += 1
-        name = f"Tab {self.tab_count}"
-        self.tab_order.append(name)
-        self.tab_contents[name] = ""
-        self._add_tab_header(name)
-        self._set_active_tab(name)
-
-    def open_file_tab(self, name, content=""):
-        if name in self.tab_order:
-            self._set_active_tab(name)
-            return
-
-        if len(self.tab_order) >= 7:
-            messagebox.showwarning("Tab Limit Reached", "Cannot open more than 7 tabs.")
-            return
-
-        self.tab_order.append(name)
-        self.tab_contents[name] = content
-        self._add_tab_header(name)
-        self._set_active_tab(name)
-
-    def _show_placeholder(self):
-        if not self.textbox.get("1.0", "end-1c").strip():
-            real_text = self.textbox._textbox
-            italic_font = tkFont.Font(family="Consolas", size=14, slant="italic")
-            real_text.tag_config("italic", font=italic_font)
-            self.textbox.configure(state="normal")
-            real_text.delete("1.0", "end")
-            real_text.insert("1.0", self.placeholder, "italic")
-            real_text.tag_add("placeholder", "1.0", "end")
-            real_text.tag_config("placeholder", foreground="gray")
-            self.placeholder_active = True
-
-    def _hide_placeholder(self):
-        if self.placeholder_active:
-            self.textbox.delete("1.0", "end")
-            self.textbox.tag_delete("placeholder")
-            self.placeholder_active = False
-
-    def _on_focus_in(self, event):
-        if self.placeholder_active:
-            self._hide_placeholder()
-
-    def _on_focus_out(self, event):
-        if not self.textbox.get("1.0", "end-1c").strip():
-            self._show_placeholder()
-
-    def _on_key_pressed(self, event):
-        if self.placeholder_active:
-            self._hide_placeholder()
-
-
 class LayoutsTab(ctk.CTkFrame):
-    """
-    Optimal for managing multiple text layouts within a shared textbox.
-    Allows adding, closing, renaming, and switching between layouts.
-    More optimized than its ansistor (CTkTabSwitcher).
-    """
-    def __init__(self, parent, textbox: ctk.CTkTextbox, max_layouts: int = 10,
+    def __init__(self, parent, textbox: ctk.CTkTextbox, max_layouts: int = 16, 
                  initial_layouts: int = 1, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-
         self.textbox = textbox
         self.max_layouts = max_layouts
-        self.layouts: List[Dict[str,str]] = []
+        self.mode = self._get_appearance_mode()
+
+        self.layouts: List[Dict[str, Any]] = []
+        self.tab_widgets: List[Dict[str, Any]] = []
         self.active_index: int = 0
-        self.tab_widgets: List[Dict[str, ctk.CTkWidget]] = []
-        self._button_width = 60
-        self._visible_start = 0
 
-        self.tab_frame = ctk.CTkFrame(self, height=30, corner_radius=0)
-        self.tab_frame.pack(side="top", fill="x")
-        self.tab_frame.pack_propagate(False)
+        # Top frame
+        self.top_frame = ctk.CTkFrame(self, corner_radius=0, height=40, 
+                                      fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+        self.top_frame.pack(side="top", fill="x")
+        self.top_frame.pack_propagate(False)
 
-        self._tabs_container = ctk.CTkFrame(self.tab_frame, corner_radius=0)
-        self._tabs_container.pack(side="left", fill="x", expand=True)
+        # Frame that holds tabs
+        self.tabs_container = ctk.CTkFrame(self.top_frame, corner_radius=0,
+                                           fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+        self.tabs_container.pack(side="left", fill="x", expand=True)
 
-        self._right_buttons = ctk.CTkFrame(self.tab_frame, corner_radius=0)
-        self._right_buttons.pack(side="right")
-
-        self.add_button = ctk.CTkButton(self._right_buttons, text="+", width=30,
+        # Add button on the right
+        self.status_frame = ctk.CTkFrame(self.top_frame, corner_radius=0,
+                                         fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+        self.status_frame.pack(side="right")
+        self.add_button = ctk.CTkButton(self.status_frame, text="+", width=30,border_color="#5E5E5E",
+                                        border_width=1,text_color="#ADADAD" if self.mode == "Dark" else "#292929",
+                                        fg_color="#292929" if self.mode == 'Dark' else "#ADADAD",
                                         corner_radius=0, command=self.add_layout)
-        self.add_button.pack(side="left", padx=(2,2))
+        self.add_button.pack(side="left", padx=2)
 
+        # Initialize tabs
         for _ in range(initial_layouts):
-            self._create_layout_internal()
-        self._update_tab_visibility()
+            self._create_tab()
+        self._reconfigure_tab_indices()
         self.switch_layout(0)
 
-        self.bind("<Configure>", lambda e: self.after_idle(self._update_tab_visibility))
+    # ---------------- TAB MANAGEMENT ----------------
+    def _create_tab(self):
+        idx = len(self.layouts) + 1
+        title = f"New Tab {idx}"
+        self.layouts.append({"title": title, "text": "", "saved": True})
+
+        tab_frame = ctk.CTkFrame(self.tabs_container, corner_radius=0,border_color="#5E5E5E",
+                                 border_width=1,width=120,height=30,
+                                 fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+        tab_frame.pack(side="left", padx=(5,2), pady=0)
+        tab_frame.pack_propagate(False)
+
+        title_btn = ctk.CTkButton(tab_frame, text=title, corner_radius=0,width=90,
+                                  fg_color="#292929" if self.mode == 'Dark' else "#ADADAD", 
+                                  text_color="#ADADAD" if self.mode == "Dark" else "#292929",
+                                  font=("Segoe UI", 12, "normal"), height=20)
+        title_btn.pack(side="left",padx=(2,0))
+
+        close_btn = ctk.CTkButton(tab_frame, text="×", width=24, height=20,
+                                  fg_color="#292929" if self.mode == 'Dark' else "#ADADAD",
+                                  text_color="#ADADAD" if self.mode == "Dark" else "#292929",
+                                  font=("Segoe UI", 12, "bold"))
+        close_btn.pack(side="right",padx=(0,2))
+
+        self.tab_widgets.append({"frame": tab_frame, "title_btn": title_btn,
+                                 "close_btn": close_btn})
 
     def add_layout(self):
         if len(self.layouts) >= self.max_layouts:
+            mb.showwarning("Maximum Tabs", "Cannot add more tabs.")
             self.add_button.configure(state="disabled")
             return
-        self._create_layout_internal()
-        self._update_tab_visibility()
-        self.switch_layout(len(self.layouts)-1)
+        self._create_tab()
+        self._reconfigure_tab_indices()
+        self.switch_layout(len(self.layouts) - 1)
+        self.add_button.configure(state="normal")
 
-    def get_all_layouts(self) -> List[Dict[str,str]]:
-        return [{"title": l["title"], "text": l["text"]} for l in self.layouts]
+    def _reconfigure_tab_indices(self):
+        for i, tab in enumerate(self.tab_widgets):
+            tab["title_btn"].configure(command=lambda idx=i: self.switch_layout(idx))
+            tab["close_btn"].configure(command=lambda idx=i: self._close_layout(idx))
+            tab["title_btn"].bind("<Button-3>", lambda e, idx=i: self._rename_layout(idx))
 
-    def _create_layout_internal(self):
-        idx = len(self.layouts) + 1
-        title = f"Untitled {idx}"
-        self.layouts.append({"title": title, "text": ""})
-
-        tab_frame = ctk.CTkFrame(self._tabs_container, corner_radius=0)
-        tab_frame.pack(side="left", padx=2, pady=2)
-
-        layout_btn = ctk.CTkButton(tab_frame, text=title, corner_radius=0,font=("Segoe UI",12),
-                                   hover=False, command=lambda idx=idx-1: self.switch_layout(idx))
-        layout_btn.pack(side="left", padx=(2,0))
-
-        close_btn = ctk.CTkButton(tab_frame, text="×", width=24, height=24, font=("Segoe UI",15),
-                                  corner_radius=0, hover=False,
-                                  command=lambda idx=idx-1: self._close_layout(idx))
-        close_btn.pack(side="right", padx=(2,2))
-
-        layout_btn.bind("<Button-3>", lambda e, idx=idx-1: self._rename_layout(idx))
-
-        self.tab_widgets.append({"frame": tab_frame, "title_btn": layout_btn, "close_btn": close_btn})
-
+    # ---------------- TAB CONTENT ----------------
     def _save_current_text(self):
-        if self.layouts:
-            self.layouts[self.active_index]["text"] = self.textbox.get("1.0","end-1c")
+        if not self.layouts:
+            return
+        current_layout = self.layouts[self.active_index]
+        text = self.textbox.get("1.0", "end-1c")
+        current_layout["saved"] = (text == current_layout["text"])
+        current_layout["text"] = text
 
-    def switch_layout(self, index:int):
+        base_title = current_layout["title"].rstrip(" *")
+        display_title = f"{base_title} *" if not current_layout["saved"] else base_title
+        self.tab_widgets[self.active_index]["title_btn"].configure(text=display_title)
+
+    def switch_layout(self, index: int):
         if index < 0 or index >= len(self.layouts):
             return
         self._save_current_text()
         self.active_index = index
-        self.textbox.delete("1.0","end")
+        self.textbox.delete("1.0", "end")
         self.textbox.insert("1.0", self.layouts[index]["text"])
         self._highlight_active_tab()
 
     def _highlight_active_tab(self):
         for i, tab in enumerate(self.tab_widgets):
             if i == self.active_index:
-                tab["title_btn"].configure(fg_color="#292929")
+                tab["title_btn"].configure(font=("Segoe UI Italic", 12))
             else:
-                tab["title_btn"].configure(fg_color=tab["frame"].cget("fg_color"))
+                tab["title_btn"].configure(font=("Segoe UI", 12, "normal"))
 
-    def _close_layout(self, index:int):
+    # ---------------- CLOSE / RENAME ----------------
+    def _close_layout(self, index: int):
         if len(self.layouts) <= 1:
+            mb.showwarning("Warning", "Cannot close the last tab.")
             return
         self._save_current_text()
+        layout = self.layouts[index]
+        if not layout["saved"]:
+            confirm = mb.askyesno("Unsaved Changes", 
+                                  f"Layout '{layout['title']}' has unsaved changes. Close anyway?")
+            if not confirm:
+                return
         self.layouts.pop(index)
         tab_widget = self.tab_widgets.pop(index)
         tab_widget["frame"].destroy()
-
         if self.active_index >= len(self.layouts):
             self.active_index = len(self.layouts)-1
-        elif index < self.active_index:
-            self.active_index -=1
-
+        self._reconfigure_tab_indices()
+        self.add_button.configure(state="normal")
         self.switch_layout(self.active_index)
-        if len(self.layouts) < self.max_layouts:
-            self.add_button.configure(state="normal")
 
-    def _rename_layout(self, index:int):
+    def _rename_layout(self, index: int):
         popup = ctk.CTkToplevel(self)
-        popup.title("Rename layout")
+        popup.title("Rename Layout")
         popup.geometry("300x120")
         popup.grab_set()
-
         lbl = ctk.CTkLabel(popup, text="New title:")
-        lbl.pack(pady=(10,4))
+        lbl.pack(pady=(10, 4))
         entry = ctk.CTkEntry(popup)
         entry.insert(0, self.layouts[index]["title"])
         entry.pack(padx=10)
+
         def apply_and_close():
-            new = entry.get().strip()
-            if new:
-                self.layouts[index]["title"] = new
-                self.tab_widgets[index]["title_btn"].configure(text=new)
+            new_title = entry.get().strip()
+            if new_title:
+                self.layouts[index]["title"] = new_title
+                self._save_current_text()
             popup.destroy()
+
         btn = ctk.CTkButton(popup, text="Apply", command=apply_and_close)
         btn.pack(pady=8)
-
-    def _update_tab_visibility(self):
-        container_width = max(self._tabs_container.winfo_width(), 200)
-        visible_count = max(1, container_width // self._button_width)
-        for i, tab in enumerate(self.tab_widgets):
-            if i < self._visible_start or i >= self._visible_start + visible_count:
-                tab["frame"].pack_forget()
-            else:
-                tab["frame"].pack(side="left", padx=2, pady=2)
 
 
 class HorizontalButton(ctk.CTkFrame):

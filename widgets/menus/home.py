@@ -8,22 +8,6 @@ from tkinter import messagebox
 import customtkinter as ctk
 import textwrap
 
-def new_tab(app):
-    """
-    Function to create a new tab or reset text editor.
-    Receives the main App instance.
-    """
-    if not hasattr(app, "text_editor"):
-        messagebox.showerror("Error", "text_editor not initialized yet!")
-        return
-
-    # Add a new tab using the app's switcher instance
-    app.switcher._add_new_tab()
-
-    # Update status bar
-    if hasattr(app, "status_button") and app.status_button:
-        app.status_button.configure(text="New tab created")
-
 
 class AddMacrosTab(ctk.CTkToplevel):
     def __init__(self, main_window, master, text_editor, switcher, status_button=None, *args, **kwargs):

@@ -122,6 +122,7 @@ class App:
         self.settings_photo = ctk.CTkImage(light_image=Image.open(r"icons\system\settings.png"), size=(24, 24))
         self.save_photo     = ctk.CTkImage(light_image=Image.open(r"icons\system\save_file.png"), size=(24,24))
         self.user_photo     = ctk.CTkImage(light_image=Image.open(r"icons\system\user.png"), size=(24,24))
+        self.sleeping       = ctk.CTkImage(light_image=Image.open(r"icons\types\sleeping.ico"),size=(80,80))
 
         self.downArrow = ctk.CTkImage(dark_image=Image.open(r"icons\system\down_arrow.png"), size=(8,8))
         self.upArrow = ctk.CTkImage(dark_image=Image.open(r"icons\system\up_arrow.png"), size=(8,8))
@@ -232,8 +233,7 @@ class App:
             text=" New Tab ",
             font=("Segoe UI", 12),
             fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-            command=lambda: home.new_tab(self))
+            hover_color="#3a3a3a")
         self.newFile.place(x=5,y=5)
 
         self.newMacro = uniwidgets.VerticalButton(
@@ -242,8 +242,7 @@ class App:
             text=" New Code",
             font=("Segoe UI", 12),
             fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-            command= self.onOpenMacros)
+            hover_color="#3a3a3a")
         self.newMacro.place(x=75,y=5)
 
         self.openCode = uniwidgets.VerticalButton(
@@ -1193,19 +1192,28 @@ class App:
         #################################################################################################
         # MAIN EDITOR AREA
         #################################################################################################
-
-        # Division frame between the left sidebar frame and the texteditor and its numbering sytem
-        self.divider = ctk.CTkFrame(self.window, fg_color="gray40", width=3, cursor="sb_h_double_arrow",
-                            corner_radius=0)
+        # Divider frame between left sidebar and editor
+        self.divider = ctk.CTkFrame(
+            self.window,
+            fg_color="gray40",
+            width=3,
+            cursor="sb_h_double_arrow",
+            corner_radius=0)
         self.divider.pack(side="left", fill="y")
 
-        # Editor Frame
-        self.editor_frame = CTkFrameVeryDark(self.window)
-        self.editor_frame.pack(side="right", fill="both", expand=True)
+        # Container frame for tabs + editor
+        self.editor_container = ctk.CTkFrame(self.window)
+        self.editor_container.pack(side="right", fill="both", expand=True)
 
+        # Editor Frame inside container
+        self.editor_frame = CTkFrameVeryDark(self.editor_container)
+        self.editor_frame.pack(side="top", fill="both", expand=True)
+
+        # Fonts
         self.editor_font = ctk.CTkFont(family=self.code_font_var.get(), size=self.font_size_var.get())
         self.line_number_font = ctk.CTkFont(family=self.code_font_var.get(), size=self.font_size_var.get() + 2)
 
+        # Background colors
         if self.mode == "Light": 
             self.bg_color_canvas = "#C3C3C3"
             self.number_col = "#232323"
@@ -1213,13 +1221,15 @@ class App:
             self.bg_color_canvas = "#232323"
             self.number_col = "#C3C3C3"
 
+        # Line number canvas inside editor_frame
         self.line_number_canvas = ctk.CTkCanvas(
             self.editor_frame,
             width=60,
-            bg = self.bg_color_canvas,
+            bg=self.bg_color_canvas,
             highlightthickness=1,
             highlightbackground="#5e5e5e")
 
+        # Text editor inside editor_frame
         self.text_editor = ctk.CTkTextbox(
             self.editor_frame,
             border_width=0,
@@ -1232,8 +1242,12 @@ class App:
         self.line_number_canvas.pack(side="left", fill="y")
         self.text_editor.pack(fill="both", expand=True)
 
-        self.switcher = uniwidgets.CTkTabSwitcher(self.editor_frame, ["Tab 1"], self.text_editor)
-        self.switcher.pack(fill="x",side='top')
+        tabs_widget = uniwidgets.LayoutsTab(
+            self.editor_container,
+            textbox=self.text_editor,
+            max_layouts=6,
+            initial_layouts=2)
+        tabs_widget.pack(side="top", fill="x")
 
         self.text_editor.bind("<MouseWheel>", self.on_mouse_wheel)
         self.line_number_canvas.bind("<MouseWheel>", self.on_mouse_wheel)
@@ -1267,7 +1281,8 @@ class App:
         # FILE EXPLORER TREEVIEW
         #################################################################################################
 
-        self.file_explorer_frame = ctk.CTkFrame(self.sidebar,fg_color="#292929" if self.mode=="Dark" else "#ADADAD")
+        self.file_explorer_frame = ctk.CTkFrame(self.sidebar,
+                                                fg_color="#292929" if self.mode=="Dark" else "#ADADAD")
         self.file_explorer_frame.pack(fill="both", expand=True)
 
         self.window.after(self.REFRESH_INTERVAL_MS, self.auto_refresh_workspace)
@@ -1299,15 +1314,18 @@ class App:
                                     height=2)
         self.horizontal_line.pack(padx=8,fill="x")
 
-        self.current_workspace_name = ctk.CTkLabel(self.file_explorer_frame, fg_color=self.file_explorer_frame.cget("fg_color"),
-                                            text="No Current Workspace Active", font=("Segoe UI",13))
-        self.current_workspace_name.pack(padx=8,anchor="w")
-
-        self.tree_frame = ctk.CTkFrame(self.file_explorer_frame, fg_color="#292929" if self.mode=="Dark" else "#ADADAD")
+        self.tree_frame = ctk.CTkFrame(self.file_explorer_frame, 
+                                       fg_color="#292929" if self.mode=="Dark" else "#ADADAD")
         self.tree_frame.pack(fill="both",expand=True, padx=8, pady=(0,4))
 
+        self.no_workspace = ctk.CTkLabel(self.tree_frame, text="",image=self.sleeping)
+        self.no_workspace.pack(anchor="center",pady=(30,0))
+        self.current_workspace_name = ctk.CTkLabel(self.tree_frame, 
+                                                   fg_color=self.file_explorer_frame.cget("fg_color"),
+                                                   text="No Current Workspace Active", font=("Segoe UI",13))
+        self.current_workspace_name.pack(padx=8,anchor="center",pady=5)
+
         self.tree_scrollbar = ctk.CTkScrollbar(self.tree_frame, orientation="vertical")
-        self.tree_scrollbar.pack(fill="y", side="right")
 
         self.down_frame = ctk.CTkFrame(self.file_explorer_frame, fg_color="transparent")
         self.down_frame.pack(fill="x", pady=(4,0), padx=8)
@@ -1402,6 +1420,9 @@ class App:
                                                 image=self.icons["folder"],
                                                 values=(item_path,))
                     self.populate_tree(item_path, parent=node)
+                    self.no_workspace.pack_forget()
+                    self.current_workspace_name.pack_forget()
+                    self.tree_scrollbar.pack(fill="y", side="right")
                 else:
                     ext = os.path.splitext(item)[1].lower()
                     if ext in self.allowed_extensions:
@@ -1454,7 +1475,7 @@ class App:
 
         self.file_path_tuple = self.file_tree.item(self.selected_item, "values")
         if not self.file_path_tuple:
-            return  # probably a folder → ignore
+            return
 
         self.file_path = self.file_path_tuple[0]
 
@@ -1464,7 +1485,8 @@ class App:
         try:
             with open(self.file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            self.switcher.open_file_tab(self.file_path, content)
+            self.text_editor.delete("1.0","end")
+            self.text_editor.insert("1.0",content)
             self.status_button.configure(text=f"File {self.file_path} opened")
         except Exception as e:
             messagebox.showerror("Error", f"Could not open file:\n{e}")
@@ -1669,7 +1691,8 @@ class App:
             with open(current_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            main_app.switcher.open_file_tab(current_file, content)
+            main_app.text_editor.delete("1.0","end")
+            main_app.text_editor.insert("1.0", content)
             if main_app.status_button:
                 main_app.status_button.configure(text=f"File {current_file} opened")
 
@@ -1677,10 +1700,6 @@ class App:
             messagebox.showerror("Error", f"Could not open file:\n{e}")
             if main_app.status_button:
                 main_app.status_button.configure(text="Operation Failed")
-
-    def onOpenMacros(self,event=None):
-        macrosTab = home.AddMacrosTab(self,master=self.window,text_editor=self.text_editor, switcher=self.switcher)
-        macrosTab.run()
 
     def onOpenSyntax(self, event=None):
         syntaxTab = home.ConfigureSyntax(self, master=self.window, text_editor=self.text_editor)
