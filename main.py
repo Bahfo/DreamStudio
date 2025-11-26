@@ -179,32 +179,32 @@ class App:
         # Services Buttons
         self.homeBtn = ctk.CTkButton(self.topFrame,height=24,fg_color="#004073",corner_radius=0,
                                 width=80,text="HOME",font=("Segoe UI",12),
-                                command=lambda: self.show_tab(self.homeFrame))
+                                command=lambda: self.show_tab(self.homeFrame, self.homeBtn))
         self.homeBtn.pack(side='left',anchor='w',padx=(8,0))
 
         self.toolsBtn = ctk.CTkButton(self.topFrame,height=24,fg_color="#004073",corner_radius=0,
                                 width=80,text="TOOLS",font=("Segoe UI",12),
-                                command=lambda: self.show_tab(self.toolsFrame))
+                                command=lambda: self.show_tab(self.toolsFrame, self.toolsBtn))
         self.toolsBtn.pack(side='left',anchor='w',padx=(8,0))
 
         self.plotsBtn = ctk.CTkButton(self.topFrame,height=24,fg_color="#004073",corner_radius=0,
                                 width=80,text="PLOTS",font=("Seoge UI",12),
-                                command=lambda: self.show_tab(self.plotsFrame))
+                                command=lambda: self.show_tab(self.plotsFrame, self.plotsBtn))
         self.plotsBtn.pack(side='left',anchor='w',padx=(8,0))
 
         self.debugBtn = ctk.CTkButton(self.topFrame,height=24,fg_color="#004073",corner_radius=0,
                                 width=80,text="DEBUG",font=("Seoge UI",12),
-                                command=lambda: self.show_tab(self.debugFrame))
+                                command=lambda: self.show_tab(self.debugFrame, self.debugBtn))
         self.debugBtn.pack(side='left',anchor='w',padx=(8,0))
 
         self.terminalBtn = ctk.CTkButton(self.topFrame,height=24,fg_color="#004073",corner_radius=0,
                                 width=80,text="TERMINAL",font=("Segoe UI",12),
-                                command=lambda: self.show_tab(self.terminalFrame))
+                                command=lambda: self.show_tab(self.terminalFrame, self.terminalBtn))
         self.terminalBtn.pack(side='left',anchor='w',padx=(8,0))
 
         self.helpBtn = ctk.CTkButton(self.topFrame,height=24,fg_color="#004073",corner_radius=0,
                                 width=80,text="HELP",font=("Seoge UI",12),
-                                command=lambda: self.show_tab(self.helpFrame))
+                                command=lambda: self.show_tab(self.helpFrame, self.helpBtn))
         self.helpBtn.pack(side='left',anchor='w',padx=(8,0))
 
         self.accountBtn = ctk.CTkButton(self.topFrame,height=20,fg_color="#004073",corner_radius=0,
@@ -382,14 +382,14 @@ class App:
             hover_color="#3a3a3a")
         self.explorBtn.place(x=5,y=5)
 
-        self.toolsBtn = uniwidgets.VerticalButton(
+        self.boxBtn = uniwidgets.VerticalButton(
             self.toolsFrame,
             image_path=r"icons\system\tools.png",
             text="Open\n ToolBox ",
             font=("Segoe UI", 12),
             fg_color=self.parent_color,
             hover_color="#3a3a3a")
-        self.toolsBtn.place(x=75,y=5)
+        self.boxBtn.place(x=75,y=5)
 
         self.managerBtn = uniwidgets.VerticalButton(
             self.toolsFrame,
@@ -414,14 +414,14 @@ class App:
                                     width=2,height=75,corner_radius=0)
         self.vertical_sep_3.place(x=304,y=7)
 
-        self.terminalBtn = uniwidgets.VerticalButton(
+        self.openTerminalBtn = uniwidgets.VerticalButton(
             self.toolsFrame,
             image_path=r"icons\system\terminal.png",
             text="Open\nTerminal",
             font=("Segoe UI", 12),
             fg_color=self.parent_color,
             hover_color="#3a3a3a")
-        self.terminalBtn.place(x=314,y=5)
+        self.openTerminalBtn.place(x=314,y=5)
 
         self.cmdWindowBtn = uniwidgets.VerticalButton(
             self.toolsFrame,
@@ -687,7 +687,7 @@ class App:
             fg_color=self.parent_color,
             hover_color="#3a3a3a")
         self.chartBtn.place(x=157,y=2)
-
+        
         self.histoBtn = uniwidgets.VerticalButton(
             self.plots2d,
             image_path=r"icons\system\histogram.png",
@@ -1081,7 +1081,7 @@ class App:
 
         self.allTabs = [self.homeFrame, self.toolsFrame, self.plotsFrame, self.debugFrame,
                     self.terminalFrame, self.helpFrame]
-        self.show_tab(self.homeFrame)
+        self.show_tab(self.homeFrame, self.homeBtn)
 
         #################################################################################################
         # STATUS BAR
@@ -1245,7 +1245,10 @@ class App:
         tabs_widget = uniwidgets.LayoutsTab(
             self.editor_container,
             textbox=self.text_editor,
+            foreground_color="#1D1D1D" if self.mode == 'Dark' else "#E0E0E0",
+            text_color="#1E1E1E" if self.mode == 'Light' else "#C4C4C4",
             max_layouts=6,
+            placeholder_color="#FFE49F" if self.mode == 'Dark' else "#D6A229",
             initial_layouts=2)
         tabs_widget.pack(side="top", fill="x")
 
@@ -1636,11 +1639,24 @@ class App:
 
         self.window.bind("<Button-1>", lambda e: self.click_outside(e))
 
-    def show_tab(self,frame_to_show):
+    def show_tab(self, frame_to_show, active_button):
         for frame in self.allTabs:
-            frame.pack_forget()  # Hide every frame
+            frame.pack_forget()
         frame_to_show.pack(fill="both", side="top")
         frame_to_show.pack_propagate(False)
+
+        tabButtons = [
+            self.homeBtn,
+            self.toolsBtn,
+            self.plotsBtn,
+            self.debugBtn,
+            self.terminalBtn,
+            self.helpBtn]
+
+        for btn in tabButtons:
+            btn.configure(fg_color="#004073")
+
+        active_button.configure(fg_color="#1E1E1E" if self.mode == 'Dark' else "#696969")
 
     def customDropDownFrameChanger(self,frame_to_show):
         # Hide all frames first

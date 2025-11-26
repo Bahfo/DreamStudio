@@ -9,18 +9,20 @@ from tkinter import messagebox as mb
 EX TECHNOLOGIES SPECIAL WIDGETS IMPLEMENTATION
 COPYRIGHT 2026
 """
-CONFIG_FILE = r"DreamStudioIDE\themes\config\config.json"
 
 ########################################################################################
 # WIDGETS
 ########################################################################################
 class LayoutsTab(ctk.CTkFrame):
-    def __init__(self, parent, textbox: ctk.CTkTextbox, max_layouts: int = 16, 
-                 initial_layouts: int = 1, *args, **kwargs):
+    def __init__(self, parent, textbox: ctk.CTkTextbox, foreground_color, text_color,
+                 placeholder_color, 
+                 max_layouts: int = 16, initial_layouts: int = 1, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.textbox = textbox
         self.max_layouts = max_layouts
-        self.mode = self._get_appearance_mode()
+        self.foreground_color = foreground_color
+        self.text_color = text_color
+        self.placeholder_color = placeholder_color
 
         self.layouts: List[Dict[str, Any]] = []
         self.tab_widgets: List[Dict[str, Any]] = []
@@ -28,22 +30,22 @@ class LayoutsTab(ctk.CTkFrame):
 
         # Top frame
         self.top_frame = ctk.CTkFrame(self, corner_radius=0, height=40, 
-                                      fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+                                      fg_color=self.foreground_color)
         self.top_frame.pack(side="top", fill="x")
         self.top_frame.pack_propagate(False)
 
         # Frame that holds tabs
         self.tabs_container = ctk.CTkFrame(self.top_frame, corner_radius=0,
-                                           fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+                                           fg_color=self.foreground_color)
         self.tabs_container.pack(side="left", fill="x", expand=True)
 
         # Add button on the right
         self.status_frame = ctk.CTkFrame(self.top_frame, corner_radius=0,
-                                         fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+                                         fg_color=self.foreground_color)
         self.status_frame.pack(side="right")
         self.add_button = ctk.CTkButton(self.status_frame, text="+", width=30,border_color="#5E5E5E",
-                                        border_width=1,text_color="#ADADAD" if self.mode == "Dark" else "#292929",
-                                        fg_color="#292929" if self.mode == 'Dark' else "#ADADAD",
+                                        border_width=1,text_color=self.text_color,
+                                        fg_color=self.foreground_color,
                                         corner_radius=0, command=self.add_layout)
         self.add_button.pack(side="left", padx=2)
 
@@ -61,20 +63,21 @@ class LayoutsTab(ctk.CTkFrame):
 
         tab_frame = ctk.CTkFrame(self.tabs_container, corner_radius=0,border_color="#5E5E5E",
                                  border_width=1,width=120,height=30,
-                                 fg_color="#292929" if self.mode == 'Dark' else "#ADADAD")
+                                 fg_color=self.foreground_color)
         tab_frame.pack(side="left", padx=(5,2), pady=0)
         tab_frame.pack_propagate(False)
 
         title_btn = ctk.CTkButton(tab_frame, text=title, corner_radius=0,width=90,
-                                  fg_color="#292929" if self.mode == 'Dark' else "#ADADAD", 
-                                  text_color="#ADADAD" if self.mode == "Dark" else "#292929",
+                                  fg_color=self.foreground_color, 
+                                  text_color=self.text_color,
                                   font=("Segoe UI", 12, "normal"), height=20)
         title_btn.pack(side="left",padx=(2,0))
 
         close_btn = ctk.CTkButton(tab_frame, text="×", width=24, height=20,
-                                  fg_color="#292929" if self.mode == 'Dark' else "#ADADAD",
-                                  text_color="#ADADAD" if self.mode == "Dark" else "#292929",
-                                  font=("Segoe UI", 12, "bold"))
+                                  fg_color=self.foreground_color,
+                                  text_color=self.text_color,
+                                  font=("Segoe UI", 12, "bold"),
+                                  corner_radius=0)
         close_btn.pack(side="right",padx=(0,2))
 
         self.tab_widgets.append({"frame": tab_frame, "title_btn": title_btn,
@@ -122,8 +125,10 @@ class LayoutsTab(ctk.CTkFrame):
         for i, tab in enumerate(self.tab_widgets):
             if i == self.active_index:
                 tab["title_btn"].configure(font=("Segoe UI Italic", 12))
+                tab["title_btn"].configure(text_color = self.placeholder_color)
             else:
                 tab["title_btn"].configure(font=("Segoe UI", 12, "normal"))
+                tab["title_btn"].configure(text_color = self.text_color)
 
     # ---------------- CLOSE / RENAME ----------------
     def _close_layout(self, index: int):
