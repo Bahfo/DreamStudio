@@ -35,7 +35,7 @@ class PythonHighlighter:
         }
 
         self.BLUE_WORDS = {"and","class","def","False","global","in","is","lambda",
-                           "None","nonlocal","not","or","True","self"}
+                           "None","nonlocal","not","or","True","self","__name__"}
         self.PINK_WORDS  = {"as","assert","async","await","break","case","continue",
                             "del","elif","else","except","finally","for","from","if",
                             "import","match","pass","raise","return","try","while",
@@ -68,7 +68,7 @@ class PythonHighlighter:
         self.ORANGE_REDDISH = {"BaseException","Exception","ArithmeticError","AssertionError",
                                "AttributeError","BufferError","EOFError","FloatingPointError",
                                "GeneratorExit","ImportError","ModuleNotFoundError","IndexError",
-                               "KeyError","KeyboardInterrupt","MemoryError","NameError",
+                               "KeyError","KeyboardInterrupt","MemoryError","NameError","FileNotFoundError"
                                "NotImplementedError","OSError","OverflowError","RecursionError",
                                "ReferenceError","RuntimeError","StopIteration","StopAsyncIteration",
                                "SyntaxError","IndentationError","TabError","SystemError",
