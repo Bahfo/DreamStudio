@@ -24,6 +24,7 @@ import ctypes
 import json
 import os
 import re
+import threading
 import subprocess
 import tkinter as tk
 from pathlib import Path
@@ -32,18 +33,58 @@ from tkinter import filedialog, messagebox, ttk
 import customtkinter as ctk
 import pyperclip
 from PIL import Image, ImageTk
+from functools import lru_cache
 
 import consoles.command_window as command_window
 import consoles.file_manager as file_manager
 import widgets.menus.home as home
 import widgets.universal_widgets as uniwidgets
 from intellisense.dreamintellisense import PythonIntellisense as pysense
-from intellisense.highlighter import PythonHighlighter as pylight
+from intellisense.highlighter import PythonHighlighterDark as pydark
+from intellisense.highlighter import PythonHighlighterLight as pylight
 
 ################################################################################################
 # MAIN WINDOW
 ################################################################################################
 
+class AppIcons:
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def create_padded_icon(ico_path, icon_size=(16, 16), padding=8):
+        try:
+            icon_img = Image.open(ico_path).convert("RGBA").resize(icon_size)
+            img = Image.new(
+                "RGBA", (icon_size[0] + padding, icon_size[1]), (0, 0, 0, 0)
+            )
+            img.paste(icon_img, (0, 0), icon_img)
+            return ImageTk.PhotoImage(img)
+        except Exception as e:
+            print(f"Warning: Could not load icon {ico_path}: {e}")
+            img = Image.new(
+                "RGBA", (icon_size[0] + padding, icon_size[1]), (0, 0, 0, 0)
+            )
+            return ImageTk.PhotoImage(img)
+
+def ctk_image_cache(func):
+    """Decorator to cache CTkImage objects"""
+    cached = {}
+
+    def wrapper(path, size, dark_image=None):
+        key = (path, size)
+        if key not in cached:
+            img = Image.open(path)
+            if dark_image is None:
+                cached[key] = ctk.CTkImage(light_image=img, size=size)
+            else:
+                dark_img = Image.open(dark_image)
+                cached[key] = ctk.CTkImage(light_image=img, dark_image=dark_img, size=size)
+        return cached[key]
+
+    return wrapper
+
+@ctk_image_cache
+def load_ctk_icon(path, size, dark_image=None):
+    pass
 
 class App:
     def __init__(self):
@@ -82,50 +123,34 @@ class App:
         self.code_font_var = ctk.StringVar(value="Consolas")
         self.mode = ctk.get_appearance_mode()
 
-        @staticmethod
-        def create_padded_icon(ico_path, icon_size=(16, 16), padding=8):
-            try:
-                icon_img = Image.open(ico_path).convert("RGBA").resize(icon_size)
-                img = Image.new(
-                    "RGBA", (icon_size[0] + padding, icon_size[1]), (0, 0, 0, 0)
-                )
-                img.paste(icon_img, (0, 0), icon_img)
-                return ImageTk.PhotoImage(img)
-            except Exception as e:
-                print(f"Warning: Could not load icon {ico_path}: {e}")
-                img = Image.new(
-                    "RGBA", (icon_size[0] + padding, icon_size[1]), (0, 0, 0, 0)
-                )
-                return ImageTk.PhotoImage(img)
+        self.folder_img = AppIcons.create_padded_icon(r"icons\types\folder.ico")
+        self.file_img = AppIcons.create_padded_icon(r"icons\types\file.ico")
+        self.txt_img = AppIcons.create_padded_icon(r"icons\types\txt.ico")
+        self.c_files = AppIcons.create_padded_icon(r"icons\types\c.ico")
+        self.json_files = AppIcons.create_padded_icon(r"icons\types\json.ico")
+        self.docx_files = AppIcons.create_padded_icon(r"icons\types\docx.ico")
+        self.ppt_files = AppIcons.create_padded_icon(r"icons\types\ppt.ico")
+        self.pptx_files = AppIcons.create_padded_icon(r"icons\types\pptx.ico")
+        self.apk_files = AppIcons.create_padded_icon(r"icons\types\apk.ico")
+        self.cs_files = AppIcons.create_padded_icon(r"icons\types\csharp.ico")
+        self.html_files = AppIcons.create_padded_icon(r"icons\types\html.ico")
+        self.js_files = AppIcons.create_padded_icon(r"icons\types\javascript.ico")
+        self.java_files = AppIcons.create_padded_icon(r"icons\types\java.ico")
+        self.swift_files = AppIcons.create_padded_icon(r"icons\types\swift.ico")
+        self.rb_files = AppIcons.create_padded_icon(r"icons\types\ruby.ico")
+        self.ts_files = AppIcons.create_padded_icon(r"icons\types\typescript.ico")
+        self.jsx_files = AppIcons.create_padded_icon(r"icons\types\javascript.ico")
+        self.py_files = AppIcons.create_padded_icon(r"icons\types\python.ico")
+        self.h_files = AppIcons.create_padded_icon(r"icons\types\c.ico")
 
-        self.folder_img = create_padded_icon(r"icons\types\folder.ico")
-        self.file_img = create_padded_icon(r"icons\types\file.ico")
-        self.txt_img = create_padded_icon(r"icons\types\txt.ico")
-        self.c_files = create_padded_icon(r"icons\types\c.ico")
-        self.json_files = create_padded_icon(r"icons\types\json.ico")
-        self.docx_files = create_padded_icon(r"icons\types\docx.ico")
-        self.ppt_files = create_padded_icon(r"icons\types\ppt.ico")
-        self.pptx_files = create_padded_icon(r"icons\types\pptx.ico")
-        self.apk_files = create_padded_icon(r"icons\types\apk.ico")
-        self.cs_files = create_padded_icon(r"icons\types\csharp.ico")
-        self.html_files = create_padded_icon(r"icons\types\html.ico")
-        self.js_files = create_padded_icon(r"icons\types\javascript.ico")
-        self.java_files = create_padded_icon(r"icons\types\java.ico")
-        self.swift_files = create_padded_icon(r"icons\types\swift.ico")
-        self.rb_files = create_padded_icon(r"icons\types\ruby.ico")
-        self.ts_files = create_padded_icon(r"icons\types\typescript.ico")
-        self.jsx_files = create_padded_icon(r"icons\types\javascript.ico")
-        self.py_files = create_padded_icon(r"icons\types\python.ico")
-        self.h_files = create_padded_icon(r"icons\types\c.ico")
-
-        self.load_ico = create_padded_icon(r"icons\system\load.png")
-        self.refresh_ico = create_padded_icon(r"icons\system\refresh.png")
-        self.console = create_padded_icon(r"icons\system\console.png")
-        self.debug = create_padded_icon(r"icons\system\debug.png")
-        self.manage = create_padded_icon(r"icons\system\manager.png")
-        self.problem = create_padded_icon(r"icons\system\problem.png")
-        self.ver = create_padded_icon(r"icons\system\version.png")
-        self.warning = create_padded_icon(r"icons\system\warning.png")
+        self.load_ico = AppIcons.create_padded_icon(r"icons\system\load.png")
+        self.refresh_ico = AppIcons.create_padded_icon(r"icons\system\refresh.png")
+        self.console = AppIcons.create_padded_icon(r"icons\system\console.png")
+        self.debug = AppIcons.create_padded_icon(r"icons\system\debug.png")
+        self.manage = AppIcons.create_padded_icon(r"icons\system\manager.png")
+        self.problem = AppIcons.create_padded_icon(r"icons\system\problem.png")
+        self.ver = AppIcons.create_padded_icon(r"icons\system\version.png")
+        self.warning = AppIcons.create_padded_icon(r"icons\system\warning.png")
 
         self.search_photo = ctk.CTkImage(
             light_image=Image.open(r"icons\system\search.png"), size=(24, 24)
@@ -1713,14 +1738,6 @@ class App:
             self.bg_color_canvas = "#232323"
             self.number_col = "#C3C3C3"
 
-        self.line_number_canvas = ctk.CTkCanvas(
-            self.editor_frame,
-            width=60,
-            bg=self.bg_color_canvas,
-            highlightthickness=1,
-            highlightbackground="#5e5e5e",
-        )
-
         self.text_editor = ctk.CTkTextbox(
             self.editor_frame,
             border_width=0,
@@ -1731,7 +1748,6 @@ class App:
             wrap=None,
         )
 
-        self.line_number_canvas.pack(side="left", fill="y")
         self.text_editor.pack(fill="both", expand=True)
 
         tabs_widget = uniwidgets.LayoutsTab(
@@ -1739,20 +1755,17 @@ class App:
             textbox=self.text_editor,
             foreground_color="#1D1D1D" if self.mode == "Dark" else "#E0E0E0",
             text_color="#1E1E1E" if self.mode == "Light" else "#C4C4C4",
-            max_layouts=6,
+            max_layouts=10,
             placeholder_color="#FFE49F" if self.mode == "Dark" else "#D6A229",
             initial_layouts=2,
         )
         tabs_widget.pack(side="top", fill="x")
 
         self.text_editor.bind("<MouseWheel>", self.on_mouse_wheel)
-        self.line_number_canvas.bind("<MouseWheel>", self.on_mouse_wheel)
 
         self.font_size_var.trace_add("write", self.update_text_font)
         self.code_font_var.trace_add("write", self.update_text_font)
 
-        self.text_editor.bind("<KeyRelease>", self.update_number_of_lines)
-        self.text_editor.bind("<Button-1>", self.update_number_of_lines)
         self.text_editor.bind("<Control-c>", self.copy_text_event)
         self.text_editor.bind("<Control-x>", self.cut_text_event)
         self.text_editor.bind("<Control-v>", self.paste_text_event)
@@ -1769,7 +1782,10 @@ class App:
         self.divider.bind("<Button-1>", self.start_drag)
         self.divider.bind("<B1-Motion>", self.on_drag)
 
-        helper = pylight(self.text_editor)
+        if self.mode == 'Dark':
+            highligther = pydark(text_box=self.text_editor)
+        else:
+            highligther = pylight(text_box=self.text_editor)
         intellisense = pysense(widget=self.window, text_box=self.text_editor, path=None)
         intellisense.bindings()
 
@@ -2078,7 +2094,6 @@ class App:
             family=self.code_font_var.get(), size=self.font_size_var.get() + 2
         )
         self.text_editor.configure(font=self.editor_font)
-        self.update_number_of_lines()
 
     def start_drag(self, event):
         self.divider.start_x = event.x
@@ -2092,38 +2107,9 @@ class App:
             self.sidebar.pack(side="left", fill="y")
             self.editor_frame.pack(side="left", fill="both", expand=True)
 
-    def update_number_of_lines(self, event=None):
-        self.line_number_canvas.delete("all")
-        total_lines = int(self.text_editor.index("end-1c").split(".")[0])
-        canvas_height = 0
-
-        for i in range(1, total_lines + 1):
-            bbox = self.text_editor.bbox(f"{i}.0")
-            if bbox:
-                y = bbox[1]
-                height = bbox[3]
-                canvas_height = max(canvas_height, y + height)
-                self.line_number_canvas.create_text(
-                    50,
-                    y,
-                    anchor="ne",
-                    text=str(i),
-                    font=self.line_number_font,
-                    fill=self.number_col,
-                )
-
-        self.canvas_widget_height = self.line_number_canvas.winfo_height()
-        if canvas_height <= self.canvas_widget_height:
-            self.line_number_canvas.configure(
-                scrollregion=(0, 0, 40, self.canvas_widget_height)
-            )
-        else:
-            self.line_number_canvas.configure(scrollregion=(0, 0, 40, canvas_height))
-
     def on_mouse_wheel(self, event):
         scroll_units = int(-1 * (event.delta / 120))
         self.text_editor.yview_scroll(scroll_units, "units")
-        self.line_number_canvas.yview_scroll(scroll_units, "units")
         return "break"
 
     def click_outside(self, event):
@@ -2289,8 +2275,10 @@ class App:
                 pass
         return "Dark"
 
+    @lru_cache(maxsize=None)
     def run(self):
         self.window.mainloop()
+        self.window.update_idletasks()
 
 
 def darken_color(hex_color, factor=0.8):
@@ -2804,4 +2792,4 @@ class DebugAndTerminal(ctk.CTkToplevel):
 #####################################################################################################
 if __name__ == "__main__":
     app = App()
-    app.run()
+    threading.Thread(target=app.run()).start()

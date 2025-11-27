@@ -1,39 +1,15 @@
 import re
 import ast
 
-class PythonHighlighter:
+class PythonHighlighterBase:
     def __init__(self, text_box, path=None):
         self.text_box = text_box
         self.path = path
         self._after_id = None
-        self.completions = []
-        self.suggestions_frame = None
-        self.buttons = []
-        self.selected_index = 0
-        self.identifier_cache = {"functions": set(),
-                                 "classes": set(),
-                                 "variables": set()}
+        self.identifier_cache = {"functions": set(), "classes": set()}
         self.imports = set()
 
-        self.colors = {
-            "blue_keyword": "#569CD6",
-            "pink_keyword": "#C586C0",
-            "yellow_function": "#DFDAA7",
-            "green_function": "#B5CEA8",
-            "exception": "#FF6A6A",
-            "function": "#FFEAB0",
-            "class": "#3CAB95",
-            "variable": "#9CDCFE",
-            "attribute": "#9CDCFE",
-            "module": "#3CAB95",
-            "string": "#C77859",
-            "comment": "#6A9955",
-            "number": "#A8BECE",
-            "operator": "#D4D4D4",
-            "bracket": "#D4D4D4",
-            "special_keyword": "#D0A8D4",
-        }
-
+        # Words categories
         self.BLUE_WORDS = {"and","class","def","False","global","in","is","lambda",
                            "None","nonlocal","not","or","True","self","__name__"}
         self.PINK_WORDS  = {"as","assert","async","await","break","case","continue",
@@ -68,12 +44,12 @@ class PythonHighlighter:
         self.ORANGE_REDDISH = {"BaseException","Exception","ArithmeticError","AssertionError",
                                "AttributeError","BufferError","EOFError","FloatingPointError",
                                "GeneratorExit","ImportError","ModuleNotFoundError","IndexError",
-                               "KeyError","KeyboardInterrupt","MemoryError","NameError","FileNotFoundError"
-                               "NotImplementedError","OSError","OverflowError","RecursionError",
-                               "ReferenceError","RuntimeError","StopIteration","StopAsyncIteration",
-                               "SyntaxError","IndentationError","TabError","SystemError",
-                               "SystemExit","TypeError","UnboundLocalError","ValueError",
-                               "ZeroDivisionError"}
+                               "KeyError","KeyboardInterrupt","MemoryError","NameError",
+                               "FileNotFoundError","NotImplementedError","OSError","OverflowError",
+                               "RecursionError","ReferenceError","RuntimeError","StopIteration",
+                               "StopAsyncIteration","SyntaxError","IndentationError","TabError",
+                               "SystemError","SystemExit","TypeError","UnboundLocalError",
+                               "ValueError","ZeroDivisionError"}
         self.PURPLE = {"+","-","*","/","//","%","**","@", "=", "+=", "-=", "*=", "/=", "//=","%=",
                         "**=", "@=", "&=","|=","^=","<<=","<<",">>="}
         self.GREENISH = {"==","!=",">","<",">=","<="}
@@ -81,6 +57,7 @@ class PythonHighlighter:
         self.YELLOW = {"(",")","{","}","[","]"}
         self.SPECIAL = {"if not","is not","is True","is False"}
 
+        # Regex precompilation
         self._blue_re = self._make_word_re(self.BLUE_WORDS)
         self._pink_re = self._make_word_re(self.PINK_WORDS)
         self._special_re = self._make_word_re(self.SPECIAL)
@@ -90,7 +67,6 @@ class PythonHighlighter:
         self._ops_re = re.compile('|'.join(sorted(map(re.escape, self.PURPLE | self.GREENISH | self.BLUEISH), key=len, reverse=True)))
         self._number_re = re.compile(r'\b\d+(\.\d+)?\b')
         self._dot_call_re = re.compile(r'\b([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)\s*(?=\()')
-        self._dot_attr_re = re.compile(r'([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)')
         self._import_re = re.compile(r'\bimport\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)')
         self._from_import_re = re.compile(r'\bfrom\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s+import\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)')
         self._triple_string_re = re.compile(r"('''.*?'''|\"\"\".*?\"\"\")", re.DOTALL)
@@ -145,7 +121,6 @@ class PythonHighlighter:
         lines = code.splitlines(keepends=True)
         for line in lines:
             line_start = abs_pos
-            line_end = abs_pos + len(line)
 
             for m in self._number_re.finditer(line):
                 s = line_start + m.start(); e = line_start + m.end()
@@ -182,13 +157,8 @@ class PythonHighlighter:
                     self.text_box.tag_add(f"br_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
                     self.text_box.tag_config(f"br_{s}", foreground=self.colors["bracket"])
 
-            for kind, color in [("functions","function"),("classes","class"),("variables","variable")]:
-                for word in self.identifier_cache.get(kind, ()):
-                    for m in re.finditer(rf"\b{re.escape(word)}\b", line):
-                        s = line_start + m.start(); e = line_start + m.end()
-                        if self._overlaps_any(s,e,protected_spans): continue
-                        self.text_box.tag_add(f"{kind}_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
-                        self.text_box.tag_config(f"{kind}_{s}", foreground=self.colors[color])
+            # Remove variable & attribute highlighting
+            # Removed loops for self.identifier_cache["variables"] and _dot_attr_re
 
             for m in self._dot_call_re.finditer(line):
                 qual = m.group(1); name = m.group(2)
@@ -202,17 +172,7 @@ class PythonHighlighter:
                 self.text_box.tag_config(f"mcall_{s_name}", foreground=self.colors["function"])
                 mcall_spans.append((s_name, e_name))
 
-            for m in self._dot_attr_re.finditer(line):
-                qual,name = m.group(1),m.group(2)
-                s_qual = line_start + m.start(1); e_qual = line_start + m.end(1)
-                s = line_start + m.start(2); e = line_start + m.end(2)
-                if self._overlaps_any(s,e, protected_spans + mcall_spans): continue
-                if qual in self.imports:
-                    self.text_box.tag_add(f"modq2_{s_qual}", self._abs_to_index(s_qual, code), self._abs_to_index(e_qual, code))
-                    self.text_box.tag_config(f"modq2_{s_qual}", foreground=self.colors["class"])
-                self.text_box.tag_add(f"attr_{s}", self._abs_to_index(s, code), self._abs_to_index(e, code))
-                self.text_box.tag_config(f"attr_{s}", foreground=self.colors["attribute"])
-
+            # Imports
             for m in self._import_re.finditer(line):
                 names = [n.strip() for n in m.group(1).split(',')]
                 for n in names:
@@ -240,7 +200,7 @@ class PythonHighlighter:
             abs_pos += len(line)
 
     def parse_identifiers_and_imports(self, code):
-        identifiers = {"functions": set(), "classes": set(), "variables": set()}
+        identifiers = {"functions": set(), "classes": set()}
         imports = set()
         try:
             tree = ast.parse(code)
@@ -254,11 +214,6 @@ class PythonHighlighter:
             def visit_ClassDef(self,node):
                 identifiers["classes"].add(node.name)
                 self.generic_visit(node)
-            def visit_Assign(self,node):
-                for t in node.targets:
-                    if isinstance(t, ast.Name):
-                        identifiers["variables"].add(t.id)
-                self.generic_visit(node)
             def visit_Import(self,node):
                 for n in node.names:
                     imports.add(n.name)
@@ -267,3 +222,43 @@ class PythonHighlighter:
                     imports.add(n.name)
         Visitor().visit(tree)
         return identifiers, imports
+
+class PythonHighlighterDark(PythonHighlighterBase):
+    def __init__(self, text_box, path=None):
+        super().__init__(text_box, path)
+        self.colors = {
+            "blue_keyword": "#569CD6",      # keywords like def, class, return
+            "pink_keyword": "#C586C0",      # flow control, async/await
+            "yellow_function": "#DCDCAA",   # built-in functions
+            "green_function": "#4EC9B0",    # special functions
+            "exception": "#F44747",         # exceptions
+            "function": "#DCDCAA",          # user-defined functions
+            "class": "#4EC9B0",             # class names
+            "module": "#9CDCFE",            # imported modules
+            "string": "#CE9178",            # string literals
+            "comment": "#6A9955",           # comments
+            "number": "#B5CEA8",            # numbers
+            "operator": "#D4D4D4",          # operators
+            "bracket": "#D4D4D4",           # brackets
+            "special_keyword": "#569CD6",   # special keywords like is not
+        }
+
+class PythonHighlighterLight(PythonHighlighterBase):
+    def __init__(self, text_box, path=None):
+        super().__init__(text_box, path)
+        self.colors = {
+            "blue_keyword": "#0000FF",      # keywords like def, class, return
+            "pink_keyword": "#FF00FF",      # flow control, async/await
+            "yellow_function": "#B8860B",   # built-in functions
+            "green_function": "#008B8B",    # special functions
+            "exception": "#FF0000",         # exceptions
+            "function": "#00008B",          # user-defined functions
+            "class": "#800080",             # class names
+            "module": "#000080",            # imported modules
+            "string": "#A52A2A",            # string literals
+            "comment": "#008000",           # comments
+            "number": "#FF4500",            # numbers
+            "operator": "#000000",          # operators
+            "bracket": "#000000",           # brackets
+            "special_keyword": "#0000FF",   # special keywords like is not
+        }

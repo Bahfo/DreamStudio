@@ -4,7 +4,6 @@ The home menu application functionality layer
 \nSecond Layer Support (SLS): handles syntax highlighting, and intellisense for Python
 """
 
-from tkinter import messagebox
 import customtkinter as ctk
 import textwrap
 
