@@ -1,5 +1,5 @@
 __pycache__/
 *.py[cod]
-tools.txt/
-requirements.txt/
+tools.txt
+requirements.txt
 venv/
