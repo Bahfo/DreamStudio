@@ -1,0 +1,9 @@
+DreamStudio IDE
+External Command Window (Prompt X)
+Developer Command Window
+RunX Shell
+LightNight Package Manager
+NINJASPY Processes Manager
+ChatPost Teams Manager
+Internt Tools Packet Manager
+x86-64 Assembly Simulation Tools

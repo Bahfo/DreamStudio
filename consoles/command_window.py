@@ -12,8 +12,8 @@ logo_ascii = r"""
                                            |__/
 
 ─────────────────────────────────────────────────────────────────────────
-              SOFTDREAM IDE — PROMPT-X INTERACTIVE SHELL                 
-                        © EX Technologies Ltd.
+              DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
+                          © EX Technologies
 ─────────────────────────────────────────────────────────────────────────
 
 ─────────────────────────────────────────────────────────────────────────
@@ -34,7 +34,6 @@ system level commands, and various input/output user commands.
 
 Below is a detailed list of available documented commands:
 
-calc
 changedir       Changes current workspace directoy
 clear           Clears terminal screen
 clearhistory    Clears the commands history (with errors commands)
@@ -1157,19 +1156,31 @@ Hot-topic commands:
 
 
 # ---------------- GUI Shell ----------------
-class PromptXShell(ctk.CTkToplevel):
-    def __init__(self, master=None, **kwargs):
-        super().__init__(master=master, **kwargs)
+class PromptXShell(ctk.CTk):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         self.title("PromptX Shell")
         self.geometry("800x500")
+        self.resizable(False,False)
+
+        self.holding_frame = ctk.CTkFrame(
+            self,width=800,height=500,corner_radius=0,fg_color="#000000"
+        )
+        self.holding_frame.pack()
+        self.holding_frame.pack_propagate(False)
 
         # ---------------- Textbox ----------------
         self.textbox = ctk.CTkTextbox(
-            self, width=760, height=460, corner_radius=0,
-            font=("Consolas", 15), fg_color="#0F0F0F",
-            text_color="#E4E4E4"
+            self.holding_frame,width=790,height=460,corner_radius=0,font=("Consolas", 15),
+            fg_color="#0F0F0F",text_color="#E4E4E4")
+        self.textbox.place(x=5,y=5)
+
+        self.copyRightInfo = ctk.CTkLabel(
+            self.holding_frame, width=600, height=20,corner_radius=0, font=("Consolas",12),
+            text="COPYRIGHT 2026 EX-TECHNOLOGIES: Native Command Prompt for DreamStudio. Type 'quit' to exit or 'help' to see commands"
         )
-        self.textbox.pack(padx=5, pady=5, fill="both", expand=True)
+        self.copyRightInfo.place(x=30,y=470)
 
         # ---------------- Tags ----------------
         self.textbox.tag_config("output", foreground="#EAEAEA")
@@ -1246,12 +1257,11 @@ class PromptXShell(ctk.CTkToplevel):
         if line.strip() == "clear":
             self.textbox.configure(state=ctk.NORMAL)
             self.textbox.delete("1.0", "end")
-            self.insert_prompt()
             return
 
         try:
             if line.startswith("quit"):
-                self.print_output("\nExiting shell...\n", "output")
+                self.after(2000)
                 self.destroy()
                 return
 
@@ -1259,6 +1269,7 @@ class PromptXShell(ctk.CTkToplevel):
 
             if result is True:
                 self.print_output("\nShell stopped.\n", "output")
+                self.after(2000)
                 self.destroy()
             elif isinstance(result, str):
                 if result.lower().startswith("error"):
