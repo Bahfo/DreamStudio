@@ -11,22 +11,22 @@ logo_ascii = r"""
                                            | $$                          
                                            |__/
 
-─────────────────────────────────────────────────────────────────────────
-              DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
-                          © EX Technologies
-─────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────
+                        DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
+                                    © EX Technologies
+────────────────────────────────────────────────────────────────────────────────────────────────
 
-─────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────
 COMMAND INDEX:
 • Display help documentation:              help
 • Exit terminal environment:               quit
 
-─────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────
 NOTE:
 All command inputs are processed sequentially by the terminal's
 core interpreter. Invalid or malformed syntax may result in
 undefined behavior or ignored operations.
-─────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────
 
 A DreamStudio commands shell powered by command-type language 'Prompt-X'
 Prompt-X is a one-line shell command language for executing various
@@ -63,7 +63,6 @@ pacman          Universal language package manager (ULPM)
 peek            Lists the content of a specific directory
 ping
 ps
-quit            Quits the terminal
 rename
 shift           Moves a file from source to destination
 sysinfo         Shows system related info
@@ -73,9 +72,9 @@ uptime
 whoami
 zip             Packages a file into a .zip format
 
-─────────────────────────────────────────────────────────────────────────
-                           END OF DOCUMENTATION
-─────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────
+                                    END OF DOCUMENTATION
+────────────────────────────────────────────────────────────────────────────────────────────────
 """
 
 pacman_real_commands = {
@@ -412,36 +411,18 @@ Description:
       - Related or hot-topic commands
 Features:
     1. **Command-level documentation**:
-       - Displays all details about the specified command including usage, parameters, and output.
+       - Displays all details about the specified command including usage and parameters.
     2. **Error guidance**:
        - Shows the specific error codes associated with the command and their explanations.
     3. **Examples**:
        - Provides one or more working examples showing how to execute the command correctly.
     4. **Cross-references**:
        - Suggests related commands or topics to explore further for more advanced tasks.
-    5. **Dynamic updating**:
-       - Automatically includes new commands as they are added to the terminal’s command list.
 Output:
     - A formatted text block detailing all aspects of the requested command.
     - If no command is specified, lists all available commands with short descriptions.
 Examples:
     help changedir
-        - Shows full help for the 'changedir' command including parameters and usage.
-    help pacman
-        - Displays comprehensive help for the 'pacman' universal package manager.
-    help syntax
-        - Explains how syntax highlighting works and which elements are recognized.
-Errors:
-    Error 1: No command or topic specified
-        - You must provide the name of a command or topic after typing 'help'.
-    Error 2: Command or topic not found
-        - The provided name does not match any known command or topic.
-Hot-topic commands:
-    pacman, fileinfo, peek, changedir
-Notes:
-    - Use 'help' frequently to explore new commands or refresh knowledge.
-    - This command is safe to use; it does not execute any action on files or system settings.
-    - For advanced users, 'help' also provides links to related commands and optional flags that can optimize workflow.
         """
         if arg != "":
             return super().do_help(arg)
@@ -991,19 +972,6 @@ Hot-topic commands:
             return f"Directory ({path_to_use}) - first {n} items:\n" + "\n".join(all_items[:n])
         except Exception as e:
             return f"Error 31: {e}"
-
-    # -------------------- Quit --------------------
-    def do_quit(self, arg=None):
-        """
-Help: quit    Quits the terminal
-Usage:
-    quit
-Output:
-    Quits the terminal
-Hot-topic commands:
-    clearhistory, help
-        """
-        return True
     
     # -------------------- Shift --------------------
     def do_shift(self, arg):
@@ -1156,37 +1124,37 @@ Hot-topic commands:
 
 
 # ---------------- GUI Shell ----------------
-class PromptXShell(ctk.CTk):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class PromptXShell(ctk.CTkFrame):
+    def __init__(self, main_app=None, status_button=None):
+        super().__init__(main_app)
+        self.main_app = main_app
+        self.status_button = status_button
+        self._corner_radius = 0
+        self._border_color="#5E5E5E"
+        self._border_width=1
 
-        self.title("PromptX Shell")
-        self.geometry("800x500")
-        self.resizable(False,False)
+        self.mode = ctk.get_appearance_mode()
+        self.configure(fg_color="#1C1C1C" if self.mode == "Dark" else "#BDBDBD")
 
-        self.holding_frame = ctk.CTkFrame(
-            self,width=800,height=500,corner_radius=0,fg_color="#000000"
-        )
-        self.holding_frame.pack()
-        self.holding_frame.pack_propagate(False)
+        if self.status_button:
+            self.status_button.configure(text="Terminal Opened")
 
-        # ---------------- Textbox ----------------
+        self.place(x=0, y=0, relwidth=1, relheight=1)
+
         self.textbox = ctk.CTkTextbox(
-            self.holding_frame,width=790,height=460,corner_radius=0,font=("Consolas", 15),
-            fg_color="#0F0F0F",text_color="#E4E4E4")
-        self.textbox.place(x=5,y=5)
-
-        self.copyRightInfo = ctk.CTkLabel(
-            self.holding_frame, width=600, height=20,corner_radius=0, font=("Consolas",12),
-            text="COPYRIGHT 2026 EX-TECHNOLOGIES: Native Command Prompt for DreamStudio. Type 'quit' to exit or 'help' to see commands"
+            self,
+            corner_radius=0,
+            font=("Consolas", 14),
+            bg_color="#181818" if self.mode == "Dark" else "#ACACAC",
+            fg_color="#181818" if self.mode == "Dark" else "#ACACAC",
         )
-        self.copyRightInfo.place(x=30,y=470)
+        self.textbox.place(x=0, y=0, relwidth=0.9999, relheight=0.9999)
 
         # ---------------- Tags ----------------
         self.textbox.tag_config("output", foreground="#EAEAEA")
         self.textbox.tag_config("error", foreground="#FF5555")
         self.textbox.tag_config("command", foreground="#FFFC56")
-        self.textbox.tag_config("prompt", foreground="#767676")
+        self.textbox.tag_config("prompt", foreground="#CECECE")
         self.textbox.tag_config("number", foreground="#79FFA5")
         self.textbox.tag_config("string", foreground="#6770B9")
         self.textbox.tag_config("filename", foreground="#FFA500")
@@ -1221,7 +1189,6 @@ class PromptXShell(ctk.CTk):
         self.readonly_index = self.textbox.index("end-1c")
         self.textbox.mark_set("insert", self.readonly_index)
         self.textbox.see("end")
-        self.textbox.configure(state=ctk.NORMAL)
 
     # ---------------- Key & Selection Control ----------------
     def onKeyPress(self, event):
@@ -1251,21 +1218,49 @@ class PromptXShell(ctk.CTk):
 
     # ---------------- Command execution ----------------
     def execute_command(self, line):
-        if not line.strip():
-            return
+        highlight_dict = {
+            "Usage:": "#2900F7",
+            "Parameters:": "#2900F7",
+            "Description:": "#2900F7",
+            "Features:": "#2900F7",
+            "Output:": "#00F736",
+            "Examples:": "#00F736",
+            "Hot-topic commands:": "#F3F700",
+            "Errors:": "#F70000",
+            "COMMAND INDEX:": "#2900F7",
+            "NOTE:": "#2900F7",
+            "END OF DOCUMENTATION": "#2900F7",
+            "© EX Technologies": "#2900F7",
+            "DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL": "#2900F7",
 
-        if line.strip() == "clear":
+            "*** No help on": "#FF8C00",
+            "*** Unknown syntax:": "#FF0000",
+
+            "Requirement already satisfied:": "#00F736",
+            "WARNING": "#FF8C00",
+            "[notice]": "#F3F700",
+
+            "ERROR": "red",
+            "error:": "red",
+            "Warning:": "#FF8C00",
+            "[INFO]": "blue",
+            "BUILD SUCCESS": "#00F736",
+            "Compiling": "#00F736",
+            "added": "#00F736",
+            "[WinError 2]":"red",
+            "(venv)":"#00F736"}
+
+        if not line.strip():
+            return False
+
+        if line.strip().lower() == "clear":
             self.textbox.configure(state=ctk.NORMAL)
             self.textbox.delete("1.0", "end")
-            return
+            self.insert_prompt()
+            return True
 
         try:
-            if line.startswith("quit"):
-                self.after(2000)
-                self.destroy()
-                return
-
-            result = self.cmd_shell.onecmd(line)
+            result = self.cmd_shell.onecmd(line.lower())
 
             if result is True:
                 self.print_output("\nShell stopped.\n", "output")
@@ -1276,6 +1271,8 @@ class PromptXShell(ctk.CTk):
                     self.print_output("\n" + result + "\n", "error")
                 else:
                     self.print_output("\n" + result + "\n", "output")
+            for word, color in highlight_dict.items():
+                self.highlight_word(word, color=color)
 
         except Exception as e:
             self.print_output("\nError: " + str(e) + "\n", "error")
@@ -1283,22 +1280,25 @@ class PromptXShell(ctk.CTk):
     # ---------------- Events ----------------
     def onEnter(self, event):
         user_input = self.textbox.get(self.readonly_index, "end-1c").strip()
+
         if self.multiline_buffer:
             self.multiline_buffer += "\n" + user_input
-            self.execute_command(self.multiline_buffer)
+            prompt_inserted = self.execute_command(self.multiline_buffer)
             self.multiline_buffer = ""
         else:
-            self.execute_command(user_input)
-        self.textbox.insert("end", "\n")
-        self.insert_prompt()
+            prompt_inserted = self.execute_command(user_input)
+
+        if not prompt_inserted:
+            self.textbox.insert("end", "\n")
+            self.insert_prompt()
         return "break"
 
     # ---------------- Output ----------------
-    def print_output(self, message, tag=None):
+    def print_output(self, text, tag=None):
         self.textbox.configure(state=ctk.NORMAL)
-        self.textbox.insert("end", message, tag)
+        self.textbox.insert("end", text, tag)
         self.textbox.see("end")
-        self.textbox.configure(state=ctk.NORMAL)
+        self.textbox.configure(state=ctk.DISABLED)
 
     def highlight_syntax(self):
         # Remove previous tags
@@ -1351,6 +1351,36 @@ class PromptXShell(ctk.CTk):
             start_index = f"{self.readonly_index} + {match.start()}c"
             end_index = f"{self.readonly_index} + {match.end()}c"
             self.textbox.tag_add("language", start_index, end_index)
+
+    def highlight_word(self, word, color="blue"):
+        """
+        Highlights all occurrences of a word in the CTkTextbox.
+        If the word starts with '***', the leading '***' is ignored for display.
+        """
+
+        textbox = self.textbox
+        textbox.configure(state=ctk.NORMAL)
+
+        display_word = word
+        search_word = word
+        if word.startswith("***"):
+            display_word = word.lstrip()[3:].lstrip()
+            search_word = display_word 
+
+        tag_name = f"tag_{display_word.replace(' ', '_')}"
+
+        textbox.tag_config(tag_name, foreground=color)
+
+        start = "1.0"
+        while True:
+            pos = textbox.search(search_word, start, stopindex="end")
+            if not pos:
+                break
+            end = f"{pos}+{len(search_word)}c"
+            textbox.tag_add(tag_name, pos, end)
+            start = end
+
+        textbox.configure(state=ctk.DISABLED)
 
     # ---------------- Command history ----------------
     def on_history_up(self, event):

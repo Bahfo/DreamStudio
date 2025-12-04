@@ -186,7 +186,10 @@ Provides help for functions.
 Type in the function name or topic after typing 'help'.
 Example: help changedir.
         """
-        return logo_ascii
+        if arg:
+            return super().do_help(arg)
+        else:
+            return logo_ascii
 
     # -------------------- Quit --------------------
     def do_quit(self, arg=None):

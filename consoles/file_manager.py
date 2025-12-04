@@ -44,7 +44,7 @@ class Terminal:
 
             """
 
-        self.all_commands = """
+        self.all_commands = """ALL SHELL COMMANDS
             ─────────────────────────────────────────────────────────────────────
             FILE AND WORKSPACE MANAGEMENT
             ─────────────────────────────────────────────────────────────────────
@@ -295,7 +295,7 @@ class Terminal:
 
                     except Exception as e:
                         screen_widget.insert(ctk.END, f"Error: {e}\n")
-            
+
             else:
                 screen_widget.insert(ctk.END, f"{self.error_0}\n")
                 pass
