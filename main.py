@@ -3,6 +3,61 @@ Handles first layer: Graphical User Interface Layer (GUI Layer)
 \nDreamStudio is now only supported for some languages:
 \nLua, Python, and JavaScript
 """
+CONFIG_FILE = r"themes\config\config.json"
+REFRESH_INTERVAL_MINUTES = 2
+REFRESH_INTERVAL_MS = (REFRESH_INTERVAL_MINUTES * 60 * 1000)
+
+icon_paths = {
+    "folder_img": r"icons\types\folder.ico",
+    "file_img": r"icons\types\file.ico",
+    "txt_img": r"icons\types\txt.ico",
+    "c_files": r"icons\types\c.ico",
+    "json_files": r"icons\types\json.ico",
+    "docx_files": r"icons\types\docx.ico",
+    "ppt_files": r"icons\types\ppt.ico",
+    "pptx_files": r"icons\types\pptx.ico",
+    "apk_files": r"icons\types\apk.ico",
+    "cs_files": r"icons\types\csharp.ico",
+    "html_files": r"icons\types\html.ico",
+    "js_files": r"icons\types\javascript.ico",
+    "java_files": r"icons\types\java.ico",
+    "swift_files": r"icons\types\swift.ico",
+    "rb_files": r"icons\types\ruby.ico",
+    "ts_files": r"icons\types\typescript.ico",
+    "jsx_files": r"icons\types\javascript.ico",
+    "py_files": r"icons\types\python.ico",
+    "h_files": r"icons\types\c.ico",
+
+    "load_ico": r"icons\system\load.png",
+    "refresh_ico": r"icons\system\refresh.png",
+    "console": r"icons\system\console.png",
+    "debug": r"icons\system\debug.png",
+    "manage": r"icons\system\manager.png",
+    "problem": r"icons\system\problem.png",
+    "ver": r"icons\system\version.png",
+    "warning": r"icons\system\warning.png"}
+
+ctk_icons = {
+    "search_photo": (r"icons\system\search.png", (24, 24)),
+    "open_photo": (r"icons\system\open_folder.png", (24, 24)),
+    "settings_photo": (r"icons\system\settings.png", (24, 24)),
+    "save_photo": (r"icons\system\save_file.png", (24, 24)),
+    "user_photo": (r"icons\system\user.png", (24, 24)),
+    "sleeping": (r"icons\types\sleeping.ico", (80, 80))}
+
+arrow_icons = {
+    "downArrow": (r"icons\system\down_arrow.png", (8, 8)),
+    "upArrow": (r"icons\system\up_arrow.png", (8, 8)),
+    "rightArrow": (r"icons\system\right_arrow.png", (8, 8)),
+    "stepTo": (r"icons\system\stepTo.png", (20, 20)),
+    "stepOut": (r"icons\system\stepOut.png", (20, 20)),
+    "stepOver": (r"icons\system\stepOver.png", (20, 20)),
+    "runToCursor": (r"icons\system\runToCursor.png", (20, 20)),
+    "toggleCursor": (r"icons\system\toggle.png", (20, 20))}
+
+allowed_extensions = {".py",".txt",".c",".cpp",".json",".docx",".ppt",".pptx",".apk",".cpp",
+                      ".cs",".cc",".cxx",".html",".js",".java",".swift",".rb",".ts",".jsx",
+                      ".py",".h"}
 
 license_text = """
 Copyright 2026 EX Technologies
@@ -84,15 +139,15 @@ def ctk_image_cache(func):
 def load_ctk_icon(path, size, dark_image=None):
     pass
 
+
 class App:
     def __init__(self):
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
-        self.window.iconbitmap(r"")
+        self.window.iconbitmap(r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudioIDE\icons\logos\D.ico")
         self.window.geometry("1000x700")
         self.window.resizable(True, True)
 
-        self.CONFIG_FILE = r"themes\config\config.json"
         ctk.set_default_color_theme(r"themes\metal.json")
         self.mode = self.load_theme()
 
@@ -103,134 +158,17 @@ class App:
         self.version = "0.0.1 BETA"
         self.workspace = {"path": None}
 
-        self.REFRESH_INTERVAL_MINUTES = 2
-        self.REFRESH_INTERVAL_MS = (
-            self.REFRESH_INTERVAL_MINUTES * 60 * 1000
-        )  # milliseconds
-
         self.font_size_var = ctk.IntVar(value=14)
         self.code_font_var = ctk.StringVar(value="Consolas")
-        self.mode = ctk.get_appearance_mode()
 
-        self.folder_img = AppIcons.create_padded_icon(r"icons\types\folder.ico")
-        self.file_img = AppIcons.create_padded_icon(r"icons\types\file.ico")
-        self.txt_img = AppIcons.create_padded_icon(r"icons\types\txt.ico")
-        self.c_files = AppIcons.create_padded_icon(r"icons\types\c.ico")
-        self.json_files = AppIcons.create_padded_icon(r"icons\types\json.ico")
-        self.docx_files = AppIcons.create_padded_icon(r"icons\types\docx.ico")
-        self.ppt_files = AppIcons.create_padded_icon(r"icons\types\ppt.ico")
-        self.pptx_files = AppIcons.create_padded_icon(r"icons\types\pptx.ico")
-        self.apk_files = AppIcons.create_padded_icon(r"icons\types\apk.ico")
-        self.cs_files = AppIcons.create_padded_icon(r"icons\types\csharp.ico")
-        self.html_files = AppIcons.create_padded_icon(r"icons\types\html.ico")
-        self.js_files = AppIcons.create_padded_icon(r"icons\types\javascript.ico")
-        self.java_files = AppIcons.create_padded_icon(r"icons\types\java.ico")
-        self.swift_files = AppIcons.create_padded_icon(r"icons\types\swift.ico")
-        self.rb_files = AppIcons.create_padded_icon(r"icons\types\ruby.ico")
-        self.ts_files = AppIcons.create_padded_icon(r"icons\types\typescript.ico")
-        self.jsx_files = AppIcons.create_padded_icon(r"icons\types\javascript.ico")
-        self.py_files = AppIcons.create_padded_icon(r"icons\types\python.ico")
-        self.h_files = AppIcons.create_padded_icon(r"icons\types\c.ico")
+        for attr, path in icon_paths.items():
+            setattr(self, attr, AppIcons.create_padded_icon(path))
 
-        self.load_ico = AppIcons.create_padded_icon(r"icons\system\load.png")
-        self.refresh_ico = AppIcons.create_padded_icon(r"icons\system\refresh.png")
-        self.console = AppIcons.create_padded_icon(r"icons\system\console.png")
-        self.debug = AppIcons.create_padded_icon(r"icons\system\debug.png")
-        self.manage = AppIcons.create_padded_icon(r"icons\system\manager.png")
-        self.problem = AppIcons.create_padded_icon(r"icons\system\problem.png")
-        self.ver = AppIcons.create_padded_icon(r"icons\system\version.png")
-        self.warning = AppIcons.create_padded_icon(r"icons\system\warning.png")
-
-        self.search_photo = ctk.CTkImage(
-            light_image=Image.open(r"icons\system\search.png"), size=(24, 24)
-        )
-        self.open_photo = ctk.CTkImage(
-            light_image=Image.open(r"icons\system\open_folder.png"), size=(24, 24)
-        )
-        self.settings_photo = ctk.CTkImage(
-            light_image=Image.open(r"icons\system\settings.png"), size=(24, 24)
-        )
-        self.save_photo = ctk.CTkImage(
-            light_image=Image.open(r"icons\system\save_file.png"), size=(24, 24)
-        )
-        self.user_photo = ctk.CTkImage(
-            light_image=Image.open(r"icons\system\user.png"), size=(24, 24)
-        )
-        self.sleeping = ctk.CTkImage(
-            light_image=Image.open(r"icons\types\sleeping.ico"), size=(80, 80)
-        )
-
-        self.downArrow = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\down_arrow.png"), size=(8, 8)
-        )
-        self.upArrow = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\up_arrow.png"), size=(8, 8)
-        )
-        self.rightArrow = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\right_arrow.png"), size=(8, 8)
-        )
-        self.stepTo = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\stepTo.png"), size=(20, 20)
-        )
-        self.stepOut = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\stepOut.png"), size=(20, 20)
-        )
-        self.stepOver = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\stepOver.png"), size=(20, 20)
-        )
-        self.runToCursor = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\runToCursor.png"), size=(20, 20)
-        )
-        self.toggleCursor = ctk.CTkImage(
-            dark_image=Image.open(r"icons\system\toggle.png"), size=(20, 20)
-        )
-
-        self.icons = {
-            "folder": self.folder_img,
-            "file": self.file_img,
-            ".txt": self.txt_img,
-            ".c": self.c_files,
-            ".json": self.json_files,
-            ".docx": self.docx_files,
-            ".ppt": self.ppt_files,
-            ".pptx": self.pptx_files,
-            ".apk": self.apk_files,
-            ".cs": self.cs_files,
-            ".html": self.html_files,
-            ".js": self.js_files,
-            ".java": self.java_files,
-            ".swift": self.swift_files,
-            ".rb": self.rb_files,
-            ".ts": self.ts_files,
-            ".jsx": self.jsx_files,
-            ".py": self.py_files,
-            ".h": self.h_files,
-        }
-
-        self.allowed_extensions = {
-            ".py",
-            ".txt",
-            ".c",
-            ".cpp",
-            ".json",
-            ".docx",
-            ".ppt",
-            ".pptx",
-            ".apk",
-            ".cpp",
-            ".cs",
-            ".cc",
-            ".cxx",
-            ".html",
-            ".js",
-            ".java",
-            ".swift",
-            ".rb",
-            ".ts",
-            ".jsx",
-            ".py",
-            ".h",
-        }
+        for attr, (path, size) in ctk_icons.items():
+            setattr(self, attr, ctk.CTkImage(light_image=Image.open(path), size=size))
+        
+        for attr, (path, size) in arrow_icons.items():
+            setattr(self, attr, ctk.CTkImage(dark_image=Image.open(path), size=size))
 
         ################################################################################################
         # MENUS: Define showing menus, menubar, topframe, downframe, and their buttons
@@ -270,8 +208,8 @@ class App:
             width=80,
             text="HOME",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.homeFrame, self.homeBtn),
-        )
+            command=lambda: self.show_tab(self.homeFrame, self.homeBtn))
+
         self.homeBtn.pack(side="left", anchor="w", padx=(8, 0))
 
         self.toolsBtn = ctk.CTkButton(
@@ -282,9 +220,21 @@ class App:
             width=80,
             text="TOOLS",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.toolsFrame, self.toolsBtn),
-        )
+            command=lambda: self.show_tab(self.toolsFrame, self.toolsBtn))
+
         self.toolsBtn.pack(side="left", anchor="w", padx=(8, 0))
+
+        self.databasesBtn = ctk.CTkButton(
+            self.topFrame,
+            height=24,
+            fg_color="#004073",
+            corner_radius=0,
+            width=80,
+            text="DATABASES",
+            font=("Segoe UI", 12),
+            command=lambda: self.show_tab(self.databasesFrame, self.databasesBtn))
+
+        self.databasesBtn.pack(side="left", anchor="w", padx=(8, 0))
 
         self.plotsBtn = ctk.CTkButton(
             self.topFrame,
@@ -294,8 +244,8 @@ class App:
             width=80,
             text="PLOTS",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.plotsFrame, self.plotsBtn),
-        )
+            command=lambda: self.show_tab(self.plotsFrame, self.plotsBtn))
+
         self.plotsBtn.pack(side="left", anchor="w", padx=(8, 0))
 
         self.debugBtn = ctk.CTkButton(
@@ -306,8 +256,8 @@ class App:
             width=80,
             text="DEBUG",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.debugFrame, self.debugBtn),
-        )
+            command=lambda: self.show_tab(self.debugFrame, self.debugBtn))
+
         self.debugBtn.pack(side="left", anchor="w", padx=(8, 0))
 
         self.terminalBtn = ctk.CTkButton(
@@ -318,8 +268,8 @@ class App:
             width=80,
             text="TERMINAL",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.terminalFrame, self.terminalBtn),
-        )
+            command=lambda: self.show_tab(self.terminalFrame, self.terminalBtn))
+
         self.terminalBtn.pack(side="left", anchor="w", padx=(8, 0))
 
         self.helpBtn = ctk.CTkButton(
@@ -330,8 +280,8 @@ class App:
             width=80,
             text="HELP",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.helpFrame, self.helpBtn),
-        )
+            command=lambda: self.show_tab(self.helpFrame, self.helpBtn))
+
         self.helpBtn.pack(side="left", anchor="w", padx=(8, 0))
 
         self.accountBtn = ctk.CTkButton(
@@ -342,8 +292,8 @@ class App:
             width=100,
             text="ACCOUNT",
             font=("Segoe UI", 12),
-            image=self.downArrow,
-        )
+            image=self.downArrow)
+
         self.accountBtn.pack(side="right", anchor="e", padx=(8, 8))
 
         # Menus Services
@@ -367,156 +317,7 @@ class App:
 
         self.parent_color = self.homeFrame.cget("fg_color")
 
-        self.newFile = uniwidgets.VerticalButton(
-            self.homeFrame,
-            image_path=r"icons\system\new_file.png",
-            text=" New Tab ",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.newFile.place(x=5, y=5)
-
-        self.newMacro = uniwidgets.VerticalButton(
-            self.homeFrame,
-            image_path=r"icons\system\new_macro.png",
-            text=" New Code",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.newMacro.place(x=75, y=5)
-
-        self.openCode = uniwidgets.VerticalButton(
-            self.homeFrame,
-            image_path=r"icons\system\open_code.png",
-            text="Open Code",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.openCode.place(x=152, y=5)
-
-        self.refreshWorkspace = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\refresh_workspace.png",
-            text="Refresh Files",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.refreshWorkspace.place(x=230, y=7)
-
-        self.saveAll = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\save_all.png",
-            text="Save All Files",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.saveAll.place(x=230, y=37)
-
-        self.vertical_sep_1 = ctk.CTkFrame(
-            self.homeFrame,
-            bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_1.place(x=340, y=7)
-
-        self.pasteBtn = uniwidgets.VerticalButton(
-            self.homeFrame,
-            image_path=r"icons\system\paste.png",
-            text="Paste Code",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.pasteBtn.place(x=350, y=5)
-
-        self.cutBtn = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\cut.png",
-            text=" Cut Codes",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.cutBtn.place(x=428, y=7)
-
-        self.copyBtn = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\copy.png",
-            text=" Copy Codes",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.copyBtn.place(x=428, y=37)
-
-        self.undoBtn = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\undo.png",
-            text="Undo Action",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.undoBtn.place(x=538, y=7)
-
-        self.redoBtn = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\redo.png",
-            text="Redo Action",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.redoBtn.place(x=538, y=37)
-
-        self.deleteBtn = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\delete.png",
-            text="Delete Codes",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.deleteBtn.place(x=648, y=7)
-
-        self.replaceBtn = uniwidgets.HorizontalButton(
-            self.homeFrame,
-            image_path=r"icons\system\replace.png",
-            text="Find/Replace",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.replaceBtn.place(x=648, y=37)
-
-        self.vertical_sep_2 = ctk.CTkFrame(
-            self.homeFrame,
-            bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_2.place(x=760, y=7)
-
-        self.syntaxBtn = uniwidgets.VerticalButton(
-            self.homeFrame,
-            image_path=r"icons\system\syntax.png",
-            text="Configure \nSyntax",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-            command=self.onOpenSyntax,
-        )
-        self.syntaxBtn.place(x=770, y=5)
+        home_toolbar = uniwidgets.HomeToolbarBuilder(self.homeFrame, self.parent_color, self.mode, self)
 
         ################################################################################################
         # Tools MENU: Opens new windows that does a specific utility and their functionalities
@@ -528,280 +329,30 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
-        )
+            fg_color="#696969" if self.mode == "Light" else "#1e1e1e")
+
         self.toolsFrame.pack(fill="both", side="top")
         self.toolsFrame.pack_propagate(False)
 
-        self.explorBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\solution.png",
-            text=" Solution\nExplorer",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.explorBtn.place(x=5, y=5)
+        tools_toolbar = uniwidgets.ToolsBarBuilder(self.toolsFrame, self.parent_color, self.mode, self)
 
-        self.boxBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\tools.png",
-            text="Open\n ToolBox ",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.boxBtn.place(x=75, y=5)
+        ################################################################################################
+        # DATABASES MENU
+        ################################################################################################
 
-        self.managerBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\manager.png",
-            text="Workspace\nManager",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.managerBtn.place(x=148, y=5)
-
-        self.propertiesBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\properties.png",
-            text="Properties\nWindow",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.propertiesBtn.place(x=228, y=5)
-
-        self.vertical_sep_3 = ctk.CTkFrame(
-            self.toolsFrame,
-            bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
-            width=2,
-            height=75,
+        self.databasesFrame = ctk.CTkFrame(
+            self.downFrame,
             corner_radius=0,
-        )
-        self.vertical_sep_3.place(x=304, y=7)
+            height=122,
+            border_color="#5e5e5e",
+            border_width=1,
+            fg_color="#696969" if self.mode == "Light" else "#1e1e1e")
 
-        self.openTerminalBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\terminal.png",
-            text="Open\nTerminal",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.openTerminalBtn.place(x=314, y=5)
+        self.databasesFrame.pack(fill="both", side="top")
+        self.databasesFrame.pack_propagate(False)
 
-        self.cmdWindowBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\command.png",
-            text="Command\nWindow",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.cmdWindowBtn.place(x=382, y=5)
-
-        self.resourcesBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\resources.png",
-            text="Manage\nResources",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.resourcesBtn.place(x=457, y=5)
-
-        self.containerBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\container.png",
-            text="Container\nWindow",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.containerBtn.place(x=529, y=5)
-
-        self.tasksBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\tasks.png",
-            text="Manage\nTasks",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.tasksBtn.place(x=600, y=5)
-
-        self.vertical_sep_4 = ctk.CTkFrame(
-            self.toolsFrame,
-            bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_4.place(x=664, y=7)
-
-        self.databaseBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\database.png",
-            text="Manage\nDatabases",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.databaseBtn.place(x=674, y=5)
-
-        self.sourcesBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\datasources.png",
-            text="Data\nSources",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.sourcesBtn.place(x=748, y=5)
-
-        self.impDataBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\importdata.png",
-            text="Import\nData",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.impDataBtn.place(x=806, y=5)
-
-        self.cleanDataBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\cleandata.png",
-            text="Clean\nData",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.cleanDataBtn.place(x=863, y=5)
-
-        self.newVarBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\newvar.png",
-            text="New Macro",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.newVarBtn.place(x=914, y=7)
-
-        self.openVarBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\openvar.png",
-            text="Open Macro",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.openVarBtn.place(x=914, y=37)
-
-        self.vertical_sep_5 = ctk.CTkFrame(
-            self.toolsFrame,
-            bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_5.place(x=1027, y=7)
-
-        self.gitBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\git.png",
-            text="Repository\nManager",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.gitBtn.place(x=1037, y=5)
-
-        self.gitChangesBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\gitchanges.png",
-            text="Git Changes",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.gitChangesBtn.place(x=1110, y=7)
-
-        self.githubBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\github.png",
-            text="View Github",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.githubBtn.place(x=1110, y=37)
-
-        self.vertical_sep_6 = ctk.CTkFrame(
-            self.toolsFrame,
-            bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_6.place(x=1225, y=7)
-
-        self.sqlBtn = uniwidgets.VerticalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\sql.png",
-            text="SQL\nServices",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.sqlBtn.place(x=1235, y=5)
-
-        self.jsonBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\json.png",
-            text="Open JSON",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.jsonBtn.place(x=1295, y=7)
-
-        self.xamlBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\xaml.png",
-            text="Open XAML",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.xamlBtn.place(x=1295, y=37)
-
-        self.htmlBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\html.png",
-            text="Open HTML",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.htmlBtn.place(x=1405, y=7)
-
-        self.webBtn = uniwidgets.HorizontalButton(
-            self.toolsFrame,
-            image_path=r"icons\system\web.png",
-            text="Manage Web",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.webBtn.place(x=1405, y=37)
+        databases_toolbar = uniwidgets.DatabasesToolbarBuilder(self.databasesFrame, self.parent_color,
+                                                               self.mode, self)
 
         ################################################################################################
         # PLOTS MENU: Shows plots of variables, objects, any selected (if it has plot options)
@@ -1433,6 +984,10 @@ class App:
         )
         self.dayDreamBtn.place(x=220, y=5)
 
+        ################################################################################################
+        # HELP MENU
+        ################################################################################################
+
         self.helpFrame = ctk.CTkFrame(
             self.downFrame,
             corner_radius=0,
@@ -1477,11 +1032,12 @@ class App:
         self.allTabs = [
             self.homeFrame,
             self.toolsFrame,
+            self.databasesFrame,
             self.plotsFrame,
             self.debugFrame,
             self.terminalFrame,
-            self.helpFrame,
-        ]
+            self.helpFrame]
+
         self.show_tab(self.homeFrame, self.homeBtn)
 
         #################################################################################################
@@ -1727,7 +1283,7 @@ class App:
         )
         self.file_explorer_frame.pack(fill="both", expand=True)
 
-        self.window.after(self.REFRESH_INTERVAL_MS, self.auto_refresh_workspace)
+        self.window.after(REFRESH_INTERVAL_MS, self.auto_refresh_workspace)
 
         self.top_frame = ctk.CTkFrame(self.file_explorer_frame, fg_color="transparent")
         self.top_frame.pack(fill="x", pady=(4, 0), padx=8)
@@ -1903,7 +1459,7 @@ class App:
                     self.tree_scrollbar.pack(fill="y", side="right")
                 else:
                     ext = os.path.splitext(item)[1].lower()
-                    if ext in self.allowed_extensions:
+                    if ext in allowed_extensions:
                         icon = self.icons.get(ext, self.icons.get("file"))
                         self.file_tree.insert(
                             parent, "end", text=item, image=icon, values=(item_path,)
@@ -1942,7 +1498,7 @@ class App:
             self.populate_tree(self.workspace_path)
             self.status_button.configure(text="Refreshing finished")
         # Schedule the next refresh
-        self.window.after(self.REFRESH_INTERVAL_MS, self.auto_refresh_workspace)
+        self.window.after(REFRESH_INTERVAL_MS, self.auto_refresh_workspace)
 
     def open_tree_selected_file(self, event=None):
         """Open the file currently selected in the tree."""
@@ -2097,6 +1653,10 @@ class App:
     def show_tab(self, frame_to_show, active_button):
         for frame in self.allTabs:
             frame.pack_forget()
+
+        if hasattr(frame_to_show, "initialize"):
+            frame_to_show.initialize()
+
         frame_to_show.pack(fill="both", side="top")
         frame_to_show.pack_propagate(False)
 
@@ -2104,6 +1664,7 @@ class App:
             self.homeBtn,
             self.toolsBtn,
             self.plotsBtn,
+            self.databasesBtn,
             self.debugBtn,
             self.terminalBtn,
             self.helpBtn]
@@ -2113,6 +1674,7 @@ class App:
 
         active_button.configure(
             fg_color="#1E1E1E" if self.mode == "Dark" else "#696969")
+
 
     def customDropDownFrameChanger(self, frame_to_show):
         for f in [self.plots2d, self.plots3d, self.scientific]:
@@ -2170,9 +1732,9 @@ class App:
         syntaxTab.run()
 
     def load_theme(self):
-        if os.path.exists(self.CONFIG_FILE):
+        if os.path.exists(CONFIG_FILE):
             try:
-                with open(self.CONFIG_FILE, "r") as f:
+                with open(CONFIG_FILE, "r") as f:
                     config = json.load(f)
                     theme = config.get("theme")
                     if theme in ["Light", "Dark"]:
