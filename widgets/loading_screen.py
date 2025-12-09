@@ -1,9 +1,11 @@
 import os
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import customtkinter as ctk
 from PIL import Image
 import main
+
 
 def loading_screen():
     splash = ctk.CTk()
@@ -22,7 +24,8 @@ def loading_screen():
     logo_image = ctk.CTkImage(
         light_image=Image.open(r"icons\logos\logo.png"),
         dark_image=Image.open(r"icons\logos\logo.png"),
-        size=(700, 400))
+        size=(700, 400),
+    )
 
     image_label = ctk.CTkLabel(splash, image=logo_image, text="")
     image_label.place(x=0, y=0)
@@ -35,5 +38,6 @@ def loading_screen():
     splash.after(7000, start_main_app)
 
     splash.mainloop()
+
 
 loading_screen()

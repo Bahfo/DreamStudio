@@ -3,9 +3,10 @@ Handles first layer: Graphical User Interface Layer (GUI Layer)
 \nDreamStudio is now only supported for some languages:
 \nLua, Python, and JavaScript
 """
+
 CONFIG_FILE = r"themes\config\config.json"
 REFRESH_INTERVAL_MINUTES = 2
-REFRESH_INTERVAL_MS = (REFRESH_INTERVAL_MINUTES * 60 * 1000)
+REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000
 
 icon_paths = {
     "folder_img": r"icons\types\folder.ico",
@@ -27,7 +28,6 @@ icon_paths = {
     "jsx_files": r"icons\types\javascript.ico",
     "py_files": r"icons\types\python.ico",
     "h_files": r"icons\types\c.ico",
-
     "load_ico": r"icons\system\load.png",
     "refresh_ico": r"icons\system\refresh.png",
     "console": r"icons\system\console.png",
@@ -35,7 +35,8 @@ icon_paths = {
     "manage": r"icons\system\manager.png",
     "problem": r"icons\system\problem.png",
     "ver": r"icons\system\version.png",
-    "warning": r"icons\system\warning.png"}
+    "warning": r"icons\system\warning.png",
+}
 
 ctk_icons = {
     "search_photo": (r"icons\system\search.png", (24, 24)),
@@ -43,7 +44,8 @@ ctk_icons = {
     "settings_photo": (r"icons\system\settings.png", (24, 24)),
     "save_photo": (r"icons\system\save_file.png", (24, 24)),
     "user_photo": (r"icons\system\user.png", (24, 24)),
-    "sleeping": (r"icons\types\sleeping.ico", (80, 80))}
+    "sleeping": (r"icons\types\sleeping.ico", (80, 80)),
+}
 
 arrow_icons = {
     "downArrow": (r"icons\system\down_arrow.png", (8, 8)),
@@ -53,11 +55,33 @@ arrow_icons = {
     "stepOut": (r"icons\system\stepOut.png", (20, 20)),
     "stepOver": (r"icons\system\stepOver.png", (20, 20)),
     "runToCursor": (r"icons\system\runToCursor.png", (20, 20)),
-    "toggleCursor": (r"icons\system\toggle.png", (20, 20))}
+    "toggleCursor": (r"icons\system\toggle.png", (20, 20)),
+}
 
-allowed_extensions = {".py",".txt",".c",".cpp",".json",".docx",".ppt",".pptx",".apk",".cpp",
-                      ".cs",".cc",".cxx",".html",".js",".java",".swift",".rb",".ts",".jsx",
-                      ".py",".h"}
+allowed_extensions = {
+    ".py",
+    ".txt",
+    ".c",
+    ".cpp",
+    ".json",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".apk",
+    ".cpp",
+    ".cs",
+    ".cc",
+    ".cxx",
+    ".html",
+    ".js",
+    ".java",
+    ".swift",
+    ".rb",
+    ".ts",
+    ".jsx",
+    ".py",
+    ".h",
+}
 
 license_text = """
 Copyright 2026 EX Technologies
@@ -99,11 +123,13 @@ from intellisense.highlighter import PythonHighlighterLight as pylight
 # MAIN WINDOW
 ################################################################################################
 
+
 class AppIcons:
     @staticmethod
     @lru_cache(maxsize=None)
     def create_padded_icon(ico_path, icon_size=(16, 16), padding=8):
         from PIL import ImageTk
+
         try:
             icon_img = Image.open(ico_path).convert("RGBA").resize(icon_size)
             img = Image.new(
@@ -118,6 +144,7 @@ class AppIcons:
             )
             return ImageTk.PhotoImage(img)
 
+
 def ctk_image_cache(func):
     """Decorator to cache CTkImage objects"""
     cached = {}
@@ -130,10 +157,13 @@ def ctk_image_cache(func):
                 cached[key] = ctk.CTkImage(light_image=img, size=size)
             else:
                 dark_img = Image.open(dark_image)
-                cached[key] = ctk.CTkImage(light_image=img, dark_image=dark_img, size=size)
+                cached[key] = ctk.CTkImage(
+                    light_image=img, dark_image=dark_img, size=size
+                )
         return cached[key]
 
     return wrapper
+
 
 @ctk_image_cache
 def load_ctk_icon(path, size, dark_image=None):
@@ -144,7 +174,9 @@ class App:
     def __init__(self):
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
-        self.window.iconbitmap(r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudioIDE\icons\logos\D.ico")
+        self.window.iconbitmap(
+            r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudioIDE\icons\logos\D.ico"
+        )
         self.window.geometry("1000x700")
         self.window.resizable(True, True)
 
@@ -166,7 +198,7 @@ class App:
 
         for attr, (path, size) in ctk_icons.items():
             setattr(self, attr, ctk.CTkImage(light_image=Image.open(path), size=size))
-        
+
         for attr, (path, size) in arrow_icons.items():
             setattr(self, attr, ctk.CTkImage(dark_image=Image.open(path), size=size))
 
@@ -208,7 +240,8 @@ class App:
             width=80,
             text="HOME",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.homeFrame, self.homeBtn))
+            command=lambda: self.show_tab(self.homeFrame, self.homeBtn),
+        )
 
         self.homeBtn.pack(side="left", anchor="w", padx=(8, 0))
 
@@ -220,7 +253,8 @@ class App:
             width=80,
             text="TOOLS",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.toolsFrame, self.toolsBtn))
+            command=lambda: self.show_tab(self.toolsFrame, self.toolsBtn),
+        )
 
         self.toolsBtn.pack(side="left", anchor="w", padx=(8, 0))
 
@@ -232,7 +266,8 @@ class App:
             width=80,
             text="DATABASES",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.databasesFrame, self.databasesBtn))
+            command=lambda: self.show_tab(self.databasesFrame, self.databasesBtn),
+        )
 
         self.databasesBtn.pack(side="left", anchor="w", padx=(8, 0))
 
@@ -244,7 +279,8 @@ class App:
             width=80,
             text="PLOTS",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.plotsFrame, self.plotsBtn))
+            command=lambda: self.show_tab(self.plotsFrame, self.plotsBtn),
+        )
 
         self.plotsBtn.pack(side="left", anchor="w", padx=(8, 0))
 
@@ -256,7 +292,8 @@ class App:
             width=80,
             text="DEBUG",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.debugFrame, self.debugBtn))
+            command=lambda: self.show_tab(self.debugFrame, self.debugBtn),
+        )
 
         self.debugBtn.pack(side="left", anchor="w", padx=(8, 0))
 
@@ -268,7 +305,8 @@ class App:
             width=80,
             text="TERMINAL",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.terminalFrame, self.terminalBtn))
+            command=lambda: self.show_tab(self.terminalFrame, self.terminalBtn),
+        )
 
         self.terminalBtn.pack(side="left", anchor="w", padx=(8, 0))
 
@@ -280,7 +318,8 @@ class App:
             width=80,
             text="HELP",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.helpFrame, self.helpBtn))
+            command=lambda: self.show_tab(self.helpFrame, self.helpBtn),
+        )
 
         self.helpBtn.pack(side="left", anchor="w", padx=(8, 0))
 
@@ -292,7 +331,8 @@ class App:
             width=100,
             text="ACCOUNT",
             font=("Segoe UI", 12),
-            image=self.downArrow)
+            image=self.downArrow,
+        )
 
         self.accountBtn.pack(side="right", anchor="e", padx=(8, 8))
 
@@ -317,7 +357,9 @@ class App:
 
         self.parent_color = self.homeFrame.cget("fg_color")
 
-        home_toolbar = uniwidgets.HomeToolbarBuilder(self.homeFrame, self.parent_color, self.mode, self)
+        home_toolbar = uniwidgets.HomeToolbarBuilder(
+            self.homeFrame, self.parent_color, self.mode, self
+        )
 
         ################################################################################################
         # Tools MENU: Opens new windows that does a specific utility and their functionalities
@@ -329,12 +371,15 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e")
+            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+        )
 
         self.toolsFrame.pack(fill="both", side="top")
         self.toolsFrame.pack_propagate(False)
 
-        tools_toolbar = uniwidgets.ToolsBarBuilder(self.toolsFrame, self.parent_color, self.mode, self)
+        tools_toolbar = uniwidgets.ToolsBarBuilder(
+            self.toolsFrame, self.parent_color, self.mode, self
+        )
 
         ################################################################################################
         # DATABASES MENU
@@ -346,13 +391,15 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e")
+            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+        )
 
         self.databasesFrame.pack(fill="both", side="top")
         self.databasesFrame.pack_propagate(False)
 
-        databases_toolbar = uniwidgets.DatabasesToolbarBuilder(self.databasesFrame, self.parent_color,
-                                                               self.mode, self)
+        databases_toolbar = uniwidgets.DatabasesToolbarBuilder(
+            self.databasesFrame, self.parent_color, self.mode, self
+        )
 
         ################################################################################################
         # PLOTS MENU: Shows plots of variables, objects, any selected (if it has plot options)
@@ -1036,7 +1083,8 @@ class App:
             self.plotsFrame,
             self.debugFrame,
             self.terminalFrame,
-            self.helpFrame]
+            self.helpFrame,
+        ]
 
         self.show_tab(self.homeFrame, self.homeBtn)
 
@@ -1044,16 +1092,15 @@ class App:
         # STATUS BAR
         #################################################################################################
 
-        self.status_bar = ctk.CTkFrame(self.window, height=24, corner_radius=0, fg_color="#004073")
+        self.status_bar = ctk.CTkFrame(
+            self.window, height=24, corner_radius=0, fg_color="#004073"
+        )
         self.status_bar.pack(fill="x", side="bottom")
         self.status_bar.pack_propagate(False)
 
         self.warnings_label1 = ctk.CTkLabel(
-            self.status_bar,
-            text="",
-            text_color="#D5D5D5",
-            image=self.warning,
-            height=8)
+            self.status_bar, text="", text_color="#D5D5D5", image=self.warning, height=8
+        )
         self.warnings_label1.pack(padx=(15, 2), side="left", pady=(2, 2))
 
         self.warnings_label2 = ctk.CTkLabel(
@@ -1062,15 +1109,13 @@ class App:
             text_color="#D5D5D5",
             font=("Segoe UI", 12),
             width=8,
-            height=8)
+            height=8,
+        )
         self.warnings_label2.pack(padx=(0, 2), side="left", pady=(2, 2))
 
         self.problems_label1 = ctk.CTkLabel(
-            self.status_bar,
-            text="",
-            text_color="#D5D5D5",
-            image=self.problem,
-            height=8)
+            self.status_bar, text="", text_color="#D5D5D5", image=self.problem, height=8
+        )
         self.problems_label1.pack(padx=(15, 2), side="left", pady=(2, 2))
 
         self.problems_label2 = ctk.CTkLabel(
@@ -1079,22 +1124,25 @@ class App:
             text_color="#D5D5D5",
             font=("Segoe UI", 12),
             width=8,
-            height=8)
+            height=8,
+        )
         self.problems_label2.pack(padx=(0, 2), side="left", pady=(2, 2))
 
         self.line_and_pos = ctk.CTkLabel(
             self.status_bar,
             text_color="#D5D5D5",
             text="Ln: 1, Col: 1",
-            font=("Segoe UI",12))
-        self.line_and_pos.pack(padx=(10,0),side="left")
+            font=("Segoe UI", 12),
+        )
+        self.line_and_pos.pack(padx=(10, 0), side="left")
 
         self.Version_button = ctk.CTkLabel(
             self.status_bar,
             text_color="#D5D5D5",
             text="V0.0.1 BETA",
             font=("Segoe UI", 11),
-            corner_radius=0)
+            corner_radius=0,
+        )
         self.Version_button.pack(padx=(7, 15), side="right", pady=(2, 2))
 
         self.terminal_open_button = ctk.CTkButton(
@@ -1106,7 +1154,8 @@ class App:
             fg_color=self.status_bar.cget("fg_color"),
             height=8,
             corner_radius=0,
-            command=self.open_shell)
+            command=self.open_shell,
+        )
 
         self.terminal_open_button.pack(padx=(7, 7), side="right", pady=(2, 2))
 
@@ -1118,9 +1167,9 @@ class App:
             width=15,
             height=8,
             corner_radius=0,
-            fg_color=self.status_bar.cget("fg_color"))
+            fg_color=self.status_bar.cget("fg_color"),
+        )
         self.status_button.pack(padx=(7, 7), side="right", pady=(2, 2))
-
 
         #################################################################################################
         # SERVICES LEFTMOST BAR
@@ -1244,7 +1293,7 @@ class App:
             corner_radius=0,
             text_color="#c4c4c4" if self.mode == "Dark" else "#3F3F3F",
             fg_color="#1D1D1D" if self.mode == "Dark" else "#E0E0E0",
-            font=("Consolas",14)
+            font=("Consolas", 14),
         )
         self.text_editor.place(relx=0, rely=0, relwidth=1, relheight=1)
 
@@ -1256,7 +1305,7 @@ class App:
             text_color="#1E1E1E" if self.mode == "Light" else "#C4C4C4",
             max_layouts=8,
             placeholder_color="#FFE49F" if self.mode == "Dark" else "#D6A229",
-            initial_layouts=2
+            initial_layouts=2,
         )
         tabs_widget.place(relx=0, rely=0, relwidth=1, relheight=1)
 
@@ -1267,7 +1316,7 @@ class App:
         self.text_editor.tag_config("class_name", foreground="purple")
         self.text_editor.tag_config("variable_name", foreground="teal")
 
-        if self.mode == 'Dark':
+        if self.mode == "Dark":
             highligther = pydark(text_box=self.text_editor)
         else:
             highligther = pylight(text_box=self.text_editor)
@@ -1320,11 +1369,13 @@ class App:
         self.label_workspace.pack(side="left", padx=(4, 0))
 
         self.horizontal_line = ctk.CTkFrame(
-            self.file_explorer_frame,width=300,
+            self.file_explorer_frame,
+            width=300,
             fg_color="#ADADAD" if self.mode == "Dark" else "#292929",
-            height=1,border_width=1
+            height=1,
+            border_width=1,
         )
-        self.horizontal_line.pack(padx=0, fill="x",pady=(3,0))
+        self.horizontal_line.pack(padx=0, fill="x", pady=(3, 0))
 
         self.tree_frame = ctk.CTkFrame(
             self.file_explorer_frame,
@@ -1339,7 +1390,7 @@ class App:
             text="No Current Workspace Active",
             font=("Segoe UI", 13),
         )
-        self.current_workspace_name.pack(padx=(0,3), pady=5, anchor="w")
+        self.current_workspace_name.pack(padx=(0, 3), pady=5, anchor="w")
 
         self.tree_scrollbar = ctk.CTkScrollbar(self.tree_frame, orientation="vertical")
 
@@ -1449,13 +1500,16 @@ class App:
                         values=(item_path,),
                     )
                     self.populate_tree(item_path, parent=node)
-                    
+
                     # Safely hide optional widgets
                     if hasattr(self, "no_workspace") and self.no_workspace:
                         self.no_workspace.pack_forget()
-                    if hasattr(self, "current_workspace_name") and self.current_workspace_name:
+                    if (
+                        hasattr(self, "current_workspace_name")
+                        and self.current_workspace_name
+                    ):
                         self.current_workspace_name.pack_forget()
-                    
+
                     self.tree_scrollbar.pack(fill="y", side="right")
                 else:
                     ext = os.path.splitext(item)[1].lower()
@@ -1667,14 +1721,15 @@ class App:
             self.databasesBtn,
             self.debugBtn,
             self.terminalBtn,
-            self.helpBtn]
+            self.helpBtn,
+        ]
 
         for btn in tabButtons:
             btn.configure(fg_color="#004073")
 
         active_button.configure(
-            fg_color="#1E1E1E" if self.mode == "Dark" else "#696969")
-
+            fg_color="#1E1E1E" if self.mode == "Dark" else "#696969"
+        )
 
     def customDropDownFrameChanger(self, frame_to_show):
         for f in [self.plots2d, self.plots3d, self.scientific]:
@@ -1728,7 +1783,8 @@ class App:
 
     def onOpenSyntax(self, event=None):
         syntaxTab = home.ConfigureSyntax(
-            self, master=self.window, text_editor=self.text_editor)
+            self, master=self.window, text_editor=self.text_editor
+        )
         syntaxTab.run()
 
     def load_theme(self):
@@ -1745,6 +1801,7 @@ class App:
 
     def open_shell(self):
         import widgets.command_window as command_window
+
         if self.shell_frame is None:
             self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.65)
             self.middle_frame.place(relx=0, rely=0.65, relwidth=1, relheight=0.28)
@@ -2189,6 +2246,7 @@ class LicenseOpen(ctk.CTkToplevel):
     def show(self):
         self.deiconify()
         self.lift()
+
 
 #####################################################################################################
 # RUN AND MODIFY

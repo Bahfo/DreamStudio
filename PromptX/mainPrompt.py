@@ -28,57 +28,105 @@ import datetime
 import platform
 import customtkinter as ctk
 
+
 class mainAppWindow:
     def __init__(self):
-        ctk.set_appearance_mode('dark')
+        ctk.set_appearance_mode("dark")
         self.mainWindow = ctk.CTk()
         self.mainWindow.geometry("1300x750")
         self.mainWindow.title("Power PromptX")
 
-        self.leftFrame = ctk.CTkFrame(self.mainWindow, width=400, height=750, fg_color="#1E1E1E",
-                                      corner_radius=0, border_color="#5F5F5F", border_width=1)
-        self.leftFrame.pack(fill='y', side='left')
+        self.leftFrame = ctk.CTkFrame(
+            self.mainWindow,
+            width=400,
+            height=750,
+            fg_color="#1E1E1E",
+            corner_radius=0,
+            border_color="#5F5F5F",
+            border_width=1,
+        )
+        self.leftFrame.pack(fill="y", side="left")
 
-        self.topRightFrame = ctk.CTkFrame(self.mainWindow, width=900, height=120, fg_color="#373737",
-                                          corner_radius=0, border_color="#5F5F5F", border_width=1)
-        self.topRightFrame.pack(fill='x', side='top')
+        self.topRightFrame = ctk.CTkFrame(
+            self.mainWindow,
+            width=900,
+            height=120,
+            fg_color="#373737",
+            corner_radius=0,
+            border_color="#5F5F5F",
+            border_width=1,
+        )
+        self.topRightFrame.pack(fill="x", side="top")
 
-        self.commandLabel = ctk.CTkLabel(self.mainWindow, text="Command Prompt", font=("Segoe UI", 18),
-                                         justify='left', anchor='w', width=800)
-        self.commandLabel.pack(side="top", padx=50, pady=(40, 0), fill='x')
+        self.commandLabel = ctk.CTkLabel(
+            self.mainWindow,
+            text="Command Prompt",
+            font=("Segoe UI", 18),
+            justify="left",
+            anchor="w",
+            width=800,
+        )
+        self.commandLabel.pack(side="top", padx=50, pady=(40, 0), fill="x")
 
-        self.commandBox = ctk.CTkEntry(self.mainWindow, width=800, height=50, fg_color="#1E1E1E",
-                                       corner_radius=5, border_color="#5F5F5F", border_width=1,
-                                       font=("Consolas", 14),
-                                       placeholder_text=">>> Type 'help' to see all commands, or start typing to dismiss")
+        self.commandBox = ctk.CTkEntry(
+            self.mainWindow,
+            width=800,
+            height=50,
+            fg_color="#1E1E1E",
+            corner_radius=5,
+            border_color="#5F5F5F",
+            border_width=1,
+            font=("Consolas", 14),
+            placeholder_text=">>> Type 'help' to see all commands, or start typing to dismiss",
+        )
         self.commandBox.pack(side="top", fill="x", padx=50, pady=(10, 0))
 
-        self.commandLabel = ctk.CTkLabel(self.mainWindow, text="Terminal", font=("Segoe UI", 18),
-                                         justify='left', anchor='w', width=800)
-        self.commandLabel.pack(side="top", padx=50, pady=(40, 0), fill='x')
+        self.commandLabel = ctk.CTkLabel(
+            self.mainWindow,
+            text="Terminal",
+            font=("Segoe UI", 18),
+            justify="left",
+            anchor="w",
+            width=800,
+        )
+        self.commandLabel.pack(side="top", padx=50, pady=(40, 0), fill="x")
 
-        self.terminalBox = ctk.CTkTextbox(self.mainWindow, font=("Consolas", 14), width=1000,
-                                          height=400, border_color="#5F5F5F", border_width=1,
-                                          state=ctk.DISABLED)
-        self.terminalBox.pack(side="top", padx=50, pady=(10, 0), fill='x')
+        self.terminalBox = ctk.CTkTextbox(
+            self.mainWindow,
+            font=("Consolas", 14),
+            width=1000,
+            height=400,
+            border_color="#5F5F5F",
+            border_width=1,
+            state=ctk.DISABLED,
+        )
+        self.terminalBox.pack(side="top", padx=50, pady=(10, 0), fill="x")
 
-        self.bottomFrame = ctk.CTkFrame(self.mainWindow, fg_color="#373737", border_color="#5F5F5F",
-                                        border_width=1, corner_radius=0, width=900, height=30)
-        self.bottomFrame.pack(side="bottom", fill='x')
+        self.bottomFrame = ctk.CTkFrame(
+            self.mainWindow,
+            fg_color="#373737",
+            border_color="#5F5F5F",
+            border_width=1,
+            corner_radius=0,
+            width=900,
+            height=30,
+        )
+        self.bottomFrame.pack(side="bottom", fill="x")
 
         self.cmd_shell = CommandLine(stdout=GUIStdout(self.terminalBox))
         self.commandBox.bind("<Return>", self.onEnter)
 
     def execute_command(self, line: str):
         import time
+
         if not line.strip():
-            return 
-        
+            return
+
         if line.strip() == "clear":
             self.terminalBox.configure(state=ctk.NORMAL)
-            self.terminalBox.delete("1.0","end")
+            self.terminalBox.delete("1.0", "end")
             return
-        
+
         try:
             if line.startswith("quit"):
                 self.print_output("\nExiting ...\n")
@@ -87,13 +135,13 @@ class mainAppWindow:
                 return
 
             result = self.cmd_shell.onecmd(line)
-            
+
             if result is True:
                 self.print_output("\nStopping Shell\n")
                 time.sleep(3)
                 self.mainWindow.destroy()
             elif isinstance(result, str):
-                result:str
+                result: str
                 if result.lower().startswith("error"):
                     self.print_output("\n" + result + "\n")
                 else:
@@ -115,6 +163,7 @@ class mainAppWindow:
     def show(self):
         self.mainWindow.mainloop()
 
+
 # ---------------- Redirect stdout to GUI ----------------
 class GUIStdout:
     def __init__(self, textbox):
@@ -130,6 +179,7 @@ class GUIStdout:
     def flush(self):
         pass
 
+
 # ---------------- Command Line Logic ----------------
 class CommandLine(cmd.Cmd):
     def __init__(self, stdout=None):
@@ -139,10 +189,28 @@ class CommandLine(cmd.Cmd):
         self._history = []
         self._history_index = None
         self.commands_list = [
-            "here", "peek", "clear", "cpuinfo", "meminfo",
-            "diskinfo", "sysinfo", "help", "quit", "fileinfo", "zip",
-            "changedir", "me", "mybox", "newbie", "clone",
-            "shift", "erase", "head", "tail", "find",]
+            "here",
+            "peek",
+            "clear",
+            "cpuinfo",
+            "meminfo",
+            "diskinfo",
+            "sysinfo",
+            "help",
+            "quit",
+            "fileinfo",
+            "zip",
+            "changedir",
+            "me",
+            "mybox",
+            "newbie",
+            "clone",
+            "shift",
+            "erase",
+            "head",
+            "tail",
+            "find",
+        ]
 
     def parse_args(self, arg):
         parts = arg.split()
@@ -156,7 +224,7 @@ class CommandLine(cmd.Cmd):
             else:
                 args[p] = True
         return args
-    
+
     def onecmd(self, line):
         line = line.strip()
         if line:
@@ -177,14 +245,13 @@ class CommandLine(cmd.Cmd):
         self._history_index = len(self._history)
         return ""
 
-
     # -------------------- Help --------------------
     def do_help(self, arg):
         """
-Help: help: 
-Provides help for functions.
-Type in the function name or topic after typing 'help'.
-Example: help changedir.
+        Help: help:
+        Provides help for functions.
+        Type in the function name or topic after typing 'help'.
+        Example: help changedir.
         """
         if arg:
             return super().do_help(arg)
@@ -194,17 +261,17 @@ Example: help changedir.
     # -------------------- Quit --------------------
     def do_quit(self, arg=None):
         """
-Help: quit: 
-Exits the command shell.
+        Help: quit:
+        Exits the command shell.
         """
         return True
 
     # -------------------- Changedir --------------------
     def do_changedir(self, arg):
         """
-Help: changedir --path=<directory_path>:
-Changes the current working directory to the specified path.
-Example: changedir --path="C:/Users/Username/Documents"
+        Help: changedir --path=<directory_path>:
+        Changes the current working directory to the specified path.
+        Example: changedir --path="C:/Users/Username/Documents"
         """
         args = self.parse_args(arg)
         path = args.get("path", None)
@@ -221,36 +288,36 @@ Example: changedir --path="C:/Users/Username/Documents"
     # -------------------- Here --------------------
     def do_here(self, arg=None):
         """
-Help: here:
-Displays the current working directory.
-Example: here
+        Help: here:
+        Displays the current working directory.
+        Example: here
         """
         return f"\ncurrent working directory: {os.getcwd()}"
 
     # -------------------- Me --------------------
     def do_me(self, arg=None):
         """
-Help: me:
-Displays the current username.
-Example: me
+        Help: me:
+        Displays the current username.
+        Example: me
         """
         return f"Username: {getpass.getuser()}"
 
     # -------------------- Mybox --------------------
     def do_mybox(self, arg=None):
         """
-Help: mybox:
-Displays the hostname of the machine.
-Example: mybox
+        Help: mybox:
+        Displays the hostname of the machine.
+        Example: mybox
         """
         return f"Hostname: {socket.gethostname()}"
 
     # -------------------- Newbie --------------------
     def do_newbie(self, arg):
         """
-Help: newbie --name=<file_name> [--path=<directory_path>] [--ext=<file_extension>] [--content="<file_content>"]:
-Creates a new file with the specified name, path, extension, and content.
-Example: newbie --name="example" --path="C:/Users/Username/Documents" --ext=".txt" --content="Hello, World!"
+        Help: newbie --name=<file_name> [--path=<directory_path>] [--ext=<file_extension>] [--content="<file_content>"]:
+        Creates a new file with the specified name, path, extension, and content.
+        Example: newbie --name="example" --path="C:/Users/Username/Documents" --ext=".txt" --content="Hello, World!"
         """
         args = self.parse_args(arg)
         if "name" not in args:
@@ -272,9 +339,9 @@ Example: newbie --name="example" --path="C:/Users/Username/Documents" --ext=".tx
     # -------------------- Clone --------------------
     def do_clone(self, arg):
         """
-Help: clone --source=<source_file> --destination=<destination_file_or_dir>:
-Clones a file from the source path to the destination path or directory.
-Example: clone --source="C:/path/to/source.txt" --destination="C:/path/to/destination.txt"
+        Help: clone --source=<source_file> --destination=<destination_file_or_dir>:
+        Clones a file from the source path to the destination path or directory.
+        Example: clone --source="C:/path/to/source.txt" --destination="C:/path/to/destination.txt"
         """
         args = self.parse_args(arg)
         source = args.get("source", None)
@@ -301,9 +368,9 @@ Example: clone --source="C:/path/to/source.txt" --destination="C:/path/to/destin
     # -------------------- Shift --------------------
     def do_shift(self, arg):
         """
-Help: shift --old=<old_string> --new=<new_string> --path=<file_path>:
-Replaces all occurrences of old_string with new_string in the specified file.
-Example: shift --old="foo" --new="bar" --path="C:/path/to/file.txt"
+        Help: shift --old=<old_string> --new=<new_string> --path=<file_path>:
+        Replaces all occurrences of old_string with new_string in the specified file.
+        Example: shift --old="foo" --new="bar" --path="C:/path/to/file.txt"
         """
         args = self.parse_args(arg)
         old_string = args.get("old", None)
@@ -328,9 +395,9 @@ Example: shift --old="foo" --new="bar" --path="C:/path/to/file.txt"
     # -------------------- Peek --------------------
     def do_peek(self, arg):
         """
-Help: peek [--number=<n>] [--path=<directory_path>]:
-Lists the contents of the specified directory. If --number is provided, lists only the first n items.
-Example: peek --number=5 --path="C:/Users/Username/Documents"
+        Help: peek [--number=<n>] [--path=<directory_path>]:
+        Lists the contents of the specified directory. If --number is provided, lists only the first n items.
+        Example: peek --number=5 --path="C:/Users/Username/Documents"
         """
         args = self.parse_args(arg)
         number = args.get("number", None)
@@ -344,16 +411,18 @@ Example: peek --number=5 --path="C:/Users/Username/Documents"
             if number in (None, "", "--all"):
                 return f"Directory ({path_to_use}):\n" + "\n".join(all_items)
             n = int(number)
-            return f"Directory ({path_to_use}) - first {n} items:\n" + "\n".join(all_items[:n])
+            return f"Directory ({path_to_use}) - first {n} items:\n" + "\n".join(
+                all_items[:n]
+            )
         except Exception as e:
             return f"Error: {e}"
 
     # -------------------- Erase --------------------
     def do_erase(self, arg):
         """
-Help: erase --file=<filename_or_path>:
-Deletes the specified file.
-Example: erase --file="C:/path/to/file.txt"
+        Help: erase --file=<filename_or_path>:
+        Deletes the specified file.
+        Example: erase --file="C:/path/to/file.txt"
         """
         args = self.parse_args(arg)
         filename = args.get("file", None)
@@ -370,7 +439,7 @@ Example: erase --file="C:/path/to/file.txt"
     # -------------------- Head --------------------
     def do_head(self, arg):
         """
-Help: head --file=<file> --lines=<n>: Shows the first n lines of a file (default 10).
+        Help: head --file=<file> --lines=<n>: Shows the first n lines of a file (default 10).
         """
         args = self.parse_args(arg)
         file_path = args.get("file", None)
@@ -391,7 +460,7 @@ Help: head --file=<file> --lines=<n>: Shows the first n lines of a file (default
     # -------------------- Tail --------------------
     def do_tail(self, arg):
         """
-Help: tail --file=<file> --lines=<n>: Shows the last n lines of a file (default 10).
+        Help: tail --file=<file> --lines=<n>: Shows the last n lines of a file (default 10).
         """
         args = self.parse_args(arg)
         file_path = args.get("file", None)
@@ -453,14 +522,18 @@ Help: tail --file=<file> --lines=<n>: Shows the last n lines of a file (default 
         source = args.get("source", None)
         destination = args.get("destination", None)
         if not source or not destination:
-            return "Error: You must provide --source=<file_or_dir> --destination=<zipfile>"
+            return (
+                "Error: You must provide --source=<file_or_dir> --destination=<zipfile>"
+            )
         try:
-            with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED) as z:
+            with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as z:
                 if os.path.isdir(source):
                     for root, _, files in os.walk(source):
                         for f in files:
                             abs_path = os.path.join(root, f)
-                            arcname = os.path.relpath(abs_path, start=os.path.dirname(source))
+                            arcname = os.path.relpath(
+                                abs_path, start=os.path.dirname(source)
+                            )
                             z.write(abs_path, arcname)
                 elif os.path.isfile(source):
                     z.write(source, os.path.basename(source))
@@ -473,14 +546,14 @@ Help: tail --file=<file> --lines=<n>: Shows the last n lines of a file (default 
     # -------------------- Cpuinfo --------------------
     def do_cpuinfo(self, arg=None):
         """
-Help: cpuinfo: Returns the underlying hardware processor's information.
+        Help: cpuinfo: Returns the underlying hardware processor's information.
         """
         return f"CPU: {platform.processor()}"
-    
+
     # -------------------- Meminfo --------------------
     def do_meminfo(self, arg=None):
         """
-Help: meminfo: Returns the main memory system information.
+        Help: meminfo: Returns the main memory system information.
         """
         try:
             mem = psutil.virtual_memory()
@@ -491,11 +564,11 @@ Help: meminfo: Returns the main memory system information.
             return f"Memory Usage:\nTotal: {total} MB\nUsed: {used} MB\nAvailable: {available} MB\nUsage: {percent}%"
         except Exception as e:
             return f"Error: {e}"
-        
+
     # -------------------- Diskinfo --------------------
     def do_diskinfo(self, path):
         """
-Help: diskinfo: Returns the hard disk drive (HDD) information.
+        Help: diskinfo: Returns the hard disk drive (HDD) information.
         """
         try:
             if not path:
@@ -511,11 +584,11 @@ Help: diskinfo: Returns the hard disk drive (HDD) information.
                 return f"Error: Path does not exist: {path}"
         except Exception as e:
             return f"Error: {e}"
-        
+
     # -------------------- Diskinfo --------------------
     def do_sysinfo(self, arg=None):
         """
-Help: sysinfo: Returns the operating system and architecture information
+        Help: sysinfo: Returns the operating system and architecture information
         """
         try:
             system = platform.system()
@@ -532,6 +605,7 @@ Help: sysinfo: Returns the operating system and architecture information
         self._history_index = None
         return "Command history cleared."
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app = mainAppWindow()
     app.show()

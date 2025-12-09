@@ -4,6 +4,7 @@ import customtkinter as ctk
 root = ctk.CTk()
 root.geometry("300x300")
 
+
 def pick_color():
     dialog = ColorDialog(root, "#00FF00")
     color = dialog.get_color()
@@ -11,6 +12,7 @@ def pick_color():
         print("User selected:", color)
     else:
         print("User cancelled")
+
 
 button = ctk.CTkButton(root, text="Pick Color", command=pick_color)
 button.pack(pady=50)
