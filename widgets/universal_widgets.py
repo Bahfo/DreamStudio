@@ -821,6 +821,8 @@ class LinkLabel(ctk.CTkFrame):
     def __init__(
         self,
         parent,
+        width,
+        height,
         link_color="#1a73e8",
         after_link_color="#551a8b",
         corner_radius=5,
@@ -836,18 +838,25 @@ class LinkLabel(ctk.CTkFrame):
         self.after_link_color = after_link_color
         self.corner_radius = corner_radius
         self.font = font or ("Segoe UI", 12)
+        self.width=width
+        self.height=height
 
         self.hoverframe = ctk.CTkFrame(
             self,
+            width=self.width,
+            height=self.height,
             fg_color=parent.cget("fg_color"),
             corner_radius=self.corner_radius,
-            border_width=0,
-            border_color=parent.cget("fg_color"),
+            border_width=0
         )
-        self.hoverframe.pack(padx=2, pady=2, fill="both", expand=True)
+        self.hoverframe.pack(fill="both")
+        self.hoverframe.pack_propagate(False)
 
         self.label = ctk.CTkLabel(
-            self.hoverframe, text=text, font=self.font, text_color=self.link_color
+            self.hoverframe,
+            text=text, 
+            font=self.font,
+            text_color=self.link_color,
         )
         self.label.pack()
 

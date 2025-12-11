@@ -9,25 +9,6 @@ REFRESH_INTERVAL_MINUTES = 2
 REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000
 
 icon_paths = {
-    "folder_img": r"icons\types\folder.ico",
-    "file_img": r"icons\types\file.ico",
-    "txt_img": r"icons\types\txt.ico",
-    "c_files": r"icons\types\c.ico",
-    "json_files": r"icons\types\json.ico",
-    "docx_files": r"icons\types\docx.ico",
-    "ppt_files": r"icons\types\ppt.ico",
-    "pptx_files": r"icons\types\pptx.ico",
-    "apk_files": r"icons\types\apk.ico",
-    "cs_files": r"icons\types\csharp.ico",
-    "html_files": r"icons\types\html.ico",
-    "js_files": r"icons\types\javascript.ico",
-    "java_files": r"icons\types\java.ico",
-    "swift_files": r"icons\types\swift.ico",
-    "rb_files": r"icons\types\ruby.ico",
-    "ts_files": r"icons\types\typescript.ico",
-    "jsx_files": r"icons\types\javascript.ico",
-    "py_files": r"icons\types\python.ico",
-    "h_files": r"icons\types\c.ico",
     "load_ico": r"icons\system\load.png",
     "refresh_ico": r"icons\system\refresh.png",
     "console": r"icons\system\console.png",
@@ -106,7 +87,8 @@ import threading
 import subprocess
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
+from tkinter import ttk
 
 import customtkinter as ctk
 import pyperclip
@@ -1250,28 +1232,32 @@ class App:
         # LEFT SIDEBAR FRAME
         #################################################################################################
 
-        self.sidebar = ctk.CTkFrame(
+        self.sidebar = ctk.CTkTabview(
             self.window,
             fg_color="#292929" if self.mode == "Dark" else "#ADADAD",
             width=360,
-            corner_radius=0,
+            corner_radius=1,
+            anchor="nw",
+            border_width=1,
+            border_color="#5E5E5E",
+            segmented_button_selected_color=(
+                "#1E1E1E" if self.mode == "Dark" else "#B6B6B6"
+            ),
+            segmented_button_selected_hover_color=(
+                "#1E1E1E" if self.mode == "Dark" else "#B6B6B6"
+            ),
+            segmented_button_padx=7,
         )
         self.sidebar.pack_propagate(False)
         self.sidebar.pack(side="left", fill="y")
 
+        self.fileExplorer = self.sidebar.add("File View")
+        self.properties = self.sidebar.add("Properties")
+        self.solution = self.sidebar.add("Solution Explorer")
+
         #################################################################################################
         # MAIN EDITOR AREA
         #################################################################################################
-        self.divider = ctk.CTkFrame(
-            self.window,
-            fg_color="gray40",
-            width=1,
-            border_width=1,
-            cursor="sb_h_double_arrow",
-            corner_radius=0,
-        )
-        self.divider.pack(side="left", fill="y")
-
         self.editor_frame = ctk.CTkFrame(self.window, corner_radius=0)
         self.editor_frame.pack(fill="both", expand=True)
 
@@ -1296,6 +1282,7 @@ class App:
             font=("Consolas", 14),
         )
         self.text_editor.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.text_editor.configure(padx=8)
 
         # --- TABS ---
         tabs_widget = uniwidgets.LayoutsTab(
@@ -1304,13 +1291,10 @@ class App:
             foreground_color="#1D1D1D" if self.mode == "Dark" else "#E0E0E0",
             text_color="#1E1E1E" if self.mode == "Light" else "#C4C4C4",
             max_layouts=8,
-            placeholder_color="#FFE49F" if self.mode == "Dark" else "#D6A229",
-            initial_layouts=2,
+            placeholder_color="#FFE49F" if self.mode == "Dark" else "#BB8300",
+            initial_layouts=1
         )
-        tabs_widget.place(relx=0, rely=0, relwidth=1, relheight=1)
-
-        self.font_size_var.trace_add("write", self.update_text_font)
-        self.code_font_var.trace_add("write", self.update_text_font)
+        tabs_widget.place(relx=0, rely=0, relwidth=1, relheight=0.8)
 
         self.text_editor.tag_config("function_name", foreground="orange")
         self.text_editor.tag_config("class_name", foreground="purple")
@@ -1326,80 +1310,67 @@ class App:
         #################################################################################################
         # FILE EXPLORER TREEVIEW
         #################################################################################################
-
-        self.file_explorer_frame = ctk.CTkFrame(
-            self.sidebar, fg_color="#292929" if self.mode == "Dark" else "#ADADAD"
-        )
-        self.file_explorer_frame.pack(fill="both", expand=True)
-
-        self.window.after(REFRESH_INTERVAL_MS, self.auto_refresh_workspace)
-
-        self.top_frame = ctk.CTkFrame(self.file_explorer_frame, fg_color="transparent")
-        self.top_frame.pack(fill="x", pady=(4, 0), padx=8)
-
-        self.load_workspace_btn = ctk.CTkButton(
-            self.top_frame,
-            text="",
-            image=self.load_ico,
-            width=8,
-            fg_color=self.file_explorer_frame.cget("fg_color"),
-            text_color="#ADADAD" if self.mode == "Dark" else "#292929",
-            command=self.load_workspace,
-        )
-        self.load_workspace_btn.pack(side="right", padx=(0, 2))
-
-        self.refresh_workspace_btn = ctk.CTkButton(
-            self.top_frame,
-            text="",
-            width=8,
-            image=self.refresh_ico,
-            fg_color=self.file_explorer_frame.cget("fg_color"),
-            state=ctk.DISABLED,
-            text_color="#ADADAD" if self.mode == "Dark" else "#292929",
-            command=self.refresh_current_workspace,
-        )
-        self.refresh_workspace_btn.pack(side="right")
-
         self.label_workspace = ctk.CTkLabel(
-            self.top_frame,
+            self.fileExplorer,
             text="CURRENT WORKSPACE",
-            font=("Segoe UI Semibold", 13),
-            fg_color=self.file_explorer_frame.cget("fg_color"),
+            font=("Segoe UI", 12),
+            fg_color=self.fileExplorer.cget("fg_color"),
+            width=40,
         )
-        self.label_workspace.pack(side="left", padx=(4, 0))
+        self.label_workspace.place(x=10, y=10)
+
+        self.loadWorkspaceBtn = ctk.CTkButton(
+            self.fileExplorer,
+            text="",
+            image=AppIcons.create_padded_icon(r"icons\system\load.png"),
+            width=20,
+            fg_color="transparent",
+            corner_radius=3,
+            anchor="center",
+            command=self.load_workspace
+        )
+        self.loadWorkspaceBtn.place(x=310,y=9)
+
+        self.refreshWorkspaceBtn = ctk.CTkButton(
+            self.fileExplorer,
+            text="",
+            image=AppIcons.create_padded_icon(r"icons\system\refresh.png"),
+            width=8,
+            height=8,
+            fg_color="transparent",
+            corner_radius=3,
+            anchor="center",
+            command=self.refresh_current_workspace
+        )
+        self.refreshWorkspaceBtn.place(x=280,y=9)
 
         self.horizontal_line = ctk.CTkFrame(
-            self.file_explorer_frame,
-            width=300,
-            fg_color="#ADADAD" if self.mode == "Dark" else "#292929",
+            self.fileExplorer,
+            width=340,
             height=1,
             border_width=1,
+            fg_color="#ADADAD" if self.mode == "Dark" else "#292929",
         )
-        self.horizontal_line.pack(padx=0, fill="x", pady=(3, 0))
+        self.horizontal_line.place(x=8, y=40)
 
+        #################################################################################################
+        # TREEVIEW
+        #################################################################################################
         self.tree_frame = ctk.CTkFrame(
-            self.file_explorer_frame,
+            self.fileExplorer,
             fg_color="#292929" if self.mode == "Dark" else "#ADADAD",
+            width=330,
+            height=550,
         )
-        self.tree_frame.pack(fill="both", expand=True, padx=8, pady=(0, 4))
-
-        self.current_workspace_name = ctk.CTkLabel(
-            self.tree_frame,
-            justify="left",
-            fg_color=self.file_explorer_frame.cget("fg_color"),
-            text="No Current Workspace Active",
-            font=("Segoe UI", 13),
-        )
-        self.current_workspace_name.pack(padx=(0, 3), pady=5, anchor="w")
-
-        self.tree_scrollbar = ctk.CTkScrollbar(self.tree_frame, orientation="vertical")
+        self.tree_frame.place(x=10, y=60)
+        self.tree_frame.pack_propagate(False)
 
         bg_color = "#292929" if self.mode == "Dark" else "#ADADAD"
         fg_color = "#ADADAD" if self.mode == "Dark" else "#292929"
         selected_color = "#0e639c"
 
         self.file_tree = ttk.Treeview(
-            self.tree_frame, show="tree", yscrollcommand=self.tree_scrollbar.set
+            self.tree_frame, show="tree"
         )
         self.file_tree.pack(fill="both", expand=True, side="left")
 
@@ -1411,18 +1382,21 @@ class App:
         )
 
         self.style = ttk.Style()
-        self.style.theme_use("default")
         self.style.configure(
             "Treeview",
-            background=bg_color,
-            foreground=fg_color,
-            fieldbackground=bg_color,
+            background="#292929" if self.mode == "Dark" else "#ADADAD",
+            foreground="#ADADAD" if self.mode == "Dark" else "#292929",
+            fieldbackground="#292929" if self.mode == "Dark" else "#ADADAD",
             font=("Segoe UI", 11),
             borderwidth=0,
-            lightcolor=bg_color,
-            darkcolor=bg_color,
-            rowheight=28,
+            rowheight=30,
         )
+        self.style.map(
+            "Treeview",
+            background=[("selected", "#0e639c")],
+            foreground=[("selected", "#FFFFFF")],
+        )
+
         self.style.map("Treeview", background=[("selected", selected_color)])
         self.style.configure(
             "Treeview.Heading",
@@ -1433,15 +1407,9 @@ class App:
         )
         self.style.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
 
-        self.tree_scrollbar.configure(command=self.file_tree.yview)
-
         #################################################################################################
         # BINDINGS
         #################################################################################################
-
-        self.text_editor.bind("<MouseWheel>", self.on_mouse_wheel)
-        self.divider.bind("<Button-1>", self.start_drag)
-        self.divider.bind("<B1-Motion>", self.on_drag)
         self.text_editor.bind("<Control-c>", self.copy_text_event)
         self.text_editor.bind("<Control-x>", self.cut_text_event)
         self.text_editor.bind("<Control-v>", self.paste_text_event)
@@ -1482,12 +1450,12 @@ class App:
 
     def click_outside(self, event):
         x, y = event.x_root, event.y_root
-        if not self.file_explorer_frame.winfo_containing(x, y):
+        if not self.fileExplorer.winfo_containing(x, y):
             self.remove_hover_effects()
             self.clear_tree_selection()
 
     def populate_tree(self, path, parent=""):
-        """Recursively populate the file_tree with folders/files."""
+        """Recursively populate the file_tree with folders/files (no icons)."""
         try:
             for item in os.listdir(path):
                 item_path = os.path.join(path, item)
@@ -1496,27 +1464,18 @@ class App:
                         parent,
                         "end",
                         text=item,
-                        image=self.icons.get("folder"),
                         values=(item_path,),
                     )
                     self.populate_tree(item_path, parent=node)
-
-                    # Safely hide optional widgets
-                    if hasattr(self, "no_workspace") and self.no_workspace:
-                        self.no_workspace.pack_forget()
-                    if (
-                        hasattr(self, "current_workspace_name")
-                        and self.current_workspace_name
-                    ):
-                        self.current_workspace_name.pack_forget()
-
-                    self.tree_scrollbar.pack(fill="y", side="right")
                 else:
                     ext = os.path.splitext(item)[1].lower()
+                    # Optionally filter allowed extensions
                     if ext in allowed_extensions:
-                        icon = self.icons.get(ext, self.icons.get("file"))
                         self.file_tree.insert(
-                            parent, "end", text=item, image=icon, values=(item_path,)
+                            parent,
+                            "end",
+                            text=item,
+                            values=(item_path,),
                         )
         except PermissionError:
             pass
@@ -1529,7 +1488,6 @@ class App:
             self.workspace["path"] = self.workspace_path
             self.file_tree.delete(*self.file_tree.get_children())
             self.populate_tree(self.workspace_path)
-            self.current_workspace_name.configure(text=f"{self.workspace_path}")
             self.refresh_workspace_btn.configure(state=ctk.NORMAL)
             self.status_button.configure(text="Workspace loaded successfully")
 
@@ -1560,21 +1518,20 @@ class App:
         if not self.selected_item:
             return
 
-        self.file_path_tuple = self.file_tree.item(self.selected_item, "values")
-        if not self.file_path_tuple:
+        file_path_tuple = self.file_tree.item(self.selected_item, "values")
+        if not file_path_tuple:
             return
 
-        self.file_path = self.file_path_tuple[0]
-
-        if not os.path.isfile(self.file_path):
+        file_path = file_path_tuple[0]
+        if not os.path.isfile(file_path):
             return  # ignore folders
 
         try:
-            with open(self.file_path, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             self.text_editor.delete("1.0", "end")
             self.text_editor.insert("1.0", content)
-            self.status_button.configure(text=f"File {self.file_path} opened")
+            self.status_button.configure(text=f"File {file_path} opened")
         except Exception as e:
             messagebox.showerror("Error", f"Could not open file:\n{e}")
             self.status_button.configure(text="Operation Failed")
@@ -1618,35 +1575,9 @@ class App:
     def delete_selected_text(self, event=None):
         self.text_editor.selection_clear()
 
-    def update_text_font(self, *args):
-        self.editor_font.configure(
-            family=self.code_font_var.get(), size=self.font_size_var.get()
-        )
-        self.line_number_font.configure(
-            family=self.code_font_var.get(), size=self.font_size_var.get() + 2
-        )
-        self.text_editor.configure(font=self.editor_font)
-
-    def start_drag(self, event):
-        self.divider.start_x = event.x
-
-    def on_drag(self, event):
-        dx = event.x - self.divider.start_x
-        new_width = self.sidebar.winfo_width() + dx
-        if 5 <= new_width <= 360:
-            self.sidebar.configure(width=new_width)
-            self.sidebar.pack_propagate(False)
-            self.sidebar.pack(side="left", fill="y")
-            self.editor_frame.pack(side="left", fill="both", expand=True)
-
-    def on_mouse_wheel(self, event):
-        scroll_units = int(-1 * (event.delta / 120))
-        self.text_editor.yview_scroll(scroll_units, "units")
-        return "break"
-
     def click_outside(self, event):
         widget = event.widget
-        # check if widget is inside editor_frame
+
         if not self.is_child_of(widget, self.editor_frame) and widget != self.cpuInfo:
             self.hide_debug_menu()
             self.window.unbind("<Button-1>")
