@@ -87,6 +87,7 @@ import threading
 import subprocess
 import tkinter as tk
 from pathlib import Path
+import CTkTable
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 
@@ -151,14 +152,14 @@ def ctk_image_cache(func):
 def load_ctk_icon(path, size, dark_image=None):
     pass
 
+ctk.set_appearance_mode("dark")
 
 class App:
     def __init__(self):
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
         self.window.iconbitmap(
-            r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudioIDE\icons\logos\D.ico"
-        )
+            r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudioIDE\icons\logos\D.ico")
         self.window.geometry("1000x700")
         self.window.resizable(True, True)
 
@@ -332,7 +333,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+            fg_color=["#696969","#1E1E1E"],
         )
         self.homeFrame.pack(fill="both", side="top")
         self.homeFrame.pack_propagate(False)
@@ -353,7 +354,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+            fg_color=["#696969","#1E1E1E"],
         )
 
         self.toolsFrame.pack(fill="both", side="top")
@@ -373,7 +374,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+            fg_color=["#696969","#1E1E1E"],
         )
 
         self.databasesFrame.pack(fill="both", side="top")
@@ -393,7 +394,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+            fg_color=["#696969","#1E1E1E"],
         )
         self.plotsFrame.pack(fill="both", side="top")
         self.plotsFrame.pack_propagate(False)
@@ -431,7 +432,7 @@ class App:
         self.vertical_sep_7 = ctk.CTkFrame(
             self.plotsFrame,
             bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
+            fg_color=["#696969","#1E1E1E"],
             width=2,
             height=75,
             corner_radius=0,
@@ -444,7 +445,7 @@ class App:
             width=400,
             height=77,
             fg_color=self.plotsFrame.cget("fg_color"),
-            border_color="#5e5e5e" if self.mode == "Dark" else "#D6D6D6",
+            border_color=["#5E5E5E","#D6D6D6"],
             border_width=1,
             corner_radius=1,
         )
@@ -738,7 +739,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+            fg_color=["#696969","#1E1E1E"],
         )
         self.debugFrame.pack(fill="both", side="top")
         self.debugFrame.pack_propagate(False)
@@ -816,7 +817,7 @@ class App:
         self.vertical_sep_8 = ctk.CTkFrame(
             self.debugFrame,
             bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
+            fg_color=["#727272","#3E3E3E"],
             width=2,
             height=75,
             corner_radius=0,
@@ -900,7 +901,7 @@ class App:
             height=26,
             image=self.rightArrow,
             text="Show Debugging Platforms",
-            text_color="#b5b5b5" if self.mode == "Dark" else "#D1D1D1",
+            text_color=["#B5B5B5","#1D1D1D"],
             font=("Segoe UI", 12),
             fg_color=self.debugFrame.cget("fg_color"),
             hover_color="#535353",
@@ -941,7 +942,7 @@ class App:
         self.vertical_sep_9 = ctk.CTkFrame(
             self.debugFrame,
             bg_color="transparent",
-            fg_color="#727272" if self.mode == "Dark" else "#3E3E3E",
+            fg_color=["#727272","#3F3F3F"],
             width=2,
             height=75,
             corner_radius=0,
@@ -968,7 +969,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+            fg_color=["#696969","#1E1E1E"],
         )
         self.terminalFrame.pack(fill="both", side="top")
         self.terminalFrame.pack_propagate(False)
@@ -1023,7 +1024,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color="#696969" if self.mode == "Light" else "#1e1e1e",
+            fg_color=["#696969","#1E1E1E"],
         )
         self.helpFrame.pack(fill="both", side="top")
         self.helpFrame.pack_propagate(False)
@@ -1234,26 +1235,22 @@ class App:
 
         self.sidebar = ctk.CTkTabview(
             self.window,
-            fg_color="#292929" if self.mode == "Dark" else "#ADADAD",
+            fg_color=["#ADADAD","#292929"],
             width=360,
             corner_radius=1,
             anchor="nw",
             border_width=1,
             border_color="#5E5E5E",
-            segmented_button_selected_color=(
-                "#1E1E1E" if self.mode == "Dark" else "#B6B6B6"
-            ),
-            segmented_button_selected_hover_color=(
-                "#1E1E1E" if self.mode == "Dark" else "#B6B6B6"
-            ),
+            segmented_button_selected_color=["#696969","#1E1E1E"],
+            segmented_button_selected_hover_color=["#696969","#1E1E1E"],
             segmented_button_padx=7,
         )
         self.sidebar.pack_propagate(False)
         self.sidebar.pack(side="left", fill="y")
 
-        self.fileExplorer = self.sidebar.add("File View")
+        self.fileExplorer = self.sidebar.add("Solution Explorer")
         self.properties = self.sidebar.add("Properties")
-        self.solution = self.sidebar.add("Solution Explorer")
+        self.solution = self.sidebar.add("Debugger")
 
         #################################################################################################
         # MAIN EDITOR AREA
@@ -1278,7 +1275,7 @@ class App:
             border_width=0,
             corner_radius=0,
             text_color="#c4c4c4" if self.mode == "Dark" else "#3F3F3F",
-            fg_color="#1D1D1D" if self.mode == "Dark" else "#E0E0E0",
+            fg_color=["#E0E0E0","#1D1D1D"],
             font=("Consolas", 14),
         )
         self.text_editor.place(relx=0, rely=0, relwidth=1, relheight=1)
@@ -1288,8 +1285,8 @@ class App:
         tabs_widget = uniwidgets.LayoutsTab(
             self.downer_frame,
             textbox=self.text_editor,
-            foreground_color="#1D1D1D" if self.mode == "Dark" else "#E0E0E0",
-            text_color="#1E1E1E" if self.mode == "Light" else "#C4C4C4",
+            foreground_color=["#E0E0E0","#1D1D1D"],
+            text_color=["#1E1E1E","#E0E0E0"],
             max_layouts=8,
             placeholder_color="#FFE49F" if self.mode == "Dark" else "#BB8300",
             initial_layouts=1
@@ -1349,7 +1346,7 @@ class App:
             width=340,
             height=1,
             border_width=1,
-            fg_color="#ADADAD" if self.mode == "Dark" else "#292929",
+            fg_color=["#292929","#ADADAD"],
         )
         self.horizontal_line.place(x=8, y=40)
 
@@ -1358,7 +1355,7 @@ class App:
         #################################################################################################
         self.tree_frame = ctk.CTkFrame(
             self.fileExplorer,
-            fg_color="#292929" if self.mode == "Dark" else "#ADADAD",
+            fg_color=["#ADADAD","#292929"],
             width=330,
             height=550,
         )
@@ -1406,6 +1403,70 @@ class App:
             borderwidth=0,
         )
         self.style.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
+
+        #################################################################################################
+        # PROPERTIES EXPLORER
+        #################################################################################################
+        self.codePropertiesLabel = ctk.CTkLabel(
+            self.properties,
+            text="Code Properties",
+            width=60,
+            font=("Segoe UI",12),
+            justify="left",
+            anchor="w"
+        )
+        self.codePropertiesLabel.pack(padx=20,pady=(3,0),anchor="w")
+        self.properties_table = CTkTable.CTkTable(self.properties,
+                                                  row=9,
+                                                  column=2,
+                                                  padx=0,
+                                                  pady=0,
+                                                  border_width=1,
+                                                  border_color="#808080",
+                                                  corner_radius=0,
+                                                  font=("Segoe UI",12),
+                                                  header_color=["#C3C3C3","#2D2D2D"],
+                                                  colors=[self.properties.cget("fg_color"),self.properties.cget("fg_color")],
+                                                  width=160)
+        self.properties_table.pack(padx=10,pady=5)
+        self.properties_table.insert(row=0,column=0,value="Property")
+        self.properties_table.insert(row=0,column=1,value="Value")
+        self.properties_table.insert(row=1,column=0,value="Classes")
+        self.properties_table.insert(row=2,column=0,value="Functions")
+        self.properties_table.insert(row=3,column=0,value="Variables")
+        self.properties_table.insert(row=4,column=0,value="Decorations")
+        self.properties_table.insert(row=5,column=0,value="Imports")
+        self.properties_table.insert(row=6,column=0,value="Exceptions")
+        self.properties_table.insert(row=7,column=0,value="Magic Methods")
+        self.properties_table.insert(row=8,column=0,value="Awaitables")
+
+        self.solutionPropertiesLabel = ctk.CTkLabel(
+            self.properties,
+            text="Solution Properties",
+            width=60,
+            font=("Segoe UI",12),
+            justify="left",
+            anchor="w"
+        )
+        self.solutionPropertiesLabel.pack(padx=20,pady=(3,0),anchor="w")
+        self.solution_table = CTkTable.CTkTable(self.properties,
+                                                  row=5,
+                                                  column=2,
+                                                  padx=0,
+                                                  pady=0,
+                                                  border_width=1,
+                                                  border_color="#808080",
+                                                  corner_radius=0,
+                                                  font=("Segoe UI",12),
+                                                  header_color=["#C3C3C3","#2D2D2D"],
+                                                  colors=[self.properties.cget("fg_color"),self.properties.cget("fg_color")],
+                                                  width=160)
+        self.solution_table.pack(padx=10,pady=5)
+        self.solution_table.insert(row=0,column=0,value="Solution Name")
+        self.solution_table.insert(row=1,column=0,value="Output Type")
+        self.solution_table.insert(row=2,column=0,value="Architecture")
+        self.solution_table.insert(row=3,column=0,value="Operating System")
+        self.solution_table.insert(row=4,column=0,value="Dependencies")
 
         #################################################################################################
         # BINDINGS

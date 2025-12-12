@@ -40,8 +40,9 @@ class WelcomeWindow(ctk.CTk):
         )
         self.titleBar.pack(fill="x", side="top")
 
-        self.icon = ctk.CTkLabel(self.titleBar, corner_radius=0, text="", width=14)
-        self.icon.pack(side="left", padx=5)
+        self.icon = ctk.CTkLabel(self.titleBar, corner_radius=0, text="DS", width=14,
+                                 font=("Segoe UI Bold",13),text_color="#0062B1",justify="center")
+        self.icon.pack(side="left", padx=(10,0))
 
         self.title_label = ctk.CTkLabel(
             self.titleBar,
@@ -59,6 +60,8 @@ class WelcomeWindow(ctk.CTk):
             corner_radius=0,
             width=20,
             command=self.close,
+            fg_color=self.titleBar.cget("fg_color"),
+            hover_color="#EB0000"
         )
         self.exitBtn.pack(side="right", padx=1)
 
@@ -70,6 +73,8 @@ class WelcomeWindow(ctk.CTk):
             corner_radius=0,
             width=20,
             command=self.minimize_window,
+            fg_color=self.titleBar.cget("fg_color"),
+            hover_color="#00316D"
         )
         self.minBtn.pack(side="right", padx=1)
 
@@ -158,7 +163,7 @@ class WelcomeWindow(ctk.CTk):
             width=100,
             justify="center"
         )
-        self.welcomeLabel.place(x=175,y=130)
+        self.welcomeLabel.place(x=160,y=120)
 
         self.explanationLabel = ctk.CTkLabel(
             self.rightFrame,
@@ -168,21 +173,21 @@ or use a generated template by clicking on 'Template Builds'""",
             font=("Segoe UI",12),
             justify="center"
         )
-        self.explanationLabel.place(x=132,y=180)
+        self.explanationLabel.place(x=115,y=160)
 
         self.newProjectBtn = uniwidgets.VerticalButton(
             self.rightFrame,
             image_path=r"icons\system\newvar.png",
             text="New Build",
         )
-        self.newProjectBtn.place(x=210,y=230)
+        self.newProjectBtn.place(x=195,y=230)
 
         self.newProjectBtn = uniwidgets.VerticalButton(
             self.rightFrame,
             image_path=r"icons\system\folder.ico",
             text=" Template "
         )
-        self.newProjectBtn.place(x=290,y=230)
+        self.newProjectBtn.place(x=275,y=230)
 
         self.feedbackLabel = ctk.CTkLabel(
             self.rightFrame,
@@ -190,7 +195,7 @@ or use a generated template by clicking on 'Template Builds'""",
             text="Got any questions?",
             width=50
         )
-        self.feedbackLabel.place(x=10,y=440)
+        self.feedbackLabel.place(x=10,y=410)
 
         self.feedbackLink = uniwidgets.LinkLabel(
             self.rightFrame,
@@ -203,7 +208,7 @@ or use a generated template by clicking on 'Template Builds'""",
             border_width=0,
             corner_radius=0
         )
-        self.feedbackLink.place(x=115,y=440)
+        self.feedbackLink.place(x=115,y=410)
 
     def click_titleBar(self, event):
         self.offset_x = event.x
@@ -229,6 +234,19 @@ or use a generated template by clicking on 'Template Builds'""",
     def run(self, event=None):
         self.mainloop()
 
+class ChoosingBuild(ctk.CTkToplevel):
+    def __init__(self):
+        pass
+
+    def show(self):
+        pass
+
+class TemplateBuilds(ctk.CTkToplevel):
+    def __init__(self):
+        pass
+
+    def show(self):
+        pass
 
 if __name__ == "__main__":
     app = WelcomeWindow()
