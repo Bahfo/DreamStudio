@@ -56,7 +56,7 @@ class ManagerLexer(Lexer):
 
         return get_line_tokens
 
-style= pts.Style.from_dict({'yellow':'yellow bold','green':'green'})
+style= pts.Style.from_dict({'yellow':'yellow','green':"#5E5E5E"})
 session = PromptSession(lexer=ManagerLexer(),style=style)
 
 class manager(Console):
@@ -108,7 +108,7 @@ class manager(Console):
                     
                     elif option_keys[token] == "flag":
                         parsed[token] = True
-                
+
                 else:
                     if "positional" not in parsed:
                         parsed["positional"] = []
@@ -118,7 +118,8 @@ class manager(Console):
 
         def execute(command, parsed_args):
             if command == "help":
-                print("Help Command: Download Manager")
+                if parsed_args == '--help' or parsed_args == '-h':
+                    print("Help Command: Download Manager")
             else:
                 print(f"Unkown Command: {command}")
         execute(command=command, parsed_args=arguments_parsed)

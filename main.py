@@ -1482,6 +1482,7 @@ class App:
         self.text_editor.bind("<KeyRelease>", self.update_cursor_pos)
         self.text_editor.bind("<ButtonRelease-1>", self.update_cursor_pos)
         self.text_editor.bind("<<Selection>>", self.update_cursor_pos)
+        self.text_editor.bind("<Control-BackSpace>", self.delete_word)
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
         self.window.bind("<Button-1>", self.click_outside)
@@ -1631,6 +1632,21 @@ class App:
 
         self.text_editor.mark_set(tk.INSERT, "1.0")
         self.text_editor.see(tk.INSERT)
+        return "break"
+
+    def delete_word(self, event=None):
+        cursor_index = self.text_editor.index("insert")
+        line, char = map(int, cursor_index.split('.'))
+        text_up_to_cursor = self.text_editor.get("1.0", "insert")
+        if not text_up_to_cursor:
+            return "break"
+        i = len(text_up_to_cursor) - 1
+        while i >= 0 and text_up_to_cursor[i].isspace():
+            i -= 1
+        while i >= 0 and not text_up_to_cursor[i].isspace():
+            i -= 1
+        start_index = f"1.{i+1}"
+        self.text_editor.delete(start_index, "insert")
         return "break"
 
     def delete_selected_text(self, event=None):
