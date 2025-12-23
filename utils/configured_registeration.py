@@ -4,7 +4,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk, ImageSequence
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import main
+import main_scripts.main as main
 
 
 def agreement_registeration():

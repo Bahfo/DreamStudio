@@ -532,16 +532,16 @@ class PythonHighlighterDark(PythonHighlighterBase):
     def __init__(self, text_box, path=None):
         super().__init__(text_box, path)
         self.colors = {
-            "blue_keyword": "#569CD6",  # keywords like def, class, return
-            "pink_keyword": "#C586C0",  # flow control, async/await
-            "yellow_function": "#DCDCAA",  # built-in functions
-            "green_function": "#4EC9B0",  # special functions
+            "blue_keyword": "#8DA8FF",
+            "pink_keyword": "#FD8DA3",
+            "yellow_function": "#DCDCAA",
+            "green_function": "#4EC9B0",
             "exception": "#F44747",  # exceptions
             "function": "#DCDCAA",  # user-defined functions
             "class": "#4EC9B0",  # class names
             "module": "#9CDCFE",  # imported modules
-            "string": "#CE9178",  # string literals
-            "comment": "#6A9955",  # comments
+            "string": "#5FCCA3",  # string literals
+            "comment": "#8E8E8E",
             "number": "#B5CEA8",  # numbers
             "operator": "#D4D4D4",  # operators
             "bracket": "#D4D4D4",  # brackets

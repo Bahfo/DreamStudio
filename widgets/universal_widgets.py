@@ -15,7 +15,7 @@ COPYRIGHT 2026
 # BUILDERS
 ########################################################################################
 class HomeToolbarBuilder:
-    def __init__(self, parent, parent_color, mode, logic_ref):
+    def __init__(self, parent, parent_color, logic_ref):
         """
         parent       → where to place buttons (your homeFrame)
         parent_color → fg_color for buttons
@@ -24,7 +24,6 @@ class HomeToolbarBuilder:
         """
         self.parent = parent
         self.parent_color = parent_color
-        self.mode = mode
         self.logic = logic_ref
 
         self._icon_cache = {}  # cache paths to avoid repeated loading
@@ -162,13 +161,11 @@ class HomeToolbarBuilder:
 
     def _create_separators(self):
         """Separators also created automatically."""
-        sep_color = "#727272" if self.mode == "Dark" else "#3E3E3E"
         separators = [("vertical_sep_1", 340, 7), ("vertical_sep_2", 760, 7)]
         for name, x, y in separators:
             sep = ctk.CTkFrame(
                 self.parent,
                 bg_color="transparent",
-                fg_color=sep_color,
                 width=2,
                 height=75,
                 corner_radius=0,
@@ -178,10 +175,9 @@ class HomeToolbarBuilder:
 
 
 class ToolsBarBuilder:
-    def __init__(self, parent, parent_color, mode, logic_ref):
+    def __init__(self, parent, parent_color, logic_ref):
         self.parent = parent
         self.parent_color = parent_color
-        self.mode = mode
         self.logic = logic_ref
 
         self._icon_cache = {}
@@ -194,7 +190,6 @@ class ToolsBarBuilder:
         return self._icon_cache[path]
 
     def _create_buttons(self):
-        sep_color = "#727272" if self.mode == "Dark" else "#3E3E3E"
 
         buttons = [
             (
@@ -307,7 +302,6 @@ class ToolsBarBuilder:
                 sep = ctk.CTkFrame(
                     self.parent,
                     bg_color="transparent",
-                    fg_color=sep_color,
                     width=2,
                     height=75,
                     corner_radius=0,
@@ -339,7 +333,6 @@ class DatabasesToolbarBuilder:
         """
         self.parent = parent
         self.parent_color = parent_color
-        self.mode = mode
         self.logic = logic_ref
 
         self._icon_cache = {}
@@ -459,7 +452,7 @@ class LayoutsTab(ctk.CTkFrame):
         textbox: ctk.CTkTextbox,
         foreground_color,
         text_color,
-        placeholder_color,
+        placeholder_color = ["#CCCCCC","#1E1E1E"],
         max_layouts: int = 16,
         initial_layouts: int = 1,
         *args,
@@ -665,8 +658,8 @@ class HorizontalButton(ctk.CTkFrame):
         text="",
         command=None,
         size=(16, 16),
-        hover_border="#bebebe",
-        click_border="#808080",
+        hover_border=["#454545","#bebebe"],
+        click_border=["#737373","#808080"],
         font=("Segoe UI", 11),
         **kwargs,
     ):
@@ -675,7 +668,6 @@ class HorizontalButton(ctk.CTkFrame):
         self.command = command
         self.hover_border = hover_border
         self.click_border = click_border
-        mode = self._get_appearance_mode()
 
         self.border_frame = ctk.CTkFrame(
             self,
@@ -703,7 +695,7 @@ class HorizontalButton(ctk.CTkFrame):
             self.inner_frame,
             text=text,
             font=font,
-            text_color="#E1E1E1" if mode == "Dark" else "#c8c8c8",
+            text_color=["#1E1E1E", "#c8c8c8"],
         )
         self.label.pack(side="left")
 
@@ -747,8 +739,8 @@ class VerticalButton(ctk.CTkFrame):
         text="",
         command=None,
         size=(27, 27),
-        hover_border="#bebebe",
-        click_border="#808080",
+        hover_border=["#454545","#bebebe"],
+        click_border=["#737373","#808080"],
         **kwargs,
     ):
         super().__init__(parent, fg_color="transparent")
@@ -756,7 +748,6 @@ class VerticalButton(ctk.CTkFrame):
         self.command = command
         self.hover_border = hover_border
         self.click_border = click_border
-        mode = self._get_appearance_mode()
 
         self.border_frame = ctk.CTkFrame(
             self,
@@ -781,7 +772,7 @@ class VerticalButton(ctk.CTkFrame):
             self.inner_frame,
             text=text,
             font=("Segoe UI", 12),
-            text_color="#E1E1E1" if mode == "Dark" else "#c8c8c8",
+            text_color=["#1E1E1E", "#c8c8c8"],
         )
         self.label.pack()
 

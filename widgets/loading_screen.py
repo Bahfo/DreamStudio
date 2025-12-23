@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import customtkinter as ctk
 from PIL import Image
-import main
+import main_scripts.main as main
 
 
 def loading_screen():

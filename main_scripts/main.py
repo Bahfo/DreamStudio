@@ -40,72 +40,28 @@ arrow_icons = {
 }
 
 allowed_extensions = {
-    ".py",
-    ".txt",
-    ".c",
-    ".cpp",
-    ".json",
-    ".docx",
-    ".ppt",
-    ".pptx",
-    ".apk",
-    ".cpp",
-    ".cs",
-    ".cc",
-    ".cxx",
-    ".html",
-    ".js",
-    ".java",
-    ".swift",
-    ".rb",
-    ".ts",
-    ".jsx",
-    ".py",
-    ".h",
-}
-
-license_text = """
-Copyright 2026 EX Technologies
-An Integrated Development Environment (IDE) designed to be light, professional, and user-friendly.
-
-Proprietary Freeware License:
-Softdream is free to download and use, but the user is restricted to the following keypoints:
-
-    - The software is free to use (gratis).
-    - Users cannot modify the software.
-    - Users cannot sell or distribute it.
-    - You may not modify, reverse engineer, or create derivative works.
-    - You may not redistribute, sell, or sublicense this software.
-
-For more info, download the full documentation.
-"""
+    ".py",".txt",".c",".cpp",".json",".docx",".ppt",".pptx",".apk",
+    ".cpp",".cs",".cc",".cxx",".html",".js",".java",".swift",".rb",
+    ".ts",".jsx",".py",".h"}
 
 import json
 import os
-import re
 import threading
 import subprocess
-import tkinter as tk
-from pathlib import Path
 import CTkTable
 from tkinter import filedialog, messagebox
-from tkinter import ttk
 
 import customtkinter as ctk
-import pyperclip
 from PIL import Image
 from functools import lru_cache
-
 import widgets.menus.home as home
 import widgets.universal_widgets as uniwidgets
-from intellisense.dreamintellisense import PythonIntellisense as pysense
-from intellisense.highlighter import PythonHighlighterDark as pydark
-from intellisense.highlighter import PythonHighlighterLight as pylight
+import main_scripts.save_menu as save_menu
+import main_scripts.serach_menu as search_menu
 
 ################################################################################################
 # MAIN WINDOW
 ################################################################################################
-
 
 class AppIcons:
     @staticmethod
@@ -158,19 +114,13 @@ class App:
     def __init__(self):
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
-        self.window.iconbitmap(
-            r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudioIDE\icons\logos\D.ico")
         self.window.geometry("1000x700")
         self.window.resizable(True, True)
-
-        ctk.set_default_color_theme(r"themes\metal.json")
-        self.mode = self.load_theme()
 
         #################################################################################################
         # DEFINITIONS
         #################################################################################################
 
-        self.version = "0.0.1 BETA"
         self.workspace = {"path": None}
 
         self.font_size_var = ctk.IntVar(value=14)
@@ -189,22 +139,7 @@ class App:
         # MENUS: Define showing menus, menubar, topframe, downframe, and their buttons
         ################################################################################################
 
-        self.menus = {
-            "DebugInfo": [
-                "Any CPU",
-                "x86 Architecture",
-                "x64 Architecture",
-                "ARM/ARM64",
-            ],
-            "Kit Manager": [
-                "Manage Kits",
-                "Install New Kits",
-                "Reload Kits",
-                "Deactivate all Kits",
-            ],
-        }
-
-        self.menubar = CTkFrameVeryDark(self.window, height=110, corner_radius=0)
+        self.menubar = ctk.CTkFrame(self.window, height=110, corner_radius=0)
         self.menubar.pack(fill="x", side="top")
         self.menubar.pack_propagate(False)
 
@@ -333,7 +268,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
         )
         self.homeFrame.pack(fill="both", side="top")
         self.homeFrame.pack_propagate(False)
@@ -341,7 +276,7 @@ class App:
         self.parent_color = self.homeFrame.cget("fg_color")
 
         home_toolbar = uniwidgets.HomeToolbarBuilder(
-            self.homeFrame, self.parent_color, self.mode, self
+            self.homeFrame, self.parent_color, self
         )
 
         ################################################################################################
@@ -354,14 +289,14 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
         )
 
         self.toolsFrame.pack(fill="both", side="top")
         self.toolsFrame.pack_propagate(False)
 
         tools_toolbar = uniwidgets.ToolsBarBuilder(
-            self.toolsFrame, self.parent_color, self.mode, self
+            self.toolsFrame, self.parent_color, self
         )
 
         ################################################################################################
@@ -374,15 +309,11 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
         )
 
         self.databasesFrame.pack(fill="both", side="top")
         self.databasesFrame.pack_propagate(False)
-
-        databases_toolbar = uniwidgets.DatabasesToolbarBuilder(
-            self.databasesFrame, self.parent_color, self.mode, self
-        )
 
         ################################################################################################
         # PLOTS MENU: Shows plots of variables, objects, any selected (if it has plot options)
@@ -394,7 +325,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
         )
         self.plotsFrame.pack(fill="both", side="top")
         self.plotsFrame.pack_propagate(False)
@@ -432,7 +363,7 @@ class App:
         self.vertical_sep_7 = ctk.CTkFrame(
             self.plotsFrame,
             bg_color="transparent",
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
             width=2,
             height=75,
             corner_radius=0,
@@ -592,12 +523,6 @@ class App:
         )
         self.corrMATBtn.place(x=155, y=2)
 
-        ######### MOVEMENT #########
-        if self.mode == "Dark":
-            self.text_color = "#CDCDCD"
-        else:
-            self.text_color = "#1E1E1E"
-
         self.upBtn1 = ctk.CTkButton(
             self.plots2d,
             text="",
@@ -606,7 +531,6 @@ class App:
             height=20,
             corner_radius=0,
             fg_color="#1e1e1e",
-            text_color=self.text_color,
             state=ctk.DISABLED,
         )
         self.upBtn1.place(x=345, y=2)
@@ -616,7 +540,6 @@ class App:
             image=self.downArrow,
             width=50,
             height=20,
-            text_color=self.text_color,
             corner_radius=0,
             hover_color="#001F39",
             fg_color="#004073",
@@ -640,7 +563,6 @@ class App:
             image=self.upArrow,
             width=50,
             height=20,
-            text_color=self.text_color,
             corner_radius=0,
             hover_color="#001F39",
             fg_color="#004073",
@@ -653,7 +575,6 @@ class App:
             image=self.downArrow,
             width=50,
             height=20,
-            text_color=self.text_color,
             corner_radius=0,
             hover_color="#001F39",
             fg_color="#004073",
@@ -677,7 +598,6 @@ class App:
             image=self.upArrow,
             width=50,
             height=20,
-            text_color=self.text_color,
             corner_radius=0,
             hover_color="#001F39",
             fg_color="#004073",
@@ -692,7 +612,6 @@ class App:
             height=20,
             corner_radius=0,
             fg_color="#1e1e1e",
-            text_color=self.text_color,
             state=ctk.DISABLED,
         )
         self.downBtn3.place(x=345, y=25)
@@ -739,7 +658,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
         )
         self.debugFrame.pack(fill="both", side="top")
         self.debugFrame.pack_propagate(False)
@@ -890,25 +809,6 @@ class App:
         )
         self.runToCursorBtn.place(x=98, y=2)
 
-        ######### CPU CONFIGURATION DEBUGGING #########
-
-        self.active_menu = {"menu": None}
-
-        self.cpuInfo = ctk.CTkButton(
-            self.debugFrame,
-            corner_radius=0,
-            width=75,
-            height=26,
-            image=self.rightArrow,
-            text="Show Debugging Platforms",
-            text_color=["#B5B5B5","#1D1D1D"],
-            font=("Segoe UI", 12),
-            fg_color=self.debugFrame.cget("fg_color"),
-            hover_color="#535353",
-            command=self.debugging_menu,
-        )
-        self.cpuInfo.place(x=553, y=47)
-
         self.watchBtn = uniwidgets.VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\watch.png",
@@ -969,7 +869,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
         )
         self.terminalFrame.pack(fill="both", side="top")
         self.terminalFrame.pack_propagate(False)
@@ -1024,7 +924,7 @@ class App:
             height=122,
             border_color="#5e5e5e",
             border_width=1,
-            fg_color=["#696969","#1E1E1E"],
+            fg_color=["#D2D2D2","#1E1E1E"],
         )
         self.helpFrame.pack(fill="both", side="top")
         self.helpFrame.pack_propagate(False)
@@ -1159,7 +1059,7 @@ class App:
         #################################################################################################
         self.shell_frame = None
 
-        self.services_bar = CTkFrameDarker(self.window, width=50, corner_radius=-1)
+        self.services_bar = ctk.CTkFrame(self.window, width=50, corner_radius=-1)
         self.services_bar.pack_propagate(False)
         self.services_bar.pack(side="left", fill="y")
 
@@ -1224,7 +1124,6 @@ class App:
             height=36,
             corner_radius=5,
             fg_color=self.services_bar.cget("fg_color"),
-            command=self.open_settings,
         )
         self.settings_button.pack(pady=5, side="bottom")
         uniwidgets.ToolTip(self.settings_button, "Show IDE settings and preferences")
@@ -1235,15 +1134,16 @@ class App:
 
         self.sidebar = ctk.CTkTabview(
             self.window,
-            fg_color=["#ADADAD","#292929"],
+            fg_color=["#EBEBEB","#292929"],
             width=360,
             corner_radius=1,
             anchor="nw",
             border_width=1,
             border_color="#5E5E5E",
-            segmented_button_selected_color=["#696969","#1E1E1E"],
+            segmented_button_selected_color=["#C2C2C2","#1E1E1E"],
             segmented_button_selected_hover_color=["#696969","#1E1E1E"],
             segmented_button_padx=7,
+            text_color=["#1E1E1E","#C2C2C2"]
         )
         self.sidebar.pack_propagate(False)
         self.sidebar.pack(side="left", fill="y")
@@ -1274,9 +1174,8 @@ class App:
             self.upper_frame,
             border_width=0,
             corner_radius=0,
-            text_color="#c4c4c4" if self.mode == "Dark" else "#3F3F3F",
             fg_color=["#E0E0E0","#1D1D1D"],
-            font=("Consolas", 14),
+            font=("Cascadia Mono", 14),
         )
         self.text_editor.place(relx=0, rely=0, relwidth=1, relheight=1)
         self.text_editor.configure(padx=8)
@@ -1288,7 +1187,6 @@ class App:
             foreground_color=["#E0E0E0","#1D1D1D"],
             text_color=["#1E1E1E","#E0E0E0"],
             max_layouts=8,
-            placeholder_color="#FFE49F" if self.mode == "Dark" else "#BB8300",
             initial_layouts=1
         )
         tabs_widget.place(relx=0, rely=0, relwidth=1, relheight=0.8)
@@ -1296,13 +1194,6 @@ class App:
         self.text_editor.tag_config("function_name", foreground="orange")
         self.text_editor.tag_config("class_name", foreground="purple")
         self.text_editor.tag_config("variable_name", foreground="teal")
-
-        if self.mode == "Dark":
-            highligther = pydark(text_box=self.text_editor)
-        else:
-            highligther = pylight(text_box=self.text_editor)
-        intellisense = pysense(widget=self.window, text_box=self.text_editor, path=None)
-        intellisense.bindings()
 
         #################################################################################################
         # FILE EXPLORER TREEVIEW
@@ -1324,7 +1215,6 @@ class App:
             fg_color="transparent",
             corner_radius=3,
             anchor="center",
-            command=self.load_workspace
         )
         self.loadWorkspaceBtn.place(x=310,y=9)
 
@@ -1337,7 +1227,6 @@ class App:
             fg_color="transparent",
             corner_radius=3,
             anchor="center",
-            command=self.refresh_current_workspace
         )
         self.refreshWorkspaceBtn.place(x=280,y=9)
 
@@ -1349,60 +1238,6 @@ class App:
             fg_color=["#292929","#ADADAD"],
         )
         self.horizontal_line.place(x=8, y=40)
-
-        #################################################################################################
-        # TREEVIEW
-        #################################################################################################
-        self.tree_frame = ctk.CTkFrame(
-            self.fileExplorer,
-            fg_color=["#ADADAD","#292929"],
-            width=330,
-            height=550,
-        )
-        self.tree_frame.place(x=10, y=60)
-        self.tree_frame.pack_propagate(False)
-
-        bg_color = "#292929" if self.mode == "Dark" else "#ADADAD"
-        fg_color = "#ADADAD" if self.mode == "Dark" else "#292929"
-        selected_color = "#0e639c"
-
-        self.file_tree = ttk.Treeview(
-            self.tree_frame, show="tree"
-        )
-        self.file_tree.pack(fill="both", expand=True, side="left")
-
-        self.file_tree.tag_configure("normal", background=bg_color, foreground=fg_color)
-        self.file_tree.tag_configure(
-            "hover",
-            background="#6D6D6D" if self.mode == "Light" else "#BEBEBE",
-            foreground="#2B2B2B" if self.mode == "Light" else "#CCCCCC",
-        )
-
-        self.style = ttk.Style()
-        self.style.configure(
-            "Treeview",
-            background="#292929" if self.mode == "Dark" else "#ADADAD",
-            foreground="#ADADAD" if self.mode == "Dark" else "#292929",
-            fieldbackground="#292929" if self.mode == "Dark" else "#ADADAD",
-            font=("Segoe UI", 11),
-            borderwidth=0,
-            rowheight=30,
-        )
-        self.style.map(
-            "Treeview",
-            background=[("selected", "#0e639c")],
-            foreground=[("selected", "#FFFFFF")],
-        )
-
-        self.style.map("Treeview", background=[("selected", selected_color)])
-        self.style.configure(
-            "Treeview.Heading",
-            background=bg_color,
-            foreground=fg_color,
-            relief="flat",
-            borderwidth=0,
-        )
-        self.style.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
 
         #################################################################################################
         # PROPERTIES EXPLORER
@@ -1426,7 +1261,8 @@ class App:
                                                   corner_radius=0,
                                                   font=("Segoe UI",12),
                                                   header_color=["#C3C3C3","#2D2D2D"],
-                                                  colors=[self.properties.cget("fg_color"),self.properties.cget("fg_color")],
+                                                  colors=[self.properties.cget("fg_color"),
+                                                          self.properties.cget("fg_color")],
                                                   width=160)
         self.properties_table.pack(padx=10,pady=5)
         self.properties_table.insert(row=0,column=0,value="Property")
@@ -1459,7 +1295,8 @@ class App:
                                                   corner_radius=0,
                                                   font=("Segoe UI",12),
                                                   header_color=["#C3C3C3","#2D2D2D"],
-                                                  colors=[self.properties.cget("fg_color"),self.properties.cget("fg_color")],
+                                                  colors=[self.properties.cget("fg_color"),
+                                                          self.properties.cget("fg_color")],
                                                   width=160)
         self.solution_table.pack(padx=10,pady=5)
         self.solution_table.insert(row=0,column=0,value="Solution Name")
@@ -1471,246 +1308,13 @@ class App:
         #################################################################################################
         # BINDINGS
         #################################################################################################
-        self.text_editor.bind("<Control-c>", self.copy_text_event)
-        self.text_editor.bind("<Control-x>", self.cut_text_event)
-        self.text_editor.bind("<Control-v>", self.paste_text_event)
         self.text_editor.bind("<Control-s>", self.save_file)
-        self.text_editor.bind("<Control-a>", self.select_all)
         self.text_editor.bind("<Control-f>", self.open_search)
-        self.text_editor.bind("<BackSpace>", self.delete_selected_text)
-        self.text_editor.bind("<Delete>", self.delete_selected_text)
         self.text_editor.bind("<KeyRelease>", self.update_cursor_pos)
         self.text_editor.bind("<ButtonRelease-1>", self.update_cursor_pos)
         self.text_editor.bind("<<Selection>>", self.update_cursor_pos)
-        self.text_editor.bind("<Control-BackSpace>", self.delete_word)
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
-        self.window.bind("<Button-1>", self.click_outside)
-        self.file_tree.bind("<Double-1>", self.open_tree_selected_file)
-        self.file_tree.bind("<Button-1>", self.on_tree_click)
-        self.file_tree.bind("<Motion>", self.on_tree_hover)
-
-    def remove_hover_effects(self):
-        for item in self.file_tree.get_children():
-            self.file_tree.item(item, tags=("normal",))
-
-    def clear_tree_selection(self):
-        for item in self.file_tree.selection():
-            self.file_tree.selection_remove(item)
-
-    def on_tree_hover(self, event):
-        row_id = self.file_tree.identify_row(event.y)
-        for item in self.file_tree.get_children():
-            tag = "hover" if item == row_id else "normal"
-            self.file_tree.item(item, tags=(tag,))
-
-    def on_tree_click(self, event):
-        row_id = self.file_tree.identify_row(event.y)
-        if not row_id:
-            self.clear_tree_selection()
-            self.remove_hover_effects()
-
-    def click_outside(self, event):
-        x, y = event.x_root, event.y_root
-        if not self.fileExplorer.winfo_containing(x, y):
-            self.remove_hover_effects()
-            self.clear_tree_selection()
-
-    def populate_tree(self, path, parent=""):
-        """Recursively populate the file_tree with folders/files (no icons)."""
-        try:
-            for item in os.listdir(path):
-                item_path = os.path.join(path, item)
-                if os.path.isdir(item_path):
-                    node = self.file_tree.insert(
-                        parent,
-                        "end",
-                        text=item,
-                        values=(item_path,),
-                    )
-                    self.populate_tree(item_path, parent=node)
-                else:
-                    ext = os.path.splitext(item)[1].lower()
-                    # Optionally filter allowed extensions
-                    if ext in allowed_extensions:
-                        self.file_tree.insert(
-                            parent,
-                            "end",
-                            text=item,
-                            values=(item_path,),
-                        )
-        except PermissionError:
-            pass
-
-    def load_workspace(self):
-        """Open a directory selection dialog and load the workspace."""
-        self.selected_path = filedialog.askdirectory()
-        if self.selected_path:
-            self.workspace_path = Path(self.selected_path)
-            self.workspace["path"] = self.workspace_path
-            self.file_tree.delete(*self.file_tree.get_children())
-            self.populate_tree(self.workspace_path)
-            self.refresh_workspace_btn.configure(state=ctk.NORMAL)
-            self.status_button.configure(text="Workspace loaded successfully")
-
-    def refresh_current_workspace(self):
-        """Refresh the currently loaded workspace."""
-        if not getattr(self, "workspace_path", None):
-            self.refresh_workspace_btn.configure(state=ctk.DISABLED)
-            self.status_button.configure(text="Failed to refresh workspace")
-            return
-        self.file_tree.delete(*self.file_tree.get_children())
-        self.populate_tree(self.workspace_path)
-        self.status_button.configure(text="Workspace refreshed successfully")
-        self.refresh_workspace_btn.configure(state=ctk.NORMAL)
-
-    def auto_refresh_workspace(self):
-        """Automatically refresh workspace every REFRESH_INTERVAL_MS milliseconds."""
-        if getattr(self, "workspace_path", None):
-            self.status_button.configure(text="Refreshing ...")
-            self.file_tree.delete(*self.file_tree.get_children())
-            self.populate_tree(self.workspace_path)
-            self.status_button.configure(text="Refreshing finished")
-        # Schedule the next refresh
-        self.window.after(REFRESH_INTERVAL_MS, self.auto_refresh_workspace)
-
-    def open_tree_selected_file(self, event=None):
-        """Open the file currently selected in the tree."""
-        self.selected_item = self.file_tree.focus()
-        if not self.selected_item:
-            return
-
-        file_path_tuple = self.file_tree.item(self.selected_item, "values")
-        if not file_path_tuple:
-            return
-
-        file_path = file_path_tuple[0]
-        if not os.path.isfile(file_path):
-            return  # ignore folders
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            self.text_editor.delete("1.0", "end")
-            self.text_editor.insert("1.0", content)
-            self.status_button.configure(text=f"File {file_path} opened")
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open file:\n{e}")
-            self.status_button.configure(text="Operation Failed")
-
-    def copy_text_event(self, event=None):
-        try:
-            selected_text = self.text_editor.selection_get()
-            pyperclip.copy(selected_text)
-            self.status_button.configure(text="Text copied")
-        except tk.TclError:
-            pass
-        return "break"
-
-    def cut_text_event(self, event=None):
-        try:
-            selected_text = self.text_editor.selection_get()
-            pyperclip.copy(selected_text)
-            self.text_editor.delete("sel.first", "sel.last")
-            self.status_button.configure(text="Text cut")
-        except tk.TclError:
-            pass
-        return "break"
-
-    def paste_text_event(self, event=None):
-        content = pyperclip.paste()
-        self.text_editor.insert(tk.INSERT, content)
-        self.status_button.configure(text="Text pasted")
-        return "break"
-
-    def select_all(self, event=None):
-        last_index = self.text_editor.index("end-1c")
-        number_of_lines = int(last_index.split(".")[0])
-
-        for i in range(1, number_of_lines + 1):
-            self.text_editor.tag_add("sel", f"{i}.0", f"{i}.end")
-
-        self.text_editor.mark_set(tk.INSERT, "1.0")
-        self.text_editor.see(tk.INSERT)
-        return "break"
-
-    def delete_word(self, event=None):
-        cursor_index = self.text_editor.index("insert")
-        line, char = map(int, cursor_index.split('.'))
-        text_up_to_cursor = self.text_editor.get("1.0", "insert")
-        if not text_up_to_cursor:
-            return "break"
-        i = len(text_up_to_cursor) - 1
-        while i >= 0 and text_up_to_cursor[i].isspace():
-            i -= 1
-        while i >= 0 and not text_up_to_cursor[i].isspace():
-            i -= 1
-        start_index = f"1.{i+1}"
-        self.text_editor.delete(start_index, "insert")
-        return "break"
-
-    def delete_selected_text(self, event=None):
-        self.text_editor.selection_clear()
-
-    def click_outside(self, event):
-        widget = event.widget
-
-        if not self.is_child_of(widget, self.editor_frame) and widget != self.cpuInfo:
-            self.hide_debug_menu()
-            self.window.unbind("<Button-1>")
-            self.cpuInfo.configure(image=self.rightArrow)
-
-    def is_child_of(self, widget, parent):
-        while widget:
-            if widget == parent:
-                return True
-            widget = widget.master
-        return False
-
-    def hide_debug_menu(self, event=None):
-        """Hide the active debug menu if it exists."""
-        if self.active_menu["menu"] is not None:
-            self.active_menu["menu"].destroy()
-            self.active_menu["menu"] = None
-
-    def debugging_menu(self):
-        """Toggle the debug info menu visibility."""
-        # If menu is already open → close it
-        if self.active_menu["menu"] is not None:
-            self.hide_debug_menu()
-            self.cpuInfo.configure(image=self.rightArrow)
-            return
-
-        # Otherwise, open the menu
-        self.cpuInfo.configure(image=self.downArrow)
-        self.frame = ctk.CTkFrame(
-            self.window,
-            fg_color="#1e1e1e" if self.mode == "Dark" else "#5e5e5e",
-            bg_color="#1e1e1e" if self.mode == "Dark" else "#5e5e5e",
-            border_color="#bcbcbc" if self.mode == "Dark" else "#292929",
-            border_width=1,
-            corner_radius=10,
-        )
-        self.frame.place(x=553, y=100)
-        self.active_menu["menu"] = self.frame
-
-        for option in self.menus["DebugInfo"]:
-            btn = ctk.CTkButton(
-                self.frame,
-                text=option,
-                text_color="#e8e8e8" if self.mode == "Dark" else "#2D2D2D",
-                fg_color="#1e1e1e" if self.mode == "Dark" else "#757575",
-                corner_radius=2,
-                width=190,
-                height=25,
-                anchor="w",
-                border_color="#bcbcbc" if self.mode == "Dark" else "#292929",
-                border_width=1,
-                font=("Segoe UI", 13),
-            )
-            btn.pack()
-
-        self.window.bind("<Button-1>", lambda e: self.click_outside(e))
 
     def show_tab(self, frame_to_show, active_button):
         for frame in self.allTabs:
@@ -1735,10 +1339,6 @@ class App:
         for btn in tabButtons:
             btn.configure(fg_color="#004073")
 
-        active_button.configure(
-            fg_color="#1E1E1E" if self.mode == "Dark" else "#696969"
-        )
-
     def customDropDownFrameChanger(self, frame_to_show):
         for f in [self.plots2d, self.plots3d, self.scientific]:
             f.place_forget()
@@ -1747,25 +1347,17 @@ class App:
     def open_terminal(self, event=None):
         subprocess.Popen("start cmd", shell=True)
 
-    def open_settings(self, event=None):
-        settings_window = SettingsWindow(self, status_button=self.status_button)
-        settings_window.show()
-
     def open_search(self, event=None):
-        search_window = KeywordSearch(
+        search_window = search_menu.KeywordSearch(
             self, self.text_editor, status_button=self.status_button
         )
         search_window.show()
 
     def save_file(self, event=None):
-        save_file = SaveFile(
+        save_file = save_menu.SaveFile(
             self, workspace_container=self.workspace, status_button=self.status_button
         )
         save_file.show()
-
-    def open_license(self, event=None):
-        license_window = LicenseOpen(self, status_button=self.status_button)
-        license_window.show()
 
     def open_current_file(main_app):
         if main_app.status_button:
@@ -1836,425 +1428,6 @@ class App:
     def run(self):
         self.window.mainloop()
         self.window.update_idletasks()
-
-
-def darken_color(hex_color, factor=0.8):
-    """
-    Darken a hex color by multiplying its RGB channels by `factor` (0 < factor < 1).
-    """
-    hex_color = hex_color.lstrip("#")
-    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-    r = max(min(int(r * factor), 255), 0)
-    g = max(min(int(g * factor), 255), 0)
-    b = max(min(int(b * factor), 255), 0)
-    return f"#{r:02X}{g:02X}{b:02X}"
-
-
-class CTkFrameDarker(ctk.CTkFrame):
-    def __init__(self, master, **kwargs):
-        theme_colors = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
-        self.mode_index = 0 if ctk.get_appearance_mode() == "Light" else 1
-        color = darken_color(
-            theme_colors[self.mode_index], factor=0.75
-        )  # Slightly darker
-        super().__init__(
-            master, fg_color=color, border_color="#5e5e5e", border_width=1, **kwargs
-        )
-
-
-class CTkFrameVeryDark(ctk.CTkFrame):
-    def __init__(self, master, **kwargs):
-        theme_colors = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
-        self.mode_index = 0 if ctk.get_appearance_mode() == "Light" else 1
-        color = darken_color(theme_colors[self.mode_index], factor=0.55)  # Much darker
-        super().__init__(
-            master, fg_color=color, border_color="#5e5e5e", border_width=1, **kwargs
-        )
-
-
-class KeywordSearch(ctk.CTkToplevel):
-    def __init__(self, main_app, text_frame, status_button=None):
-        super().__init__(main_app.window)
-        self.main_app = main_app
-        self.text_frame = text_frame
-        self.status_button = status_button
-        self.matches = []
-        self.current_match_index = 0
-
-        if self.status_button:
-            self.status_button.configure(text="search menu opened")
-
-        self.title("Find and Search")
-        self.geometry("350x150")
-        self.resizable(False, False)
-        self.attributes("-topmost", True)
-        self.withdraw()
-        self.transient(main_app.window)
-
-        label = ctk.CTkLabel(
-            self, text="Enter Keyword/Sentence/etc", font=("Segoe UI", 12)
-        )
-        label.pack(pady=(20, 5))
-
-        self.file_naming_box = ctk.CTkEntry(self, width=250)
-        self.file_naming_box.place(x=350 / 2, y=150 / 2, anchor="center")
-
-        confirm_button = ctk.CTkButton(
-            self, text="Search", width=100, corner_radius=6, command=self.searching
-        )
-        confirm_button.place(x=100 / 2, y=100)
-        confirm_button.focus_set()
-        self.bind("<Return>", lambda e: confirm_button.invoke())
-
-        self.next_search_btn = ctk.CTkButton(
-            self,
-            text="\u2b9f",
-            width=40,
-            corner_radius=6,
-            state=ctk.DISABLED,
-            command=self.next_search_match,
-        )
-        self.next_search_btn.place(x=260, y=100)
-
-        self.previous_search_btn = ctk.CTkButton(
-            self,
-            text="\u2b9d",
-            width=40,
-            corner_radius=6,
-            state=ctk.DISABLED,
-            command=self.previous_search_match,
-        )
-        self.previous_search_btn.place(x=210, y=100)
-
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
-
-    def show(self):
-        self.deiconify()
-        self.lift()
-
-    def searching(self):
-        text_to_search = self.file_naming_box.get()
-        full_text = self.text_frame.get("1.0", "end-1c")
-
-        self.main_app.text_editor.tag_remove("highlight", "1.0", "end-1c")
-        self.matches = list(re.finditer(re.escape(text_to_search), full_text))
-        if self.matches:
-            self.current_match_index = 0
-            first_match = self.matches[self.current_match_index]
-            start_index = f"1.0+{first_match.start()}c"
-            self.main_app.text_editor.mark_set("insert", start_index)
-            self.main_app.text_editor.see(start_index)
-            for match in self.matches:
-                start = f"1.0+{match.start()}c"
-                end = f"1.0+{match.end()}c"
-                self.main_app.text_editor.tag_add("highlight", start, end)
-            self.main_app.text_editor.tag_config(
-                "highlight", background="#633B24", foreground="#FFFFFF"
-            )
-            if self.status_button:
-                self.status_button.configure(text="Search found successfully!")
-            self.next_search_btn.configure(state=ctk.NORMAL)
-            self.previous_search_btn.configure(state=ctk.NORMAL)
-        else:
-            if self.status_button:
-                self.status_button.configure(text="No matches found!")
-
-    def next_search_match(self):
-        if not self.matches:
-            return
-        self.current_match_index = (self.current_match_index + 1) % len(self.matches)
-        index = f"1.0+{self.matches[self.current_match_index].start()}c"
-        self.main_app.text_editor.mark_set("insert", index)
-        self.main_app.text_editor.see(index)
-
-    def previous_search_match(self):
-        if not self.matches:
-            return
-        self.current_match_index = (self.current_match_index - 1) % len(self.matches)
-        index = f"1.0+{self.matches[self.current_match_index].start()}c"
-        self.main_app.text_editor.mark_set("insert", index)
-        self.main_app.text_editor.see(index)
-
-    def on_close(self):
-        self.main_app.text_editor.tag_remove("highlight", "1.0", "end-1c")
-        self.destroy()
-
-
-class SettingsWindow(ctk.CTkToplevel):
-    def __init__(self, main_app, status_button=None):
-        super().__init__(main_app.window)
-        self.main_app = main_app
-        self.status_button = status_button
-
-        if self.status_button:
-            self.status_button.configure(text="Settings Opened")
-
-        self.settings_and_preferences = self
-        self.title("Settings and Preferences")
-        self.geometry("900x700")
-        self.resizable(True, True)
-        self.withdraw()
-        self.transient(main_app.window)
-
-        scrollable_frame = ctk.CTkScrollableFrame(
-            self.settings_and_preferences, fg_color="transparent"
-        )
-        scrollable_frame.pack(fill="both", expand=True, padx=20, pady=20)
-        scrollable_frame.grid_columnconfigure(0, weight=1)
-
-        # --- Accessibility Section ---
-        accessibility_label = ctk.CTkLabel(
-            scrollable_frame,
-            text="Accessibility",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-        )
-        accessibility_label.grid(row=0, column=0, padx=0, pady=(0, 15), sticky="w")
-
-        accessibility_frame = CTkFrameDarker(scrollable_frame, corner_radius=8)
-        accessibility_frame.grid(row=1, column=0, padx=0, pady=(0, 20), sticky="ew")
-        accessibility_frame.grid_columnconfigure(0, weight=1)
-        accessibility_frame.grid_columnconfigure(1, weight=0)
-
-        # Font Size
-        settings_font_label = ctk.CTkLabel(
-            accessibility_frame,
-            text="Font Size",
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-        )
-        settings_font_label.grid(
-            row=0, column=0, padx=(20, 10), pady=(15, 10), sticky="w"
-        )
-
-        font_number_changer = ctk.CTkLabel(
-            accessibility_frame,
-            text=str(main_app.font_size_var.get()),
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-        )
-        font_number_changer.grid(
-            row=0, column=1, padx=(0, 20), pady=(15, 10), sticky="e"
-        )
-
-        def on_font_slider_change(value):
-            main_app.font_size_var.set(int(float(value)))
-            font_number_changer.configure(text=str(main_app.font_size_var.get()))
-            if status_button:
-                status_button.configure(text="Font size changed")
-
-        font_change_slider = ctk.CTkSlider(
-            accessibility_frame,
-            from_=8,
-            to=24,
-            number_of_steps=16,
-            command=on_font_slider_change,
-            width=300,
-        )
-        font_change_slider.set(main_app.font_size_var.get())
-        font_change_slider.grid(
-            row=1, column=0, columnspan=2, padx=20, pady=(0, 15), sticky="ew"
-        )
-
-        # --- Appearance Section ---
-        appearance_label = ctk.CTkLabel(
-            scrollable_frame,
-            text="Appearance",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-        )
-        appearance_label.grid(row=2, column=0, padx=0, pady=(0, 15), sticky="w")
-
-        appearance_frame = CTkFrameDarker(scrollable_frame, corner_radius=8)
-        appearance_frame.grid(row=3, column=0, padx=0, pady=(0, 20), sticky="ew")
-        appearance_frame.grid_columnconfigure(0, weight=1)
-        appearance_frame.grid_columnconfigure(1, weight=0)
-
-        # Font Family
-        font_family_label = ctk.CTkLabel(
-            appearance_frame,
-            text="Font Family",
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-        )
-        font_family_label.grid(
-            row=1, column=0, padx=(20, 10), pady=(20, 10), sticky="w"
-        )
-
-        def on_font_family_changer(value):
-            main_app.code_font_var.set(str(value))
-            if status_button:
-                status_button.configure(text="Font changed")
-
-        font_family_var = ctk.StringVar(value=main_app.code_font_var.get())
-        font_family_combo = ctk.CTkComboBox(
-            appearance_frame,
-            values=[
-                "Cascadia Code",
-                "Consolas",
-                "Courier",
-                "Courier New",
-                "DejaVu Sans Mono",
-                "Fira Code",
-                "Liberation Mono",
-                "Lucida Console",
-                "Menlo",
-                "Monaco",
-                "Source Code Pro",
-                "Roboto Mono",
-                "Ubuntu Mono",
-            ],
-            variable=font_family_var,
-            width=150,
-            command=on_font_family_changer,
-        )
-        font_family_combo.grid(row=1, column=1, padx=(0, 20), pady=(20, 10), sticky="e")
-
-        text_editor_theme_label = ctk.CTkLabel(
-            appearance_frame,
-            text="Text Editor Theme",
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-        )
-        text_editor_theme_label.grid(
-            row=2, column=0, padx=(20, 10), pady=(0, 10), sticky="w"
-        )
-
-        editor_themes_var = ctk.StringVar(value="Dark")
-
-        def theme_changer(selected_theme):
-            textbox = main_app.text_editor
-            if selected_theme == "Blue":
-                textbox.configure(fg_color="#2B3036", text_color="white")
-            elif selected_theme == "Red":
-                textbox.configure(fg_color="#393C3E", text_color="white")
-            elif selected_theme == "Dark":
-                textbox.configure(fg_color="#1e1e1e", text_color="#d4d4d4")
-            elif selected_theme == "Light":
-                textbox.configure(fg_color="white", text_color="black")
-
-        frame_theme_changer_combo = ctk.CTkComboBox(
-            appearance_frame,
-            values=["Blue", "Red", "Dark", "Light"],
-            variable=editor_themes_var,
-            width=150,
-            command=theme_changer,
-        )
-        frame_theme_changer_combo.grid(
-            row=2, column=1, padx=(0, 20), pady=(0, 10), sticky="e"
-        )
-
-    def show(self):
-        self.deiconify()
-        self.lift()
-
-
-class SaveFile(ctk.CTkToplevel):
-    def __init__(self, main_app, workspace_container, status_button=None):
-        """
-        main_app: reference to your main App() instance
-        workspace_container: dict/object containing current workspace path
-        status_button: optional, for updating status
-        """
-        super().__init__(main_app.window)
-        self.main_app = main_app
-        self.workspace_container = workspace_container
-        self.status_button = status_button
-
-        if self.status_button:
-            self.status_button.configure(text="Waiting to save file")
-
-        self.title("Save File")
-        self.geometry("360x160")
-        self.resizable(False, False)
-        self.withdraw()
-        self.transient(main_app.window)
-
-        label = ctk.CTkLabel(self, text="Enter file name:", font=("Segoe UI", 12))
-        label.pack(pady=(20, 5))
-
-        file_naming_box = ctk.CTkEntry(self, width=250, placeholder_text="untitled.txt")
-        file_naming_box.place(x=55, y=50)
-
-        def save_file():
-            filename = file_naming_box.get().strip()
-            file_content = main_app.text_editor.get("1.0", "end-1c")
-
-            if not filename:
-                uniwidgets.ScreenShakeAnimation(file_naming_box, orig_x=55, orig_y=50)
-                file_naming_box.configure(
-                    placeholder_text="Please enter a file name",
-                    placeholder_text_color="#ffb2b2",
-                )
-                return
-
-            if self.workspace_container.get("path") is None:
-                uniwidgets.ScreenShakeAnimation(confirm_button, orig_x=130, orig_y=100)
-                if self.status_button:
-                    self.status_button.configure(
-                        text="No workspace active to save file!"
-                    )
-                return
-
-            if "." not in filename:
-                filename += ".txt"
-
-            file_path = self.workspace_container["path"] / filename
-            try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(file_content)
-                messagebox.showinfo("Success", f"File saved successfully as {filename}")
-                if self.status_button:
-                    self.status_button.configure(text=f"{filename} saved")
-            except Exception as e:
-                messagebox.showerror("Error", f"Could not save file:\n{e}")
-                if self.status_button:
-                    self.status_button.configure(text=f"{filename} could not be saved")
-            self.destroy()
-
-        confirm_button = ctk.CTkButton(
-            self,
-            font=("Segoe UI", 12),
-            text="Save",
-            width=100,
-            corner_radius=6,
-            command=save_file,
-        )
-        confirm_button.place(x=130, y=100)
-
-    def show(self):
-        self.deiconify()
-        self.lift()
-
-
-class LicenseOpen(ctk.CTkToplevel):
-    def __init__(self, main_app, status_button=None):
-        """
-        main_app: reference to your main App() instance
-        status_button: optional, for updating status
-        """
-        super().__init__(main_app.window)
-        self.main_app = main_app
-        self.status_button = status_button
-
-        if self.status_button:
-            self.status_button.configure(text="License opened")
-
-        self.license_window = self
-        self.title("Software License")
-        self.geometry("500x350")
-        self.resizable(False, False)
-        self.attributes("-topmost", True)
-        self.withdraw()
-        self.transient(main_app.window)
-
-        license_label = ctk.CTkLabel(
-            self.license_window,
-            text=license_text,  # make sure license_text is defined
-            font=("Segoe UI", main_app.font_size_var.get()),
-            wraplength=480,
-            justify="left",
-        )
-        license_label.pack(padx=10, pady=10)
-
-    def show(self):
-        self.deiconify()
-        self.lift()
-
 
 #####################################################################################################
 # RUN AND MODIFY

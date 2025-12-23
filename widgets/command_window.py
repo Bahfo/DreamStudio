@@ -1176,9 +1176,9 @@ class PromptXShell(ctk.CTkFrame):
         self.textbox = ctk.CTkTextbox(
             self,
             corner_radius=0,
-            font=("Consolas", 14),
-            bg_color="#181818" if self.mode == "Dark" else "#ACACAC",
-            fg_color="#181818" if self.mode == "Dark" else "#ACACAC",
+            font=("Cascadia Mono", 14),
+            bg_color=["#ACACAC", "#181818"],
+            fg_color=["#ACACAC" , "#181818"],
         )
         self.textbox.place(x=0, y=0, relwidth=0.9999, relheight=0.9999)
 
