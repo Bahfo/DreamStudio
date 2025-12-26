@@ -49,15 +49,18 @@ import os
 import threading
 import subprocess
 import CTkTable
+import pathlib
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 from PIL import Image
 from functools import lru_cache
+from tkinterweb import HtmlFrame
 import widgets.menus.home as home
 import widgets.universal_widgets as uniwidgets
 import main_scripts.save_menu as save_menu
 import main_scripts.serach_menu as search_menu
+
 
 ################################################################################################
 # MAIN WINDOW
@@ -1165,36 +1168,6 @@ class App:
         self.middle_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0)
         self.middle_frame.place_forget()
 
-        self.downer_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0, height=40)
-        self.downer_frame.place(relx=0, rely=0.94, relwidth=0.999, relheight=0.07)
-        self.downer_frame.pack_propagate(False)
-
-        # --- TEXT EDITOR ---
-        self.text_editor = ctk.CTkTextbox(
-            self.upper_frame,
-            border_width=0,
-            corner_radius=0,
-            fg_color=["#E0E0E0","#1D1D1D"],
-            font=("Cascadia Mono", 14),
-        )
-        self.text_editor.place(relx=0, rely=0, relwidth=1, relheight=1)
-        self.text_editor.configure(padx=8)
-
-        # --- TABS ---
-        tabs_widget = uniwidgets.LayoutsTab(
-            self.downer_frame,
-            textbox=self.text_editor,
-            foreground_color=["#E0E0E0","#1D1D1D"],
-            text_color=["#1E1E1E","#E0E0E0"],
-            max_layouts=8,
-            initial_layouts=1
-        )
-        tabs_widget.place(relx=0, rely=0, relwidth=1, relheight=0.8)
-
-        self.text_editor.tag_config("function_name", foreground="orange")
-        self.text_editor.tag_config("class_name", foreground="purple")
-        self.text_editor.tag_config("variable_name", foreground="teal")
-
         #################################################################################################
         # FILE EXPLORER TREEVIEW
         #################################################################################################
@@ -1308,11 +1281,6 @@ class App:
         #################################################################################################
         # BINDINGS
         #################################################################################################
-        self.text_editor.bind("<Control-s>", self.save_file)
-        self.text_editor.bind("<Control-f>", self.open_search)
-        self.text_editor.bind("<KeyRelease>", self.update_cursor_pos)
-        self.text_editor.bind("<ButtonRelease-1>", self.update_cursor_pos)
-        self.text_editor.bind("<<Selection>>", self.update_cursor_pos)
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
 
@@ -1403,8 +1371,8 @@ class App:
         import widgets.command_window as command_window
 
         if self.shell_frame is None:
-            self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.65)
-            self.middle_frame.place(relx=0, rely=0.65, relwidth=1, relheight=0.28)
+            self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
+            self.middle_frame.place(relx=0, rely=0.70, relwidth=1, relheight=0.30)
 
             self.shell_frame = command_window.PromptXShell(main_app=self.middle_frame)
             self.shell_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
@@ -1415,14 +1383,9 @@ class App:
                 self.middle_frame.place_forget()
                 self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
             else:
-                self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.65)
-                self.middle_frame.place(relx=0, rely=0.65, relwidth=1, relheight=0.28)
+                self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
+                self.middle_frame.place(relx=0, rely=0.70, relwidth=1, relheight=0.30)
                 self.shell_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
-
-    def update_cursor_pos(self, event=None):
-        index = self.text_editor.index("insert")
-        line, column = map(int, index.split("."))
-        self.line_and_pos.configure(text=f"Ln {line}, Col {column + 1}")
 
     @lru_cache(maxsize=None)
     def run(self):

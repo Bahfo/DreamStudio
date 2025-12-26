@@ -1176,14 +1176,13 @@ class PromptXShell(ctk.CTkFrame):
         self.textbox = ctk.CTkTextbox(
             self,
             corner_radius=0,
-            font=("Cascadia Mono", 14),
-            bg_color=["#ACACAC", "#181818"],
-            fg_color=["#ACACAC" , "#181818"],
+            font=("Cascadia Mono", 13.5),
+            bg_color=["#ACACAC", "#1E1E1E"],
+            fg_color=["#ACACAC" , "#1E1E1E"],
         )
-        self.textbox.place(x=0, y=0, relwidth=0.9999, relheight=0.9999)
+        self.textbox.place(x=0, y=0, relwidth=1, relheight=1)
 
         # ---------------- Tags ----------------
-        self.textbox.tag_config("output", foreground="#EAEAEA")
         self.textbox.tag_config("error", foreground="#FF5555")
         self.textbox.tag_config("command", foreground="#FFFC56")
         self.textbox.tag_config("prompt", foreground="#CECECE")
@@ -1277,8 +1276,7 @@ class PromptXShell(ctk.CTkFrame):
             "Compiling": "#00F736",
             "added": "#00F736",
             "[WinError 2]": "red",
-            "(venv)": "#00F736",
-        }
+            "(venv)": "#00F736"}
 
         if not line.strip():
             return False
@@ -1298,9 +1296,9 @@ class PromptXShell(ctk.CTkFrame):
                 self.destroy()
             elif isinstance(result, str):
                 if result.lower().startswith("error"):
-                    self.print_output("\n" + result + "\n", "error")
+                    self.print_output(f"\n{result}\n", "dark_mode" if self.mode == 'dark' else "light_mode")
                 else:
-                    self.print_output("\n" + result + "\n", "output")
+                    self.print_output(f"\n{result}\n", "dark_mode" if self.mode == 'dark' else "light_mode")
             for word, color in highlight_dict.items():
                 self.highlight_word(word, color=color)
 
@@ -1332,15 +1330,9 @@ class PromptXShell(ctk.CTkFrame):
 
     def highlight_syntax(self):
         # Remove previous tags
-        for tag in [
-            "command",
-            "number",
-            "string",
-            "filename",
-            "path",
-            "subcommand",
-            "language",
-        ]:
+        for tag in ["command","number","string","filename",
+                    "path","subcommand","language"]:
+
             self.textbox.tag_remove(tag, self.readonly_index, "end")
 
         user_input = self.textbox.get(self.readonly_index, "end-1c")
