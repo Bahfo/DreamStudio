@@ -93,17 +93,17 @@ class KeywordSearch(ctk.CTkToplevel):
             return
         self.current_match_index = (self.current_match_index + 1) % len(self.matches)
         index = f"1.0+{self.matches[self.current_match_index].start()}c"
-        self.main_app.text_editor.mark_set("insert", index)
-        self.main_app.text_editor.see(index)
+        # self.main_app.text_editor.mark_set("insert", index)
+        # self.main_app.text_editor.see(index)
 
     def previous_search_match(self):
         if not self.matches:
             return
         self.current_match_index = (self.current_match_index - 1) % len(self.matches)
         index = f"1.0+{self.matches[self.current_match_index].start()}c"
-        self.main_app.text_editor.mark_set("insert", index)
-        self.main_app.text_editor.see(index)
+        # self.main_app.text_editor.mark_set("insert", index)
+        # self.main_app.text_editor.see(index)
 
     def on_close(self):
-        self.main_app.text_editor.tag_remove("highlight", "1.0", "end-1c")
+        # self.main_app.text_editor.tag_remove("highlight", "1.0", "end-1c")
         self.destroy()

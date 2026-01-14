@@ -7,9 +7,9 @@ logo_ascii = r"""
             | $$     | $$      | $$  | $$| $$ | $$ | $$| $$  | $$  | $$ /$$ /$$/\  $$
             | $$     | $$      |  $$$$$$/| $$ | $$ | $$| $$$$$$$/  |  $$$$/| $$  \ $$
             |__/     |__/       \______/ |__/ |__/ |__/| $$____/    \___/  |__/  |__/
-                                                    | $$                          
-                                                    | $$                          
-                                                    |__/
+                                                       | $$                          
+                                                       | $$                          
+                                                       |__/
 
 ────────────────────────────────────────────────────────────────────────────────────────────────
                         DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
@@ -1176,9 +1176,11 @@ class PromptXShell(ctk.CTkFrame):
         self.textbox = ctk.CTkTextbox(
             self,
             corner_radius=0,
-            font=("Cascadia Mono", 13.5),
+            font=("Consolas", 13),
             bg_color=["#ACACAC", "#1E1E1E"],
             fg_color=["#ACACAC" , "#1E1E1E"],
+            border_color="#5E5E5E",
+            border_width=1
         )
         self.textbox.place(x=0, y=0, relwidth=1, relheight=1)
 

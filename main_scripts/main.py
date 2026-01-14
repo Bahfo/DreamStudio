@@ -49,18 +49,15 @@ import os
 import threading
 import subprocess
 import CTkTable
-import pathlib
 from tkinter import filedialog, messagebox
+from cupcake import Editor, Languages
 
 import customtkinter as ctk
 from PIL import Image
 from functools import lru_cache
-from tkinterweb import HtmlFrame
-import widgets.menus.home as home
 import widgets.universal_widgets as uniwidgets
 import main_scripts.save_menu as save_menu
 import main_scripts.serach_menu as search_menu
-
 
 ################################################################################################
 # MAIN WINDOW
@@ -1163,10 +1160,38 @@ class App:
 
         # --- FRAMES ---
         self.upper_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0)
-        self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.upper_frame.pack(fill="both", expand = True)
 
         self.middle_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0)
         self.middle_frame.place_forget()
+
+        # --- CURRENT PATH ---
+        thisCurrentWd = os.getcwd()
+        objectLabel = thisCurrentWd.split("\\")
+        showObject = "  "
+        for obj in objectLabel:
+            showObject = showObject + obj + "> "
+
+        showObjectLabel = ctk.CTkLabel(self.upper_frame,
+                                       corner_radius=0,
+                                       text="",
+                                       compound="left",
+                                       anchor="w",
+                                       height=28,
+                                       bg_color=["#FFFFFF","#1F1F1F"],
+                                       font=("Consolas",13),
+                                       text_color=["#1F1F1F","#FFFFFF"])
+        showObjectLabel.pack(fill='x',side="top")
+        showObjectLabel.configure(text=showObject)
+
+        # --- TEXTBOX ---
+        self.text_editor = Editor(self.upper_frame,
+                              language=Languages.C,
+                              font=("Consolas",13),
+                              showpath=True,
+                              darkmode=True,
+                              uifont=("Segoe UI",14))
+        self.text_editor.pack(expand=0.9, fill='both')
 
         #################################################################################################
         # FILE EXPLORER TREEVIEW
@@ -1339,8 +1364,8 @@ class App:
             with open(current_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            main_app.text_editor.delete("1.0", "end")
-            main_app.text_editor.insert("1.0", content)
+            main_app.text_editor.content.delete("1.0", "end")
+            main_app.text_editor.content.insert("1.0", content)
             if main_app.status_button:
                 main_app.status_button.configure(text=f"File {current_file} opened")
 
@@ -1348,12 +1373,6 @@ class App:
             messagebox.showerror("Error", f"Could not open file:\n{e}")
             if main_app.status_button:
                 main_app.status_button.configure(text="Operation Failed")
-
-    def onOpenSyntax(self, event=None):
-        syntaxTab = home.ConfigureSyntax(
-            self, master=self.window, text_editor=self.text_editor
-        )
-        syntaxTab.run()
 
     def load_theme(self):
         if os.path.exists(CONFIG_FILE):

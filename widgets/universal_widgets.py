@@ -135,7 +135,6 @@ class HomeToolbarBuilder:
                 "Configure \nSyntax",
                 770,
                 5,
-                "onOpenSyntax",
             ),
         ]
 
