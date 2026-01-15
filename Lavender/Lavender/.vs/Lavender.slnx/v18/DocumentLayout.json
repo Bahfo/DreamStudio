@@ -1,0 +1,62 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Bahaa\\Desktop\\ExoSystem\\DreamStudioIDE\\Lavender\\Lavender\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{1F6D6E19-E9AD-121C-C028-1C06CA1B6B24}|Lavender.csproj|c:\\users\\bahaa\\desktop\\exosystem\\dreamstudioide\\lavender\\lavender\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{1F6D6E19-E9AD-121C-C028-1C06CA1B6B24}|Lavender.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1F6D6E19-E9AD-121C-C028-1C06CA1B6B24}|Lavender.csproj|c:\\users\\bahaa\\desktop\\exosystem\\dreamstudioide\\lavender\\lavender\\parser\\tokens\\lavender.g4||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{1F6D6E19-E9AD-121C-C028-1C06CA1B6B24}|Lavender.csproj|solutionrelative:parser\\tokens\\lavender.g4||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Lavender.g4",
+              "DocumentMoniker": "C:\\Users\\Bahaa\\Desktop\\ExoSystem\\DreamStudioIDE\\Lavender\\Lavender\\parser\\tokens\\Lavender.g4",
+              "RelativeDocumentMoniker": "parser\\tokens\\Lavender.g4",
+              "ToolTip": "C:\\Users\\Bahaa\\Desktop\\ExoSystem\\DreamStudioIDE\\Lavender\\Lavender\\parser\\tokens\\Lavender.g4",
+              "RelativeToolTip": "parser\\tokens\\Lavender.g4",
+              "ViewState": "AgIAAAcAAAAAAAAAAAAswA8AAAATAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-01-14T19:52:09.725Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\Bahaa\\Desktop\\ExoSystem\\DreamStudioIDE\\Lavender\\Lavender\\Program.cs",
+              "RelativeDocumentMoniker": "Program.cs",
+              "ToolTip": "C:\\Users\\Bahaa\\Desktop\\ExoSystem\\DreamStudioIDE\\Lavender\\Lavender\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-14T19:39:19.406Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
