@@ -55,8 +55,8 @@ from cupcake import Editor, Languages
 import customtkinter as ctk
 from PIL import Image
 from functools import lru_cache
-import add.widgets.universal_widgets as uniwidgets
-import save_menu as save_menu
+import widgets.universal_widgets as uniwidgets
+import save_menu
 import serach_menu as search_menu
 
 ################################################################################################
@@ -1387,7 +1387,7 @@ class App:
         return "Dark"
 
     def open_shell(self):
-        import add.widgets.universal_widgets as command_window
+        import widgets.universal_widgets as command_window
 
         if self.shell_frame is None:
             self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
