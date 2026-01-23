@@ -1,8 +1,5 @@
-"""
-Handles first layer: Graphical User Interface Layer (GUI Layer)
-\nDreamStudio is now only supported for some languages:
-\nLua, Python, and JavaScript
-"""
+# DREAMSTUDIO IDE  :GUI
+# 5/11/2025 BAHAA NOFAL
 
 CONFIG_FILE = r"themes\config\config.json"
 REFRESH_INTERVAL_MINUTES = 2
@@ -48,7 +45,6 @@ import json
 import os
 import threading
 import subprocess
-import CTkTable
 from tkinter import filedialog, messagebox
 from cupcake import Editor, Languages
 
@@ -56,6 +52,7 @@ import customtkinter as ctk
 from PIL import Image
 from functools import lru_cache
 import widgets.universal_widgets as uniwidgets
+import widgets.TabView as TabView
 import save_menu
 import serach_menu as search_menu
 
@@ -1131,26 +1128,8 @@ class App:
         #################################################################################################
         # LEFT SIDEBAR FRAME
         #################################################################################################
-
-        self.sidebar = ctk.CTkTabview(
-            self.window,
-            fg_color=["#EBEBEB","#292929"],
-            width=360,
-            corner_radius=1,
-            anchor="nw",
-            border_width=1,
-            border_color="#5E5E5E",
-            segmented_button_selected_color=["#C2C2C2","#1E1E1E"],
-            segmented_button_selected_hover_color=["#696969","#1E1E1E"],
-            segmented_button_padx=7,
-            text_color=["#1E1E1E","#C2C2C2"]
-        )
-        self.sidebar.pack_propagate(False)
-        self.sidebar.pack(side="left", fill="y")
-
-        self.fileExplorer = self.sidebar.add("Solution Explorer")
-        self.properties = self.sidebar.add("Properties")
-        self.solution = self.sidebar.add("Debugger")
+        self.sidebar = TabView.TabView(master=self.window, border_color=["#C8C8C8", "#444444"])
+        self.sidebar.mainFrame.pack(side="left", fill="y")
 
         #################################################################################################
         # MAIN EDITOR AREA
@@ -1186,122 +1165,12 @@ class App:
 
         # --- TEXTBOX ---
         self.text_editor = Editor(self.upper_frame,
-                              language=Languages.C,
+                              language=Languages.PYTHON,
                               font=("Consolas",13),
                               showpath=True,
                               darkmode=True,
                               uifont=("Segoe UI",14))
         self.text_editor.pack(expand=0.9, fill='both')
-
-        #################################################################################################
-        # FILE EXPLORER TREEVIEW
-        #################################################################################################
-        self.label_workspace = ctk.CTkLabel(
-            self.fileExplorer,
-            text="CURRENT WORKSPACE",
-            font=("Segoe UI", 12),
-            fg_color=self.fileExplorer.cget("fg_color"),
-            width=40,
-        )
-        self.label_workspace.place(x=10, y=10)
-
-        self.loadWorkspaceBtn = ctk.CTkButton(
-            self.fileExplorer,
-            text="",
-            image=AppIcons.create_padded_icon(r"icons\system\load.png"),
-            width=20,
-            fg_color="transparent",
-            corner_radius=3,
-            anchor="center",
-        )
-        self.loadWorkspaceBtn.place(x=310,y=9)
-
-        self.refreshWorkspaceBtn = ctk.CTkButton(
-            self.fileExplorer,
-            text="",
-            image=AppIcons.create_padded_icon(r"icons\system\refresh.png"),
-            width=8,
-            height=8,
-            fg_color="transparent",
-            corner_radius=3,
-            anchor="center",
-        )
-        self.refreshWorkspaceBtn.place(x=280,y=9)
-
-        self.horizontal_line = ctk.CTkFrame(
-            self.fileExplorer,
-            width=340,
-            height=1,
-            border_width=1,
-            fg_color=["#292929","#ADADAD"],
-        )
-        self.horizontal_line.place(x=8, y=40)
-
-        #################################################################################################
-        # PROPERTIES EXPLORER
-        #################################################################################################
-        self.codePropertiesLabel = ctk.CTkLabel(
-            self.properties,
-            text="Code Properties",
-            width=60,
-            font=("Segoe UI",12),
-            justify="left",
-            anchor="w"
-        )
-        self.codePropertiesLabel.pack(padx=20,pady=(3,0),anchor="w")
-        self.properties_table = CTkTable.CTkTable(self.properties,
-                                                  row=9,
-                                                  column=2,
-                                                  padx=0,
-                                                  pady=0,
-                                                  border_width=1,
-                                                  border_color="#808080",
-                                                  corner_radius=0,
-                                                  font=("Segoe UI",12),
-                                                  header_color=["#C3C3C3","#2D2D2D"],
-                                                  colors=[self.properties.cget("fg_color"),
-                                                          self.properties.cget("fg_color")],
-                                                  width=160)
-        self.properties_table.pack(padx=10,pady=5)
-        self.properties_table.insert(row=0,column=0,value="Property")
-        self.properties_table.insert(row=0,column=1,value="Value")
-        self.properties_table.insert(row=1,column=0,value="Classes")
-        self.properties_table.insert(row=2,column=0,value="Functions")
-        self.properties_table.insert(row=3,column=0,value="Variables")
-        self.properties_table.insert(row=4,column=0,value="Decorations")
-        self.properties_table.insert(row=5,column=0,value="Imports")
-        self.properties_table.insert(row=6,column=0,value="Exceptions")
-        self.properties_table.insert(row=7,column=0,value="Magic Methods")
-        self.properties_table.insert(row=8,column=0,value="Awaitables")
-
-        self.solutionPropertiesLabel = ctk.CTkLabel(
-            self.properties,
-            text="Solution Properties",
-            width=60,
-            font=("Segoe UI",12),
-            justify="left",
-            anchor="w"
-        )
-        self.solutionPropertiesLabel.pack(padx=20,pady=(3,0),anchor="w")
-        self.solution_table = CTkTable.CTkTable(self.properties,
-                                                  row=5,
-                                                  column=2,
-                                                  padx=0,
-                                                  pady=0,
-                                                  border_width=1,
-                                                  border_color="#808080",
-                                                  corner_radius=0,
-                                                  font=("Segoe UI",12),
-                                                  header_color=["#C3C3C3","#2D2D2D"],
-                                                  colors=[self.properties.cget("fg_color"),
-                                                          self.properties.cget("fg_color")],
-                                                  width=160)
-        self.solution_table.pack(padx=10,pady=5)
-        self.solution_table.insert(row=0,column=0,value="Solution Name")
-        self.solution_table.insert(row=1,column=0,value="Output Type")
-        self.solution_table.insert(row=2,column=0,value="Architecture")
-        self.solution_table.insert(row=3,column=0,value="Operating System")
-        self.solution_table.insert(row=4,column=0,value="Dependencies")
 
         #################################################################################################
         # BINDINGS
@@ -1387,7 +1256,7 @@ class App:
         return "Dark"
 
     def open_shell(self):
-        import widgets.universal_widgets as command_window
+        import widgets.command_window as command_window
 
         if self.shell_frame is None:
             self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)

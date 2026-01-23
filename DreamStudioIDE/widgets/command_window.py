@@ -1166,7 +1166,7 @@ class PromptXShell(ctk.CTkFrame):
         self._border_width = 1
 
         self.mode = ctk.get_appearance_mode()
-        self.configure(fg_color="#1C1C1C" if self.mode == "Dark" else "#BDBDBD")
+        self.configure(fg_color="#1C1C1C" if self.mode == "Dark" else "#D4D4D4")
 
         if self.status_button:
             self.status_button.configure(text="Terminal Opened")
@@ -1177,8 +1177,9 @@ class PromptXShell(ctk.CTkFrame):
             self,
             corner_radius=0,
             font=("Consolas", 13),
-            bg_color=["#ACACAC", "#1E1E1E"],
-            fg_color=["#ACACAC" , "#1E1E1E"],
+            text_color=["#1E1E1E","#D4D4D4"],
+            bg_color=["#606060", "#BABABA"],
+            fg_color=["#F5F5F5" , "#1E1E1E"],
             border_color="#5E5E5E",
             border_width=1
         )

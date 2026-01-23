@@ -1,0 +1,22 @@
+Supported Languages: 
+1. C/C++ => Because I want in the future to work on my compiler project + my OS project
+2. Python => For data analysis + main projects + developing the IDE on itself.
+3. Lua.
+There is also the support for markup languages:
+1. HTML/CSS
+2. JSON
+
+What Compilation/Running/Debugging Options Do I need?
+A. Main Options:
+1. Start Debugging
+2. Run Without Debugging
+3. Stop Debugging
+4. Restart Debugging
+5. Compile Code
+6. Configure Task
+B. More Options: 
+1. Performance Analyzer
+2. Memory Profiler
+3. Watch Window
+C. Code Verification
+1. Verify Code Safety
