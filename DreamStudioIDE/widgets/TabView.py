@@ -1,6 +1,7 @@
 import widgets.universal_widgets as uniwidgets
 import customtkinter as ctk
 from PIL import Image
+import tkinterweb
 import CTkTable
 
 project_image = ctk.CTkImage(light_image=Image.open(r"icons\system\projectType.png"),
@@ -106,7 +107,7 @@ class TabView:
         ############################################################
         # PROPERTIES FRAME
         ############################################################
-        self.PropertiesFrame = ctk.CTkFrame(self.mainFrame,
+        self.propertiesFrame = ctk.CTkFrame(self.mainFrame,
                                                   width=width,
                                                   height=height,
                                                   border_width=border_width,
@@ -114,9 +115,9 @@ class TabView:
                                                   fg_color=["#F5F5F5", "#1E1E1E"],
                                                   corner_radius=0)
 
-        self.PropertiesFrame.pack_propagate(False)
+        self.propertiesFrame.pack_propagate(False)
 
-        self.explnLabel1 = ctk.CTkLabel(self.PropertiesFrame,
+        self.explnLabel1 = ctk.CTkLabel(self.propertiesFrame,
                                        text=f"Project Properties",
                                        font=("Segoe UI", 12),
                                        fg_color=["#F5F5F5", "#1E1E1E"],
@@ -127,7 +128,7 @@ class TabView:
                                        text_color=["#1E1E1E", "#F5F5F5"])
         self.explnLabel1.place(x=8, y=5)
 
-        self.properties_table = CTkTable.CTkTable(self.PropertiesFrame,
+        self.properties_table = CTkTable.CTkTable(self.propertiesFrame,
                                                   row=7,
                                                   column=2,
                                                   padx=0,
@@ -137,8 +138,8 @@ class TabView:
                                                   corner_radius=0,
                                                   font=("Segoe UI",12),
                                                   header_color=["#C3C3C3","#2D2D2D"],
-                                                  colors=[self.PropertiesFrame.cget("fg_color"),
-                                                          self.PropertiesFrame.cget("fg_color")],
+                                                  colors=[self.propertiesFrame.cget("fg_color"),
+                                                          self.propertiesFrame.cget("fg_color")],
                                                   width=176,
                                                   height=18)
         self.properties_table.place(x=8,y=28)
@@ -152,7 +153,7 @@ class TabView:
         self.properties_table.insert(row=6,column=0,value="Exceptions")
 
         self.solutionPropertiesLabel = ctk.CTkLabel(
-            self.PropertiesFrame,
+            self.propertiesFrame,
             text="Solution Properties",
             width=60,
             font=("Segoe UI",12),
@@ -161,7 +162,7 @@ class TabView:
         )
         self.solutionPropertiesLabel.place(x=8,y=186)
 
-        self.solution_table = CTkTable.CTkTable(self.PropertiesFrame,
+        self.solution_table = CTkTable.CTkTable(self.propertiesFrame,
                                                   row=5,
                                                   column=2,
                                                   padx=0,
@@ -171,8 +172,8 @@ class TabView:
                                                   corner_radius=0,
                                                   font=("Segoe UI",12),
                                                   header_color=["#C3C3C3","#2D2D2D"],
-                                                  colors=[self.PropertiesFrame.cget("fg_color"),
-                                                          self.PropertiesFrame.cget("fg_color")],
+                                                  colors=[self.propertiesFrame.cget("fg_color"),
+                                                          self.propertiesFrame.cget("fg_color")],
                                                   width=176,
                                                   height=18)
         self.solution_table.place(x=8,y=216)
@@ -185,7 +186,7 @@ class TabView:
         ############################################################
         # GIT FRAME
         ############################################################
-        self.gitRepoFrame = ctk.CTkFrame(self.mainFrame,
+        self.gitChanges = ctk.CTkFrame(self.mainFrame,
                                          width=width,
                                          height=height,
                                          border_width=border_width,
@@ -193,7 +194,14 @@ class TabView:
                                          fg_color=["#F5F5F5", "#1E1E1E"],
                                          corner_radius=0)
 
-        self.gitRepoFrame.pack_propagate(False)
+        self.gitChanges.pack_propagate(False)
+
+        generatorsFrame = tkinterweb.HtmlFrame(self.gitChanges,
+                                               horizontal_scrollbar="auto",)
+        
+        generatorsFrame.pack(fill="both", expand=True)
+
+        generatorsFrame.load_file(r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudio\DreamStudioIDE\widgets\webpages\index.html")
 
         ############################################################
         # TAB CHANGER
@@ -252,15 +260,15 @@ class TabView:
             command=lambda: self.show_side_frame(self.solutionExplorerFrame, self.slnExplrBtn))
 
         self.propertiesBtn.configure(
-            command=lambda: self.show_side_frame(self.PropertiesFrame, self.propertiesBtn))
+            command=lambda: self.show_side_frame(self.propertiesFrame, self.propertiesBtn))
         
         self.gitReposBtn.configure(
-            command=lambda: self.show_side_frame(self.gitRepoFrame, self.gitReposBtn))
+            command=lambda: self.show_side_frame(self.gitChanges, self.gitReposBtn))
         
         self.show_side_frame(self.solutionExplorerFrame, self.slnExplrBtn)
 
     def show_side_frame(self, frame, active_btn):
-        for f in (self.solutionExplorerFrame, self.PropertiesFrame, self.gitRepoFrame):
+        for f in (self.solutionExplorerFrame, self.propertiesFrame, self.gitChanges):
             f.pack_forget()
         for b in (self.slnExplrBtn, self.propertiesBtn, self.gitReposBtn):
             b.configure(fg_color=["#E3E3E3", "#262626"])

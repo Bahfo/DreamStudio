@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Generators</title>
+<style>
+
+body {
+  user-select: none;
+  -webkit-user-select: none; /* Chrome, Safari */
+  -moz-user-select: none;    /* Firefox */
+  -ms-user-select: none;
+  background-color: #1E1E1E;
+  color: #D4D4D4;
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 20px;
+}
+
+h1 {
+  font-weight: normal;
+  color: #F0F0F0;
+  margin-bottom: 20px;
+}
+
+.generator-bar {
+  max-width: 650px;
+  margin: 0;
+}
+
+.generator {
+  display: flex;
+  align-items: center;
+  background-color: #252526;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #555;
+  cursor: pointer;
+}
+
+.generator img {
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
+}
+
+.generator-info {
+  display: block;
+}
+
+.generator-info h3, .generator-info p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: normal;
+  color: #EFEFEF;
+  line-height: 1.2em;
+  word-break: normal;
+}
+
+.generator-info p {
+  font-size: 12px;
+  color: #D4D4D4;
+}
+
+.generator-info p {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #D4D4D4;
+}
+
+#tool-page {
+  display: none;
+  max-width: 650px;
+  margin: 20px auto;
+  padding: 10px;
+  background-color: #252526;
+  border: 1px solid #555;
+}
+
+#tool-page h2 {
+  color: #D4D4D4;
+  margin: 0 0 10px 0;
+}
+
+#tool-page input {
+  width: 90%;
+  padding: 5px;
+  margin-bottom: 10px;
+}
+
+#tool-action, #back-btn {
+  padding: 6px 12px;
+  margin-top: 5px;
+  background-color: #0E639C;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+#tool-action:hover, #back-btn:hover {
+  background-color: #1177CC;
+}
+</style>
+</head>
+<body>
+
+<h1>Generators</h1>
+
+<div id="selection" class="generator-bar">
+  <div class="generator" onclick="selectTool('hash')">
+    <div class="generator-info">
+      <h3>Hash Generator</h3>
+    </div>
+  </div>
+
+  <div class="generator" onclick="selectTool('pass')">
+    <div class="generator-info">
+      <h3>Password Generator</h3>
+    </div>
+  </div>
+
+  <div class="generator" onclick="selectTool('lorem')">
+    <div class="generator-info">
+      <h3>Lorem Ipsum Generator</h3>
+    </div>
+  </div>
+
+  <div class="generator" onclick="selectTool('chks')">
+    <div class="generator-info">
+      <h3>Checksum Generator</h3>
+    </div>
+  </div>
+</div>
+
+<div id="tool-page">
+  <h2 id="tool-title">Tool</h2>
+  <p id="tool-description">Description</p>
+  <input type="text" id="tool-input" placeholder="Enter text here">
+  <br>
+  <button id="tool-action">Generate</button>
+  <button id="back-btn" onclick="backToSelection()">Back</button>
+  <pre id="tool-output"></pre>
+</div>
+
+<script>
+</script>
+
+</body>
+</html>
