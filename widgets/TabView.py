@@ -2,7 +2,7 @@ import widgets.universal_widgets as uniwidgets
 import customtkinter as ctk
 from PIL import Image
 import tkinterweb
-import CTkTable
+import widgets.CTkTable as CTkTable
 
 project_image = ctk.CTkImage(light_image=Image.open(r"icons\system\projectType.png"),
                              dark_image =Image.open(r"icons\system\projectType.png"),
