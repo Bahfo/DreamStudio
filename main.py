@@ -105,7 +105,7 @@ def ctk_image_cache(func):
 def load_ctk_icon(path, size, dark_image=None):
     pass
 
-ctk.set_appearance_mode("dark")
+ctk.set_appearance_mode("light")
 
 class App:
     def __init__(self):
@@ -1168,7 +1168,7 @@ class App:
                               language=Languages.PYTHON,
                               font=("Consolas",13),
                               showpath=True,
-                              darkmode=True,
+                              darkmode=False,
                               uifont=("Segoe UI",14))
         self.text_editor.pack(expand=0.9, fill='both')
 

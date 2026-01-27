@@ -1,3 +1,12 @@
+CconsoleAppExplanation = """Create a Console Application that can hold scaled C-Language code. 
+
+This is a program that runs in a text-based environment (the console or terminal) and interacts with the user through standard input and output system rather than graphical elements.
+
+At its core, this means instructing the computer through the C source code. The entry point of the function (the `main` function) represents where the operating system hands control to your program.
+
+You choose the console app if you would start from zero, and scale your project up, or if your project does not require too much third-party files or too much langauge support. DreamStudio will handle the file inside a folder specifically for it as a project. The project in this case will contain only the console file. 
+"""
+
 import widgets.universal_widgets as uniwidgets
 from CTkMenuBar import CTkMenuBar
 from PIL import Image, ImageTk
@@ -17,7 +26,7 @@ patch_notes = """For full patch notes, see the website's\nPatch Notes in Detail.
 ● Builds are project templates which\ncontains Python Virtual Environment,\nplus all the needs for full Python project.
 """
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("dark")
 
 class WelcomeWindow(ctk.CTk):
     def __init__(self):
@@ -56,28 +65,31 @@ class WelcomeWindow(ctk.CTk):
         self.exitBtn = ctk.CTkButton(
             self.titleBar,
             text="✕",
-            border_color="#5E5E5E",
-            border_width=1,
+            border_width=0,
             corner_radius=0,
             width=20,
             command=self.close,
-            fg_color=self.titleBar.cget("fg_color"),
-            hover_color="#EB0000"
-        )
+            fg_color=["#EBEBEB","#1E1E1E"],
+            text_color=["#1E1E1E","#EBEBEB"])
+
         self.exitBtn.pack(side="right", padx=1)
 
         self.minBtn = ctk.CTkButton(
             self.titleBar,
             text="—",
-            border_color="#5E5E5E",
-            border_width=1,
+            border_width=0,
             corner_radius=0,
             width=20,
             command=self.minimize_window,
-            fg_color=self.titleBar.cget("fg_color"),
-            hover_color="#00316D"
-        )
+            fg_color=["#EBEBEB","#1E1E1E"],
+            text_color=["#1E1E1E","#EBEBEB"])
+
         self.minBtn.pack(side="right", padx=1)
+
+        self.minBtn.bind("<Enter>", lambda e: self.on_enter(self.minBtn))
+        self.minBtn.bind("<Leave>", lambda e: self.on_leave(self.minBtn))
+        self.exitBtn.bind("<Enter>", lambda e: self.on_enter(self.exitBtn))
+        self.exitBtn.bind("<Leave>", lambda e: self.on_leave(self.exitBtn))
 
         # Drag
         self.offset_x = 0
@@ -180,6 +192,7 @@ or use a generated template by clicking on 'Template Builds'""",
             self.rightFrame,
             image_path=r"icons\system\newvar.png",
             text="New Build",
+            command=self.select_project
         )
         self.newProjectBtn.place(x=195,y=230)
 
@@ -211,6 +224,10 @@ or use a generated template by clicking on 'Template Builds'""",
         )
         self.feedbackLink.place(x=115,y=410)
 
+    def select_project(self):
+        self.withdraw()
+        projectSelection = ChoosingBuild(self)
+
     def click_titleBar(self, event):
         self.offset_x = event.x
         self.offset_y = event.y
@@ -224,6 +241,12 @@ or use a generated template by clicking on 'Template Builds'""",
         hwnd = user32.GetForegroundWindow()
         user32.ShowWindow(hwnd, SW_MINIMIZE)
 
+    def on_enter(self, btn: ctk.CTkButton):
+        btn.configure(border_width=1, border_color="#818181")
+
+    def on_leave(self, btn: ctk.CTkButton):
+        btn.configure(border_width=0)
+
     def close(self):
         self.deiconify
         self.destroy()
@@ -236,11 +259,301 @@ or use a generated template by clicking on 'Template Builds'""",
         self.mainloop()
 
 class ChoosingBuild(ctk.CTkToplevel):
-    def __init__(self):
-        pass
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Choose Project")
+        self.geometry("1000x600")
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.state("zoomed")
 
-    def show(self):
-        pass
+        self.leftFrame = ctk.CTkFrame(self,
+                                      width=300,
+                                      height=600,
+                                      corner_radius=0,
+                                      fg_color=["#DBDBDB","#2B2B2B"],
+                                      border_width=1,
+                                      border_color=["#989898","#767676"])
+        self.leftFrame.place(x=0, y=0, relheight=1)
+
+        self.explnBtn1 = ctk.CTkLabel(self.leftFrame,
+                                      text="Create a New Project",
+                                      corner_radius=0,
+                                      font=("Segoe UI",20),
+                                      fg_color=["#DBDBDB","#2B2B2B"],
+                                      anchor="w",
+                                      justify="left",
+                                      width=280,
+                                      height=30)
+        self.explnBtn1.place(x=10, y=20)
+
+        self.explnBtn2 = ctk.CTkLabel(self.leftFrame,
+                                      text="""Select one of the following supported languages.
+Not finding what you are looking for? Go to
+extensions tab and download from the marketplace.""",
+                                      corner_radius=0,
+                                      anchor="w",
+                                      font=("Segoe UI",11),
+                                      fg_color=["#DBDBDB","#2B2B2B"],
+                                      text_color=["#1E1E1E","#F1F1F1"],
+                                      width=280,
+                                      justify="left",
+                                      height=60)
+        self.explnBtn2.place(x=10, y=65)
+
+        self.PythonProjectBtn = ctk.CTkButton(self.leftFrame,
+                                              text="Python Project Types",
+                                              corner_radius=0,
+                                              font=("Segoe UI", 13),
+                                              text_color=["#1E1E1E","#F1F1F1"],
+                                              width=284,
+                                              anchor="w",
+                                              height=30,
+                                              border_width=1,
+                                              fg_color=["#F1F1F1","#2B2B2B"])
+        self.PythonProjectBtn.place(x=8, y=130)
+
+        self.CProjectBtn = ctk.CTkButton(self.leftFrame,
+                                         text="C Project Types",
+                                         corner_radius=0,
+                                         text_color=["#1E1E1E","#F1F1F1"],
+                                         width=284,
+                                         height=30,
+                                         anchor="w",
+                                         font=("Segoe UI", 13),
+                                         border_width=1,
+                                         fg_color=["#F1F1F1","#2B2B2B"])
+        self.CProjectBtn.place(x=8, y=168)
+
+        self.PythonProjectChoose = ctk.CTkFrame(self,
+                                                corner_radius=0,
+                                                border_width=0,
+                                                fg_color=["#F1F1F1","#2B2B2B"])
+        self.CProjectChoose = ctk.CTkFrame(self,
+                                           corner_radius=0,
+                                           border_width=0,
+                                           fg_color=["#F1F1F1","#2B2B2B"])
+
+        self.holdingFrame = ctk.CTkFrame(self, width=500, height=600, corner_radius=0, border_width=0)
+
+        ############################################################
+        # Python Language Support
+        ############################################################
+
+        self.explnlabel0 = ctk.CTkLabel(self.PythonProjectChoose,
+                                       text="Python Development Kit Projects",
+                                       corner_radius=0,
+                                       text_color=["#1E1E1E","#F1F1F1"],
+                                       anchor="w",
+                                       font=("Segoe UI", 18))
+        self.explnlabel0.place(x=15, y=20)
+
+        self.explnlabel1 = ctk.CTkLabel(self.PythonProjectChoose,
+                                        text="""Select a template to build up the project. Or start with a completely blank project and build up.
+Python Projects come with predefined language support and intellisense, as well as a configured virtual environment to start up right away.""",
+                                        corner_radius=0,
+                                        text_color=["#1E1E1E","#F1F1F1"],
+                                        anchor="w",
+                                        font=("Segoe UI", 12),
+                                        wraplength=760,
+                                        justify="left")
+        self.explnlabel1.place(x=15, y=60)
+
+        self.projectType1 = uniwidgets.LargeButton(self.PythonProjectChoose,
+                                                   text="Python Console Application",
+                                                   explainText="Start with an empty python script and scale along the way.",
+                                                   image_path=r"icons\language_support\pythonConsole.png")
+        self.projectType1.place(x=15,y=130)
+
+        self.projectType2 = uniwidgets.LargeButton(self.PythonProjectChoose,
+                                                   text="Python Package/Library Project",
+                                                   explainText="Develop a reusable python module that can be shared.",
+                                                   image_path=r"icons\language_support\package.png")
+        self.projectType2.place(x=15,y=220)
+
+        self.projectType3 = uniwidgets.LargeButton(self.PythonProjectChoose,
+                                                   text="Web Project",
+                                                   explainText="A project for creating a generic web application using Python.",
+                                                   image_path=r"icons\language_support\web.png")
+        self.projectType3.place(x=15,y=310)
+
+        self.projectType4 = uniwidgets.LargeButton(self.PythonProjectChoose,
+                                                   text="Data Science and Machine Learning Project",
+                                                   explainText="A project for creating a data science / artificial intelligence Project.",
+                                                   image_path=r"icons\language_support\artificial.png")
+        self.projectType4.place(x=15,y=400)
+
+        self.projectType5 = uniwidgets.LargeButton(self.PythonProjectChoose,
+                                                   text="Pure Data Science Project",
+                                                   explainText="A pure data science and visualization project using Python.",
+                                                   image_path=r"icons\language_support\dataScience.png")
+        self.projectType5.place(x=15,y=490)
+
+        self.projectType6 = uniwidgets.LargeButton(self.PythonProjectChoose,
+                                                   text="Scientific Simulation Project",
+                                                   explainText="A project designed for simulations, graphing, and simulating data using Python.",
+                                                   image_path=r"icons\language_support\science.png")
+        self.projectType6.place(x=15,y=580)
+
+        self.projectType7 = uniwidgets.LargeButton(self.PythonProjectChoose,
+                                                   text="Automation and Testing",
+                                                   explainText="Write script to automate tasks and test using Python.",
+                                                   image_path=r"icons\language_support\test.png")
+        self.projectType7.place(x=15,y=580)
+
+        ############################################################
+        # C Language Support
+        ############################################################
+
+        self.Cexplnlabel0 = ctk.CTkLabel(self.CProjectChoose,
+                                       text="C Development Kit Projects",
+                                       corner_radius=0,
+                                       text_color=["#1E1E1E","#F1F1F1"],
+                                       anchor="w",
+                                       font=("Segoe UI", 18))
+        self.Cexplnlabel0.place(x=15, y=20)
+
+        self.Cexplnlabel1 = ctk.CTkLabel(self.CProjectChoose,
+                                        text="""Enjoy and wide range of support for creating high quality C-applications.
+C projects come with all the needed intellisense, language packages, and support so you start working right away.""",
+                                        corner_radius=0,
+                                        text_color=["#1E1E1E","#F1F1F1"],
+                                        anchor="w",
+                                        font=("Segoe UI", 12),
+                                        wraplength=760,
+                                        justify="left")
+        self.Cexplnlabel1.place(x=15, y=60)
+
+        self.projectTypeC1 = uniwidgets.LargeButton(self.CProjectChoose,
+                                                   text="C Console Application",
+                                                   explainText="Start with an empty C-File and scale along the way.",
+                                                   image_path=r"icons\language_support\CConsole.png",
+                                                   command=lambda: self.showFrame("C Console Application",
+                                                                                  r"icons\code_snippets\CConsole.png",
+                                                                                  CconsoleAppExplanation))
+        self.projectTypeC1.place(x=15,y=130)
+
+        self.projectTypeC2 = uniwidgets.LargeButton(self.CProjectChoose,
+                                                   text="Device Drivers Project",
+                                                   explainText="Write a C code that interfaces with the hardware or OS kerel modules.",
+                                                   image_path=r"icons\language_support\driver.png")
+        self.projectTypeC2.place(x=15,y=220)
+
+        self.projectTypeC3 = uniwidgets.LargeButton(self.CProjectChoose,
+                                                   text="System Level and Kernel Project",
+                                                   explainText="Develop operating systems, kernels, and core system components.",
+                                                   image_path=r"icons\language_support\os.png")
+        self.projectTypeC3.place(x=15,y=310)
+
+        self.projectTypeC4 = uniwidgets.LargeButton(self.CProjectChoose,
+                                                   text="Langauge and Architecture Tooling",
+                                                   explainText="Build compilers, interpreters, and low-level toolchains using C language support.",
+                                                   image_path=r"icons\language_support\toolchain.png")
+        self.projectTypeC4.place(x=15,y=400)
+
+        self.projectTypeC5 = uniwidgets.LargeButton(self.CProjectChoose,
+                                                   text="Architecture Simulation Project",
+                                                   explainText="A simulation and testing model in a contained environment built using C.",
+                                                   image_path=r"icons\language_support\hardware.png")
+        self.projectTypeC5.place(x=15,y=490)
+
+        self.projectTypeC6 = uniwidgets.LargeButton(self.CProjectChoose,
+                                                   text="System BoolLoader Project",
+                                                   explainText="Write a fully supported assembly/C project for creating a bootloader application.",
+                                                   image_path=r"icons\language_support\bootloader.png")
+        self.projectTypeC6.place(x=15,y=580)
+
+        self.projectTypeC7 = uniwidgets.LargeButton(self.CProjectChoose,
+                                                   text="Shared Low-Level System Library",
+                                                   explainText="Write a reusable C library abstracting low-level hardware or OS features.",
+                                                   image_path=r"icons\language_support\library.png")
+        self.projectTypeC7.place(x=15,y=580)
+
+        self.PythonProjectBtn.configure(command=lambda: self.showProjectType(self.PythonProjectChoose))
+        self.CProjectBtn.configure(command=lambda: self.showProjectType(self.CProjectChoose))
+
+    def showProjectType(self, frame: ctk.CTkFrame):
+        for widget in self.holdingFrame.winfo_children():
+            widget.destroy()
+        self.PythonProjectChoose.place_forget()
+        self.CProjectChoose.place_forget()
+
+        frame.configure(
+            width=self.winfo_width(),
+            height=self.winfo_height())
+        frame.place(x=300, y=0)
+
+    def showFrame(self, title, image_path, description):
+        for widget in self.holdingFrame.winfo_children():
+            widget.destroy()
+
+        ctk.CTkLabel(self.holdingFrame, text=title, font=("Segoe UI", 26)).pack(pady=30, padx=10)
+
+        img = ctk.CTkImage(light_image=Image.open(image_path),
+                             dark_image =Image.open(image_path),
+                             size=(300,220))
+        ctk.CTkLabel(self.holdingFrame, image=img, text="").pack(padx=30)
+
+        ctk.CTkLabel(self.holdingFrame,
+                     text=description,
+                     wraplength=360,
+                     font=("Segoe UI",13),
+                     justify="left",).pack(padx=20, pady=10)
+        
+        ctk.CTkButton(self.holdingFrame,
+                      width=100,
+                      height=30,
+                      corner_radius=4,
+                      font=("Segoe UI",12),
+                      hover_color=("#30283F"),
+                      text="Create Project",
+                      fg_color="#423856").pack(padx=(20,0), pady=0, side="left", anchor="s")
+
+        ctk.CTkButton(self.holdingFrame,
+                      width=100,
+                      height=30,
+                      corner_radius=4,
+                      font=("Segoe UI",12),
+                      hover_color=("#4D4D4D"),
+                      text="Cancel Creation",
+                      command=self.animate_out,
+                      fg_color="#828282").pack(padx=10, pady=0, side="left", anchor="s")
+
+        self.animate_in()
+
+    def animate_in(self):
+        x = self.winfo_width()
+        target = x - 800
+
+        def slide():
+            nonlocal x
+            x -= 20
+            if x <= target:
+                self.holdingFrame.place(x=target, y=0)
+                return
+
+            self.holdingFrame.place(x=x, y=0)
+            self.after(5, slide)
+
+        slide()
+
+    def animate_out(self):
+        x = self.holdingFrame.winfo_x()
+        max_x = self.winfo_width()
+
+        def slide():
+            nonlocal x
+            x += 20
+            if x >= max_x:
+                self.holdingFrame.place(x=max_x, y=0)
+                return
+            self.holdingFrame.place(x=x, y=0)
+            self.after(10, slide)
+
+        slide()
+
+    def on_close(self):
+        self.master.deiconify()
+        self.destroy()
 
 class TemplateBuilds(ctk.CTkToplevel):
     def __init__(self):

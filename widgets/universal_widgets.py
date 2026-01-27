@@ -725,6 +725,99 @@ class HorizontalButton(ctk.CTkFrame):
     def _on_release(self, event):
         self.border_frame.configure(border_color=self.hover_border)
 
+class LargeButton(ctk.CTkFrame):
+    """
+    A Large horizontal button with an icon and text.
+    """
+
+    def __init__(
+        self,
+        parent,
+        image_path=None,
+        text="",
+        command=None,
+        size=(48, 48),
+        hover_border=["#454545","#bebebe"],
+        click_border=["#737373","#808080"],
+        font=("Segoe UI", 15),
+        explainText = "",
+        explainfont = ("Segoe UI",12),
+        **kwargs,
+    ):
+        super().__init__(parent, fg_color="transparent")
+
+        self.command = command
+        self.hover_border = hover_border
+        self.click_border = click_border
+
+        self.border_frame = ctk.CTkFrame(
+            self,
+            fg_color="transparent",
+            corner_radius=6,
+            border_width=0,
+            border_color=self.hover_border,
+            width=450,
+            height=70,
+        )
+        self.border_frame.pack(padx=2, pady=2, fill="both", expand=True)
+        self.border_frame.pack_propagate(False)
+
+        self.inner_frame = ctk.CTkFrame(self.border_frame, fg_color="transparent")
+        self.inner_frame.pack(fill="both", expand=True, padx=4, pady=4)
+
+        if image_path:
+            self.image = ctk.CTkImage(light_image=Image.open(image_path), size=size)
+            self.icon = ctk.CTkLabel(self.inner_frame, image=self.image, text="")
+            self.icon.place(x=0,y=5)
+        else:
+            self.icon = None
+
+        self.label = ctk.CTkLabel(
+            self.inner_frame,
+            text=text,
+            font=font,
+            anchor="w",
+            justify="left",
+            text_color=["#1E1E1E", "#c8c8c8"],
+        )
+        self.label.place(x=60,y=5)
+
+        self.label2 = ctk.CTkLabel(
+            self.inner_frame,
+            text=explainText,
+            font=explainfont,
+            anchor="w",
+            justify="left",
+            text_color=["#1E1E1E", "#c8c8c8"]
+        )
+        self.label2.place(x=60,y=30)
+
+        for widget in (
+            self,
+            self.border_frame,
+            self.inner_frame,
+            self.icon,
+            self.label,
+        ):
+            if widget:
+                widget.bind("<Enter>", self._on_enter)
+                widget.bind("<Leave>", self._on_leave)
+                widget.bind("<Button-1>", self._on_click)
+                widget.bind("<ButtonRelease-1>", self._on_release)
+
+    def _on_enter(self, event):
+        self.border_frame.configure(border_width=1)
+
+    def _on_leave(self, event):
+        self.border_frame.configure(border_width=0)
+
+    def _on_click(self, event):
+        self.border_frame.configure(border_color=self.click_border)
+        if self.command:
+            self.command()
+
+    def _on_release(self, event):
+        self.border_frame.configure(border_color=self.hover_border)
 
 class VerticalButton(ctk.CTkFrame):
     """
@@ -1380,7 +1473,6 @@ class CustomMessageBox(ctk.CTkToplevel):
 # ANIMATIONS AND SHADERS
 ########################################################################################
 
-
 class ScreenShakeAnimation:
     def __init__(
         self,
@@ -1440,9 +1532,106 @@ class MouseWaitAnimation:
 
 
 class SlidingAnimation:
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        master: ctk.CTkFrame,
+        x_target: int,
+        y_target: int,
+        animation_time: int,
+        animation_step: int,
+        slide_x: bool = True,
+        slide_y: bool = False):
 
+        if slide_x == slide_y:
+            raise ValueError("Animation can specify either X or Y, not both")
+
+        self.master = master
+        self.x_target = x_target
+        self.y_target = y_target
+        self.animation_time = animation_time
+        self.animation_step = animation_step
+        self.slide_x = slide_x
+        self.slide_y = slide_y
+
+    def animate_in(self):
+        if self.slide_x:
+            self._animate_x_in()
+        else:
+            self._animate_y_in()
+
+    def animate_out(self):
+        if self.slide_x:
+            self._animate_x_out()
+        else:
+            self._animate_y_out()
+
+    def _animate_x_in(self):
+        start_x = self.master.winfo_width()
+        self.master.place(x=start_x, y=self.y_target)
+
+        x = start_x
+
+        def step():
+            nonlocal x
+            x -= self.animation_step
+            if x <= self.x_target:
+                self.master.place(x=self.x_target, y=self.y_target)
+                return
+
+            self.master.place(x=x, y=self.y_target)
+            self.master.after(self.animation_time, step)
+
+        step()
+
+    def _animate_x_out(self):
+        x = self.master.winfo_x()
+        end_x = self.master.winfo_width()
+
+        def step():
+            nonlocal x
+            x += self.animation_step
+            if x >= end_x:
+                self.master.place(x=end_x, y=self.y_target)
+                return
+
+            self.master.place(x=x, y=self.y_target)
+            self.master.after(self.animation_time, step)
+
+        step()
+
+    def _animate_y_in(self):
+        start_y = self.master.winfo_height()
+        self.master.place(x=self.x_target, y=start_y)
+
+        y = start_y
+
+        def step():
+            nonlocal y
+            y -= self.animation_step
+            if y <= self.y_target:
+                self.master.place(x=self.x_target, y=self.y_target)
+                return
+
+            self.master.place(x=self.x_target, y=y)
+            self.master.after(self.animation_time, step)
+
+        step()
+
+    def _animate_y_out(self):
+        y = self.master.winfo_y()
+        end_y = self.master.winfo_height()
+
+        def step():
+            nonlocal y
+            y += self.animation_step
+            if y >= end_y:
+                self.master.place(x=self.x_target, y=end_y)
+                return
+
+            self.master.place(x=self.x_target, y=y)
+            self.master.after(self.animation_time, step)
+
+        step()
 
 class WaitAnimation:
     def __init__(self):
