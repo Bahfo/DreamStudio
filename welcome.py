@@ -1,19 +1,8 @@
-CconsoleAppExplanation = """Create a Console Application that can hold scaled C-Language code. 
-
-This is a program that runs in a text-based environment (the console or terminal) and interacts with the user through standard input and output system rather than graphical elements.
-
-At its core, this means instructing the computer through the C source code. The entry point of the function (the `main` function) represents where the operating system hands control to your program.
-
-You choose the console app if you would start from zero, and scale your project up, or if your project does not require too much third-party files or too much langauge support. DreamStudio will handle the file inside a folder specifically for it as a project. The project in this case will contain only the console file. 
-"""
-
 import widgets.universal_widgets as uniwidgets
 from CTkMenuBar import CTkMenuBar
-from PIL import Image, ImageTk
 import customtkinter as ctk
-import tkinter as tk
+from PIL import Image
 import ctypes
-import json
 
 SW_MINIMIZE = 6
 
@@ -403,7 +392,6 @@ Python Projects come with predefined language support and intellisense, as well 
         ############################################################
         # C Language Support
         ############################################################
-
         self.Cexplnlabel0 = ctk.CTkLabel(self.CProjectChoose,
                                        text="C Development Kit Projects",
                                        corner_radius=0,
@@ -429,7 +417,7 @@ C projects come with all the needed intellisense, language packages, and support
                                                    image_path=r"icons\language_support\CConsole.png",
                                                    command=lambda: self.showFrame("C Console Application",
                                                                                   r"icons\code_snippets\CConsole.png",
-                                                                                  CconsoleAppExplanation))
+                                                                                  ""))
         self.projectTypeC1.place(x=15,y=130)
 
         self.projectTypeC2 = uniwidgets.LargeButton(self.CProjectChoose,
@@ -446,7 +434,7 @@ C projects come with all the needed intellisense, language packages, and support
 
         self.projectTypeC4 = uniwidgets.LargeButton(self.CProjectChoose,
                                                    text="Langauge and Architecture Tooling",
-                                                   explainText="Build compilers, interpreters, and low-level toolchains using C language support.",
+                                                   explainText="Build compilers, interpreters, and low-level toolchains using C support.",
                                                    image_path=r"icons\language_support\toolchain.png")
         self.projectTypeC4.place(x=15,y=400)
 
@@ -550,6 +538,13 @@ C projects come with all the needed intellisense, language packages, and support
             self.after(10, slide)
 
         slide()
+
+    def read_text_file(self, path, line_number):
+        with open(path, 'r') as file:
+            for number, line in enumerate(file):
+                if line_number == number:
+                    return line
+            return None
 
     def on_close(self):
         self.master.deiconify()

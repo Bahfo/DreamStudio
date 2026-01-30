@@ -53,8 +53,8 @@ from PIL import Image
 from functools import lru_cache
 import widgets.universal_widgets as uniwidgets
 import widgets.TabView as TabView
-import save_menu
-import serach_menu as search_menu
+import widgets.save_menu as save_menu
+import widgets.serach_menu as search_menu
 
 ################################################################################################
 # MAIN WINDOW
