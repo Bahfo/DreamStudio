@@ -22,3 +22,9 @@ def TouchCWDFiles(variable_to_save : list, file_path):
     files = c_functions.lscwd(file_path.encode('utf-8'))
     for i in range(files.count):
         variable_to_save.append(files.names[i].decode('utf-8'))
+
+list_of_files = []
+
+TouchCWDFiles(list_of_files, file_path="C:\\Users\\Bahaa\\Desktop\\ExoSystem\\DreamStudio\\*")
+
+print(list_of_files)
