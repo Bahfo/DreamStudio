@@ -1,3 +1,5 @@
+explanation_text = """Please read the following text carefully, if you do not agree to the terms of service, freely shut down the program without continuation. Should you proceed, you click (I agree to the terms of service and BETA program policies)"""
+
 import os
 import sys
 import customtkinter as ctk
@@ -56,8 +58,6 @@ def agreement_registeration():
         frame_1, text="Welcome to Softdream Beta Program", font=("Segoe UI", 18)
     )
     notice_label.pack(padx=10, pady=10, side="top", anchor="w")
-
-    explanation_text = """Please read the following text carefully, if you do not agree to the terms of service, freely shut down the program without continuation. Should you proceed, you click (I agree to the terms of service and BETA program policies)"""
 
     explanation_label = ctk.CTkLabel(
         frame_1,

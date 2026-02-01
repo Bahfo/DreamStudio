@@ -8,6 +8,9 @@ import main
 
 
 def loading_screen():
+    """
+    Loads the logo, then destroys and starts main app window.
+    """
     splash = ctk.CTk()
     splash.resizable(False, False)
     splash.overrideredirect(True)

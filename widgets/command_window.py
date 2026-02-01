@@ -291,6 +291,13 @@ from collections import deque
 
 # ---------------- Redirect stdout to GUI ----------------
 class GUIStdout:
+    """
+    Redirects the standard output of the command line interface into 
+    custom-tkinter's textbox. Works by writing the text into the 
+    textbox, and moving the cursor's position into the end of the line.
+    The other method `flush` is an empty method for instantly flushing 
+    the textbox.
+    """
     def __init__(self, textbox):
         self.textbox = textbox
 
@@ -305,6 +312,14 @@ class GUIStdout:
 
 # ---------------- Command Line Logic ----------------
 class CommandLine(cmd.Cmd):
+    """
+    Command-Line class inherited from `cmd` library. 
+    Inside, it has the backend and logic structure for generating
+    responses of commands. It makes usage of the `cmd` library by
+    generating a `do_command` function for each typed function on
+    the user's screen. The text enters from the `GUIStdout` class
+    and leaves towards. 
+    """
     def __init__(self, stdout=None):
         super().__init__(stdout=stdout)
         self.currentDir = os.getcwd()
@@ -348,6 +363,16 @@ class CommandLine(cmd.Cmd):
         ]
 
     def parse_args(self, arg):
+        """
+        Prases arguments passed from `GUIStdout` class by splitting from the
+        two -must written- characters (-) and (=). It splits each argument
+        from the assign character (=). Then strips any dashes, or quotations
+        found to store all parameters in one list.
+        
+        :param self: self parameter for class.
+        :param arg: arguments to be parsed in.
+        :return: dictionary of each parameter and its value assigned.
+        """
         parts = arg.split()
         args = {}
         for p in parts:
@@ -361,6 +386,16 @@ class CommandLine(cmd.Cmd):
         return args
 
     def onecmd(self, line):
+        """
+        oneCMD: Interpret the argument as though it had been typed in response
+        to the prompt.
+        The return value is a flag indicating whether interpretation of
+        commands by the interpreter should stop.
+
+        :param self: self parameter for class
+        :param line: command-line typed by the user
+        :return: flag indicating whether interpretation should stop or not.
+        """
         line = line.strip()
         if line:
             self._history.append(line)
@@ -368,12 +403,30 @@ class CommandLine(cmd.Cmd):
         return super().onecmd(line)
 
     def get_previous_command(self):
+        """
+        Scans the history of commands to get the previous commmand, which is
+        a normal behavior in command-line tools after clicking the top-arrow
+        on the keyboard.
+        
+        :param self: self parameter for class
+        :return: previous command.
+        :rtype: Any | Literal['']
+        """
         if self._history and self._history_index > 0:
             self._history_index -= 1
             return self._history[self._history_index]
         return ""
 
     def get_next_command(self):
+        """
+        Scans the history of commands to get the next command, which is obtained
+        if the user is checking the history. Works fine with `get_previous_command`
+        method.
+        
+        :param self: self parameter for class
+        :return: previous command.
+        :rtype: Any | Literal ['']
+        """
         if self._history and self._history_index < len(self._history) - 1:
             self._history_index += 1
             return self._history[self._history_index]
@@ -1157,6 +1210,11 @@ class CommandLine(cmd.Cmd):
 
 # ---------------- GUI Shell ----------------
 class PromptXShell(ctk.CTkFrame):
+    """
+    The GUI class housing a custom-tkinter's frame with a textbox inside.
+    It hosts the area where the user should type-in commands. Behaves like a
+    normal TUI tool that can be used inside DreamStudio's main terminal window.
+    """
     def __init__(self, main_app=None, status_button=None):
         super().__init__(main_app)
         self.main_app = main_app
@@ -1218,6 +1276,13 @@ class PromptXShell(ctk.CTkFrame):
 
     # ---------------- Prompt ----------------
     def insert_prompt(self):
+        """
+        Inserts a prompt at the current cursor's location, a prompt consisting 
+        of the current working directory. It disables writing on the textbox
+        accept last line where the current last prompt is inserted at.
+        
+        :param self: self parameter for class
+        """
         self.textbox.configure(state=ctk.NORMAL)
         self.textbox.insert("end", f"{self.cmd_shell.currentDir}>>> ", "prompt")
         self.readonly_index = self.textbox.index("end-1c")
@@ -1226,6 +1291,10 @@ class PromptXShell(ctk.CTkFrame):
 
     # ---------------- Key & Selection Control ----------------
     def onKeyPress(self, event):
+        """
+        Checks what is the key press currently typed by the user. If it is `delete`
+        or `backspace` it does nothing, disabling users from editing previous text.
+        """
         if self.textbox.compare("insert", "<", self.readonly_index):
             self.textbox.mark_set("insert", self.readonly_index)
         if event.keysym in ("BackSpace", "Delete"):
@@ -1233,6 +1302,9 @@ class PromptXShell(ctk.CTkFrame):
                 return "break"
 
     def onClick(self, event):
+        """
+        
+        """
         self.after(1, self.fix_cursor)
 
     def fix_cursor(self):

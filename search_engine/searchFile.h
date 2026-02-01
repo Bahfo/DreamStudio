@@ -37,13 +37,33 @@ typedef struct
 //contents of a directory given, in a struct, on Windows.
 FilesList lscwd(const char *FilePath);
 
-//Comprehinsed method to analyze a directory, giving a
-//summary of listed files, languages (by extensions) and
-//detailed overview of directory
-// void scancwd(const char *FilePath);
+//Checks if a given path is a file or not.
+//If true, it checks its extension and prints it out.
+const char *getFilesExtensions(const char *filename);
 
-//Method to analyze a file, counting number of lines, the
-//file type, etc. 
-// void scanfile(const char *FilePath, const char *FileName);
+//Scans the current working directory to return a list of
+//files and directories names, and their extensions if any.
+FilesType scancwd(const FilesList *FilePath);
+
+//maps each extension, from a list of extensions, to its
+//integer code so it can be used inside switch-cases
+int extensionCode(const char *extension);
+
+//Ensure the struct `Directory Summary` has enough space
+//capacity to hold the values of the structure, by reallocation.
+void ensureCapacity(DirectorySummary *summary);
+
+//Recursively scans a directory and its subdirectories to check
+//files path, extensions, and type, and scan directories path and name.
+void scanDirectoryRecursive(const char *dirPath, DirectorySummary *smmary);
+
+//Free allocation of a FileList struct
+void freelist(FilesList *list);
+
+//Free allocation of a FileType struct
+void freeextn(FilesType *list);
+
+//Free allocation of a DirectorySummary struct
+void freeTable(DirectorySummary *table);
 
 #endif

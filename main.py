@@ -46,7 +46,7 @@ import os
 import threading
 import subprocess
 from tkinter import filedialog, messagebox
-from cupcake import Editor, Languages
+from widgets.texteditor import Editor, Languages
 
 import customtkinter as ctk
 from PIL import Image
@@ -1163,14 +1163,17 @@ class App:
         showObjectLabel.pack(fill='x',side="top")
         showObjectLabel.configure(text=showObject)
 
-        # --- TEXTBOX ---
-        self.text_editor = Editor(self.upper_frame,
-                              language=Languages.PYTHON,
+        # --- Editor ---
+        # The editor widget has a texteditor with autocompletion and syntax highlight.
+        # It also has an image viewer to view images.
+        # It can also show diff windows for comparing two files together side by side.
+        self.editor = Editor(self.upper_frame,
+                              language=Languages.C,
                               font=("Consolas",13),
                               showpath=True,
                               darkmode=False,
-                              uifont=("Segoe UI",14))
-        self.text_editor.pack(expand=0.9, fill='both')
+                              uifont=("Segoe UI",11))
+        self.editor.pack(expand=0.9, fill='both')
 
         #################################################################################################
         # BINDINGS
@@ -1211,7 +1214,7 @@ class App:
 
     def open_search(self, event=None):
         search_window = search_menu.KeywordSearch(
-            self, self.text_editor, status_button=self.status_button
+            self, self.editor, status_button=self.status_button
         )
         search_window.show()
 
@@ -1233,8 +1236,8 @@ class App:
             with open(current_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            main_app.text_editor.content.delete("1.0", "end")
-            main_app.text_editor.content.insert("1.0", content)
+            main_app.editor.content.delete("1.0", "end")
+            main_app.editor.content.insert("1.0", content)
             if main_app.status_button:
                 main_app.status_button.configure(text=f"File {current_file} opened")
 
