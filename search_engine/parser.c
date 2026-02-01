@@ -1,18 +1,9 @@
 /*
-COMMAND LINE INTERFACE FOR PROGRAMMERS (WILDCAT)
-Better Usage Utility for Programmers Written in C
-
-WHAT DOES THIS TOOL HAVE?
-1. Search Patterns in Files
-2. File Information
-3. File Documentation Grapper
-4. Managing Files
-
-WHAT LIBRARIES AND MODULES NEEDED?
-1. Regular Expressions
-2. A Way to communicate with the operating system
-3. String Modules
-4. CLI tool builder
+The Text-User-Interface for the search engine.
+SYNTAX: 
+    Shell-Search <Command> <args>
+                 <Command> <Command Name>
+                 <Args>    <Arguments>
 */
 
 #include <stdio.h>
