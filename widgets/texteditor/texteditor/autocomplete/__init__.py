@@ -54,33 +54,27 @@ class AutoComplete(Toplevel):
         line, col = map(int, self.master.index("insert").split("."))
         code = self.master.get_all_text()
 
-        # 1. Get completions from Jedi, only update changed items
         try:
-            script = jedi.Script(code, path="example.py")
+            script = jedi.Script(code)
             jedi_results = {c.name: {"type": c.type} for c in script.complete(line, col)}
         except Exception:
             jedi_results = {}
 
-        # 2. Merge with Python keywords (static) and existing items
         all_items = python_completions.copy()
-        all_items.update(self.items)  # keep existing local words
+        all_items.update(self.items)
         all_items.update(jedi_results)
 
-        # 3. Add master.words if not present
         for w in self.master.words:
             if w not in all_items:
                 all_items[w] = {"type": "word"}
 
-        # 4. Update self.items dict
         self.items = all_items
 
-        # 5. Add only new items to menu_items
         existing_texts = {i.get_text() for i in self.menu_items}
         for name, meta in self.items.items():
             if name not in existing_texts:
                 self.add_item(name, meta.get("type") if meta else None)
 
-        # 6. Filter menu items for display
         exact, starts, includes = [], [], []
         for i in self.menu_items:
             text = i.get_text()

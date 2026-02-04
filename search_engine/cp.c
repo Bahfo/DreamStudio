@@ -1,3 +1,4 @@
+#include "searchFile.h"
 #include <stdio.h>
 #include <fcntl.h>
 
@@ -8,7 +9,7 @@
 
 #define MEM_SIZE 64
 
-int main(int argc, char *argv[])
+int copy(int argc, char *argv[])
 {
     //argc: argument counter: must be one integer value bigger
     //than the number of arguments.

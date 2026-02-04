@@ -33,6 +33,11 @@ typedef struct
     size_t capacity;
 } DirectorySummary;
 
+//Copy command: Copy files from source to destination
+//Syntax: copy src dest: copy from source to destination
+//        copy src1 src2 ... dest: copy all sources to destination
+int copy(int argc, char *argv[]);
+
 //General method in Windows to list and store the 
 //contents of a directory given, in a struct, on Windows.
 FilesList lscwd(const char *FilePath);

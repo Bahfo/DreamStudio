@@ -6,10 +6,11 @@ SYNTAX:
                  <Args>    <Arguments>
 */
 
+#include <time.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include <time.h>
+#include <searchFile.h>
 
 #define  BUFFER_SIZE 512
 char inputStream[BUFFER_SIZE];
