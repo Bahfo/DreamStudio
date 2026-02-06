@@ -6,7 +6,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk, ImageSequence
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import main
+import dreamstudio_main
 
 
 def agreement_registeration():
@@ -281,7 +281,7 @@ def agreement_registeration():
 
     def loading_main_program():
         window.destroy()
-        app = main.App()
+        app = dreamstudio_main.App()
         app.run()
 
     button_next_2 = ctk.CTkButton(

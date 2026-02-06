@@ -43,6 +43,7 @@ allowed_extensions = {
 
 import json
 import os
+import time
 import threading
 import subprocess
 from tkinter import filedialog, messagebox
@@ -53,62 +54,18 @@ from PIL import Image
 from functools import lru_cache
 import widgets.universal_widgets as uniwidgets
 import widgets.TabView as TabView
-import widgets.save_menu as save_menu
 import widgets.serach_menu as search_menu
+from widgets.imageload import *
 
 ################################################################################################
 # MAIN WINDOW
 ################################################################################################
 
-class AppIcons:
-    @staticmethod
-    @lru_cache(maxsize=None)
-    def create_padded_icon(ico_path, icon_size=(16, 16), padding=8):
-        from PIL import ImageTk
-
-        try:
-            icon_img = Image.open(ico_path).convert("RGBA").resize(icon_size)
-            img = Image.new(
-                "RGBA", (icon_size[0] + padding, icon_size[1]), (0, 0, 0, 0)
-            )
-            img.paste(icon_img, (0, 0), icon_img)
-            return ImageTk.PhotoImage(img)
-        except Exception as e:
-            print(f"Warning: Could not load icon {ico_path}: {e}")
-            img = Image.new(
-                "RGBA", (icon_size[0] + padding, icon_size[1]), (0, 0, 0, 0)
-            )
-            return ImageTk.PhotoImage(img)
-
-
-def ctk_image_cache(func):
-    """Decorator to cache CTkImage objects"""
-    cached = {}
-
-    def wrapper(path, size, dark_image=None):
-        key = (path, size)
-        if key not in cached:
-            img = Image.open(path)
-            if dark_image is None:
-                cached[key] = ctk.CTkImage(light_image=img, size=size)
-            else:
-                dark_img = Image.open(dark_image)
-                cached[key] = ctk.CTkImage(
-                    light_image=img, dark_image=dark_img, size=size
-                )
-        return cached[key]
-
-    return wrapper
-
-
-@ctk_image_cache
-def load_ctk_icon(path, size, dark_image=None):
-    pass
-
 ctk.set_appearance_mode("light")
 
 class App:
-    def __init__(self):
+    def __init__(self, workspace):
+        startup_time = time.perf_counter()
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
         self.window.geometry("1000x700")
@@ -118,19 +75,22 @@ class App:
         # DEFINITIONS
         #################################################################################################
 
-        self.workspace = {"path": None}
+        self.workspace = dict[str, ctk.CTkButton]
 
         self.font_size_var = ctk.IntVar(value=14)
         self.code_font_var = ctk.StringVar(value="Consolas")
 
         for attr, path in icon_paths.items():
-            setattr(self, attr, AppIcons.create_padded_icon(path))
+            setattr(self, attr, AppIcons.padded_icon(path))
 
         for attr, (path, size) in ctk_icons.items():
-            setattr(self, attr, ctk.CTkImage(light_image=Image.open(path), size=size))
+            setattr(self, attr, load_ctk_icon(path, size))
 
         for attr, (path, size) in arrow_icons.items():
-            setattr(self, attr, ctk.CTkImage(dark_image=Image.open(path), size=size))
+            setattr(self, attr, load_ctk_icon(path, size, dark_path=path))
+
+        loading_time = time.perf_counter()
+        print("Time to load icons: ",loading_time - startup_time)
 
         ################################################################################################
         # MENUS: Define showing menus, menubar, topframe, downframe, and their buttons
@@ -1051,6 +1011,9 @@ class App:
         )
         self.status_button.pack(padx=(7, 7), side="right", pady=(2, 2))
 
+        loading_time2 = time.perf_counter()
+        print("Time to load buttons: ",loading_time2 - loading_time)
+
         #################################################################################################
         # SERVICES LEFTMOST BAR
         #################################################################################################
@@ -1096,7 +1059,6 @@ class App:
             height=36,
             corner_radius=5,
             fg_color=self.services_bar.cget("fg_color"),
-            command=self.save_file,
         )
         self.save_button.pack(pady=5)
         uniwidgets.ToolTip(self.save_button, "Saves the current loaded workspace file")
@@ -1144,25 +1106,6 @@ class App:
         self.middle_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0)
         self.middle_frame.place_forget()
 
-        # --- CURRENT PATH ---
-        thisCurrentWd = os.getcwd()
-        objectLabel = thisCurrentWd.split("\\")
-        showObject = "  "
-        for obj in objectLabel:
-            showObject = showObject + obj + "> "
-
-        showObjectLabel = ctk.CTkLabel(self.upper_frame,
-                                       corner_radius=0,
-                                       text="",
-                                       compound="left",
-                                       anchor="w",
-                                       height=28,
-                                       bg_color=["#FFFFFF","#1F1F1F"],
-                                       font=("Consolas",13),
-                                       text_color=["#1F1F1F","#FFFFFF"])
-        showObjectLabel.pack(fill='x',side="top")
-        showObjectLabel.configure(text=showObject)
-
         # --- Editor ---
         # The editor widget has a texteditor with autocompletion and syntax highlight.
         # It also has an image viewer to view images.
@@ -1180,6 +1123,9 @@ class App:
         #################################################################################################
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
+
+        loading_time3 = time.perf_counter()
+        print("Time to load widgets: ",loading_time3 - loading_time2)
 
     def show_tab(self, frame_to_show, active_button):
         for frame in self.allTabs:
@@ -1217,12 +1163,6 @@ class App:
             self, self.editor, status_button=self.status_button
         )
         search_window.show()
-
-    def save_file(self, event=None):
-        save_file = save_menu.SaveFile(
-            self, workspace_container=self.workspace, status_button=self.status_button
-        )
-        save_file.show()
 
     def open_current_file(main_app):
         if main_app.status_button:
@@ -1283,9 +1223,7 @@ class App:
         self.window.mainloop()
         self.window.update_idletasks()
 
-#####################################################################################################
-# RUN AND MODIFY
-#####################################################################################################
-if __name__ == "__main__":
-    app = App()
-    threading.Thread(target=app.run()).start()
+########## TESTING ##########
+if __name__ == '__main__':
+    app = App(None)
+    app.run()

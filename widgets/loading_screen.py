@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import customtkinter as ctk
 from PIL import Image
-import main
+import dreamstudio_main
 
 
 def loading_screen():
@@ -35,7 +35,7 @@ def loading_screen():
 
     def start_main_app():
         splash.destroy()
-        mainApp = main.App()
+        mainApp = dreamstudio_main.App()
         mainApp.run()
 
     splash.after(7000, start_main_app)
