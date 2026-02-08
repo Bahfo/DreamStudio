@@ -2,59 +2,18 @@
 LOG Workspace for DreamStudio IDE
 """
 import customtkinter as ctk
-import dreamstudio_main
+
 import json
 import time
 import os
 
 from pathlib import Path
+from bridge_handler import *
+from threading import Thread
+from tkinter import messagebox
+from queue import Queue, Empty
 from project_types import *
-
-#####################################################
-# ERRORS
-#####################################################
-ERROR_NO_INITIAL_CONFIG = """Bootstrapping Failed:
-No initial window was found, or not root directory was configured.\n
-"""
-
-ERROR_NO_INFO_FOUND = """Bootstrapping Failed:
-No information for the project was given, terminated cretaing file,
-terminated DreamStudio because project initialization information was
-not given, or perhaps a further crash happened.\n
-
-For further information, read the documentation.
-"""
-
-ERROR_NO_TYPE_GIVEN = """Bootstrapping Failed:
-No given project type. DreamStudio terminated.\n
-"""
-
-UNEXPECTED_ERROR_OCCURED = """Project Creation Failed:
-Unexpected error happened while creating project's folders. Terminated.\n
-"""
-
-class DreamStudioErrors(Exception):
-
-    _ERRORS = {
-        (1,1) : ERROR_NO_INITIAL_CONFIG,
-        (1,2) : ERROR_NO_INFO_FOUND,
-        (1,3) : ERROR_NO_TYPE_GIVEN,
-
-        (2,1) : UNEXPECTED_ERROR_OCCURED
-    }
-
-    def __init__(self,
-                 error_code : int,
-                 error_description_code : int, 
-                 root_cause : None,
-                 window_cause: None):
-        self.error_code = error_code
-        self.error_desc_code = error_description_code
-
-        message = self._ERRORS.get((error_code,
-                                    error_description_code),
-                                   "Unknown IDE Error")
-        super.__init__(message)
+from watchdog.observers import Observer
 
 class Workspace:
     """
@@ -134,7 +93,51 @@ class Workspace:
             self.root_directory = os.getcwd()
 
 class WatchDog:
-    pass
+    def __init__(self, gui_callback=None):
+        """
+        gui_callback: function that receives stable events (for GUI updates)
+        """
+        self.event_queue = Queue()
+        self.debouncer = Debouncer(delay=0.2, output_queue=self.event_queue)
+        self.handler = WatchdogBridgeHandler(self.debouncer)
+        self.observer = Observer()
+        self.gui_callback = gui_callback  # optional GUI hook
+        self.worker_thread = None
+        self.loop_thread = None
+
+    # Start background threads
+    def start_tracker(self, project_path):
+        self.observer.schedule(self.handler, path=project_path, recursive=True)
+        self.observer.start()
+        print(f"Tracker started on: {project_path}")
+
+        # Debouncer worker
+        self.worker_thread = Thread(target=self.debouncer_worker, daemon=True)
+        self.worker_thread.start()
+
+        # Event loop thread
+        self.loop_thread = Thread(target=self.looping, daemon=True)
+        self.loop_thread.start()
+
+    def debouncer_worker(self):
+        while True:
+            self.debouncer.poll()
+            time.sleep(0.05)
+
+    def looping(self):
+        while True:
+            stable_event = self.event_queue.get()
+            # Call C engine or GUI callback
+            if self.gui_callback:
+                self.gui_callback(stable_event)
+            else:
+                print(f"Stable event: {stable_event}")
+
+    # Stop observer and threads (call on GUI exit)
+    def stop_tracker(self):
+        self.observer.stop()
+        self.observer.join()
+        print("Tracker stopped")
 
 class Analytics:
     pass

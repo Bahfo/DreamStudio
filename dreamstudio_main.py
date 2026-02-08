@@ -41,21 +41,22 @@ allowed_extensions = {
     ".cpp",".cs",".cc",".cxx",".html",".js",".java",".swift",".rb",
     ".ts",".jsx",".py",".h"}
 
-import json
 import os
 import time
-import threading
+import json
 import subprocess
+
+from widgets.imageload import *
+from functools import lru_cache
 from tkinter import filedialog, messagebox
 from widgets.texteditor import Editor, Languages
 
 import customtkinter as ctk
-from PIL import Image
-from functools import lru_cache
-import widgets.universal_widgets as uniwidgets
+# import ttkbootstrap as ttkboot
 import widgets.TabView as TabView
 import widgets.serach_menu as search_menu
-from widgets.imageload import *
+# import ttkbootstrap.constants as ttkconsts
+import widgets.universal_widgets as uniwidgets
 
 ################################################################################################
 # MAIN WINDOW
