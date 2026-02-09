@@ -1,0 +1,30 @@
+COPYRIGHT 2026 EX-TECHNOLOGIES - ALL RIGHTS RESERVED
+Welcome to DreamStudio Manual Support!
+
+DSMAN (.dsman) is a notebook collection of manual files that comes shipped with
+DreamStudio's standard installation. You can access files and read documentations
+easily using DreamStudio Terminal for Documentations. 
+
+Getting Started:
+To search any topic, you have several options: 
+1. Type-in the name of the topic you would like to search for.
+2. Type-in the name of the command you are looking for, any type of DreamStudio's 
+   commands would work whether inside this terminal or in other DreamStudio's 
+   terminals.
+3. You can also extend your search by looking inside manual files, not just only
+   by file's name, that is by typing the command: 
+
+   >>> Search-Topic {topic-word} {search-time} {looking-in}
+
+   {topic-word}: The word you are searching for.
+   {topic-time}: How much time the engine would take at maximum to search
+                 (default is one minute)
+   {looking-in}: whether to look in a specific location or not. Default is false.
+                 (if true, the engine would extend its searching capabilities for
+                 better results).
+
+Further Documentation:
+If you like PDF-Style documentations, you could read the PDF documentation manual
+associated with the version you installed. 
+
+                                DREAMSTUDIO TEAM
