@@ -1,8 +1,0 @@
-The C-SearchFile Engine is responsible for the following tasks:
-
-1. Files Database
-2. Files indexing
-3. Contents Search Engine
-4. Directories Scanner
-5. Files Hasher
-6. Contents Cacher

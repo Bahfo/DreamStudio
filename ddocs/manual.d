@@ -1,6 +1,7 @@
 module ddocs.manual;
 
 import std.uni;
+import std.conv;
 import std.file;
 import std.path;
 import std.stdio;
@@ -10,6 +11,7 @@ import std.datetime;
 import std.exception;
 
 import std.algorithm : any;
+import std.algorithm.searching;
 
 import core.stdc.stdlib;
 
@@ -17,13 +19,36 @@ string available_commands = q{ALL AVAILABLE COMMANDS:
 GENERAL      : clear, exit, help
 GET FAMILY   : get-started, get-commands
 SEARCH FAMILY: search-topic, search-several
-OPEN FAMILY  : open-pdf, open-web};
+OPEN FAMILY  : open-pdf};
 
 enum RESET   = "\x1b[0m" ;
 enum RED     = "\x1b[31m";
 enum GREEN   = "\x1b[32m";
 enum YELLOW  = "\x1b[33m";
 enum BLUE    = "\x1b[34m";
+
+struct MatchedContent
+{
+    string path;
+}
+
+struct MatchedLine
+{
+    string path; 
+    size_t lineNo;
+    string line;
+}
+
+struct TopicName
+{
+    string topicName;
+    string topicPath;
+}
+
+TopicName[] topicsNames = [
+    TopicName("Introduction", "./docs/help.dsman"),
+    TopicName("Installation", "./docs/help.dsman"),
+];
 
 string checkVersion()
 {
@@ -61,38 +86,216 @@ void openPDF(string filePath)
     }
 }
 
-void searchTopic(string rootDir, string topicWord) {
-
-    void searchDir(string dir)
+void searchTopic(string rootDir, string topicWord)
+{
+    MatchedContent[] searchDir(string dir)
     {
+        MatchedContent[] matches;
+
         foreach (entry; dirEntries(dir, SpanMode.shallow))
         {
             if (entry.name.indexOf(topicWord) >= 0)
             {
                 writeln("Found in name: ", entry.name);
+                matches ~= MatchedContent(entry.name);
             }
+
             if (entry.isDir)
             {
-                searchDir(entry.name);
+                matches ~= searchDir(entry.name);
             }
             else if (entry.isFile)
             {
                 try
                 {
-                    auto content = readText(entry.name);
-                    if (content.indexOf(topicWord) >= 0)
+                    auto content = toLower(readText(entry.name));
+                    if (content.indexOf(toLower(topicWord)) >= 0)
                     {
-                        writeln("Found in file: ", entry.name);
+                        matches ~= MatchedContent(entry.name);
                     }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    writeln("Error: Could not find file needed: ",e);
+                    writeln("Error reading file: ", entry.name);
                 }
             }
         }
+        return matches;
     }
-    searchDir(rootDir);
+
+    auto matches = searchDir(rootDir);
+
+    writeln("Topic ", topicWord, " found in ", matches.length, " files");
+
+    foreach (i, m; matches)
+    {
+        writeln("[", i, "] Found in ", m.path);
+    }
+
+    if (matches.length == 0)
+        return;
+
+    writeln("Type the number of topic to open it, or type 'skip' to return");
+
+    string response = strip(readln());
+
+    if (response == "skip")
+        return;
+
+    try
+    {
+        int index = to!int(response);
+
+        if (index < 0 || index >= matches.length)
+        {
+            writeln("Invalid selection.");
+            return;
+        }
+
+        string content = readText(matches[index].path);
+        writeln("---- FILE CONTENT ----");
+        writeln(content);
+    }
+    catch (Exception)
+    {
+        writeln("Invalid input.");
+    }
+}
+
+void searchSeveral(string rootDir, string topicWord)
+{
+    MatchedLine[] searchDir(string dir)
+    {
+        MatchedLine[] matches;
+
+        foreach (entry; dirEntries(dir, SpanMode.shallow))
+        {
+            if (entry.isDir)
+            {
+                matches ~= searchDir(entry.name);
+            }
+            else if (entry.isFile)
+            {
+                try
+                {
+                    size_t lineNumber = 0;
+                    foreach (line; File(entry.name).byLine())
+                    {
+                        lineNumber++;
+                        if (toLower(line).indexOf(toLower(topicWord)) >= 0)
+                        {
+                            matches ~= MatchedLine(entry.name, lineNumber, line.idup);
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    writeln("Error reading file: ", entry.name);
+                }
+            }
+        }
+
+        return matches;
+    }
+
+    auto matches = searchDir(rootDir);
+
+    writeln("Topic '", topicWord, "' found in ", matches.length, " lines");
+
+    foreach (i, m; matches)
+    {
+        writeln("[", i, "] ", m.path, " (line ", m.lineNo, "): ", m.line);
+    }
+
+    if (matches.length == 0)
+        return;
+
+    writeln("Type the number of topic to open it, or type 'skip' to return");
+
+    string response = strip(readln());
+
+    if (response == "skip")
+        return;
+
+    try
+    {
+        int index = to!int(response);
+
+        if (index < 0 || index >= matches.length)
+        {
+            writeln("Invalid selection.");
+            return;
+        }
+
+        string content = readText(matches[index].path);
+        writeln("---- FILE CONTENT (", matches[index].path, ") ----");
+        writeln(content);
+    }
+    catch (Exception)
+    {
+        writeln("Invalid input.");
+    }
+}
+
+void searchContent(TopicName[] topics, string topic)
+{
+    string input = strip(topic);
+    foreach (t; topics)
+    {
+        if (t.topicName == input)
+        {
+            try
+            {
+                string content = readText(t.topicPath);
+                writeln("---- FILE CONTENT (", t.topicPath, ") ----");
+                writeln(content);
+            }
+            catch (Exception)
+            {
+                writeln("Error while reading the file");
+            }
+            return;
+        }
+    }
+    TopicName[] relativeMatches;
+    foreach (key; topics)
+    {
+        if (key.topicName.toLower().canFind(input.toLower()))
+        {
+            relativeMatches ~= key;
+        }
+    }
+    if (relativeMatches.length == 0)
+    {
+        writeln("No topics found containing '",input,"'");
+        return;
+    }
+    writeln("No exact matches were found! Relative matches: ");
+    foreach (i, t; relativeMatches)
+    {
+        writeln("[",i,"]",t.topicName," : ",t.topicPath);
+    }
+    writeln("Type the number of the topic to open it, or 'skip' to return");
+    string response = strip(readln());
+    if (response == "skip") return;
+
+    try
+    {
+        int index = to!int(response);
+        if (index < 0 || index >= relativeMatches.length)
+        {
+            writeln("Invalid selection");
+            return;
+        }
+
+        string content = readText(relativeMatches[index].topicPath);
+        writeln("---- FILE CONTENT (", relativeMatches[index].topicPath, ") ----");
+        writeln(content);
+    }
+    catch (Exception)
+    {
+        writeln("Invalid input");
+    }
 }
 
 void writeWelcome()
@@ -158,6 +361,12 @@ void parseUserInput(string arg)
             searchTopic("./docs", search_param);
         }
 
+        else if (toLower(command_identifier) == "search" &&
+        toLower(command_type == "several"))
+        {
+            searchSeveral("./docs", search_param);
+        }
+
         else if (toLower(command_identifier) == "open" &&
         toLower(command_type) == "pdf")
         {
@@ -165,33 +374,10 @@ void parseUserInput(string arg)
         }
         else
         {
-            writeln("Unknown command: Please type-in the correct command");
-            writeln("or type 'get-commands' to see full commands list");
+            searchContent(topicsNames, arg);
         }
     }
 }
-
-void colorizeInputs(string arg)
-{
-    string[] keywords = ["get-commands","get-started","open-web","help",
-                         "open-pdf","search-topic","search-several"];
-
-    auto words = arg.split(' ');
-    foreach (string word; words)
-    {
-        bool matched = keywords.any!(k=> word.toLower().startsWith(k.toLower()));
-
-        if (matched)
-        {
-            writeln(YELLOW,">>> COMMAND: ", word, RESET, " ");
-        }
-    }
-}
-
-// string lookInsideDocs(string parsed_input)
-// {
-//     return;
-// }
 
 void main()
 {
@@ -212,7 +398,6 @@ void main()
         write("> ");
         string user_input = readln();
         writeln("");
-        colorizeInputs(user_input);
         parseUserInput(user_input);
     }
 }
