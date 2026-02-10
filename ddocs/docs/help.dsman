@@ -14,14 +14,8 @@ To search any topic, you have several options:
 3. You can also extend your search by looking inside manual files, not just only
    by file's name, that is by typing the command: 
 
-   >>> Search-Topic {topic-word} {search-time} {looking-in}
-
+   >>> Search-Topic {topic-word}
    {topic-word}: The word you are searching for.
-   {topic-time}: How much time the engine would take at maximum to search
-                 (default is one minute)
-   {looking-in}: whether to look in a specific location or not. Default is false.
-                 (if true, the engine would extend its searching capabilities for
-                 better results).
 
 Further Documentation:
 If you like PDF-Style documentations, you could read the PDF documentation manual
