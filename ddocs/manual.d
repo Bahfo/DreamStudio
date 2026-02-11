@@ -10,10 +10,12 @@ import std.process;
 import std.datetime;
 import std.exception;
 
+import core.thread;
+import core.stdc.stdlib;
 import std.algorithm : any;
 import std.algorithm.searching;
 
-import core.stdc.stdlib;
+import menubar;
 
 string available_commands = q{ALL AVAILABLE COMMANDS:
 GENERAL      : clear, exit, help
@@ -153,7 +155,7 @@ void searchTopic(string rootDir, string topicWord)
         }
 
         string content = readText(matches[index].path);
-        writeln("---- FILE CONTENT ----");
+        writeln(YELLOW,"---- FILE CONTENT ----",RESET);
         writeln(content);
     }
     catch (Exception)
@@ -228,7 +230,7 @@ void searchSeveral(string rootDir, string topicWord)
         }
 
         string content = readText(matches[index].path);
-        writeln("---- FILE CONTENT (", matches[index].path, ") ----");
+        writeln(YELLOW,"---- FILE CONTENT (", matches[index].path, ") ----"<RESET);
         writeln(content);
     }
     catch (Exception)
@@ -240,6 +242,15 @@ void searchSeveral(string rootDir, string topicWord)
 void searchContent(TopicName[] topics, string topic)
 {
     string input = strip(topic);
+    writeln(BLUE,"Searching files for ",topic,RESET);
+
+    for (int i = 0; i < 81; i++)
+    {
+        write(BLUE,"#",RESET);
+        Thread.sleep( 10.dur!("msecs") );
+    }
+    writeln("");
+
     foreach (t; topics)
     {
         if (t.topicName == input)
@@ -247,7 +258,14 @@ void searchContent(TopicName[] topics, string topic)
             try
             {
                 string content = readText(t.topicPath);
-                writeln("---- FILE CONTENT (", t.topicPath, ") ----");
+                write("\x1b[1A");  // Cursor up 1
+                write("\x1b[2K");  // Clear entire line
+                write("\x1b[1A");
+                write("\x1b[2K");
+                // Return cursor to the start of the line
+                write("\r");
+
+                writeln(YELLOW,"---- FILE CONTENT (", t.topicPath, ") ----",RESET);
                 writeln(content);
             }
             catch (Exception)
@@ -257,7 +275,9 @@ void searchContent(TopicName[] topics, string topic)
             return;
         }
     }
+
     TopicName[] relativeMatches;
+
     foreach (key; topics)
     {
         if (key.topicName.toLower().canFind(input.toLower()))
@@ -265,18 +285,23 @@ void searchContent(TopicName[] topics, string topic)
             relativeMatches ~= key;
         }
     }
+
     if (relativeMatches.length == 0)
     {
-        writeln("No topics found containing '",input,"'");
+        writeln(RED,"No topics found containing '",input,"'",RESET);
         return;
     }
-    writeln("No exact matches were found! Relative matches: ");
+
+    writeln(YELLOW,"No exact matches were found! Relative matches: ",RESET);
+    
     foreach (i, t; relativeMatches)
     {
         writeln("[",i,"]",t.topicName," : ",t.topicPath);
     }
+
     writeln("Type the number of the topic to open it, or 'skip' to return");
     string response = strip(readln());
+
     if (response == "skip") return;
 
     try
@@ -284,17 +309,17 @@ void searchContent(TopicName[] topics, string topic)
         int index = to!int(response);
         if (index < 0 || index >= relativeMatches.length)
         {
-            writeln("Invalid selection");
+            writeln(RED,"Invalid selection",RESET);
             return;
         }
 
         string content = readText(relativeMatches[index].topicPath);
-        writeln("---- FILE CONTENT (", relativeMatches[index].topicPath, ") ----");
+        writeln(YELLOW,"---- FILE CONTENT (", relativeMatches[index].topicPath, ") ----",RESET);
         writeln(content);
     }
     catch (Exception)
     {
-        writeln("Invalid input");
+        writeln(RED,"Invalid input",RESET);
     }
 }
 
@@ -326,9 +351,13 @@ void parseUserInput(string arg)
     // MATCHING COMMAND TYPE WITH COMMAND IDENTIFIER
     if (user_command == "clear")
     {
-        if (version_type == "windows") {spawnShell("cls").wait; writeWelcome();}
+        if (version_type == "windows") {spawnShell("cls").wait; 
+        drawBar("DREAMSTUDIO TERMINAL-BASED MANUAL"); drawCustomPanel();
+        writeWelcome();}
         if (version_type == "linux" || version_type == "macos")
-            {spawnShell("clear").wait; writeWelcome();}
+            {spawnShell("clear").wait; 
+            drawBar("DREAMSTUDIO TERMINAL-BASED MANUAL");drawCustomPanel();
+            writeWelcome();}
     }
     else if (user_command == "exit")
     {
@@ -388,10 +417,22 @@ void main()
                 spawnShell("cls").wait;
             } catch (ProcessException e)
             {
-                writeln("Error Occured: ", e);
+                writeln("Error Occured: ",e);
             }
         }
+    else
+    {
+        try
+        {
+            spawnShell("clear").wait;
+        } catch (ProcessException e)
+        {
+            writeln("Error Occurred: ",e);
+        }
+    }
 
+    drawBar("COPYRIGHT 2026 DREAMSTUDIO TERMINAL-BASED MANUAL - ALL RIGHTS RESERVED");
+    drawCustomPanel();
     writeWelcome();
     while(true)
     {
