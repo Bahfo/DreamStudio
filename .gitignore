@@ -4,5 +4,5 @@ tools.txt
 requirements.txt
 venv/
 
-
+.vscode
 .fake
