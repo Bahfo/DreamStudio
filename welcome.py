@@ -15,7 +15,7 @@ patch_notes = """For full patch notes, see the website's\nPatch Notes in Detail.
 ● Builds are project templates which\ncontains Python Virtual Environment,\nplus all the needs for full Python project.
 """
 
-ctk.set_appearance_mode("dark")
+ctk.set_appearance_mode("system")
 
 class WelcomeWindow(ctk.CTk):
     def __init__(self):

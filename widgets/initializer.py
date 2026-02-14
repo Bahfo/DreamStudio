@@ -45,28 +45,25 @@ import os
 import time
 import json
 import subprocess
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
 
 from widgets.imageload import *
 from functools import lru_cache
-from tkinter import filedialog, messagebox
 from widgets.texteditor import Editor, Languages
 
-import customtkinter as ctk
-# import ttkbootstrap as ttkboot
 import widgets.TabView as TabView
-import widgets.serach_menu as search_menu
-# import ttkbootstrap.constants as ttkconsts
-import widgets.universal_widgets as uniwidgets
+import widgets.search_menu as search_menu
+from widgets.universal_widgets import *
 
 ################################################################################################
 # MAIN WINDOW
 ################################################################################################
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("system")
 
 class App:
     def __init__(self, workspace):
-        startup_time = time.perf_counter()
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
         self.window.geometry("1000x700")
@@ -77,6 +74,7 @@ class App:
         #################################################################################################
 
         self.workspace = dict[str, ctk.CTkButton]
+        self.mode = ctk.get_appearance_mode()
 
         self.font_size_var = ctk.IntVar(value=14)
         self.code_font_var = ctk.StringVar(value="Consolas")
@@ -89,9 +87,6 @@ class App:
 
         for attr, (path, size) in arrow_icons.items():
             setattr(self, attr, load_ctk_icon(path, size, dark_path=path))
-
-        loading_time = time.perf_counter()
-        print("Time to load icons: ",loading_time - startup_time)
 
         ################################################################################################
         # MENUS: Define showing menus, menubar, topframe, downframe, and their buttons
@@ -233,7 +228,7 @@ class App:
 
         self.parent_color = self.homeFrame.cget("fg_color")
 
-        home_toolbar = uniwidgets.HomeToolbarBuilder(
+        home_toolbar = HomeToolbarBuilder(
             self.homeFrame, self.parent_color, self
         )
 
@@ -253,7 +248,7 @@ class App:
         self.toolsFrame.pack(fill="both", side="top")
         self.toolsFrame.pack_propagate(False)
 
-        tools_toolbar = uniwidgets.ToolsBarBuilder(
+        tools_toolbar = ToolsBarBuilder(
             self.toolsFrame, self.parent_color, self
         )
 
@@ -288,7 +283,7 @@ class App:
         self.plotsFrame.pack(fill="both", side="top")
         self.plotsFrame.pack_propagate(False)
 
-        self.plotMngBtn = uniwidgets.VerticalButton(
+        self.plotMngBtn = VerticalButton(
             self.plotsFrame,
             image_path=r"icons\system\graphsettings.png",
             text="Plot\nManager",
@@ -298,7 +293,7 @@ class App:
         )
         self.plotMngBtn.place(x=5, y=3)
 
-        self.inspectorBtn = uniwidgets.VerticalButton(
+        self.inspectorBtn = VerticalButton(
             self.plotsFrame,
             image_path=r"icons\system\inspector.png",
             text="Graph\nInspector",
@@ -308,7 +303,7 @@ class App:
         )
         self.inspectorBtn.place(x=70, y=3)
 
-        self.plotThemeBtn = uniwidgets.VerticalButton(
+        self.plotThemeBtn = VerticalButton(
             self.plotsFrame,
             image_path=r"icons\system\theme.png",
             text="Plot\nThemes",
@@ -351,7 +346,7 @@ class App:
         )
         self.customUtilitiesFrame.pack_propagate(False)
 
-        self.graphBtn = uniwidgets.VerticalButton(
+        self.graphBtn = VerticalButton(
             self.plots2d,
             image_path=r"icons\system\graph.png",
             text="GraphBox",
@@ -361,7 +356,7 @@ class App:
         )
         self.graphBtn.place(x=5, y=2)
 
-        self.chartBtn = uniwidgets.VerticalButton(
+        self.chartBtn = VerticalButton(
             self.plots2d,
             image_path=r"icons\system\chart.png",
             text="Chart Graph",
@@ -371,7 +366,7 @@ class App:
         )
         self.chartBtn.place(x=75, y=2)
 
-        self.chartBtn = uniwidgets.VerticalButton(
+        self.chartBtn = VerticalButton(
             self.plots2d,
             image_path=r"icons\system\bargraph.png",
             text="Bar Graph",
@@ -381,7 +376,7 @@ class App:
         )
         self.chartBtn.place(x=157, y=2)
 
-        self.histoBtn = uniwidgets.VerticalButton(
+        self.histoBtn = VerticalButton(
             self.plots2d,
             image_path=r"icons\system\histogram.png",
             text="Histogram",
@@ -401,7 +396,7 @@ class App:
         )
         self.customUtilitiesFrame.pack_propagate(False)
 
-        self.graph3DBtn = uniwidgets.VerticalButton(
+        self.graph3DBtn = VerticalButton(
             self.plots3d,
             image_path=r"icons\system\surface.png",
             text="3D Surface",
@@ -411,7 +406,7 @@ class App:
         )
         self.graph3DBtn.place(x=5, y=2)
 
-        self.scatterBtn = uniwidgets.VerticalButton(
+        self.scatterBtn = VerticalButton(
             self.plots3d,
             image_path=r"icons\system\scatter.png",
             text="3D Scatter",
@@ -421,7 +416,7 @@ class App:
         )
         self.scatterBtn.place(x=82, y=2)
 
-        self.wireframeBtn = uniwidgets.VerticalButton(
+        self.wireframeBtn = VerticalButton(
             self.plots3d,
             image_path=r"icons\system\wireframe.png",
             text="3D Wireframe",
@@ -431,7 +426,7 @@ class App:
         )
         self.wireframeBtn.place(x=157, y=2)
 
-        self.contourBtn = uniwidgets.VerticalButton(
+        self.contourBtn = VerticalButton(
             self.plots3d,
             image_path=r"icons\system\contour.png",
             text="3D Contour",
@@ -451,7 +446,7 @@ class App:
         )
         self.customUtilitiesFrame.pack_propagate(False)
 
-        self.heatmapBtn = uniwidgets.VerticalButton(
+        self.heatmapBtn = VerticalButton(
             self.scientific,
             image_path=r"icons\system\heatmap.png",
             text="Heatmap",
@@ -461,7 +456,7 @@ class App:
         )
         self.heatmapBtn.place(x=5, y=2)
 
-        self.polarBtn = uniwidgets.VerticalButton(
+        self.polarBtn = VerticalButton(
             self.scientific,
             image_path=r"icons\system\polar.png",
             text="Polar Plan",
@@ -471,7 +466,7 @@ class App:
         )
         self.polarBtn.place(x=80, y=2)
 
-        self.corrMATBtn = uniwidgets.VerticalButton(
+        self.corrMATBtn = VerticalButton(
             self.scientific,
             image_path=r"icons\system\corrmat.png",
             text="Corr. Matrix",
@@ -586,7 +581,7 @@ class App:
         self.lab3Show.place(x=345, y=48)
         self.customDropDownFrameChanger(self.plots2d)
 
-        self.statsOverLayBtn = uniwidgets.HorizontalButton(
+        self.statsOverLayBtn = HorizontalButton(
             self.plotsFrame,
             image_path=r"icons\system\stats.png",
             text="Stats Overlay",
@@ -596,7 +591,7 @@ class App:
         )
         self.statsOverLayBtn.place(x=614, y=7)
 
-        self.trashGraphBtn = uniwidgets.HorizontalButton(
+        self.trashGraphBtn = HorizontalButton(
             self.plotsFrame,
             image_path=r"icons\system\trash.png",
             text="Delete Graph",
@@ -621,7 +616,7 @@ class App:
         self.debugFrame.pack(fill="both", side="top")
         self.debugFrame.pack_propagate(False)
 
-        self.debuggingBtn = uniwidgets.VerticalButton(
+        self.debuggingBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\bug.png",
             text="Start\nDebugging",
@@ -631,7 +626,7 @@ class App:
         )
         self.debuggingBtn.place(x=5, y=3)
 
-        self.runNoBugBtn = uniwidgets.VerticalButton(
+        self.runNoBugBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\start.png",
             text="Run without\nDebugging",
@@ -641,7 +636,7 @@ class App:
         )
         self.runNoBugBtn.place(x=82, y=5)
 
-        self.attachBtn = uniwidgets.VerticalButton(
+        self.attachBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\attach.png",
             text="Attach to\nSome Process",
@@ -651,7 +646,7 @@ class App:
         )
         self.attachBtn.place(x=162, y=5)
 
-        self.compileBtn = uniwidgets.VerticalButton(
+        self.compileBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\compile.png",
             text="Compile\nCode",
@@ -661,7 +656,7 @@ class App:
         )
         self.compileBtn.place(x=253, y=5)
 
-        self.stopBugBtn = uniwidgets.VerticalButton(
+        self.stopBugBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\stop.png",
             text="Stop\nDebugging",
@@ -671,7 +666,7 @@ class App:
         )
         self.stopBugBtn.place(x=315, y=5)
 
-        self.restartBugBtn = uniwidgets.VerticalButton(
+        self.restartBugBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\restart.png",
             text="Restart\nDebugging",
@@ -681,7 +676,7 @@ class App:
         )
         self.restartBugBtn.place(x=392, y=5)
 
-        self.deatBugBtn = uniwidgets.VerticalButton(
+        self.deatBugBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\deattach.png",
             text="Detach\nDebugger",
@@ -767,7 +762,7 @@ class App:
         )
         self.runToCursorBtn.place(x=98, y=2)
 
-        self.watchBtn = uniwidgets.VerticalButton(
+        self.watchBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\watch.png",
             text="Watch\nWindow",
@@ -777,7 +772,7 @@ class App:
         )
         self.watchBtn.place(x=730, y=5)
 
-        self.performanceBtn = uniwidgets.VerticalButton(
+        self.performanceBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\cpu.png",
             text="Performance\nOptimization",
@@ -787,7 +782,7 @@ class App:
         )
         self.performanceBtn.place(x=790, y=5)
 
-        self.memoryBtn = uniwidgets.VerticalButton(
+        self.memoryBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\memory.png",
             text="Memory\nProfiler",
@@ -807,7 +802,7 @@ class App:
         )
         self.vertical_sep_9.place(x=938, y=7)
 
-        self.verifyBtn = uniwidgets.VerticalButton(
+        self.verifyBtn = VerticalButton(
             self.debugFrame,
             image_path=r"icons\system\verify.png",
             text="Verify Code\nSafety",
@@ -832,7 +827,7 @@ class App:
         self.terminalFrame.pack(fill="both", side="top")
         self.terminalFrame.pack_propagate(False)
 
-        self.runTaskBtn = uniwidgets.VerticalButton(
+        self.runTaskBtn = VerticalButton(
             self.terminalFrame,
             image_path=r"icons\system\task.png",
             text="Run Task",
@@ -842,7 +837,7 @@ class App:
         )
         self.runTaskBtn.place(x=5, y=5)
 
-        self.buildBtn = uniwidgets.VerticalButton(
+        self.buildBtn = VerticalButton(
             self.terminalFrame,
             image_path=r"icons\system\build.png",
             text="Build Task",
@@ -852,7 +847,7 @@ class App:
         )
         self.buildBtn.place(x=75, y=5)
 
-        self.fileMngBtn = uniwidgets.VerticalButton(
+        self.fileMngBtn = VerticalButton(
             self.terminalFrame,
             image_path=r"icons\system\fileMng.png",
             text="Run File\nManager",
@@ -862,7 +857,7 @@ class App:
         )
         self.fileMngBtn.place(x=150, y=5)
 
-        self.dayDreamBtn = uniwidgets.VerticalButton(
+        self.dayDreamBtn = VerticalButton(
             self.terminalFrame,
             image_path=r"icons\system\daydream.png",
             text="DayDream\nTerminal",
@@ -887,7 +882,7 @@ class App:
         self.helpFrame.pack(fill="both", side="top")
         self.helpFrame.pack_propagate(False)
 
-        self.docBtn = uniwidgets.VerticalButton(
+        self.docBtn = VerticalButton(
             self.helpFrame,
             image_path=r"icons\system\documentation.png",
             text="Documentation",
@@ -897,7 +892,7 @@ class App:
         )
         self.docBtn.place(x=5, y=5)
 
-        self.feedBtn = uniwidgets.VerticalButton(
+        self.feedBtn = VerticalButton(
             self.helpFrame,
             image_path=r"icons\system\feedback.png",
             text="Feedback",
@@ -907,7 +902,7 @@ class App:
         )
         self.feedBtn.place(x=106, y=5)
 
-        self.hBtn = uniwidgets.VerticalButton(
+        self.hBtn = VerticalButton(
             self.helpFrame,
             image_path=r"icons\system\help.png",
             text="Show Help",
@@ -1012,9 +1007,6 @@ class App:
         )
         self.status_button.pack(padx=(7, 7), side="right", pady=(2, 2))
 
-        loading_time2 = time.perf_counter()
-        print("Time to load buttons: ",loading_time2 - loading_time)
-
         #################################################################################################
         # SERVICES LEFTMOST BAR
         #################################################################################################
@@ -1035,7 +1027,7 @@ class App:
             command=self.open_current_file,
         )
         self.open_button.pack(pady=5)
-        uniwidgets.ToolTip(self.open_button, "Opens a file")
+        ToolTip(self.open_button, "Opens a file")
 
         self.search_button = ctk.CTkButton(
             self.services_bar,
@@ -1048,7 +1040,7 @@ class App:
             command=self.open_search,
         )
         self.search_button.pack(pady=5)
-        uniwidgets.ToolTip(
+        ToolTip(
             self.search_button, "Searches inside the file for a specific key"
         )
 
@@ -1062,7 +1054,7 @@ class App:
             fg_color=self.services_bar.cget("fg_color"),
         )
         self.save_button.pack(pady=5)
-        uniwidgets.ToolTip(self.save_button, "Saves the current loaded workspace file")
+        ToolTip(self.save_button, "Saves the current loaded workspace file")
 
         self.user_button = ctk.CTkButton(
             self.services_bar,
@@ -1074,7 +1066,7 @@ class App:
             fg_color=self.services_bar.cget("fg_color"),
         )
         self.user_button.pack(pady=5, side="bottom")
-        uniwidgets.ToolTip(self.user_button, "Show user's account")
+        ToolTip(self.user_button, "Show user's account")
 
         self.settings_button = ctk.CTkButton(
             self.services_bar,
@@ -1086,7 +1078,7 @@ class App:
             fg_color=self.services_bar.cget("fg_color"),
         )
         self.settings_button.pack(pady=5, side="bottom")
-        uniwidgets.ToolTip(self.settings_button, "Show IDE settings and preferences")
+        ToolTip(self.settings_button, "Show IDE settings and preferences")
 
         #################################################################################################
         # LEFT SIDEBAR FRAME
@@ -1115,7 +1107,7 @@ class App:
                               language=Languages.C,
                               font=("Consolas",13),
                               showpath=True,
-                              darkmode=False,
+                              darkmode=False if self.mode == "light" else True,
                               uifont=("Segoe UI",11))
         self.editor.pack(expand=0.9, fill='both')
 
@@ -1124,9 +1116,6 @@ class App:
         #################################################################################################
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
-
-        loading_time3 = time.perf_counter()
-        print("Time to load widgets: ",loading_time3 - loading_time2)
 
     def show_tab(self, frame_to_show, active_button):
         for frame in self.allTabs:
@@ -1223,8 +1212,3 @@ class App:
     def run(self):
         self.window.mainloop()
         self.window.update_idletasks()
-
-########## TESTING ##########
-if __name__ == '__main__':
-    app = App(None)
-    app.run()
