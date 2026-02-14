@@ -196,13 +196,6 @@ class TabView:
 
         self.gitChanges.pack_propagate(False)
 
-        generatorsFrame = tkinterweb.HtmlFrame(self.gitChanges,
-                                               horizontal_scrollbar="auto",)
-        
-        generatorsFrame.pack(fill="both", expand=True)
-
-        generatorsFrame.load_file(r"C:\Users\Bahaa\Desktop\ExoSystem\DreamStudio\DreamStudioIDE\widgets\webpages\index.html")
-
         ############################################################
         # TAB CHANGER
         ############################################################

@@ -281,7 +281,7 @@ def agreement_registeration():
 
     def loading_main_program():
         window.destroy()
-        app = dreamstudio_main.App()
+        app = dreamstudio_main.App(None)
         app.run()
 
     button_next_2 = ctk.CTkButton(

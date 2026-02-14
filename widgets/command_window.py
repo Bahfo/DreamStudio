@@ -41,7 +41,7 @@ clone           Clones (Copies) a file from source to destination
 copydir         Copies files inside a directory recursively
 cpuinfo         Shows CPU related info
 date            Shows current date and time
-deletedir
+deletedir       Deletes the specified directory by path
 diskinfo        Shows HDD related info
 download
 echo
@@ -54,7 +54,7 @@ help            Documentation Help of a specific command or topic
 here            Shows current working directory
 history
 kill
-makedir
+makedir         Creates a new directory at the specified location
 me              Shows info about the system
 meminfo         Shows memory related info
 mybox           Shows host name
@@ -650,6 +650,34 @@ class CommandLine(cmd.Cmd):
             f"Current time: {current_date.time()}\n"
             f"{current_date}"
         )
+    
+    # -------------------- Deletedir -------------------
+    def do_deletedir(self, arg):
+        """
+        Help: deletedir    Deletes the current directory specified by a user
+        If no path is given, it simply removes the current directory the terminal
+        is represented at.
+
+        Usage: deletedir --path=<path>     %% removes directory in <path>
+               deletedir                   %% removes current working directory
+
+        Output: 
+            - Removing a directory of files and folders
+        Errors: 
+            - Privilage Error (42): Mixed exceptions provided by the operating system
+
+        Hot-Topic Commands:
+            erase, help 
+        """
+        if not arg:
+            path = os.getcwd()
+        try:
+            if os.path.isdir(arg):
+                os.rmdir(path=arg)
+            else:
+                os.rmdir(path=path)
+        except Exception as e:
+            return f"Error 42: {e}"
 
     # -------------------- Diskinfo --------------------
     def do_diskinfo(self, path):
@@ -671,7 +699,11 @@ class CommandLine(cmd.Cmd):
                 used = usage.used // (1024**3)
                 free = usage.free // (1024**3)
                 percent = round((used / total) * 100, 2)
-                return f"Disk info for {path}:\nTotal: {total} GB\nUsed: {used} GB\nFree: {free} GB\nUsage: {percent}%"
+                return f"""Disk info for {path}:
+                Total: {total} GB
+                Used: {used} GB
+                Free: {free} GB
+                Usage: {percent}%"""
             else:
                 return f"Error: Path does not exist: {path}"
         except Exception as e:
@@ -845,6 +877,30 @@ class CommandLine(cmd.Cmd):
             clearhistory, help
         """
         return f"\ncurrent working directory: {os.getcwd()}"
+    
+    # -------------------- Makedir -----------------
+    def do_makedir(self, arg):
+        """
+        Help: makedir    Creates a new directory with the specified path
+        If no path specified, it creates an 'untitiled' directory at the given path
+        Usage:
+            makedir [--path=<path>] [--name=<name>]    %% Directory at the specified <path>
+            makedir                                    %% Directory at current path with name 'untitled'
+            makedir [--name=<name>]                    %% A Directory at the current path with <name>
+            makedir [--path=<path>]                    %% Could be a directory with a path containing a name
+                                                       %% or a directory with no name ('untitled' by default)
+        Parameters:
+            --path       Path to create the directory at 
+            --name       Name of the directory
+        Output:
+            Creates the directory at the specified location with the given content. Returns a success message including the full file path
+        Errors:
+            Error 44: Exception error
+        Hot-topic commands:
+            peek, head, tail, deletedir, help
+        """
+        if arg:
+            pass
 
     # -------------------- Me --------------------
     def do_me(self, arg=None):
