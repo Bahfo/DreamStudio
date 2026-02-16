@@ -55,6 +55,7 @@ from widgets.texteditor import Editor, Languages
 import widgets.TabView as TabView
 import widgets.search_menu as search_menu
 from widgets.universal_widgets import *
+from widgets.ctk_tabview import *
 
 ################################################################################################
 # MAIN WINDOW
@@ -76,6 +77,11 @@ class App:
 
         self.workspace = dict[str, ctk.CTkButton]
         self.mode = ctk.get_appearance_mode()
+        self.tab_count = 0
+        self.current_session_editors_open = {}
+
+        # Segmented Buttons Sepcific Font 
+        self.seg_font = ctk.CTkFont(family="Segoe UI", size=12, weight="normal")
 
         self.font_size_var = ctk.IntVar(value=14)
         self.code_font_var = ctk.StringVar(value="Consolas")
@@ -112,7 +118,7 @@ class App:
             width=80,
             text="HOME",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.homeFrame, self.homeBtn),
+            command=lambda: self._show_menu_tab(self.homeFrame, self.homeBtn),
         )
 
         self.homeBtn.pack(side="left", anchor="w", padx=(8, 0))
@@ -125,7 +131,7 @@ class App:
             width=80,
             text="TOOLS",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.toolsFrame, self.toolsBtn),
+            command=lambda: self._show_menu_tab(self.toolsFrame, self.toolsBtn),
         )
 
         self.toolsBtn.pack(side="left", anchor="w", padx=(8, 0))
@@ -138,7 +144,7 @@ class App:
             width=80,
             text="DATABASES",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.databasesFrame, self.databasesBtn),
+            command=lambda: self._show_menu_tab(self.databasesFrame, self.databasesBtn),
         )
 
         self.databasesBtn.pack(side="left", anchor="w", padx=(8, 0))
@@ -151,7 +157,7 @@ class App:
             width=80,
             text="PLOTS",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.plotsFrame, self.plotsBtn),
+            command=lambda: self._show_menu_tab(self.plotsFrame, self.plotsBtn),
         )
 
         self.plotsBtn.pack(side="left", anchor="w", padx=(8, 0))
@@ -164,7 +170,7 @@ class App:
             width=80,
             text="DEBUG",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.debugFrame, self.debugBtn),
+            command=lambda: self._show_menu_tab(self.debugFrame, self.debugBtn),
         )
 
         self.debugBtn.pack(side="left", anchor="w", padx=(8, 0))
@@ -177,7 +183,7 @@ class App:
             width=80,
             text="TERMINAL",
             font=("Segoe UI", 12),
-            command=lambda: self.show_tab(self.terminalFrame, self.terminalBtn),
+            command=lambda: self._show_menu_tab(self.terminalFrame, self.terminalBtn),
         )
 
         self.terminalBtn.pack(side="left", anchor="w", padx=(8, 0))
@@ -190,7 +196,7 @@ class App:
             width=80,
             text="HELP",
             font=("Seoge UI", 12),
-            command=lambda: self.show_tab(self.helpFrame, self.helpBtn),
+            command=lambda: self._show_menu_tab(self.helpFrame, self.helpBtn),
         )
 
         self.helpBtn.pack(side="left", anchor="w", padx=(8, 0))
@@ -923,7 +929,7 @@ class App:
             self.helpFrame,
         ]
 
-        self.show_tab(self.homeFrame, self.homeBtn)
+        self._show_menu_tab(self.homeFrame, self.homeBtn)
 
         #################################################################################################
         # STATUS BAR
@@ -1104,13 +1110,22 @@ class App:
         # The editor widget has a texteditor with autocompletion and syntax highlight.
         # It also has an image viewer to view images.
         # It can also show diff windows for comparing two files together side by side.
-        self.editor = Editor(self.upper_frame,
-                              language=Languages.C,
-                              font=("Consolas",13),
-                              showpath=True,
-                              darkmode=False if self.mode == "light" else True,
-                              uifont=("Segoe UI",11))
-        self.editor.pack(expand=0.9, fill='both')
+        
+        self.tabSwitch = CTkTabview(self.upper_frame,
+                                        corner_radius=0,
+                                        border_width=0,
+                                        anchor="w",
+                                        text_color=["#1E1E1E","#FFFFFF"],
+                                        fg_color=["#C8C8C8","#454545"],
+                                        segmented_button_fg_color=["#FFFFFF","#1F1F1F"],
+                                        segmented_button_selected_color=["#FFFFFF","#1F1F1F"],
+                                        segmented_button_selected_hover_color=["#FFFFFF","#1F1F1F"],
+                                        segmented_button_unselected_color=["#C8C8C8","#454545"])
+        self.tabSwitch.pack(expand=0.9, fill='both')
+        self.tabSwitch._segmented_button.configure(font = self.seg_font)
+        self._add_new_text_tab()
+
+        self.tabSwitch.newtab_btn.configure(command=self._add_new_text_tab)
 
         #################################################################################################
         # BINDINGS
@@ -1118,7 +1133,7 @@ class App:
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
 
-    def show_tab(self, frame_to_show, active_button):
+    def _show_menu_tab(self, frame_to_show, active_button):
         for frame in self.allTabs:
             frame.pack_forget()
 
@@ -1141,6 +1156,51 @@ class App:
         for btn in tabButtons:
             btn.configure(fg_color="#004073")
 
+    def _add_new_text_tab(self):
+        if self.tab_count >= 10:
+            messagebox.showerror("Tabs Construction Error", "Cannot create more than 10 tabs")
+            return None
+        
+        self.tab_count += 1
+        tab_name = f"    Untitled-{self.tab_count}    "
+        self.tabSwitch.add(tab_name)
+
+        new_editor = Editor(
+            self.tabSwitch.tab(tab_name),
+            language=Languages.C,
+            font=("Consolas", 13),
+            showpath=True,
+            darkmode=(self.mode != "light"),
+            uifont=("Segoe UI", 11)
+        )
+        new_editor.pack(fill='both', expand=True)
+        
+        self.current_session_editors_open[tab_name] = new_editor
+        
+        self.tabSwitch.set(tab_name)
+        return tab_name
+
+    def _rename_tab_in_texteditor_tabs(self, old_name, new_name):
+        if old_name not in self.tabSwitch._tab_dict:
+            messagebox.showerror("Error in Tabs Construction",
+                                 message="Tab is not found",
+                                 default="ok")
+            return
+        
+        self.tabSwitch._tab_dict[new_name] = self.tabSwitch._tab_dict.pop(old_name)
+        values = self.tabSwitch._segmented_button.cget("values")
+        new_values = [new_name if v == old_name else v for v in values]
+        self.tabSwitch._segmented_button.configure(values = new_values)
+
+        self.tabSwitch.set(new_name)
+
+    def on_add_tab_click(self):
+        self._add_new_text_tab()
+
+    def on_rename_tab_click(self, new_name):
+        current_tab = self.tabSwitch.get()
+        self._rename_tab_in_texteditor_tabs(current_tab, new_name)
+
     def customDropDownFrameChanger(self, frame_to_show):
         for f in [self.plots2d, self.plots3d, self.scientific]:
             f.place_forget()
@@ -1155,27 +1215,41 @@ class App:
         )
         search_window.show()
 
-    def open_current_file(main_app):
-        if main_app.status_button:
-            main_app.status_button.configure(text="Opening file")
-
+    def open_current_file(self):
+        # 1. Ask for the file first
         current_file = filedialog.askopenfilename(title="Select an existing file")
         if not current_file:
             return
 
+        if self.status_button:
+            self.status_button.configure(text="Opening file...")
+
         try:
+            # 2. Read the content
             with open(current_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            main_app.editor.content.delete("1.0", "end")
-            main_app.editor.content.insert("1.0", content)
-            if main_app.status_button:
-                main_app.status_button.configure(text=f"File {current_file} opened")
+            # 3. Create a brand new tab
+            # This function already returns the name of the tab it just created
+            tab_name = self._add_new_text_tab()
+            
+            if tab_name:
+                # 4. Grab the specific editor from your dictionary using the name
+                target_editor = self.current_session_editors_open.get(tab_name)
 
+                if target_editor:
+                    # Assuming target_editor.content is your text widget
+                    target_editor.content.delete("1.0", "end")
+                    target_editor.content.insert("1.0", content)
+                    
+                    # Update status
+                    if self.status_button:
+                        self.status_button.configure(text=f"Opened: {current_file}")
+                        
         except Exception as e:
             messagebox.showerror("Error", f"Could not open file:\n{e}")
-            if main_app.status_button:
-                main_app.status_button.configure(text="Operation Failed")
+            if self.status_button:
+                self.status_button.configure(text="Operation Failed")
 
     def load_theme(self):
         if os.path.exists(CONFIG_FILE):
@@ -1196,7 +1270,7 @@ class App:
             self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
             self.middle_frame.place(relx=0, rely=0.70, relwidth=1, relheight=0.30)
 
-            self.shell_frame = command_window.PromptXShell(main_app=self.middle_frame)
+            self.shell_frame = command_window.PromptXShell(self=self.middle_frame)
             self.shell_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
         else:

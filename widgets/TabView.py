@@ -205,8 +205,8 @@ class TabView:
                                        height=(height/16),
                                        corner_radius=0,
                                        border_width=0,
-                                       fg_color=["#E3E3E3", "#262626"],
-                                       bg_color=["#E3E3E3", "#262626"])
+                                       fg_color=["#E3E3E3", "#2B2B2B"],
+                                       bg_color=["#E3E3E3", "#2B2B2B"])
         self.tabChanger.place(
             relx=0,
             rely=1.0,
@@ -264,8 +264,8 @@ class TabView:
         for f in (self.solutionExplorerFrame, self.propertiesFrame, self.gitChanges):
             f.pack_forget()
         for b in (self.slnExplrBtn, self.propertiesBtn, self.gitReposBtn):
-            b.configure(fg_color=["#E3E3E3", "#262626"])
-            b.configure(border_color = ["#E3E3E3", "#262626"])
+            b.configure(fg_color=["#E3E3E3", "#2B2B2B"])
+            b.configure(border_color = ["#E3E3E3", "#2B2B2B"])
 
         frame.pack(fill="both", expand=True)
         active_btn.configure(fg_color=["#F5F5F5", "#1E1E1E"])
