@@ -67,6 +67,7 @@ class App:
         self.window = ctk.CTk()
         self.window.title("Dream Studio")
         self.window.geometry("1000x700")
+        self.window.iconbitmap(r"icons/dreamstudio_icon.ico")
         self.window.resizable(True, True)
 
         #################################################################################################

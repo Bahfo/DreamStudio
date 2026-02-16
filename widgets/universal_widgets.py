@@ -1,3 +1,27 @@
+# Written by Bahaa Nofal - 11/12/2025
+# A special implementation of CustomTkinter suitable for DreamStudio
+# Universal Widgets: Custom IronKinter script for building DreamStudio's
+# environment. DO NOT PUBLISH OR COPY IN ANY METHOD OR WAY BY ANY MEAN,
+# THIS SCRIPT IS ACCESIABLE ONLY UNDER THE AGREEMENT OF A DEVELOPER
+# WORKING IN DREAMSTUIO'S ENVIRONMENT.
+
+"""
+COPYRIGHT 2026 DREAMSTUDIO - EX_TECHNOLOGIES - ALL RIGHTS RESREVED
+Ironkinter is a supplementary header file wrapped above customtkinter
+that imporves widgets creation, adds additional widgets, and animations.
+
+The above copyright shall be included in all copies or substantial 
+portions of the software.
+
+Please note that DreamStudio's universal widgets wrappers is not a 
+subject to publish. You got access to this file only as a developer
+under the DreamStudio's agreement. The free publishable version and
+edited for user experience is available under Ironkinter's framework,
+which is a general purpose wrapper around tkinter that improves overall
+performance, increasing thread acceptability and adds the same widgets
+from DreamStudio's development environment. 
+"""
+
 import tkinter as tk
 from PIL import Image
 import customtkinter as ctk
@@ -5,14 +29,8 @@ from typing import List, Dict
 from typing import List, Dict, Any
 from tkinter import messagebox as mb
 
-"""
-EX TECHNOLOGIES SPECIAL WIDGETS IMPLEMENTATION
-COPYRIGHT 2026
-"""
-
-
 ########################################################################################
-# BUILDERS
+# MENUS BUILDERS
 ########################################################################################
 class HomeToolbarBuilder:
     def __init__(self, parent, parent_color, logic_ref):
@@ -39,104 +57,32 @@ class HomeToolbarBuilder:
     def _create_buttons(self):
         """Defines and creates all buttons using a single loop."""
         buttons = [
-            (
-                "newFile",
-                VerticalButton,
-                r"icons\system\new_file.png",
-                " New Tab ",
-                5,
-                5,
-            ),
-            (
-                "newMacro",
-                VerticalButton,
-                r"icons\system\new_macro.png",
-                " New Code",
-                75,
-                5,
-            ),
-            (
-                "openCode",
-                VerticalButton,
-                r"icons\system\open_code.png",
-                "Open Code",
-                152,
-                5,
-            ),
-            (
-                "refreshWorkspace",
-                HorizontalButton,
-                r"icons\system\refresh_workspace.png",
-                "Refresh Files",
-                230,
-                7,
-            ),
-            (
-                "saveAll",
-                HorizontalButton,
-                r"icons\system\save_all.png",
-                "Save All Files",
-                230,
-                37,
-            ),
-            (
-                "pasteBtn",
-                VerticalButton,
-                r"icons\system\paste.png",
-                "Paste Code",
-                350,
-                5,
-            ),
-            ("cutBtn", HorizontalButton, r"icons\system\cut.png", " Cut Codes", 428, 7),
-            (
-                "copyBtn",
-                HorizontalButton,
-                r"icons\system\copy.png",
-                " Copy Codes",
-                428,
-                37,
-            ),
-            (
-                "undoBtn",
-                HorizontalButton,
-                r"icons\system\undo.png",
-                "Undo Action",
-                538,
-                7,
-            ),
-            (
-                "redoBtn",
-                HorizontalButton,
-                r"icons\system\redo.png",
-                "Redo Action",
-                538,
-                37,
-            ),
-            (
-                "deleteBtn",
-                HorizontalButton,
-                r"icons\system\delete.png",
-                "Delete Codes",
-                648,
-                7,
-            ),
-            (
-                "replaceBtn",
-                HorizontalButton,
-                r"icons\system\replace.png",
-                "Find/Replace",
-                648,
-                37,
-            ),
-            (
-                "syntaxBtn",
-                VerticalButton,
-                r"icons\system\syntax.png",
-                "Configure \nSyntax",
-                770,
-                5,
-            ),
-        ]
+        ("newFile", VerticalButton, r"icons\system\new_file.png", " New Tab ",
+        5, 5),
+        ("newMacro", VerticalButton, r"icons\system\new_macro.png", " New Code",
+        75, 5),
+        ("openCode", VerticalButton, r"icons\system\open_code.png", "Open Code",
+        152, 5),
+        ("refreshWorkspace", HorizontalButton, r"icons\system\refresh_workspace.png",
+         "Refresh Files", 230, 7),
+        ("saveAll", HorizontalButton, r"icons\system\save_all.png", "Save All Files",
+        230, 37),
+        ("pasteBtn", VerticalButton, r"icons\system\paste.png", "Paste Code",
+        350, 5),
+        ("cutBtn", HorizontalButton, r"icons\system\cut.png", " Cut Codes",
+        428, 7),
+        ("copyBtn", HorizontalButton, r"icons\system\copy.png", " Copy Codes",
+        428, 37),
+        ("undoBtn", HorizontalButton, r"icons\system\undo.png", "Undo Action",
+        538, 7),
+        ("redoBtn", HorizontalButton, r"icons\system\redo.png", "Redo Action",
+        538, 37),
+        ("deleteBtn", HorizontalButton, r"icons\system\delete.png", "Delete Codes",
+        648, 7),
+        ("replaceBtn", HorizontalButton, r"icons\system\replace.png", "Find/Replace",
+        648, 37),
+        ("syntaxBtn", VerticalButton, r"icons\system\syntax.png", "Configure \nSyntax",
+        770, 5)]
 
         for item in buttons:
             if len(item) == 6:
@@ -191,105 +137,34 @@ class ToolsBarBuilder:
     def _create_buttons(self):
 
         buttons = [
-            (
-                "explorBtn",
-                VerticalButton,
-                r"icons\system\solution.png",
-                " Solution\nExplorer",
-                5,
-                5,
-            ),
-            (
-                "boxBtn",
-                VerticalButton,
-                r"icons\system\tools.png",
-                "Open\n ToolBox ",
-                75,
-                5,
-            ),
-            (
-                "managerBtn",
-                VerticalButton,
-                r"icons\system\manager.png",
-                "Workspace\nManager",
-                148,
-                5,
-            ),
-            (
-                "propertiesBtn",
-                VerticalButton,
-                r"icons\system\properties.png",
-                "Properties\nWindow",
-                228,
-                5,
-            ),
-            ("vertical_sep_3", "separator", None, None, 304, 7),
-            (
-                "openTerminalBtn",
-                VerticalButton,
-                r"icons\system\terminal.png",
-                "Open\nTerminal",
-                314,
-                5,
-            ),
-            (
-                "cmdWindowBtn",
-                VerticalButton,
-                r"icons\system\command.png",
-                "Command\nWindow",
-                382,
-                5,
-            ),
-            (
-                "resourcesBtn",
-                VerticalButton,
-                r"icons\system\resources.png",
-                "Manage\nResources",
-                457,
-                5,
-            ),
-            (
-                "containerBtn",
-                VerticalButton,
-                r"icons\system\container.png",
-                "Container\nWindow",
-                529,
-                5,
-            ),
-            (
-                "tasksBtn",
-                VerticalButton,
-                r"icons\system\tasks.png",
-                "Manage\nTasks",
-                600,
-                5,
-            ),
-            ("vertical_sep_4", "separator", None, None, 664, 7),
-            (
-                "gitBtn",
-                VerticalButton,
-                r"icons\system\git.png",
-                "Repository\nManager",
-                674,
-                5,
-            ),
-            (
-                "gitChangesBtn",
-                HorizontalButton,
-                r"icons\system\gitchanges.png",
-                "Git Changes",
-                746,
-                7,
-            ),
-            (
-                "githubBtn",
-                HorizontalButton,
-                r"icons\system\github.png",
-                "View Github",
-                746,
-                37,
-            ),
-        ]
+        ("explorBtn", VerticalButton, r"icons\system\solution.png", " Solution\nExplorer",
+        5, 5),
+        ("boxBtn", VerticalButton, r"icons\system\tools.png", "Open\n ToolBox ",
+        75, 5),
+        ("managerBtn", VerticalButton, r"icons\system\manager.png", "Workspace\nManager",
+        148, 5),
+        ("propertiesBtn", VerticalButton, r"icons\system\properties.png", "Properties\nWindow",
+        228, 5),
+        ("vertical_sep_3", "separator", None, None,
+        304, 7),
+        ("openTerminalBtn", VerticalButton, r"icons\system\terminal.png", "Open\nTerminal",
+        314, 5),
+        ("cmdWindowBtn", VerticalButton, r"icons\system\command.png", "Command\nWindow",
+        382, 5),
+        ("resourcesBtn", VerticalButton, r"icons\system\resources.png", "Manage\nResources",
+        457, 5),
+        ("containerBtn", VerticalButton, r"icons\system\container.png", "Container\nWindow",
+        529, 5),
+        ("tasksBtn", VerticalButton, r"icons\system\tasks.png", "Manage\nTasks",
+        600, 5),
+        ("vertical_sep_4", "separator", None, None,
+        664, 7),
+        ("gitBtn", VerticalButton, r"icons\system\git.png", "Repository\nManager",
+        674, 5),
+        ("gitChangesBtn", HorizontalButton, r"icons\system\gitchanges.png", "Git Changes",
+        746, 7),
+        ("githubBtn", HorizontalButton, r"icons\system\github.png", "View Github",
+        746, 37)]
 
         for item in buttons:
             name = item[0]
@@ -346,79 +221,24 @@ class DatabasesToolbarBuilder:
     def _create_buttons(self):
         """Defines and creates all buttons using a single loop."""
         buttons = [
-            (
-                "databaseBtn",
-                VerticalButton,
-                r"icons\system\database.png",
-                "Manage\nDatabases",
-                5,
-                5,
-            ),
-            (
-                "sourcesBtn",
-                VerticalButton,
-                r"icons\system\datasources.png",
-                "Data\nSources",
-                75,
-                5,
-            ),
-            (
-                "impDataBtn",
-                VerticalButton,
-                r"icons\system\importdata.png",
-                "Import\nData",
-                132,
-                5,
-            ),
-            (
-                "cleanDataBtn",
-                VerticalButton,
-                r"icons\system\cleandata.png",
-                "Clean\nData",
-                185,
-                5,
-            ),
-            (
-                "sqlBtn",
-                VerticalButton,
-                r"icons\system\sql.png",
-                "SQL\nServices",
-                230,
-                5,
-            ),
-            (
-                "jsonBtn",
-                HorizontalButton,
-                r"icons\system\json.png",
-                "Open JSON",
-                290,
-                7,
-            ),
-            (
-                "xamlBtn",
-                HorizontalButton,
-                r"icons\system\xaml.png",
-                "Open XAML",
-                290,
-                37,
-            ),
-            (
-                "htmlBtn",
-                HorizontalButton,
-                r"icons\system\html.png",
-                "Open HTML",
-                400,
-                7,
-            ),
-            (
-                "webBtn",
-                HorizontalButton,
-                r"icons\system\web.png",
-                "Manage Web",
-                400,
-                37,
-            ),
-        ]
+        ("databaseBtn", VerticalButton, r"icons\system\database.png", "Manage\nDatabases",
+        5, 5),
+        ("sourcesBtn", VerticalButton, r"icons\system\datasources.png", "Data\nSources",
+        75, 5),
+        ("impDataBtn", VerticalButton, r"icons\system\importdata.png", "Import\nData",
+        132, 5),
+        ("cleanDataBtn", VerticalButton, r"icons\system\cleandata.png", "Clean\nData",
+        185, 5),
+        ("sqlBtn", VerticalButton, r"icons\system\sql.png", "SQL\nServices",
+        230, 5),
+        ("jsonBtn", HorizontalButton, r"icons\system\json.png", "Open JSON",
+        290, 7),
+        ("xamlBtn", HorizontalButton, r"icons\system\xaml.png", "Open XAML",
+        290, 37),
+        ("htmlBtn", HorizontalButton, r"icons\system\html.png", "Open HTML",
+        400, 7),
+        ("webBtn", HorizontalButton, r"icons\system\web.png", "Manage Web",
+        400, 37)]
 
         for item in buttons:
             if len(item) == 6:
@@ -1026,11 +846,6 @@ class LinkLabel(ctk.CTkFrame):
     def _on_click(self, event):
         if self.command:
             self.command()
-
-
-class TablePanel(ctk.CTkFrame):
-    def __init__(self):
-        pass
 
 
 class ToolTip(ctk.CTkFrame):
