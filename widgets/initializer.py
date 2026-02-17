@@ -1,65 +1,25 @@
 # DREAMSTUDIO IDE  :GUI
 # 5/11/2025 BAHAA NOFAL
 
-CONFIG_FILE = r"themes\config\config.json"
-REFRESH_INTERVAL_MINUTES = 2
-REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000
-
-icon_paths = {
-    "load_ico": r"icons\system\load.png",
-    "refresh_ico": r"icons\system\refresh.png",
-    "console": r"icons\system\console.png",
-    "debug": r"icons\system\debug.png",
-    "manage": r"icons\system\manager.png",
-    "problem": r"icons\system\problem.png",
-    "ver": r"icons\system\version.png",
-    "warning": r"icons\system\warning.png",
-}
-
-ctk_icons = {
-    "search_photo": (r"icons\system\search.png", (24, 24)),
-    "open_photo": (r"icons\system\open_folder.png", (24, 24)),
-    "settings_photo": (r"icons\system\settings.png", (24, 24)),
-    "save_photo": (r"icons\system\save_file.png", (24, 24)),
-    "user_photo": (r"icons\system\user.png", (24, 24)),
-    "sleeping": (r"icons\types\sleeping.ico", (80, 80)),
-}
-
-arrow_icons = {
-    "downArrow": (r"icons\system\down_arrow.png", (8, 8)),
-    "upArrow": (r"icons\system\up_arrow.png", (8, 8)),
-    "rightArrow": (r"icons\system\right_arrow.png", (8, 8)),
-    "stepTo": (r"icons\system\stepTo.png", (20, 20)),
-    "stepOut": (r"icons\system\stepOut.png", (20, 20)),
-    "stepOver": (r"icons\system\stepOver.png", (20, 20)),
-    "runToCursor": (r"icons\system\runToCursor.png", (20, 20)),
-    "toggleCursor": (r"icons\system\toggle.png", (20, 20)),
-}
-
-allowed_extensions = {
-    ".py",".txt",".c",".cpp",".json",".docx",".ppt",".pptx",".apk",
-    ".cpp",".cs",".cc",".cxx",".html",".js",".java",".swift",".rb",
-    ".ts",".jsx",".py",".h"}
-
 import os
-import time
 import json
 import subprocess
 import customtkinter as ctk
+
 from tkinter import filedialog, messagebox
+from functools import lru_cache
 
 from widgets.imageload import *
-from functools import lru_cache
+from widgets.ctk_tabview import *
+from widgets.universal_widgets import *
 from widgets.texteditor import Editor, Languages
 
 import widgets.TabView as TabView
 import widgets.search_menu as search_menu
-from widgets.universal_widgets import *
-from widgets.ctk_tabview import *
 
-################################################################################################
+#######################################
 # MAIN WINDOW
-################################################################################################
+#######################################
 
 ctk.set_appearance_mode("system")
 
@@ -71,14 +31,15 @@ class App:
         self.window.iconbitmap(r"icons/dreamstudio_icon.ico")
         self.window.resizable(True, True)
 
-        #################################################################################################
+        ##############################
         # DEFINITIONS
-        #################################################################################################
+        ##############################
 
         self.workspace = dict[str, ctk.CTkButton]
-        self.mode = ctk.get_appearance_mode()
-        self.tab_count = 0
         self.current_session_editors_open = {}
+        self.mode = ctk.get_appearance_mode()
+        self.shell_frame = None
+        self.tab_count = 0
 
         # Segmented Buttons Sepcific Font 
         self.seg_font = ctk.CTkFont(family="Segoe UI", size=12, weight="normal")
@@ -95,855 +56,116 @@ class App:
         for attr, (path, size) in arrow_icons.items():
             setattr(self, attr, load_ctk_icon(path, size, dark_path=path))
 
-        ################################################################################################
-        # MENUS: Define showing menus, menubar, topframe, downframe, and their buttons
-        ################################################################################################
-
+        ###############################
+        # MENUS LOOP ITERATION
+        ###############################
         self.menubar = ctk.CTkFrame(self.window, height=110, corner_radius=0)
         self.menubar.pack(fill="x", side="top")
         self.menubar.pack_propagate(False)
 
         # Creating Holding Frames for the Menus
         self.topFrame = ctk.CTkFrame(
-            self.menubar, height=18, fg_color="#004073", corner_radius=0
-        )
+            self.menubar, height=18, fg_color="#004073", corner_radius=0)
         self.topFrame.pack(fill="x", side="top")
-
-        # Services Buttons
-        self.homeBtn = ctk.CTkButton(
-            self.topFrame,
-            height=24,
-            fg_color="#004073",
-            corner_radius=0,
-            width=80,
-            text="HOME",
-            font=("Segoe UI", 12),
-            command=lambda: self._show_menu_tab(self.homeFrame, self.homeBtn),
-        )
-
-        self.homeBtn.pack(side="left", anchor="w", padx=(8, 0))
-
-        self.toolsBtn = ctk.CTkButton(
-            self.topFrame,
-            height=24,
-            fg_color="#004073",
-            corner_radius=0,
-            width=80,
-            text="TOOLS",
-            font=("Segoe UI", 12),
-            command=lambda: self._show_menu_tab(self.toolsFrame, self.toolsBtn),
-        )
-
-        self.toolsBtn.pack(side="left", anchor="w", padx=(8, 0))
-
-        self.databasesBtn = ctk.CTkButton(
-            self.topFrame,
-            height=24,
-            fg_color="#004073",
-            corner_radius=0,
-            width=80,
-            text="DATABASES",
-            font=("Segoe UI", 12),
-            command=lambda: self._show_menu_tab(self.databasesFrame, self.databasesBtn),
-        )
-
-        self.databasesBtn.pack(side="left", anchor="w", padx=(8, 0))
-
-        self.plotsBtn = ctk.CTkButton(
-            self.topFrame,
-            height=24,
-            fg_color="#004073",
-            corner_radius=0,
-            width=80,
-            text="PLOTS",
-            font=("Seoge UI", 12),
-            command=lambda: self._show_menu_tab(self.plotsFrame, self.plotsBtn),
-        )
-
-        self.plotsBtn.pack(side="left", anchor="w", padx=(8, 0))
-
-        self.debugBtn = ctk.CTkButton(
-            self.topFrame,
-            height=24,
-            fg_color="#004073",
-            corner_radius=0,
-            width=80,
-            text="DEBUG",
-            font=("Seoge UI", 12),
-            command=lambda: self._show_menu_tab(self.debugFrame, self.debugBtn),
-        )
-
-        self.debugBtn.pack(side="left", anchor="w", padx=(8, 0))
-
-        self.terminalBtn = ctk.CTkButton(
-            self.topFrame,
-            height=24,
-            fg_color="#004073",
-            corner_radius=0,
-            width=80,
-            text="TERMINAL",
-            font=("Segoe UI", 12),
-            command=lambda: self._show_menu_tab(self.terminalFrame, self.terminalBtn),
-        )
-
-        self.terminalBtn.pack(side="left", anchor="w", padx=(8, 0))
-
-        self.helpBtn = ctk.CTkButton(
-            self.topFrame,
-            height=24,
-            fg_color="#004073",
-            corner_radius=0,
-            width=80,
-            text="HELP",
-            font=("Seoge UI", 12),
-            command=lambda: self._show_menu_tab(self.helpFrame, self.helpBtn),
-        )
-
-        self.helpBtn.pack(side="left", anchor="w", padx=(8, 0))
-
-        self.accountBtn = ctk.CTkButton(
-            self.topFrame,
-            height=20,
-            fg_color="#004073",
-            corner_radius=0,
-            width=100,
-            text="ACCOUNT",
-            font=("Segoe UI", 12),
-            image=self.downArrow,
-        )
-
-        self.accountBtn.pack(side="right", anchor="e", padx=(8, 8))
 
         # Menus Services
         self.downFrame = ctk.CTkFrame(self.menubar, height=100, corner_radius=0)
         self.downFrame.pack(fill="x", side="top")
 
-        ################################################################################################
-        # HOME MENU: Home menu buttons and their functionalities
-        ################################################################################################
+        ###############################
+        # MENUS FRAMES
+        ###############################
+        self.homeFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
+                                      border_color="#5e5e5e", border_width=1,
+                                      fg_color=["#D2D2D2","#1E1E1E"])
+        
+        self.toolsFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
+                                      border_color="#5e5e5e", border_width=1,
+                                      fg_color=["#D2D2D2","#1E1E1E"])
 
-        self.homeFrame = ctk.CTkFrame(
-            self.downFrame,
+        self.debugFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
+                                      border_color="#5e5e5e", border_width=1,
+                                      fg_color=["#D2D2D2","#1E1E1E"])
+
+        self.terminalFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
+                                      border_color="#5e5e5e", border_width=1,
+                                      fg_color=["#D2D2D2","#1E1E1E"])
+
+        self.helpFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
+                                      border_color="#5e5e5e", border_width=1,
+                                      fg_color=["#D2D2D2","#1E1E1E"])
+
+        BUTTON_CONFIG = {
+            "height": 24,
+            "fg_color": "#004073",
+            "corner_radius": 0,
+            "width": 80,
+            "font": ("Segoe UI", 12)}
+
+        menu_items = [
+            ("HOME", self.homeFrame, "homeBtn"),
+            ("TOOLS", self.toolsFrame, "toolsBtn"),
+            ("DEBUG", self.debugFrame, "debugBtn"),
+            ("TERMINAL", self.terminalFrame, "terminalBtn"),
+            ("HELP", self.helpFrame, "helpBtn")]
+
+        # Looping to create and pack standard buttons
+        for text, frame, attr_name in menu_items:
+            btn = ctk.CTkButton(
+                self.topFrame,
+                text=text,
+                command=lambda f=frame, a=attr_name: self._show_menu_tab(f, getattr(self, a)),
+                **BUTTON_CONFIG
+            )
+            btn.pack(side="left", anchor="w", padx=(8, 0))
+            setattr(self, attr_name, btn)
+
+        # ACCOUNT button
+        self.accountBtn = ctk.CTkButton(
+            self.topFrame,
+            text="ACCOUNT",
+            image=self.downArrow,
+            width=100,
+            height=20,
+            fg_color="#004073",
             corner_radius=0,
-            height=122,
-            border_color="#5e5e5e",
-            border_width=1,
-            fg_color=["#D2D2D2","#1E1E1E"],
-        )
-        self.homeFrame.pack(fill="both", side="top")
-        self.homeFrame.pack_propagate(False)
+            font=("Segoe UI", 12))
+        self.accountBtn.pack(side="right", anchor="e", padx=(8, 8))
+
+        ##############################
+        # MENUS CONSTRUCTOR
+        ##############################
+        
+        for _, name, _ in menu_items:
+            name.pack(fill = "both", side = "top")
+            name.pack_propagate(False)
 
         self.parent_color = self.homeFrame.cget("fg_color")
 
-        home_toolbar = HomeToolbarBuilder(
-            self.homeFrame, self.parent_color, self
-        )
-
-        ################################################################################################
-        # Tools MENU: Opens new windows that does a specific utility and their functionalities
-        ################################################################################################
-
-        self.toolsFrame = ctk.CTkFrame(
-            self.downFrame,
-            corner_radius=0,
-            height=122,
-            border_color="#5e5e5e",
-            border_width=1,
-            fg_color=["#D2D2D2","#1E1E1E"],
-        )
-
-        self.toolsFrame.pack(fill="both", side="top")
-        self.toolsFrame.pack_propagate(False)
-
-        tools_toolbar = ToolsBarBuilder(
-            self.toolsFrame, self.parent_color, self
-        )
-
-        ################################################################################################
-        # DATABASES MENU
-        ################################################################################################
-
-        self.databasesFrame = ctk.CTkFrame(
-            self.downFrame,
-            corner_radius=0,
-            height=122,
-            border_color="#5e5e5e",
-            border_width=1,
-            fg_color=["#D2D2D2","#1E1E1E"],
-        )
-
-        self.databasesFrame.pack(fill="both", side="top")
-        self.databasesFrame.pack_propagate(False)
-
-        ################################################################################################
-        # PLOTS MENU: Shows plots of variables, objects, any selected (if it has plot options)
-        ################################################################################################
-
-        self.plotsFrame = ctk.CTkFrame(
-            self.downFrame,
-            corner_radius=0,
-            height=122,
-            border_color="#5e5e5e",
-            border_width=1,
-            fg_color=["#D2D2D2","#1E1E1E"],
-        )
-        self.plotsFrame.pack(fill="both", side="top")
-        self.plotsFrame.pack_propagate(False)
-
-        self.plotMngBtn = VerticalButton(
-            self.plotsFrame,
-            image_path=r"icons\system\graphsettings.png",
-            text="Plot\nManager",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.plotMngBtn.place(x=5, y=3)
-
-        self.inspectorBtn = VerticalButton(
-            self.plotsFrame,
-            image_path=r"icons\system\inspector.png",
-            text="Graph\nInspector",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.inspectorBtn.place(x=70, y=3)
-
-        self.plotThemeBtn = VerticalButton(
-            self.plotsFrame,
-            image_path=r"icons\system\theme.png",
-            text="Plot\nThemes",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.plotThemeBtn.place(x=137, y=3)
-
-        self.vertical_sep_7 = ctk.CTkFrame(
-            self.plotsFrame,
-            bg_color="transparent",
-            fg_color=["#D2D2D2","#1E1E1E"],
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_7.place(x=199, y=7)
-
-        ########## CUSTOM DROPDOWN MENU ##########
-        self.customUtilitiesFrame = ctk.CTkFrame(
-            self.plotsFrame,
-            width=400,
-            height=77,
-            fg_color=self.plotsFrame.cget("fg_color"),
-            border_color=["#5E5E5E","#D6D6D6"],
-            border_width=1,
-            corner_radius=1,
-        )
-        self.customUtilitiesFrame.place(x=209, y=5)
-        self.customUtilitiesFrame.pack_propagate(False)
-
-        ######### PLOTS 2D #########
-        self.plots2d = ctk.CTkFrame(
-            self.customUtilitiesFrame,
-            width=395,
-            height=71,
-            fg_color=self.plotsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.customUtilitiesFrame.pack_propagate(False)
-
-        self.graphBtn = VerticalButton(
-            self.plots2d,
-            image_path=r"icons\system\graph.png",
-            text="GraphBox",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.graphBtn.place(x=5, y=2)
-
-        self.chartBtn = VerticalButton(
-            self.plots2d,
-            image_path=r"icons\system\chart.png",
-            text="Chart Graph",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.chartBtn.place(x=75, y=2)
-
-        self.chartBtn = VerticalButton(
-            self.plots2d,
-            image_path=r"icons\system\bargraph.png",
-            text="Bar Graph",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.chartBtn.place(x=157, y=2)
-
-        self.histoBtn = VerticalButton(
-            self.plots2d,
-            image_path=r"icons\system\histogram.png",
-            text="Histogram",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.histoBtn.place(x=227, y=2)
-
-        ######### PLOTS 3D #########
-        self.plots3d = ctk.CTkFrame(
-            self.customUtilitiesFrame,
-            width=395,
-            height=71,
-            fg_color=self.plotsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.customUtilitiesFrame.pack_propagate(False)
-
-        self.graph3DBtn = VerticalButton(
-            self.plots3d,
-            image_path=r"icons\system\surface.png",
-            text="3D Surface",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.graph3DBtn.place(x=5, y=2)
-
-        self.scatterBtn = VerticalButton(
-            self.plots3d,
-            image_path=r"icons\system\scatter.png",
-            text="3D Scatter",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.scatterBtn.place(x=82, y=2)
-
-        self.wireframeBtn = VerticalButton(
-            self.plots3d,
-            image_path=r"icons\system\wireframe.png",
-            text="3D Wireframe",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.wireframeBtn.place(x=157, y=2)
-
-        self.contourBtn = VerticalButton(
-            self.plots3d,
-            image_path=r"icons\system\contour.png",
-            text="3D Contour",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.contourBtn.place(x=247, y=2)
-
-        ######### scientific #########
-        self.scientific = ctk.CTkFrame(
-            self.customUtilitiesFrame,
-            width=395,
-            height=71,
-            fg_color=self.plotsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.customUtilitiesFrame.pack_propagate(False)
-
-        self.heatmapBtn = VerticalButton(
-            self.scientific,
-            image_path=r"icons\system\heatmap.png",
-            text="Heatmap",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.heatmapBtn.place(x=5, y=2)
-
-        self.polarBtn = VerticalButton(
-            self.scientific,
-            image_path=r"icons\system\polar.png",
-            text="Polar Plan",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.polarBtn.place(x=80, y=2)
-
-        self.corrMATBtn = VerticalButton(
-            self.scientific,
-            image_path=r"icons\system\corrmat.png",
-            text="Corr. Matrix",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.corrMATBtn.place(x=155, y=2)
-
-        self.upBtn1 = ctk.CTkButton(
-            self.plots2d,
-            text="",
-            image=self.upArrow,
-            width=50,
-            height=20,
-            corner_radius=0,
-            fg_color="#1e1e1e",
-            state=ctk.DISABLED,
-        )
-        self.upBtn1.place(x=345, y=2)
-        self.downBtn1 = ctk.CTkButton(
-            self.plots2d,
-            text="",
-            image=self.downArrow,
-            width=50,
-            height=20,
-            corner_radius=0,
-            hover_color="#001F39",
-            fg_color="#004073",
-            command=lambda: self.customDropDownFrameChanger(self.plots3d),
-        )
-        self.downBtn1.place(x=345, y=25)
-        lab1Show = ctk.CTkLabel(
-            self.plots2d,
-            text="2D PLOTS",
-            font=("Segoe UI", 10),
-            fg_color="#004073",
-            corner_radius=0,
-            width=50,
-            height=20,
-            text_color="#CDCDCD",
-        )
-        lab1Show.place(x=345, y=48)
-        self.upBtn2 = ctk.CTkButton(
-            self.plots3d,
-            text="",
-            image=self.upArrow,
-            width=50,
-            height=20,
-            corner_radius=0,
-            hover_color="#001F39",
-            fg_color="#004073",
-            command=lambda: self.customDropDownFrameChanger(self.plots2d),
-        )
-        self.upBtn2.place(x=345, y=2)
-        self.downBtn2 = ctk.CTkButton(
-            self.plots3d,
-            text="",
-            image=self.downArrow,
-            width=50,
-            height=20,
-            corner_radius=0,
-            hover_color="#001F39",
-            fg_color="#004073",
-            command=lambda: self.customDropDownFrameChanger(self.scientific),
-        )
-        self.downBtn2.place(x=345, y=25)
-        self.lab2Show = ctk.CTkLabel(
-            self.plots3d,
-            text="3D PLOTS",
-            font=("Segoe UI", 10),
-            fg_color="#004073",
-            corner_radius=0,
-            width=50,
-            height=20,
-            text_color="#CDCDCD",
-        )
-        self.lab2Show.place(x=345, y=48)
-        self.upBtn3 = ctk.CTkButton(
-            self.scientific,
-            text="",
-            image=self.upArrow,
-            width=50,
-            height=20,
-            corner_radius=0,
-            hover_color="#001F39",
-            fg_color="#004073",
-            command=lambda: self.customDropDownFrameChanger(self.plots3d),
-        )
-        self.upBtn3.place(x=345, y=2)
-        self.downBtn3 = ctk.CTkButton(
-            self.scientific,
-            text="",
-            image=self.downArrow,
-            width=50,
-            height=20,
-            corner_radius=0,
-            fg_color="#1e1e1e",
-            state=ctk.DISABLED,
-        )
-        self.downBtn3.place(x=345, y=25)
-        self.lab3Show = ctk.CTkLabel(
-            self.scientific,
-            text="SCI.",
-            font=("Segoe UI", 10),
-            fg_color="#004073",
-            corner_radius=0,
-            width=50,
-            height=20,
-            text_color="#CDCDCD",
-        )
-        self.lab3Show.place(x=345, y=48)
-        self.customDropDownFrameChanger(self.plots2d)
-
-        self.statsOverLayBtn = HorizontalButton(
-            self.plotsFrame,
-            image_path=r"icons\system\stats.png",
-            text="Stats Overlay",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.statsOverLayBtn.place(x=614, y=7)
-
-        self.trashGraphBtn = HorizontalButton(
-            self.plotsFrame,
-            image_path=r"icons\system\trash.png",
-            text="Delete Graph",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.trashGraphBtn.place(x=614, y=37)
-
-        ################################################################################################
-        # DEBUG MENU: Debugging configuration settings
-        ################################################################################################
-
-        self.debugFrame = ctk.CTkFrame(
-            self.downFrame,
-            corner_radius=0,
-            height=122,
-            border_color="#5e5e5e",
-            border_width=1,
-            fg_color=["#D2D2D2","#1E1E1E"],
-        )
-        self.debugFrame.pack(fill="both", side="top")
-        self.debugFrame.pack_propagate(False)
-
-        self.debuggingBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\bug.png",
-            text="Start\nDebugging",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.debuggingBtn.place(x=5, y=3)
-
-        self.runNoBugBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\start.png",
-            text="Run without\nDebugging",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.runNoBugBtn.place(x=82, y=5)
-
-        self.attachBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\attach.png",
-            text="Attach to\nSome Process",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.attachBtn.place(x=162, y=5)
-
-        self.compileBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\compile.png",
-            text="Compile\nCode",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.compileBtn.place(x=253, y=5)
-
-        self.stopBugBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\stop.png",
-            text="Stop\nDebugging",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.stopBugBtn.place(x=315, y=5)
-
-        self.restartBugBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\restart.png",
-            text="Restart\nDebugging",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.restartBugBtn.place(x=392, y=5)
-
-        self.deatBugBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\deattach.png",
-            text="Detach\nDebugger",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.deatBugBtn.place(x=470, y=5)
-
-        self.vertical_sep_8 = ctk.CTkFrame(
-            self.debugFrame,
-            bg_color="transparent",
-            fg_color=["#727272","#3E3E3E"],
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_8.place(x=543, y=7)
-
-        ######### UPON DEBUGGING TOOLS #########
-        self.debuggingToolsFrame = ctk.CTkFrame(
-            self.debugFrame,
-            fg_color=self.debugFrame.cget("fg_color"),
-            width=162,
-            height=35,
-            border_color="#5e5e5e",
-            border_width=1,
-            corner_radius=2,
-        )
-        self.debuggingToolsFrame.place(x=553, y=7)
-        self.stepToBtn = ctk.CTkButton(
-            self.debuggingToolsFrame,
-            text="",
-            image=self.stepTo,
-            width=20,
-            height=20,
-            fg_color=self.debuggingToolsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.stepToBtn.place(x=2, y=2)
-
-        self.stepOutBtn = ctk.CTkButton(
-            self.debuggingToolsFrame,
-            text="",
-            image=self.stepOut,
-            width=20,
-            height=20,
-            fg_color=self.debuggingToolsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.stepOutBtn.place(x=34, y=2)
-
-        self.stepOverBtn = ctk.CTkButton(
-            self.debuggingToolsFrame,
-            text="",
-            image=self.stepOver,
-            width=20,
-            height=20,
-            fg_color=self.debuggingToolsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.stepOverBtn.place(x=66, y=2)
-
-        self.runToCursorBtn = ctk.CTkButton(
-            self.debuggingToolsFrame,
-            text="",
-            image=self.toggleCursor,
-            width=20,
-            height=20,
-            fg_color=self.debuggingToolsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.runToCursorBtn.place(x=130, y=2)
-
-        self.runToCursorBtn = ctk.CTkButton(
-            self.debuggingToolsFrame,
-            text="",
-            image=self.runToCursor,
-            width=20,
-            height=20,
-            fg_color=self.debuggingToolsFrame.cget("fg_color"),
-            corner_radius=0,
-        )
-        self.runToCursorBtn.place(x=98, y=2)
-
-        self.watchBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\watch.png",
-            text="Watch\nWindow",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.watchBtn.place(x=730, y=5)
-
-        self.performanceBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\cpu.png",
-            text="Performance\nOptimization",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.performanceBtn.place(x=790, y=5)
-
-        self.memoryBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\memory.png",
-            text="Memory\nProfiler",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.memoryBtn.place(x=875, y=5)
-
-        self.vertical_sep_9 = ctk.CTkFrame(
-            self.debugFrame,
-            bg_color="transparent",
-            fg_color=["#727272","#3F3F3F"],
-            width=2,
-            height=75,
-            corner_radius=0,
-        )
-        self.vertical_sep_9.place(x=938, y=7)
-
-        self.verifyBtn = VerticalButton(
-            self.debugFrame,
-            image_path=r"icons\system\verify.png",
-            text="Verify Code\nSafety",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.verifyBtn.place(x=948, y=5)
-
-        ################################################################################################
-        # TERMINAL MENU
-        ################################################################################################
-
-        self.terminalFrame = ctk.CTkFrame(
-            self.downFrame,
-            corner_radius=0,
-            height=122,
-            border_color="#5e5e5e",
-            border_width=1,
-            fg_color=["#D2D2D2","#1E1E1E"],
-        )
-        self.terminalFrame.pack(fill="both", side="top")
-        self.terminalFrame.pack_propagate(False)
-
-        self.runTaskBtn = VerticalButton(
-            self.terminalFrame,
-            image_path=r"icons\system\task.png",
-            text="Run Task",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.runTaskBtn.place(x=5, y=5)
-
-        self.buildBtn = VerticalButton(
-            self.terminalFrame,
-            image_path=r"icons\system\build.png",
-            text="Build Task",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.buildBtn.place(x=75, y=5)
-
-        self.fileMngBtn = VerticalButton(
-            self.terminalFrame,
-            image_path=r"icons\system\fileMng.png",
-            text="Run File\nManager",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.fileMngBtn.place(x=150, y=5)
-
-        self.dayDreamBtn = VerticalButton(
-            self.terminalFrame,
-            image_path=r"icons\system\daydream.png",
-            text="DayDream\nTerminal",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.dayDreamBtn.place(x=220, y=5)
-
-        ################################################################################################
-        # HELP MENU
-        ################################################################################################
-
-        self.helpFrame = ctk.CTkFrame(
-            self.downFrame,
-            corner_radius=0,
-            height=122,
-            border_color="#5e5e5e",
-            border_width=1,
-            fg_color=["#D2D2D2","#1E1E1E"],
-        )
-        self.helpFrame.pack(fill="both", side="top")
-        self.helpFrame.pack_propagate(False)
-
-        self.docBtn = VerticalButton(
-            self.helpFrame,
-            image_path=r"icons\system\documentation.png",
-            text="Documentation",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.docBtn.place(x=5, y=5)
-
-        self.feedBtn = VerticalButton(
-            self.helpFrame,
-            image_path=r"icons\system\feedback.png",
-            text="Feedback",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.feedBtn.place(x=106, y=5)
-
-        self.hBtn = VerticalButton(
-            self.helpFrame,
-            image_path=r"icons\system\help.png",
-            text="Show Help",
-            font=("Segoe UI", 12),
-            fg_color=self.parent_color,
-            hover_color="#3a3a3a",
-        )
-        self.hBtn.place(x=176, y=5)
+        home_toolbar = HomeToolbarBuilder(self.homeFrame, self.parent_color, self)
+        tools_toolbar = ToolsBarBuilder(self.toolsFrame, self.parent_color, self)
+        debug_toolbar = DebugBuilder(self.parent_color, self.debugFrame)
+        terminal_toolbar = TerminalBuilder(self.terminalFrame, self.parent_color)
+        help_toolbar = HelpBuilder(self.helpFrame, self.parent_color)
 
         self.allTabs = [
             self.homeFrame,
             self.toolsFrame,
-            self.databasesFrame,
-            self.plotsFrame,
             self.debugFrame,
             self.terminalFrame,
-            self.helpFrame,
-        ]
-
+            self.helpFrame]
         self._show_menu_tab(self.homeFrame, self.homeBtn)
 
-        #################################################################################################
+        ##############################
         # STATUS BAR
-        #################################################################################################
+        ##############################
 
-        self.status_bar = ctk.CTkFrame(
-            self.window, height=24, corner_radius=0, fg_color="#004073"
-        )
+        self.status_bar = ctk.CTkFrame(self.window, height=24, corner_radius=0, fg_color="#004073")
         self.status_bar.pack(fill="x", side="bottom")
         self.status_bar.pack_propagate(False)
 
         self.warnings_label1 = ctk.CTkLabel(
-            self.status_bar, text="", text_color="#D5D5D5", image=self.warning, height=8
-        )
+            self.status_bar, text="", text_color="#D5D5D5", image=self.warning, height=8)
         self.warnings_label1.pack(padx=(15, 2), side="left", pady=(2, 2))
 
         self.warnings_label2 = ctk.CTkLabel(
@@ -952,13 +174,11 @@ class App:
             text_color="#D5D5D5",
             font=("Segoe UI", 12),
             width=8,
-            height=8,
-        )
+            height=8)
         self.warnings_label2.pack(padx=(0, 2), side="left", pady=(2, 2))
 
         self.problems_label1 = ctk.CTkLabel(
-            self.status_bar, text="", text_color="#D5D5D5", image=self.problem, height=8
-        )
+            self.status_bar, text="", text_color="#D5D5D5", image=self.problem, height=8)
         self.problems_label1.pack(padx=(15, 2), side="left", pady=(2, 2))
 
         self.problems_label2 = ctk.CTkLabel(
@@ -967,16 +187,14 @@ class App:
             text_color="#D5D5D5",
             font=("Segoe UI", 12),
             width=8,
-            height=8,
-        )
+            height=8)
         self.problems_label2.pack(padx=(0, 2), side="left", pady=(2, 2))
 
         self.line_and_pos = ctk.CTkLabel(
             self.status_bar,
             text_color="#D5D5D5",
             text="Ln: 1, Col: 1",
-            font=("Segoe UI", 12),
-        )
+            font=("Segoe UI", 12))
         self.line_and_pos.pack(padx=(10, 0), side="left")
 
         self.Version_button = ctk.CTkLabel(
@@ -984,8 +202,7 @@ class App:
             text_color="#D5D5D5",
             text="V0.0.1 BETA",
             font=("Segoe UI", 11),
-            corner_radius=0,
-        )
+            corner_radius=0)
         self.Version_button.pack(padx=(7, 15), side="right", pady=(2, 2))
 
         self.terminal_open_button = ctk.CTkButton(
@@ -997,8 +214,7 @@ class App:
             fg_color=self.status_bar.cget("fg_color"),
             height=8,
             corner_radius=0,
-            command=self.open_shell,
-        )
+            command=self.open_shell)
 
         self.terminal_open_button.pack(padx=(7, 7), side="right", pady=(2, 2))
 
@@ -1010,14 +226,12 @@ class App:
             width=15,
             height=8,
             corner_radius=0,
-            fg_color=self.status_bar.cget("fg_color"),
-        )
+            fg_color=self.status_bar.cget("fg_color"))
         self.status_button.pack(padx=(7, 7), side="right", pady=(2, 2))
 
-        #################################################################################################
+        ##############################
         # SERVICES LEFTMOST BAR
-        #################################################################################################
-        self.shell_frame = None
+        ##############################
 
         self.services_bar = ctk.CTkFrame(self.window, width=50, corner_radius=-1)
         self.services_bar.pack_propagate(False)
@@ -1031,8 +245,7 @@ class App:
             height=36,
             corner_radius=5,
             fg_color=self.services_bar.cget("fg_color"),
-            command=self.open_current_file,
-        )
+            command=self.open_current_file)
         self.open_button.pack(pady=5)
         ToolTip(self.open_button, "Opens a file")
 
@@ -1087,15 +300,15 @@ class App:
         self.settings_button.pack(pady=5, side="bottom")
         ToolTip(self.settings_button, "Show IDE settings and preferences")
 
-        #################################################################################################
+        ##############################
         # LEFT SIDEBAR FRAME
-        #################################################################################################
+        ##############################
         self.sidebar = TabView.TabView(master=self.window, border_color=["#C8C8C8", "#444444"])
         self.sidebar.mainFrame.pack(side="left", fill="y")
 
-        #################################################################################################
+        ##############################
         # MAIN EDITOR AREA
-        #################################################################################################
+        ##############################
         self.editor_frame = ctk.CTkFrame(self.window, corner_radius=0)
         self.editor_frame.pack(fill="both", expand=True)
 
@@ -1146,12 +359,9 @@ class App:
         tabButtons = [
             self.homeBtn,
             self.toolsBtn,
-            self.plotsBtn,
-            self.databasesBtn,
             self.debugBtn,
             self.terminalBtn,
-            self.helpBtn,
-        ]
+            self.helpBtn]
 
         for btn in tabButtons:
             btn.configure(fg_color="#004073")
@@ -1171,8 +381,7 @@ class App:
             font=("Consolas", 13),
             showpath=True,
             darkmode=(self.mode != "light"),
-            uifont=("Segoe UI", 11)
-        )
+            uifont=("Segoe UI", 11))
         new_editor.pack(fill='both', expand=True)
         
         self.current_session_editors_open[tab_name] = new_editor
@@ -1211,12 +420,10 @@ class App:
 
     def open_search(self, event=None):
         search_window = search_menu.KeywordSearch(
-            self, self.editor, status_button=self.status_button
-        )
+            self, self.editor, status_button=self.status_button)
         search_window.show()
 
     def open_current_file(self):
-        # 1. Ask for the file first
         current_file = filedialog.askopenfilename(title="Select an existing file")
         if not current_file:
             return
@@ -1225,24 +432,18 @@ class App:
             self.status_button.configure(text="Opening file...")
 
         try:
-            # 2. Read the content
             with open(current_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # 3. Create a brand new tab
-            # This function already returns the name of the tab it just created
             tab_name = self._add_new_text_tab()
             
             if tab_name:
-                # 4. Grab the specific editor from your dictionary using the name
                 target_editor = self.current_session_editors_open.get(tab_name)
 
                 if target_editor:
-                    # Assuming target_editor.content is your text widget
                     target_editor.content.delete("1.0", "end")
                     target_editor.content.insert("1.0", content)
                     
-                    # Update status
                     if self.status_button:
                         self.status_button.configure(text=f"Opened: {current_file}")
                         

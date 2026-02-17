@@ -260,6 +260,132 @@ class DatabasesToolbarBuilder:
             setattr(self, attr, btn)
             btn.place(x=x, y=y)
 
+class DebugBuilder:
+    def __init__(self, parent_color, debugFrame : ctk.CTkFrame):
+        self.debugFrame = debugFrame
+        self.parent_color = parent_color
+
+        self._create_debug_tab()
+
+    def _create_debug_tab(self):
+        style = {"font": ("Segoe UI", 12), "fg_color": self.parent_color, "hover_color": "#3a3a3a"}
+
+        main_btns = [
+            ("debuggingBtn", "bug.png",     "Start\nDebugging",   5,   3),
+            ("runNoBugBtn",  "start.png",   "Run without\nDebug", 82,  5),
+            ("attachBtn",    "attach.png",  "Attach to\nProc",    162, 5),
+            ("compileBtn",   "compile.png", "Compile\nCode",      253, 5),
+            ("stopBugBtn",   "stop.png",    "Stop\nDebugging",    315, 5),
+            ("restartBugBtn","restart.png", "Restart\nDebug",     392, 5),
+            ("deatBugBtn",   "deattach.png","Detach\nDebugger",   470, 5),
+        ]
+
+        for attr, icon, txt, x, y in main_btns:
+            btn = VerticalButton(self.debugFrame, image_path=rf"icons\system\{icon}", text=txt, **style)
+            btn.place(x=x, y=y)
+            setattr(self, attr, btn)
+
+        for x_pos in [543, 938]:
+            ctk.CTkFrame(self.debugFrame, width=2, height=75, fg_color=["#727272","#3E3E3E"]).place(x=x_pos, y=7)
+
+        self.debuggingToolsFrame = ctk.CTkFrame(self.debugFrame, width=162, height=35, border_width=1, border_color="#5e5e5e")
+        self.debuggingToolsFrame.place(x=553, y=7)
+
+class TerminalBuilder:
+    def __init__(self, terminalFrame, parent_color):
+        self.terminalFrame = terminalFrame
+        self.parent_color = parent_color
+
+        self._create_terminal_tab()
+
+    def _create_terminal_tab(self):
+        terminal_btns = [
+            ("runTaskBtn",  "task.png",     "Run Task",          5),
+            ("buildBtn",    "build.png",    "Build Task",        75),
+            ("fileMngBtn",  "fileMng.png",  "Run File\nManager", 150),
+            ("dayDreamBtn", "daydream.png", "DayDream\nTerminal",220)]
+
+        style = {
+            "font": ("Segoe UI", 12),
+            "fg_color": self.parent_color,
+            "hover_color": "#3a3a3a"}
+        icon_dir = r"icons\system"
+
+        for attr, icon, text, x in terminal_btns:
+            btn = VerticalButton(
+                self.terminalFrame,
+                image_path=f"{icon_dir}\\{icon}",
+                text=text,
+                **style)
+            btn.place(x=x, y=5)
+            setattr(self, attr, btn)
+
+class HelpBuilder:
+    def __init__(self, helpFrame, parent_color):
+        self.parent_color = parent_color
+        self.helpFrame = helpFrame
+
+    def _create_help_tab(self):
+        help_btns = [
+            ("docBtn",  "documentation.png", "Documentation", 5),
+            ("feedBtn", "feedback.png",      "Feedback",      106),
+            ("hBtn",    "help.png",          "Show Help",     176),]
+
+        style = {
+            "font": ("Segoe UI", 12),
+            "fg_color": self.parent_color,
+            "hover_color": "#3a3a3a"}
+
+        for attr, icon, text, x in help_btns:
+            btn = VerticalButton(
+                self.helpFrame,
+                image_path=rf"icons\system\{icon}",
+                text=text,
+                **style)
+            btn.place(x=x, y=5)
+            setattr(self, attr, btn)
+
+
+CONFIG_FILE = r"themes\config\config.json"
+REFRESH_INTERVAL_MINUTES = 2
+REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000
+
+icon_paths = {
+    "load_ico": r"icons\system\load.png",
+    "refresh_ico": r"icons\system\refresh.png",
+    "console": r"icons\system\console.png",
+    "debug": r"icons\system\debug.png",
+    "manage": r"icons\system\manager.png",
+    "problem": r"icons\system\problem.png",
+    "ver": r"icons\system\version.png",
+    "warning": r"icons\system\warning.png",
+}
+
+ctk_icons = {
+    "search_photo": (r"icons\system\search.png", (24, 24)),
+    "open_photo": (r"icons\system\open_folder.png", (24, 24)),
+    "settings_photo": (r"icons\system\settings.png", (24, 24)),
+    "save_photo": (r"icons\system\save_file.png", (24, 24)),
+    "user_photo": (r"icons\system\user.png", (24, 24)),
+    "sleeping": (r"icons\types\sleeping.ico", (80, 80)),
+}
+
+arrow_icons = {
+    "downArrow": (r"icons\system\down_arrow.png", (8, 8)),
+    "upArrow": (r"icons\system\up_arrow.png", (8, 8)),
+    "rightArrow": (r"icons\system\right_arrow.png", (8, 8)),
+    "stepTo": (r"icons\system\stepTo.png", (20, 20)),
+    "stepOut": (r"icons\system\stepOut.png", (20, 20)),
+    "stepOver": (r"icons\system\stepOver.png", (20, 20)),
+    "runToCursor": (r"icons\system\runToCursor.png", (20, 20)),
+    "toggleCursor": (r"icons\system\toggle.png", (20, 20)),
+}
+
+allowed_extensions = {
+    ".py",".txt",".c",".cpp",".json",".docx",".ppt",".pptx",".apk",
+    ".cpp",".cs",".cc",".cxx",".html",".js",".java",".swift",".rb",
+    ".ts",".jsx",".py",".h"}
+
 
 ########################################################################################
 # WIDGETS
