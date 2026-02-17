@@ -1,8 +1,8 @@
-import widgets.universal_widgets as uniwidgets
+import dreamstudio.menu_builders as uniwidgets
 import customtkinter as ctk
 from PIL import Image
 import tkinterweb
-import widgets.CTkTable as CTkTable
+import dreamstudio.utils.table as table
 
 project_image = ctk.CTkImage(light_image=Image.open(r"icons\system\projectType.png"),
                              dark_image =Image.open(r"icons\system\projectType.png"),
@@ -128,7 +128,7 @@ class TabView:
                                        text_color=["#1E1E1E", "#F5F5F5"])
         self.explnLabel1.place(x=8, y=5)
 
-        self.properties_table = CTkTable.CTkTable(self.propertiesFrame,
+        self.properties_table = table.CTkTable(self.propertiesFrame,
                                                   row=7,
                                                   column=2,
                                                   padx=0,
@@ -162,7 +162,7 @@ class TabView:
         )
         self.solutionPropertiesLabel.place(x=8,y=186)
 
-        self.solution_table = CTkTable.CTkTable(self.propertiesFrame,
+        self.solution_table = table.CTkTable(self.propertiesFrame,
                                                   row=5,
                                                   column=2,
                                                   padx=0,

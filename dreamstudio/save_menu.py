@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
-import widgets.universal_widgets as uniwidgets
+import dreamstudio.menu_builders as uniwidgets
 
 class SaveFile(ctk.CTkToplevel):
     def __init__(self, main_app, workspace_container, status_button=None):

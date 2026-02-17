@@ -1,5 +1,7 @@
-# DREAMSTUDIO IDE  :GUI
-# 5/11/2025 BAHAA NOFAL
+# COPYRIGHT 2026 DREAMSTUDIO IDE ... EX-TECHNOLOGIES
+# WRITTEN BY BAHAA NOFAL 
+
+# CODE IS LICENSED UNDER THE CLOSED LICENSE OF DREAMSTUDIO
 
 import os
 import json
@@ -9,13 +11,12 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from functools import lru_cache
 
-from widgets.imageload import *
-from widgets.ctk_tabview import *
-from widgets.universal_widgets import *
-from widgets.texteditor import Editor, Languages
+from dreamstudio.imageload import *
+from dreamstudio.utils.ctk_tabview import *
+from dreamstudio.menu_builders import *
+from dreamstudio.texteditor import Editor, Languages
 
-import widgets.TabView as TabView
-import widgets.search_menu as search_menu
+import dreamstudio.TabView as TabView
 
 #######################################
 # MAIN WINDOW
@@ -256,13 +257,10 @@ class App:
             width=36,
             height=36,
             corner_radius=5,
-            fg_color=self.services_bar.cget("fg_color"),
-            command=self.open_search,
-        )
+            fg_color=self.services_bar.cget("fg_color"))
         self.search_button.pack(pady=5)
         ToolTip(
-            self.search_button, "Searches inside the file for a specific key"
-        )
+            self.search_button, "Searches inside the file for a specific key")
 
         self.save_button = ctk.CTkButton(
             self.services_bar,
@@ -271,8 +269,7 @@ class App:
             width=36,
             height=36,
             corner_radius=5,
-            fg_color=self.services_bar.cget("fg_color"),
-        )
+            fg_color=self.services_bar.cget("fg_color"))
         self.save_button.pack(pady=5)
         ToolTip(self.save_button, "Saves the current loaded workspace file")
 
@@ -283,8 +280,7 @@ class App:
             width=36,
             height=36,
             corner_radius=5,
-            fg_color=self.services_bar.cget("fg_color"),
-        )
+            fg_color=self.services_bar.cget("fg_color"))
         self.user_button.pack(pady=5, side="bottom")
         ToolTip(self.user_button, "Show user's account")
 
@@ -295,8 +291,7 @@ class App:
             width=36,
             height=36,
             corner_radius=5,
-            fg_color=self.services_bar.cget("fg_color"),
-        )
+            fg_color=self.services_bar.cget("fg_color"))
         self.settings_button.pack(pady=5, side="bottom")
         ToolTip(self.settings_button, "Show IDE settings and preferences")
 
@@ -418,11 +413,6 @@ class App:
     def open_terminal(self, event=None):
         subprocess.Popen("start cmd", shell=True)
 
-    def open_search(self, event=None):
-        search_window = search_menu.KeywordSearch(
-            self, self.editor, status_button=self.status_button)
-        search_window.show()
-
     def open_current_file(self):
         current_file = filedialog.askopenfilename(title="Select an existing file")
         if not current_file:
@@ -465,13 +455,13 @@ class App:
         return "Dark"
 
     def open_shell(self):
-        import widgets.command_window as command_window
+        import dreamstudio.command_window as command_window
 
         if self.shell_frame is None:
             self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
             self.middle_frame.place(relx=0, rely=0.70, relwidth=1, relheight=0.30)
 
-            self.shell_frame = command_window.PromptXShell(self=self.middle_frame)
+            self.shell_frame = command_window.PromptXShell(main_app=self.middle_frame, status_button=self.status_button)
             self.shell_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
         else:

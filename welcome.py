@@ -1,4 +1,6 @@
-import widgets.universal_widgets as uniwidgets
+from dreamstudio.utils.largeButton import LargeButton
+from dreamstudio.utils.linkLabel import LinkLabel
+from dreamstudio.utils.verticalButton import VerticalButton
 from CTkMenuBar import CTkMenuBar
 import customtkinter as ctk
 from PIL import Image
@@ -177,7 +179,7 @@ or use a generated template by clicking on 'Template Builds'""",
         )
         self.explanationLabel.place(x=115,y=160)
 
-        self.newProjectBtn = uniwidgets.VerticalButton(
+        self.newProjectBtn = VerticalButton(
             self.rightFrame,
             image_path=r"icons\system\newvar.png",
             text="New Build",
@@ -185,7 +187,7 @@ or use a generated template by clicking on 'Template Builds'""",
         )
         self.newProjectBtn.place(x=195,y=230)
 
-        self.newProjectBtn = uniwidgets.VerticalButton(
+        self.newProjectBtn = VerticalButton(
             self.rightFrame,
             image_path=r"icons\system\folder.ico",
             text=" Template "
@@ -200,7 +202,7 @@ or use a generated template by clicking on 'Template Builds'""",
         )
         self.feedbackLabel.place(x=10,y=410)
 
-        self.feedbackLink = uniwidgets.LinkLabel(
+        self.feedbackLink = LinkLabel(
             self.rightFrame,
             width=100,
             height=25,
@@ -347,43 +349,43 @@ Python Projects come with predefined language support and intellisense, as well 
                                         justify="left")
         self.explnlabel1.place(x=15, y=60)
 
-        self.projectType1 = uniwidgets.LargeButton(self.PythonProjectChoose,
+        self.projectType1 = LargeButton(self.PythonProjectChoose,
                                                    text="Python Console Application",
                                                    explainText="Start with an empty python script and scale along the way.",
                                                    image_path=r"icons\language_support\pythonConsole.png")
         self.projectType1.place(x=15,y=130)
 
-        self.projectType2 = uniwidgets.LargeButton(self.PythonProjectChoose,
+        self.projectType2 = LargeButton(self.PythonProjectChoose,
                                                    text="Python Package/Library Project",
                                                    explainText="Develop a reusable python module that can be shared.",
                                                    image_path=r"icons\language_support\package.png")
         self.projectType2.place(x=15,y=220)
 
-        self.projectType3 = uniwidgets.LargeButton(self.PythonProjectChoose,
+        self.projectType3 = LargeButton(self.PythonProjectChoose,
                                                    text="Web Project",
                                                    explainText="A project for creating a generic web application using Python.",
                                                    image_path=r"icons\language_support\web.png")
         self.projectType3.place(x=15,y=310)
 
-        self.projectType4 = uniwidgets.LargeButton(self.PythonProjectChoose,
+        self.projectType4 = LargeButton(self.PythonProjectChoose,
                                                    text="Data Science and Machine Learning Project",
                                                    explainText="A project for creating a data science / artificial intelligence Project.",
                                                    image_path=r"icons\language_support\artificial.png")
         self.projectType4.place(x=15,y=400)
 
-        self.projectType5 = uniwidgets.LargeButton(self.PythonProjectChoose,
+        self.projectType5 = LargeButton(self.PythonProjectChoose,
                                                    text="Pure Data Science Project",
                                                    explainText="A pure data science and visualization project using Python.",
                                                    image_path=r"icons\language_support\dataScience.png")
         self.projectType5.place(x=15,y=490)
 
-        self.projectType6 = uniwidgets.LargeButton(self.PythonProjectChoose,
+        self.projectType6 = LargeButton(self.PythonProjectChoose,
                                                    text="Scientific Simulation Project",
                                                    explainText="A project designed for simulations, graphing, and simulating data using Python.",
                                                    image_path=r"icons\language_support\science.png")
         self.projectType6.place(x=15,y=580)
 
-        self.projectType7 = uniwidgets.LargeButton(self.PythonProjectChoose,
+        self.projectType7 = LargeButton(self.PythonProjectChoose,
                                                    text="Automation and Testing",
                                                    explainText="Write script to automate tasks and test using Python.",
                                                    image_path=r"icons\language_support\test.png")
@@ -411,7 +413,7 @@ C projects come with all the needed intellisense, language packages, and support
                                         justify="left")
         self.Cexplnlabel1.place(x=15, y=60)
 
-        self.projectTypeC1 = uniwidgets.LargeButton(self.CProjectChoose,
+        self.projectTypeC1 = LargeButton(self.CProjectChoose,
                                                    text="C Console Application",
                                                    explainText="Start with an empty C-File and scale along the way.",
                                                    image_path=r"icons\language_support\CConsole.png",
@@ -420,37 +422,37 @@ C projects come with all the needed intellisense, language packages, and support
                                                                                   ""))
         self.projectTypeC1.place(x=15,y=130)
 
-        self.projectTypeC2 = uniwidgets.LargeButton(self.CProjectChoose,
+        self.projectTypeC2 = LargeButton(self.CProjectChoose,
                                                    text="Device Drivers Project",
                                                    explainText="Write a C code that interfaces with the hardware or OS kerel modules.",
                                                    image_path=r"icons\language_support\driver.png")
         self.projectTypeC2.place(x=15,y=220)
 
-        self.projectTypeC3 = uniwidgets.LargeButton(self.CProjectChoose,
+        self.projectTypeC3 = LargeButton(self.CProjectChoose,
                                                    text="System Level and Kernel Project",
                                                    explainText="Develop operating systems, kernels, and core system components.",
                                                    image_path=r"icons\language_support\os.png")
         self.projectTypeC3.place(x=15,y=310)
 
-        self.projectTypeC4 = uniwidgets.LargeButton(self.CProjectChoose,
+        self.projectTypeC4 = LargeButton(self.CProjectChoose,
                                                    text="Langauge and Architecture Tooling",
                                                    explainText="Build compilers, interpreters, and low-level toolchains using C support.",
                                                    image_path=r"icons\language_support\toolchain.png")
         self.projectTypeC4.place(x=15,y=400)
 
-        self.projectTypeC5 = uniwidgets.LargeButton(self.CProjectChoose,
+        self.projectTypeC5 = LargeButton(self.CProjectChoose,
                                                    text="Architecture Simulation Project",
                                                    explainText="A simulation and testing model in a contained environment built using C.",
                                                    image_path=r"icons\language_support\hardware.png")
         self.projectTypeC5.place(x=15,y=490)
 
-        self.projectTypeC6 = uniwidgets.LargeButton(self.CProjectChoose,
+        self.projectTypeC6 = LargeButton(self.CProjectChoose,
                                                    text="System BoolLoader Project",
                                                    explainText="Write a fully supported assembly/C project for creating a bootloader application.",
                                                    image_path=r"icons\language_support\bootloader.png")
         self.projectTypeC6.place(x=15,y=580)
 
-        self.projectTypeC7 = uniwidgets.LargeButton(self.CProjectChoose,
+        self.projectTypeC7 = LargeButton(self.CProjectChoose,
                                                    text="Shared Low-Level System Library",
                                                    explainText="Write a reusable C library abstracting low-level hardware or OS features.",
                                                    image_path=r"icons\language_support\library.png")
