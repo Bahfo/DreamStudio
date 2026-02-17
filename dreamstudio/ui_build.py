@@ -5,7 +5,9 @@
 
 import os
 import json
+import platform
 import subprocess
+import pywinstyles
 import customtkinter as ctk
 
 from tkinter import filedialog, messagebox
@@ -32,12 +34,12 @@ class App:
         self.window.iconbitmap(r"icons/dreamstudio_icon.ico")
         self.window.resizable(True, True)
 
-        self.config_obj = Config(
-            master=self.window,
-            darkmode=True,
-            font=("Consolas", 11),
-            uifont=("Segoe UI", 11))
-        self.app_style = Style(self.window, self.config_obj)
+        if platform.system() == 'Windows':
+            pywinstyles.change_header_color(self.window, color="#004073") 
+        else:
+            pass
+
+        self.mode = ctk.get_appearance_mode()
 
         ##############################
         # DEFINITIONS
@@ -45,9 +47,15 @@ class App:
 
         self.workspace = dict[str, ctk.CTkButton]
         self.current_session_editors_open = {}
-        self.mode = ctk.get_appearance_mode()
         self.shell_frame = None
         self.tab_count = 0
+
+        self.text_editor_mode_bool = False
+
+        if self.mode == "Light":
+            self.text_editor_mode_bool = False
+        else:
+            self.text_editor_mode_bool = True
 
         # Segmented Buttons Sepcific Font 
         self.seg_font = ctk.CTkFont(family="Segoe UI", size=12, weight="normal")
@@ -63,6 +71,13 @@ class App:
 
         for attr, (path, size) in arrow_icons.items():
             setattr(self, attr, load_ctk_icon(path, size, dark_path=path))
+
+        self.config_obj = Config(
+            master=self.window,
+            darkmode=True if self.mode == 'dark' else False,
+            font=("Consolas", 11),
+            uifont=("Segoe UI", 11))
+        self.app_style = Style(self.window, self.config_obj)
 
         ###############################
         # MENUS LOOP ITERATION
@@ -379,10 +394,10 @@ class App:
 
         new_editor = Editor(
             self.tabSwitch.tab(tab_name),
-            language=Languages.C,
+            language=Languages.PYTHON,
             font=("Consolas", 13),
             showpath=True,
-            darkmode=True if self.mode == 'dark' else False,
+            darkmode= self.text_editor_mode_bool,
             uifont=("Segoe UI", 11))
         new_editor.pack(fill='both', expand=True)
         
