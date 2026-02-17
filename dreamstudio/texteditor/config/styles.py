@@ -3,19 +3,39 @@ from tkinter import ttk
 
 
 class Style(ttk.Style):
+    _elements_created = False  # class-level guard
+
     def __init__(self, master, config, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.base = master
         self.config = config
         self.theme = config.theme
-        
+
         self.gen_fileicons()
+        self.gen_tree_icons()
+
+        if not Style._elements_created:
+            self.config_treeview_elements()
+            self.config_tree_scrollbar_elements()
+            Style._elements_created = True
+
         self.config_treeview()
         self.config_tree_scrollbar()
-    
-    def config_tree_scrollbar(self):
-        self.element_create("TreeScrollbar.trough", "from", "clam")
-        self.element_create("TreeScrollbar.thumb", "from", "clam")
+
+    # ------------------------------------------------------------------
+
+    def config_tree_scrollbar_elements(self):
+        if "TreeScrollbar.trough" not in self.element_names():
+            self.element_create("TreeScrollbar.trough", "from", "clam")
+
+        if "TreeScrollbar.thumb" not in self.element_names():
+            self.element_create("TreeScrollbar.thumb", "from", "clam")
+
+        if "EditorScrollbar.trough" not in self.element_names():
+            self.element_create("EditorScrollbar.trough", "from", "clam")
+
+        if "EditorScrollbar.thumb" not in self.element_names():
+            self.element_create("EditorScrollbar.thumb", "from", "clam")
 
         self.layout("TreeScrollbar", [
             ('TreeScrollbar.trough', {
@@ -29,14 +49,6 @@ class Style(ttk.Style):
             })
         ])
 
-        
-        bg, highlight = self.theme.scrollbar.values()
-        self.configure("TreeScrollbar", gripcount=0, background=bg, troughcolor=bg, bordercolor=bg, lightcolor=bg, darkcolor=bg, arrowsize=14)
-        self.map("TreeScrollbar", background=[('pressed', highlight), ('!disabled', self.theme.border)])
-        
-        self.element_create("EditorScrollbar.trough", "from", "clam")
-        self.element_create("EditorScrollbar.thumb", "from", "clam")
-
         self.layout('EditorScrollbar', [
             ('EditorScrollbar.trough', {
                 'sticky': 'nsew',
@@ -46,55 +58,122 @@ class Style(ttk.Style):
                     })
                 ]
             })
-            
         ])
-        self.configure("EditorScrollbar", gripcount=0, background=bg, troughcolor=bg, bordercolor=bg, lightcolor=bg, darkcolor=bg)
-        self.map("EditorScrollbar", background=[('pressed', highlight), ('!disabled', self.theme.border)])
+
+    def config_tree_scrollbar(self):
+        bg, highlight = self.theme.scrollbar.values()
+
+        self.configure(
+            "TreeScrollbar",
+            gripcount=0,
+            background=bg,
+            troughcolor=bg,
+            bordercolor=bg,
+            lightcolor=bg,
+            darkcolor=bg,
+            arrowsize=14
+        )
+
+        self.map(
+            "TreeScrollbar",
+            background=[
+                ('pressed', highlight),
+                ('!disabled', self.theme.border)
+            ]
+        )
+
+        self.configure(
+            "EditorScrollbar",
+            gripcount=0,
+            background=bg,
+            troughcolor=bg,
+            bordercolor=bg,
+            lightcolor=bg,
+            darkcolor=bg
+        )
+
+        self.map(
+            "EditorScrollbar",
+            background=[
+                ('pressed', highlight),
+                ('!disabled', self.theme.border)
+            ]
+        )
+
+    # ------------------------------------------------------------------
+
+    def config_treeview_elements(self):
+        if 'Treeitem.nindicator' not in self.element_names():
+            self.element_create(
+                'Treeitem.nindicator',
+                'image',
+                self.img_tree_close,
+                ('user1', '!user2', self.img_tree_open),
+                ('user2', self.img_tree_empty),
+                sticky='w',
+                width=20
+            )
+
+        self.layout('Treeview', [
+            ('Treeview.treearea', {'sticky': 'nswe'})
+        ])
+
+        self.layout('Treeview.Item', [
+            ('Treeitem.padding', {
+                'sticky': 'nswe',
+                'children': [
+                    ('Treeitem.nindicator', {
+                        'side': 'left',
+                        'sticky': ''
+                    }),
+                    ('Treeitem.image', {
+                        'side': 'left',
+                        'sticky': ''
+                    }),
+                    ('Treeitem.text', {
+                        'side': 'left',
+                        'sticky': ''
+                    })
+                ]
+            })
+        ])
 
     def config_treeview(self):
-        ## TREENODE CHEVRONS -----
+        self.configure(
+            "Treeview",
+            font=self.config.uifont,
+            rowheight=25,
+            **self.theme.tree
+        )
+
+        self.map(
+            "Treeview",
+            background=[
+                ('selected', self.theme.tree["activebackground"])
+            ]
+        )
+
+    # ------------------------------------------------------------------
+
+    def gen_tree_icons(self):
         self.img_tree_close = tk.PhotoImage("img_tree_close", data="""
                 iVBORw0KGgoAAAANSUhEUgAAAAsAAAALCAYAAACprHcmAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d
                 2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAALBJREFUGJVjYIACExMTfxMTk8WhoaHMDDgAE4zx69ev4////ze4d+
                 /ecgcHBxZsihmROXp6emKsrKx7GRgYrvPy8kYdOHDgD07FhDQwoSu+dOnSq9+/fzszMDBofv78eY2npyc7TsUwDez
                 s7JEMDAweL1++XAgTx+oRPT09sZ8/fy5nZGTcLiYmFk+Mm6/x8vJGI7sZV2hgKERRTEghigfZ2NgsGRkZLygpKWGE
                 LwwAAECxSWJ5KCTqAAAAAElFTkSuQmCC""")
+
         self.img_tree_open = tk.PhotoImage("img_tree_open", data="""
                 iVBORw0KGgoAAAANSUhEUgAAAAsAAAALCAYAAACprHcmAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d
                 2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAALxJREFUGJW10D0KwkAQBeA3wd2EiJ23ELbZYJMTKGJhIZ7G81irCB
                 4g5TaBNJ7Bzh92Y/GsItsogvjK4Zs3MMC/IkVRjNu2beq6vr1Dxpi+1nqUkFxrrQ/GmP4HeCC5TgAsATyUUseyLAc
                 xtNbmSqkdSfHer6QbisiWZJZl2aSqqou1NgewB9Dz3k+bprlK3NItpGm6CCFsYggASYedc3eScxF5hBBOIpLGEABe
                 zdGFIcm9iMycc+cvv/pjnkvzViGP6ap9AAAAAElFTkSuQmCC""")
+
         self.img_tree_empty = tk.PhotoImage("img_tree_empty", data="""
                 iVBORw0KGgoAAAANSUhEUgAAAAsAAAALCAYAAACprHcmAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d
                 2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAA5JREFUGJVjYBgFIwgAAAHvAAGLZFZqAAAAAElFTkSuQmCC""")
 
-        self.element_create(
-            'Treeitem.nindicator', 'image',  self.img_tree_close,
-            ('user1', '!user2', self.img_tree_open), ('user2', self.img_tree_empty), 
-            sticky='w', width=20)
-
-        self.configure("Treeview", font=self.config.uifont, rowheight=25, **self.theme.tree)  
-        self.map("Treeview", background=[('selected', self.theme.tree["activebackground"])])
-
-        self.layout('Treeview', [('Treeview.treearea', {'sticky': 'nswe'})])
-        self.layout('Treeview.Item', [
-            ('Treeitem.padding', {
-                'sticky': 'nswe',
-                'children': [
-                    ('Treeitem.nindicator', {
-                        'side': 'left', 'sticky': ''
-                    }),
-                    ('Treeitem.image', {
-                        'side': 'left', 'sticky': ''
-                    }),
-                    ('Treeitem.text', {
-                        'side': 'left', 'sticky': ''
-                    })
-                ]
-            })
-        ])
-    
     def gen_fileicons(self):
         self.document_icn = tk.PhotoImage("document", data="""
         iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAJ2AAACdgBx6C5rQA

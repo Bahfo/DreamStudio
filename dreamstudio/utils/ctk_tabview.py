@@ -68,7 +68,7 @@ class CTkTabview(CTkBaseClass):
         self._corner_radius = ThemeManager.theme["CTkFrame"]["corner_radius"] if corner_radius is None else corner_radius
         self._border_width = ThemeManager.theme["CTkFrame"]["border_width"] if border_width is None else border_width
         self._anchor = anchor
-        self._fg_color = ["#FFFFFF","#2B2B2B"]
+        self._fg_color = ["#F5F5F5","#2B2B2B"]
 
         self._canvas = CTkCanvas(master=self,
                                  bg=self._apply_appearance_mode(self._bg_color),

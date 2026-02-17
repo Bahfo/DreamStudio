@@ -15,14 +15,14 @@ from dreamstudio.imageload import *
 from dreamstudio.utils.ctk_tabview import *
 from dreamstudio.menu_builders import *
 from dreamstudio.texteditor import Editor, Languages
+from dreamstudio.texteditor.config.styles import Style
+from dreamstudio.texteditor.config import Config
 
 import dreamstudio.TabView as TabView
 
 #######################################
 # MAIN WINDOW
 #######################################
-
-ctk.set_appearance_mode("system")
 
 class App:
     def __init__(self, workspace):
@@ -31,6 +31,13 @@ class App:
         self.window.geometry("1000x700")
         self.window.iconbitmap(r"icons/dreamstudio_icon.ico")
         self.window.resizable(True, True)
+
+        self.config_obj = Config(
+            master=self.window,
+            darkmode=True,
+            font=("Consolas", 11),
+            uifont=("Segoe UI", 11))
+        self.app_style = Style(self.window, self.config_obj)
 
         ##############################
         # DEFINITIONS
@@ -324,11 +331,11 @@ class App:
                                         border_width=0,
                                         anchor="w",
                                         text_color=["#1E1E1E","#FFFFFF"],
-                                        fg_color=["#C8C8C8","#454545"],
-                                        segmented_button_fg_color=["#FFFFFF","#1F1F1F"],
+                                        fg_color=["#F5F5F5","#454545"],
+                                        segmented_button_fg_color=["#F5F5F5","#1F1F1F"],
                                         segmented_button_selected_color=["#FFFFFF","#1F1F1F"],
                                         segmented_button_selected_hover_color=["#FFFFFF","#1F1F1F"],
-                                        segmented_button_unselected_color=["#C8C8C8","#454545"])
+                                        segmented_button_unselected_color=["#F5F5F5","#454545"])
         self.tabSwitch.pack(expand=0.9, fill='both')
         self.tabSwitch._segmented_button.configure(font = self.seg_font)
         self._add_new_text_tab()
@@ -375,7 +382,7 @@ class App:
             language=Languages.C,
             font=("Consolas", 13),
             showpath=True,
-            darkmode=(self.mode != "light"),
+            darkmode=True if self.mode == 'dark' else False,
             uifont=("Segoe UI", 11))
         new_editor.pack(fill='both', expand=True)
         
