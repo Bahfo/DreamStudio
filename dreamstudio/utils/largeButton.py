@@ -32,7 +32,7 @@ class LargeButton(ctk.CTkFrame):
             corner_radius=6,
             border_width=0,
             border_color=self.hover_border,
-            width=450,
+            width=400,
             height=70,
         )
         self.border_frame.pack(padx=2, pady=2, fill="both", expand=True)

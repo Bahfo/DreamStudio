@@ -353,9 +353,13 @@ class App:
                                         segmented_button_unselected_color=["#F5F5F5","#454545"])
         self.tabSwitch.pack(expand=0.9, fill='both')
         self.tabSwitch._segmented_button.configure(font = self.seg_font)
-        self._add_new_text_tab()
 
         self.tabSwitch.newtab_btn.configure(command=self._add_new_text_tab)
+
+        self.tabSwitch.add("    Welcome Page    ")
+        welcome_tab = self.tabSwitch.tab("    Welcome Page    ")
+
+        welcomeTabElements = GettingStartedTab(welcome_tab)
 
         #################################################################################################
         # BINDINGS
@@ -500,3 +504,62 @@ class App:
     def run(self):
         self.window.mainloop()
         self.window.update_idletasks()
+
+
+class GettingStartedTab:
+    def __init__(self, welcome_tab):
+        welcomeTabFrame = ctk.CTkFrame(welcome_tab, fg_color=["#FFFFFF","#1F1F1F"], corner_radius=0, border_width=0)
+        welcomeTabFrame.pack(fill="both", expand=True)
+
+        welcomeTabLabel = ctk.CTkLabel(welcomeTabFrame, text="Get Started With", font=("Microsoft YaHei UI",22),
+                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
+                                       anchor="w", justify="left")
+        welcomeTabLabel.place(x = 20, y = 15)
+
+        welcomeTabLabel2 = ctk.CTkLabel(welcomeTabFrame, text="DreamStudio", font=("Microsoft YaHei UI",46),
+                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
+                                       anchor="w", justify="left")
+        welcomeTabLabel2.place(x = 20, y = 50)
+
+        whats_new_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",16),
+                                       text_color=["#730047","#FF97E2"], fg_color=["#FFFFFF","#1F1F1F"],
+                                       text="Discover Stronger Tools to Build Your Next Dream App", 
+                                       anchor="w", justify="left")
+        whats_new_label.place(x = 20, y = 150)
+
+        welcomeTabLabel3 = ctk.CTkLabel(welcomeTabFrame, text="Take a tour in DreamStudio to help you get started",
+                                        font=("Microsoft YaHei UI",13), text_color=["#000000","#FFFFFF"], 
+                                        fg_color=["#FFFFFF","#1F1F1F"], anchor="w", justify="left")
+        welcomeTabLabel3.place(x = 20, y = 250)
+
+        welcomeTabLabel4 = LinkLabel(welcomeTabFrame, text="Start My Tour!", corner_radius=0, font=("Segoe UI",13),
+                                     width=80, height=18)
+        welcomeTabLabel4.place(x = 340, y = 255)
+
+        welcomeTabLabel5 = ctk.CTkLabel(welcomeTabFrame, text="Or read the full documentation for further information",
+                                        font=("Microsoft YaHei UI",13), text_color=["#000000","#FFFFFF"], 
+                                        fg_color=["#FFFFFF","#1F1F1F"], anchor="w", justify="left")
+        welcomeTabLabel5.place(x = 20, y = 275)
+
+        welcomeTabLabel6 = LinkLabel(welcomeTabFrame, text="Read the Documentation", corner_radius=0,
+                                     font=("Segoe UI",13), width=136, height=18)
+        welcomeTabLabel6.place(x = 362, y = 280)
+
+        ########## SOME RANDOM BUTTONS TO HELP TOURING ##########
+        create_project_btn = LargeButton(welcomeTabFrame, text="   Create a New Project",
+                                         explainText="   Select one of the offered templates, or start from scratch",
+                                         image_path=r"icons\system\new_file.png")
+        create_project_btn.place(x = 50, y = 320)
+
+        choose_existing_btn = LargeButton(welcomeTabFrame, text="   Open an Existing Project",
+                                          explainText="   Select an existing project, and pick up where you left at",
+                                          image_path=r"icons\system\folder.png")
+        choose_existing_btn.place(x = 50, y = 400)
+
+        copyright_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",10),
+                                       text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
+                                       text="Copyright 2026 © DreamStudio - All Rights Reserved",
+                                       anchor="w", justify="left")
+        copyright_label.place(x = 20, y = 600)
+
+        ########## THE OTHER RIGHT-SIDE ###########
