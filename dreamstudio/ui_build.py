@@ -548,12 +548,14 @@ class GettingStartedTab:
         ########## SOME RANDOM BUTTONS TO HELP TOURING ##########
         create_project_btn = LargeButton(welcomeTabFrame, text="   Create a New Project",
                                          explainText="   Select one of the offered templates, or start from scratch",
-                                         image_path=r"icons\system\new_file.png")
+                                         image_path=r"icons\system\new_file.png",
+                                         hover_border=["#C1C1C1", "#BEBEBE"])
         create_project_btn.place(x = 50, y = 320)
 
         choose_existing_btn = LargeButton(welcomeTabFrame, text="   Open an Existing Project",
                                           explainText="   Select an existing project, and pick up where you left at",
-                                          image_path=r"icons\system\folder.png")
+                                          image_path=r"icons\system\folder.png", 
+                                          hover_border=["#C1C1C1", "#BEBEBE"])
         choose_existing_btn.place(x = 50, y = 400)
 
         copyright_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",10),

@@ -212,7 +212,7 @@ void freeTable(DirectorySummary *table)
 int main(void)
 {
     DirectorySummary files = {0};
-    scanDirectoryRecursive("C:\\Users\\Bahaa\\Desktop", &files);
+    scanDirectoryRecursive("C:\\Users\\Bahaa\\Desktop\\DreamStudio\\DreamStudio\\dreamstudio", &files);
 
     for (size_t i = 0; i < files.count; i++)
     {
