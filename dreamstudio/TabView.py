@@ -101,7 +101,8 @@ class TabView:
                                       placeholder_text="🔍 Search Solution Explorer")
         self.searchBar.place(x=(width-252),y=2)
 
-        self.treeView = FileTree(master= self.solutionExplorerFrame, width=350, height=550)
+        self.treeView = FileTree(master= self.solutionExplorerFrame, width=350, height=550,
+                                 root_path=r"C:\Users\Bahaa\Desktop")
         self.treeView.place(x=5,y=60)
 
         ############################################################
