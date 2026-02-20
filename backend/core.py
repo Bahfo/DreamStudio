@@ -10,8 +10,7 @@ import os
 from pathlib import Path
 from bridge_handler import *
 from threading import Thread
-from tkinter import messagebox
-from queue import Queue, Empty
+from queue import Queue
 from project_types import *
 from watchdog.observers import Observer
 
@@ -138,6 +137,3 @@ class WatchDog:
         self.observer.stop()
         self.observer.join()
         print("Tracker stopped")
-
-class Analytics:
-    pass

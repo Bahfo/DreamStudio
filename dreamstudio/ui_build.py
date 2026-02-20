@@ -366,6 +366,7 @@ class App:
         #################################################################################################
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
+        print(self.current_session_editors_open)
 
     def _show_menu_tab(self, frame_to_show, active_button):
         for frame in self.allTabs:
@@ -520,6 +521,11 @@ class GettingStartedTab:
                                        text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
                                        anchor="w", justify="left")
         welcomeTabLabel2.place(x = 20, y = 50)
+
+        versionLabel = ctk.CTkLabel(welcomeTabFrame, text="version 1.0 - 0.0.1 BETA", font=("Microsoft YaHei UI",14),
+                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
+                                       anchor="w", justify="left")
+        versionLabel.place(x = 320, y = 80)
 
         whats_new_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",16),
                                        text_color=["#730047","#FF97E2"], fg_color=["#FFFFFF","#1F1F1F"],

@@ -1,6 +1,5 @@
 import time
 import json
-import atexit
 
 from watchdog.events import FileSystemEventHandler, DirMovedEvent
 

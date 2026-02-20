@@ -1,4 +1,5 @@
-#TODO LSP implementation
+import jedi
+from analysis import *
 
 class Syntax:
     def __init__(self, master):

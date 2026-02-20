@@ -1,0 +1,339 @@
+import os
+from PIL import Image
+import customtkinter as ctk
+from typing import Callable, Optional, List
+
+folder = Image.open(r"icons\types\folder.ico")
+file = Image.open(r"icons\types\file.ico")
+default = Image.open(r"icons\types\txt.ico")
+
+folder_img = ctk.CTkImage(folder, folder, (12,12))
+file_img = ctk.CTkImage(file, file, (12,12))
+default_img = ctk.CTkImage(default, default, (12,12))
+
+# Placeholder for icons. You can load these using ctk.CTkImage in the main app.
+# Format: { "extension": ctk.CTkImage(...) }
+# Example: { "py": ctk.CTkImage(light_image=..., dark_image=..., size=(16,16)) }
+ICONS = {
+    "folder": folder_img,     # Replace with CTkImage object
+    "file": file_img,         # Replace with CTkImage object (generic)
+    "default": default_img    # Replace with CTkImage object
+}
+
+# VS Code-like color palette (Light/Dark mode)
+COLORS = {
+    "light": {
+        "bg": "#FFFFFF",
+        "fg": "#323233",
+        "selected_bg": "#E8E8E8",
+        "hover_bg": "#F0F0F0",
+        "arrow": "#4B4B4B"
+    },
+    "dark": {
+        "bg": "#1E1E1E",     # Matches default CTk dark
+        "fg": "#CCCCCC",
+        "selected_bg": "#2A2D2E", # VS Code Dark selection
+        "hover_bg": "#2A2D2E",
+        "arrow": "#CECECE"
+    }
+}
+
+class FileTreeItem(ctk.CTkFrame):
+    """
+    Represents a single file or folder in the tree.
+    Handles rendering, indentation, and selection state.
+    """
+    def __init__(self, master, parent_tree_ref, path: str, level: int = 0, is_folder: bool = False, **kwargs):
+        super().__init__(master, **kwargs)
+
+        self.parent_tree = parent_tree_ref # Reference to the main tree to trigger callbacks
+        self.path = path
+        self.level = level
+        self.is_folder = is_folder
+        self.is_expanded = False
+        self.child_widgets: Optional[List['FileTreeItem']] = None
+        
+        # Determine name and extension
+        self.name = os.path.basename(path)
+        if not self.name:
+            self.name = path # Handle root drive names like C:\
+        
+        self.ext = os.path.splitext(self.name)[1].replace(".", "") if not is_folder else "folder"
+
+        # Layout Configuration
+        self.configure(fg_color="transparent", height=25, corner_radius=0)
+        self.pack(fill="x", padx=(level * 20 + 5, 0), pady=(1, 1)) # Indentation logic
+
+        # --- UI ELEMENTS ---
+        # 1. The Expand/Collapse Arrow (Only for folders)
+        self.arrow_label = ctk.CTkLabel(self, text="", width=15, font=("Segoe UI", 12, "bold"))
+        self.arrow_label.pack(side="left", padx=(2,0))
+
+        if self.is_folder:
+            self.arrow_label.configure(text=">", text_color=COLORS["dark"]["arrow"])
+            self.arrow_label.bind("<Button-1>", lambda e: self.toggle())
+
+        # 2. The Icon
+        # Determine which icon to use
+        icon_key = "folder" if self.is_folder else (self.ext if self.ext in ICONS else "default")
+        icon_img = ICONS.get(icon_key, ICONS.get("default"))
+
+        self.icon_label = ctk.CTkLabel(self, image=icon_img, text="", width=20)
+        self.icon_label.pack(side="left", padx=(0, 5))
+
+        # 3. The Text (Name + Ext)
+        self.text_label = ctk.CTkLabel(
+            self, 
+            text=self.name, 
+            font=("Segoe UI", 12), 
+            anchor="w",
+            justify="left"
+        )
+        self.text_label.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        # --- BINDINGS ---
+        # Bind click events to the whole row
+        self.bind("<Button-1>", self._on_click)
+        self.text_label.bind("<Button-1>", self._on_click)
+        self.icon_label.bind("<Button-1>", self._on_click)
+
+        # Apply Theme Colors
+        self._update_theme_colors()
+
+    def _update_theme_colors(self):
+        """Updates colors based on current CTk theme."""
+        mode = ctk.get_appearance_mode()
+        theme = "dark" if mode == "Dark" else "light"
+        colors = COLORS[theme]
+
+        self.configure(fg_color=colors["bg"])
+        self.text_label.configure(text_color=colors["fg"])
+        
+        # Update arrow color if it's a folder
+        if self.is_folder:
+            arrow_char = "▾" if self.is_expanded else "▸"
+            self.arrow_label.configure(text=arrow_char, text_color=colors["arrow"])
+
+    def _on_click(self, event):
+        self.parent_tree.select_item(self)
+
+        if self.is_folder:
+            self.toggle()
+        else:
+            if self.parent_tree.file_click_callback:
+                self.parent_tree.file_click_callback(self.path)
+
+    def _on_double_click(self, event):
+        """Handles double click: Expand folder or Open file."""
+        if self.is_folder:
+            self.toggle()
+        else:
+            # Pass to parent tree for external handling
+            self.parent_tree.file_click_callback(self.path)
+
+    def toggle(self):
+        if not self.is_folder:
+            return
+
+        self.is_expanded = not self.is_expanded
+
+        # First expansion → lazy load
+        if self.is_expanded and self.child_widgets is None:
+            self.child_widgets = []
+            try:
+                entries = os.listdir(self.path)
+                entries.sort(
+                    key=lambda x: (
+                        not os.path.isdir(os.path.join(self.path, x)),
+                        x.lower()
+                    )
+                )
+
+                insert_after = self
+
+                for entry in entries:
+                    child_path = os.path.join(self.path, entry)
+
+                    child_node = self.parent_tree._add_node(
+                        path=child_path,
+                        level=self.level + 1,
+                        parent_frame=self.parent_tree   # always tree frame
+                    )
+
+                    if child_node:
+                        child_node.pack(
+                            fill="x",
+                            padx=((self.level + 1) * 20 + 5, 0),
+                            pady=(1, 1),
+                            after=insert_after
+                        )
+                        insert_after = child_node
+                        self.child_widgets.append(child_node)
+
+            except PermissionError:
+                print(f"Permission denied: {self.path}")
+
+        elif self.is_expanded:
+            # Re-show existing children in correct order
+            insert_after = self
+            for child in self.child_widgets:
+                child.pack(
+                    fill="x",
+                    padx=((self.level + 1) * 20 + 5, 0),
+                    pady=(1, 1),
+                    after=insert_after
+                )
+                insert_after = child
+
+        else:
+            if self.child_widgets:
+                self._hide_children(self.child_widgets)
+
+        self._update_theme_colors()
+
+    def _hide_children(self, children):
+        """Recursively hides child items."""
+        if not children:
+            return
+
+        for child in children:
+            child.pack_forget()
+
+            if child.is_folder and child.child_widgets:
+                self._hide_children(child.child_widgets)
+
+            # reset expansion state visually
+            child.is_expanded = False
+            child._update_theme_colors()
+
+    def configure_selected(self, is_selected: bool):
+        """Visual feedback for selection."""
+        mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
+        bg = COLORS[mode]["selected_bg"] if is_selected else COLORS[mode]["bg"]
+        self.configure(fg_color=bg)
+
+
+class FileTree(ctk.CTkScrollableFrame):
+    """
+    The main Tree View Widget.
+    Inherits from CTkScrollableFrame to provide automatic scrolling.
+    """
+    def __init__(self, master, root_path: str = "", 
+                 file_click_callback: Optional[Callable] = None,
+                 ignore_patterns: List[str] = None, 
+                 **kwargs):
+        
+        # Default settings
+        super().__init__(master,width=300, height=600 , **kwargs)
+        
+        self.root_path = root_path
+        self.file_click_callback = file_click_callback
+        self.ignore_patterns = ignore_patterns or [
+            "__pycache__", ".git", ".vscode", "node_modules", 
+            ".exe", ".lnk", ".dll", ".sys", "thumbs.db", ".DS_Store"
+        ]
+        
+        self.selected_item: Optional[FileTreeItem] = None
+        self.items = {} # Dictionary to store path -> FileTreeItem object
+
+        # Visual Setup
+        self.configure(label_text="Explorer")
+        self._update_theme_colors()
+        
+        # Listen for theme changes to update colors
+        self.bind_theme_change()
+
+        # Initial Population
+        if self.root_path and os.path.exists(self.root_path):
+            self.populate_tree(self.root_path)
+
+    def bind_theme_change(self):
+        """Helper to update colors when CTk theme switches."""
+        # Note: In newer CTk versions, you can use binding, 
+        # but checking inside methods is often safer for simple widgets.
+        pass 
+
+    def _update_theme_colors(self):
+        mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
+        self.configure(fg_color=COLORS[mode]["bg"])
+
+    def _should_ignore(self, name: str, is_dir: bool) -> bool:
+        """Check if a file/folder should be ignored based on patterns."""
+        if is_dir:
+            # Ignore specific folder names
+            if name in self.ignore_patterns:
+                return True
+            # Ignore hidden folders
+            if name.startswith('.'):
+                return True
+        else:
+            # Ignore hidden files
+            if name.startswith('.'):
+                return True
+            # Ignore extensions
+            _, ext = os.path.splitext(name)
+            if ext.replace(".", "") in self.ignore_patterns:
+                return True
+        return False
+
+    def populate_tree(self, root_path):
+        """Populates the tree starting from root_path."""
+        # Clear existing
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.items = {}
+        
+        # Create Root Item
+        self._add_node(root_path, level=0)
+
+    def _add_node(self, path: str, level: int, parent_frame=None):
+        name = os.path.basename(path)
+        if not name: name = path
+        is_folder = os.path.isdir(path)
+        
+        if self._should_ignore(name, is_folder):
+            return None
+
+        master_frame = self
+
+        node = FileTreeItem(
+            master=master_frame,
+            path=path,
+            level=level,
+            is_folder=is_folder,
+            parent_tree_ref=self
+        )
+
+        self.items[path] = node
+
+        # Only mark as expandable, do not load children yet
+        if is_folder:
+            node.child_widgets = None  # None indicates children not loaded yet
+
+        return node
+
+    def select_item(self, item: FileTreeItem):
+        """Handles visual selection of an item."""
+        # Deselect previous
+        if self.selected_item:
+            self.selected_item.configure_selected(False)
+        
+        # Select new
+        item.configure_selected(True)
+        self.selected_item = item
+
+# ---------------------------------------------------------
+# USAGE EXAMPLE
+# ---------------------------------------------------------
+
+def main():
+    # Example of how to use this in your application
+    # Ideally, you would load your images here
+    # ICONS["py"] = ctk.CTkImage(...)
+    app = ctk.CTk()
+    file_tree = FileTree(app, r"C:\Users\Bahaa\Desktop\DreamStudio\DreamStudio\dreamstudio")
+    file_tree.pack()
+
+    app.mainloop()
+
+main()

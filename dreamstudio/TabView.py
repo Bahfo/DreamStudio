@@ -1,8 +1,8 @@
-import dreamstudio.menu_builders as uniwidgets
-import customtkinter as ctk
 from PIL import Image
-import tkinterweb
+import customtkinter as ctk
 import dreamstudio.utils.table as table
+import dreamstudio.menu_builders as uniwidgets
+from dreamstudio.utils.treeview import FileTree
 
 project_image = ctk.CTkImage(light_image=Image.open(r"icons\system\projectType.png"),
                              dark_image =Image.open(r"icons\system\projectType.png"),
@@ -270,53 +270,6 @@ class TabView:
         frame.pack(fill="both", expand=True)
         active_btn.configure(fg_color=["#F5F5F5", "#1E1E1E"])
         active_btn.configure(border_color = ["#A8A8A8", "#555555"])
-
-class FileTree(ctk.CTkFrame):
-    def __init__(self,
-                 master,
-                 width = 200,
-                 height = 22,
-                 corner_radius = 0,
-                 border_width = 0,
-                 bg_color = "transparent",
-                 fg_color = ["#F5F5F5","#1E1E1E"],
-                 overwrite_preferred_drawing_method = None,
-                 **kwargs):
-
-        super().__init__(master,
-                         width,
-                         height,
-                         corner_radius,
-                         border_width,
-                         bg_color,
-                         fg_color,
-                         overwrite_preferred_drawing_method,
-                         **kwargs)
-        
-        self.indicationImage = ctk.CTkLabel(self,
-                                            width=10, 
-                                            height=20,
-                                            text=">",
-                                            font=("Segoe UI",12),
-                                            corner_radius=0,
-                                            fg_color=self.cget("fg_color"))
-        self.indicationImage.place(x=3,y=1)
-
-        self.file_folder_name = ctk.CTkLabel(self,
-                                             width=100,
-                                             height=20,
-                                             justify="left",
-                                             anchor="w",
-                                             text="Directory",
-                                             font=("Segoe UI",12),
-                                             corner_radius=0,
-                                             fg_color=self.cget("fg_color"),
-                                             text_color=["#1E1E1E","#D4D4D4"])
-        self.file_folder_name.place(x=20,y=1)
-
-    def method(self):
-        pass
-
 
 if __name__ == '__main__':
     window = ctk.CTk()
