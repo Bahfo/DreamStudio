@@ -218,40 +218,34 @@ class FileTree(ctk.CTkScrollableFrame):
     The main Tree View Widget.
     Inherits from CTkScrollableFrame to provide automatic scrolling.
     """
-    def __init__(self, master, root_path: str = "", 
+    def __init__(self, master, width, height, root_path: str = "", 
                  file_click_callback: Optional[Callable] = None,
                  ignore_patterns: List[str] = None, 
                  **kwargs):
         
         # Default settings
-        super().__init__(master,width=300, height=600 , **kwargs)
+        super().__init__(master, width=width, height=height, 
+                         corner_radius=0, fg_color=["#F5F5F5","#1E1E1E"],
+                         **kwargs)
+        
+        self._scrollbar.configure(corner_radius=0, width=5,
+                                  fg_color=["#F5F5F5","#1E1E1E"])
+        
+        self._scrollbar._button_hover_color = ["#E3E3E3","#141414"]
+        self._scrollbar._button_color = ["#F5F5F5","#1E1E1E"]
         
         self.root_path = root_path
         self.file_click_callback = file_click_callback
         self.ignore_patterns = ignore_patterns or [
             "__pycache__", ".git", ".vscode", "node_modules", 
-            ".exe", ".lnk", ".dll", ".sys", "thumbs.db", ".DS_Store"
-        ]
+            ".exe", ".lnk", ".dll", ".sys", "thumbs.db", ".DS_Store"]
         
         self.selected_item: Optional[FileTreeItem] = None
         self.items = {} # Dictionary to store path -> FileTreeItem object
 
-        # Visual Setup
-        self.configure(label_text="Explorer")
-        self._update_theme_colors()
-        
-        # Listen for theme changes to update colors
-        self.bind_theme_change()
-
         # Initial Population
         if self.root_path and os.path.exists(self.root_path):
             self.populate_tree(self.root_path)
-
-    def bind_theme_change(self):
-        """Helper to update colors when CTk theme switches."""
-        # Note: In newer CTk versions, you can use binding, 
-        # but checking inside methods is often safer for simple widgets.
-        pass 
 
     def _update_theme_colors(self):
         mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
@@ -321,19 +315,3 @@ class FileTree(ctk.CTkScrollableFrame):
         # Select new
         item.configure_selected(True)
         self.selected_item = item
-
-# ---------------------------------------------------------
-# USAGE EXAMPLE
-# ---------------------------------------------------------
-
-def main():
-    # Example of how to use this in your application
-    # Ideally, you would load your images here
-    # ICONS["py"] = ctk.CTkImage(...)
-    app = ctk.CTk()
-    file_tree = FileTree(app, r"C:\Users\Bahaa\Desktop\DreamStudio\DreamStudio\dreamstudio")
-    file_tree.pack()
-
-    app.mainloop()
-
-main()
