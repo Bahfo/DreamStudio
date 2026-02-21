@@ -530,7 +530,7 @@ class GettingStartedTab:
                                        text_color=["#730047","#FF97E2"], fg_color=["#FFFFFF","#1F1F1F"],
                                        text="Discover Stronger Tools to Build Your Next Dream App", 
                                        anchor="w", justify="left")
-        whats_new_label.place(x = 20, y = 150)
+        whats_new_label.place(x = 60, y = 150)
 
         welcomeTabLabel3 = ctk.CTkLabel(welcomeTabFrame, text="Take a tour in DreamStudio to help you get started",
                                         font=("Microsoft YaHei UI",13), text_color=["#000000","#FFFFFF"], 
