@@ -10,17 +10,17 @@ import subprocess
 import pywinstyles
 import customtkinter as ctk
 
-from tkinter import filedialog, messagebox
 from functools import lru_cache
+from tkinter import filedialog, messagebox
 
 from dreamstudio.imageload import *
-from dreamstudio.utils.ctk_tabview import *
+import dreamstudio.TabView as TabView
 from dreamstudio.menu_builders import *
+from dreamstudio.utils.ctk_tabview import *
+from dreamstudio.texteditor.config import Config
 from dreamstudio.texteditor import Editor, Languages
 from dreamstudio.texteditor.config.styles import Style
-from dreamstudio.texteditor.config import Config
 
-import dreamstudio.TabView as TabView
 
 #######################################
 # MAIN WINDOW
@@ -38,14 +38,13 @@ class App:
         else:
             pass
 
-        self.mode = ctk.get_appearance_mode()
-
         ##############################
         # DEFINITIONS
         ##############################
 
         self.workspace = dict[str, ctk.CTkButton]
         self.current_session_editors_open = {}
+        self.mode = ctk.get_appearance_mode()
         self.shell_frame = None
         self.tab_count = 0
 
@@ -334,6 +333,7 @@ class App:
 
         self.middle_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0)
         self.middle_frame.place_forget()
+
 
         # --- Editor ---
         # The editor widget has a texteditor with autocompletion and syntax highlight.
