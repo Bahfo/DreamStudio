@@ -219,8 +219,8 @@ class FileTree(ctk.CTkScrollableFrame):
         self.root_path = root_path
         self.file_click_callback = file_click_callback
         self.ignore_patterns = ignore_patterns or [
-            "__pycache__", "git", ".vscode", "node_modules", 
-            "exe", "lnk", "dll", "sys", "thumbs.db", "DS_Store"]
+            "node_modules", "ini", "in", "exe", "lnk", 
+            "sys", "thumbs.db", "DS_Store"]
         
         self.selected_item: Optional[FileTreeItem] = None
         self.items = {} # Dictionary to store path -> FileTreeItem object

@@ -13,13 +13,15 @@ number_of_files: int = 4
 class TabView:
     def __init__(self, master, width: int = 370, height: int = 500, corner_radius=0, border_width=1,
                  border_color=None, background_corner_colors=None, overwrite_preferred_drawing_method=None, **kwargs):
+        
         self.mainFrame = ctk.CTkFrame(master=master, width=width, height=height, corner_radius=corner_radius,
                                       bg_color=["#F5F5F5", "#1E1E1E"], fg_color=["#F5F5F5", "#1E1E1E"],
                                       border_width=border_width, border_color=border_color,
                                       background_corner_colors=background_corner_colors,
                                       overwrite_preferred_drawing_method=overwrite_preferred_drawing_method)
-        self.mainFrame.place(x=0, y=0)
+        self.mainFrame.pack_propagate(False)
 
+        # --- Solution Explorer Frame ---
         self.solutionExplorerFrame = ctk.CTkFrame(self.mainFrame, width=width, height=height, border_color=border_color,
                                                   border_width=1, fg_color=["#F5F5F5", "#1E1E1E"], corner_radius=0)
         self.explnLabel = ctk.CTkLabel(self.solutionExplorerFrame, text=f"  Solution: {number_of_files} files found",
@@ -49,55 +51,20 @@ class TabView:
         self.searchBar.place(x=(width-252), y=2)
 
         self.treeView = FileTree(master=self.solutionExplorerFrame, width=350, height=550,
-                                 root_path=r"C:\Users\Bahaa\Desktop")
+                                 root_path=r"C:\Users\Bahaa\Desktop\DreamStudio")
         self.treeView.place(x=5, y=60)
 
+        # --- Properties Frame ---
         self.propertiesFrame = ctk.CTkFrame(self.mainFrame, width=width, height=height, border_width=border_width,
                                             border_color=border_color, fg_color=["#F5F5F5", "#1E1E1E"], corner_radius=0)
         self.propertiesFrame.pack_propagate(False)
 
-        self.explnLabel1 = ctk.CTkLabel(self.propertiesFrame, text=f"Project Properties",
-                                        font=("Segoe UI", 12), fg_color=["#F5F5F5", "#1E1E1E"], width=width,
-                                        height=18, justify="left", anchor="w", text_color=["#1E1E1E", "#F5F5F5"])
-        self.explnLabel1.place(x=8, y=5)
-
-        self.properties_table = table.CTkTable(self.propertiesFrame, row=7, column=2, padx=0, pady=0,
-                                               border_width=1, border_color="#808080", corner_radius=0,
-                                               font=("Segoe UI", 12), header_color=["#C3C3C3", "#2D2D2D"],
-                                               colors=[self.propertiesFrame.cget("fg_color"),
-                                                       self.propertiesFrame.cget("fg_color")],
-                                               width=176, height=18)
-        self.properties_table.place(x=8, y=28)
-        self.properties_table.insert(row=0, column=0, value="Property")
-        self.properties_table.insert(row=0, column=1, value="Value")
-        self.properties_table.insert(row=1, column=0, value="Classes")
-        self.properties_table.insert(row=2, column=0, value="Functions")
-        self.properties_table.insert(row=3, column=0, value="Variables")
-        self.properties_table.insert(row=4, column=0, value="Decorations")
-        self.properties_table.insert(row=5, column=0, value="Imports")
-        self.properties_table.insert(row=6, column=0, value="Exceptions")
-
-        self.solutionPropertiesLabel = ctk.CTkLabel(self.propertiesFrame, text="Solution Properties", width=60,
-                                                    font=("Segoe UI", 12), justify="left", anchor="w")
-        self.solutionPropertiesLabel.place(x=8, y=186)
-
-        self.solution_table = table.CTkTable(self.propertiesFrame, row=5, column=2, padx=0, pady=0,
-                                             border_width=1, border_color="#808080", corner_radius=0,
-                                             font=("Segoe UI", 12), header_color=["#C3C3C3", "#2D2D2D"],
-                                             colors=[self.propertiesFrame.cget("fg_color"),
-                                                     self.propertiesFrame.cget("fg_color")],
-                                             width=176, height=18)
-        self.solution_table.place(x=8, y=216)
-        self.solution_table.insert(row=0, column=0, value="Solution Name")
-        self.solution_table.insert(row=1, column=0, value="Output Type")
-        self.solution_table.insert(row=2, column=0, value="Architecture")
-        self.solution_table.insert(row=3, column=0, value="Operating System")
-        self.solution_table.insert(row=4, column=0, value="Dependencies")
-
+        # --- Git Changes Frame ---
         self.gitChanges = ctk.CTkFrame(self.mainFrame, width=width, height=height, border_width=border_width,
                                        border_color=border_color, fg_color=["#F5F5F5", "#1E1E1E"], corner_radius=0)
         self.gitChanges.pack_propagate(False)
 
+        # --- Tab Changer ---
         self.tabChanger = ctk.CTkFrame(width=width, master=self.mainFrame, height=(height/16), corner_radius=0,
                                        border_width=0, fg_color=["#E3E3E3", "#2B2B2B"],
                                        bg_color=["#E3E3E3", "#2B2B2B"])
@@ -119,10 +86,15 @@ class TabView:
                                          font=("Segoe UI", 12), fg_color=["#F5F5F5", "#1E1E1E"])
         self.gitReposBtn.place(x=222, y=-5)
 
+        # --- Button Commands ---
         self.slnExplrBtn.configure(command=lambda: self.show_side_frame(self.solutionExplorerFrame, self.slnExplrBtn))
         self.propertiesBtn.configure(command=lambda: self.show_side_frame(self.propertiesFrame, self.propertiesBtn))
         self.gitReposBtn.configure(command=lambda: self.show_side_frame(self.gitChanges, self.gitReposBtn))
+
+        # --- Pack mainFrame last, after all children are ready ---
         self.show_side_frame(self.solutionExplorerFrame, self.slnExplrBtn)
+        self.mainFrame.place(x=0, y=0)
+
 
     def show_side_frame(self, frame, active_btn):
         for f in (self.solutionExplorerFrame, self.propertiesFrame, self.gitChanges): f.pack_forget()
