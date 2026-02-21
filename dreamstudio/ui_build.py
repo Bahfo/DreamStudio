@@ -25,7 +25,6 @@ import dreamstudio.TabView as TabView
 #######################################
 # MAIN WINDOW
 #######################################
-
 class App:
     def __init__(self, workspace):
         self.window = ctk.CTk()

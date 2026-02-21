@@ -1,29 +1,11 @@
 import os
-from PIL import Image
 import customtkinter as ctk
 from typing import Callable, Optional, List
+from dreamstudio.utils.icons_utils import *
 
-folder = Image.open(r"icons\types\folder.ico")
-file = Image.open(r"icons\types\file.ico")
-default = Image.open(r"icons\types\txt.ico")
-
-folder_img = ctk.CTkImage(folder, folder, (12,12))
-file_img = ctk.CTkImage(file, file, (12,12))
-default_img = ctk.CTkImage(default, default, (12,12))
-
-# Placeholder for icons. You can load these using ctk.CTkImage in the main app.
-# Format: { "extension": ctk.CTkImage(...) }
-# Example: { "py": ctk.CTkImage(light_image=..., dark_image=..., size=(16,16)) }
-ICONS = {
-    "folder": folder_img,     # Replace with CTkImage object
-    "file": file_img,         # Replace with CTkImage object (generic)
-    "default": default_img    # Replace with CTkImage object
-}
-
-# VS Code-like color palette (Light/Dark mode)
 COLORS = {
     "light": {
-        "bg": "#FFFFFF",
+        "bg": "#F5F5F5",
         "fg": "#323233",
         "selected_bg": "#E8E8E8",
         "hover_bg": "#F0F0F0",
@@ -66,7 +48,7 @@ class FileTreeItem(ctk.CTkFrame):
 
         # --- UI ELEMENTS ---
         # 1. The Expand/Collapse Arrow (Only for folders)
-        self.arrow_label = ctk.CTkLabel(self, text="", width=15, font=("Segoe UI", 12, "bold"))
+        self.arrow_label = ctk.CTkLabel(self, text="", width=15, font=("Segoe UI", 12, "bold"), height=23)
         self.arrow_label.pack(side="left", padx=(2,0))
 
         if self.is_folder:
@@ -78,7 +60,7 @@ class FileTreeItem(ctk.CTkFrame):
         icon_key = "folder" if self.is_folder else (self.ext if self.ext in ICONS else "default")
         icon_img = ICONS.get(icon_key, ICONS.get("default"))
 
-        self.icon_label = ctk.CTkLabel(self, image=icon_img, text="", width=20)
+        self.icon_label = ctk.CTkLabel(self, image=icon_img, text="", width=20, height=23)
         self.icon_label.pack(side="left", padx=(0, 5))
 
         # 3. The Text (Name + Ext)
@@ -87,8 +69,8 @@ class FileTreeItem(ctk.CTkFrame):
             text=self.name, 
             font=("Segoe UI", 12), 
             anchor="w",
-            justify="left"
-        )
+            justify="left",
+            height=23)
         self.text_label.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
         # --- BINDINGS ---
@@ -163,7 +145,7 @@ class FileTreeItem(ctk.CTkFrame):
                     if child_node:
                         child_node.pack(
                             fill="x",
-                            padx=((self.level + 1) * 20 + 5, 0),
+                            padx=((self.level + 1) * 10 + 5, 0),
                             pady=(1, 1),
                             after=insert_after
                         )
@@ -237,8 +219,8 @@ class FileTree(ctk.CTkScrollableFrame):
         self.root_path = root_path
         self.file_click_callback = file_click_callback
         self.ignore_patterns = ignore_patterns or [
-            "__pycache__", ".git", ".vscode", "node_modules", 
-            ".exe", ".lnk", ".dll", ".sys", "thumbs.db", ".DS_Store"]
+            "__pycache__", "git", ".vscode", "node_modules", 
+            "exe", "lnk", "dll", "sys", "thumbs.db", "DS_Store"]
         
         self.selected_item: Optional[FileTreeItem] = None
         self.items = {} # Dictionary to store path -> FileTreeItem object
@@ -295,8 +277,7 @@ class FileTree(ctk.CTkScrollableFrame):
             path=path,
             level=level,
             is_folder=is_folder,
-            parent_tree_ref=self
-        )
+            parent_tree_ref=self)
 
         self.items[path] = node
 

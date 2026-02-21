@@ -371,7 +371,6 @@ ctk_icons = {
     "settings_photo": (r"icons\system\settings.png", (24, 24)),
     "save_photo": (r"icons\system\save_file.png", (24, 24)),
     "user_photo": (r"icons\system\user.png", (24, 24)),
-    "sleeping": (r"icons\types\sleeping.ico", (80, 80)),
 }
 
 arrow_icons = {
