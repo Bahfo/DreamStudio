@@ -42,6 +42,10 @@ class LineNumbers(Canvas):
 
         prev_indent = 0
         i = self.text.index("@0,0")
+
+        curline = self.text.dlineinfo(tk.INSERT)
+        cur_y = curline[1] if curline else None
+
         while True:
             dline = self.text.dlineinfo(i)
             if dline is None:
@@ -50,28 +54,39 @@ class LineNumbers(Canvas):
             y = dline[1]
             linenum = str(i).split(".")[0]
 
-            # Get the text content of the current line
             line_content = self.text.get(f"{linenum}.0", f"{linenum}.end")
             current_indent = self.get_indentation_level(line_content)
 
-            # to highlight the current line
-            curline = self.text.dlineinfo(tk.INSERT)
-            cur_y = curline[1] if curline else None
+            color = self.hfg if (cur_y is not None and y == cur_y) else self.fg
 
-            if not cur_y:
-                i = self.text.index(f"{i}+1line")
-                continue
+            self.create_text(
+                40, y,
+                anchor=tk.NE,
+                text=linenum,
+                font=self.font,
+                fill=color,
+                tag=i
+            )
 
-            self.create_text(40, y, anchor=tk.NE, text=linenum, font=self.font, tag=i, fill=self.hfg if y == cur_y else self.fg)
-            self.tag_bind(i, "<Button-1>", lambda _, i=i: self.text.select_line(i))
+            self.tag_bind(i, "<Button-1>",
+                        lambda _, i=i: self.text.select_line(i))
 
             if current_indent > prev_indent:
-                self.create_text(50, y, anchor=tk.NW, text="+", font=self.font, fill=self.fg, tag=f"f{i}")
-                self.tag_bind(f"f{i}", "<Button-1>", lambda _, i=i: print(f"Fold from {i}"))
-        
-            # Update the previous indentation level
+                fold_tag = f"f{i}"
+                self.create_text(
+                    50, y,
+                    anchor=tk.NW,
+                    text="+",
+                    font=self.font,
+                    fill=self.fg,
+                    tag=fold_tag
+                )
+                self.tag_bind(fold_tag, "<Button-1>",
+                            lambda _, i=i: print(f"Fold from {i}"))
+
             prev_indent = current_indent
             i = self.text.index(f"{i}+1line")
+
 
     def draw_breakpoint(self, y):
         bp = Breakpoint(self)

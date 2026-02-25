@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import INSERT, NE, Canvas, Menubutton
 from tkinter.font import Font
+import platform
 
 
 class LineNumbers(Canvas):
@@ -12,6 +13,14 @@ class LineNumbers(Canvas):
         self.text.tag_config("sel", background="#48484f", foreground="#e1e1e6")
         self.text.bind("<Configure>", self.redraw)
         self.text.bind("<<Change>>", self.redraw)
+        
+        if platform.system() == 'Linux':
+            self.text.bind("<Button-4>", self.redraw)
+            self.text.bind("<Button-5>", self.redraw)
+        elif platform.system() == 'Windows'or platform.system() == 'Darwin':
+            self.text.bind("<MouseWheel>", self.redraw)
+        else:
+            pass
 
     def attach(self, text):
         self.text = text
@@ -28,6 +37,10 @@ class LineNumbers(Canvas):
 
         prev_indent = 0
         i = self.text.index("@0,0")
+
+        curline = self.text.dlineinfo(tk.INSERT)
+        cur_y = curline[1] if curline else None
+
         while True:
             dline = self.text.dlineinfo(i)
             if dline is None:
@@ -36,11 +49,9 @@ class LineNumbers(Canvas):
             y = dline[1]
             linenum = str(i).split(".")[0]
 
-            # Get the text content of the current line
             line_content = self.text.get(f"{linenum}.0", f"{linenum}.end")
             current_indent = self.get_indentation_level(line_content)
 
-            # Determine if the current line has more indentation than the previous line
             if current_indent > prev_indent:
                 line_num_with_indent = f"+ {linenum}"
             elif current_indent < prev_indent:
@@ -48,23 +59,19 @@ class LineNumbers(Canvas):
             else:
                 line_num_with_indent = linenum
 
-            # to highlight the current line
-            curline = self.text.dlineinfo(tk.INSERT)
-            cur_y = curline[1] if curline else None
+            color = "#83838f" if (cur_y is not None and y == cur_y) else "#525259"
 
-            if not cur_y:
-                i = self.text.index(f"{i}+1line")
-                continue
+            self.create_text(
+                40, y,
+                anchor=tk.NE,
+                text=line_num_with_indent,
+                font=("Consolas", 14),
+                fill=color
+            )
 
-            if y == cur_y:
-                self.create_text(40, y, anchor=tk.NE, text=line_num_with_indent, font=("Consolas", 14), fill="#83838f", tag=i)
-            else:
-                self.create_text(40, y, anchor=tk.NE, text=line_num_with_indent, font=("Consolas", 14), fill="#525259", tag=i)
-
-            
-            # Update the previous indentation level
             prev_indent = current_indent
             i = self.text.index(f"{i}+1line")
+
 
 class Text(tk.Text):
     def __init__(self, master=None, **kw):

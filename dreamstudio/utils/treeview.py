@@ -44,7 +44,7 @@ class FileTreeItem(ctk.CTkFrame):
 
         # Layout Configuration
         self.configure(fg_color="transparent", height=25, corner_radius=0)
-        self.pack(fill="x", padx=(level * 20 + 5, 0), pady=(1, 1)) # Indentation logic
+        self.pack(fill="x", padx=(level * 10 + 5, 0), pady=(1, 1)) # Indentation logic
 
         # --- UI ELEMENTS ---
         # 1. The Expand/Collapse Arrow (Only for folders)
@@ -161,7 +161,7 @@ class FileTreeItem(ctk.CTkFrame):
             for child in self.child_widgets:
                 child.pack(
                     fill="x",
-                    padx=((self.level + 1) * 20 + 5, 0),
+                    padx=((self.level + 1) * 10 + 5, 0),
                     pady=(1, 1),
                     after=insert_after
                 )
