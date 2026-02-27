@@ -1,118 +1,148 @@
 import tkinter as tk
-
 from ..utils import Frame
 from .peer import TextPeer
 
-
 class Minimap(Frame):
-    """Minimap class.
-
-    Args:
-        master: Parent widget.
-        textw: Text widget to attach the minimap to.
-    """
+    MIN_SLIDER_HEIGHT = 20  # Minimum height of the slider in pixels
+    BUFFER_LINES = 5        # Extra lines above/below for context
 
     def __init__(self, master, textw, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.tw = textw
+        self.base = master.base
+        self.slider_drag_offset = 0  # For accurate drag handling
+        self._after_id = None        # For scheduled sync callbacks
         self.config(highlightthickness=0, bg=self.base.theme.border)
 
+        # 1. Canvas container
         self.cw = tk.Canvas(
             self, width=100, highlightthickness=0, **self.base.theme.minimap
         )
         self.cw.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=(1, 0))
 
+        # 2. TextPeer (shares buffer with main text)
         self.peer = TextPeer(
             self.cw,
             self.tw,
-            font=("Arial", 1, "bold"),
+            font=("Arial", 2),
             state=tk.DISABLED,
             width=100,
             highlightthickness=0,
             bd=0,
+            wrap=tk.NONE,
             **self.base.theme.minimap
         )
-        self.peerwindow = self.cw.create_window(
-            0, 0, window=self.peer, anchor="nw", height=self.winfo_screenheight()
+        self.peer_window = self.cw.create_window(0, 0, window=self.peer, anchor="nw", width=100)
+
+        # 3. Slider (represents visible region)
+        self.slider = tk.Frame(
+            self.cw,
+            bg=self.base.theme.border,
+            highlightbackground="white",
+            highlightthickness=1,
+            cursor="hand2"
         )
+        self.slider.place(x=0, y=0, width=100, height=self.MIN_SLIDER_HEIGHT)
 
-        # TODO: SLIDER
-        # the current slider using a semi transparent photoimage rendered inside the canvas wont work
-        # mainly due to the image not rendering on top of peer text window added to canvas.
-        # but also, currently the slider is not necessary and the minimap can be scrolled with mousescroll
+        # Bindings
+        self.slider.bind("<Button-1>", self._start_drag)
+        self.slider.bind("<B1-Motion>", self._drag)
+        self.cw.bind("<Button-1>", self._click_scroll)
+        self.bind("<Configure>", self._on_resize)
+        self.tw.bind("<<Change>>", self.sync_scroll)  # Custom virtual event if implemented
+        self.tw.bind("<Configure>", self.sync_scroll)
 
-        # TODO:scrolling minimap along with the attached text widget automatically (but figuring out ratios is hard)
+        # Schedule initial sync
+        self._schedule_sync()
 
-        # self.slider_image = tk.PhotoImage(data="""iVBORw0KGgoAAAANSUhEUgAAAG4AAABFCAYAAACrMNMO
-        # AAAACXBIWXMAAABfAAAAXwEqnu0dAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAMBJRE
-        # FUeJzt0UENwCAAwMAxLajjhwOkz8M+pMmdgiYda5/5kPPeDuAf46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo
-        # 46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46
-        # KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIuyrgo46KMizIu6gNeAwIJ
-        # 26ERewAAAABJRU5ErkJggg==""")
-        # self.slider = self.cw.create_image(0, 0, image=self.slider_image, anchor=tk.NW, tag="slider")
-        # self.cw.tag_raise('slider')
+        # Cleanup on destroy
+        self.bind("<Destroy>", lambda e: self._cancel_sync())
 
-        # self.y_top_lim = 0
-        # self._drag_data = {"y": 0, "item": None}
-        # self.yvalue = 0
+    def _schedule_sync(self):
+        self._after_id = self.after(100, self.sync_scroll)
 
-        # self.cw.tag_bind("slider", "<ButtonPress-1>", self.drag_start)
-        # self.cw.tag_bind("slider", "<ButtonRelease-1>", self.drag_stop)
-        # self.cw.tag_bind("slider", "<B1-Motion>", self.drag)
+    def _cancel_sync(self):
+        if self._after_id:
+            self.after_cancel(self._after_id)
+            self._after_id = None
 
-        # if textw:
-        #     self.redraw()
+    def _on_resize(self, event=None):
+        """Adjust peer height and slider on minimap resize."""
+        try:
+            total_lines = max(1, int(self.tw.index("end-1c").split('.')[0]))
+            canvas_h = self.cw.winfo_height()
+            # Scale peer to match total lines with minimal performance overhead
+            self.cw.itemconfig(self.peer_window, height=canvas_h * total_lines / max(1, int(total_lines / 50)))
+        except Exception:
+            pass
+        self.sync_scroll()
+
+    def sync_scroll(self, event=None):
+        """Update slider position/size and peer scroll."""
+        if not self.tw.winfo_exists() or not self.cw.winfo_exists():
+            return
+
+        try:
+            top, bottom = self.tw.yview()
+            canvas_h = self.cw.winfo_height()
+            if canvas_h <= 0:
+                return
+
+            slider_y = top * canvas_h
+            slider_h = max((bottom - top) * canvas_h, self.MIN_SLIDER_HEIGHT)
+            self.slider.place(y=slider_y, height=slider_h)
+
+            # Move peer to match main text scroll
+            self.peer.yview_moveto(top)
+        except Exception:
+            pass
+
+        # Reschedule next sync for continuous updates
+        self._schedule_sync()
+
+    def _start_drag(self, event):
+        """Store offset from mouse to slider top for precise dragging."""
+        self.slider_drag_offset = event.y
+
+    def _drag(self, event):
+        """Drag slider to scroll main text."""
+        canvas_h = self.cw.winfo_height()
+        if canvas_h <= 0:
+            return
+
+        mouse_y = self.slider.winfo_y() + event.y - self.slider_drag_offset
+        fraction = mouse_y / canvas_h
+        fraction = max(0, min(fraction, 1.0))
+        self.tw.yview_moveto(fraction)
+        self.sync_scroll()
+
+    def _click_scroll(self, event):
+        """Click on minimap to jump scroll position."""
+        canvas_h = self.cw.winfo_height()
+        if canvas_h <= 0:
+            return
+
+        fraction = event.y / canvas_h
+        fraction = max(0, min(fraction, 1.0))
+        self.tw.yview_moveto(fraction)
+        self.sync_scroll()
 
     def attach(self, textw):
-        """Attaches the minimap to the specified text widget.
-
-        Args:
-            textw: Text widget to attach the minimap to.
-        """
-
+        """Attach minimap to a new text widget buffer."""
         self.tw = textw
+        if self.peer.winfo_exists():
+            self.peer.destroy()
 
-        self.cw.delete(self.peerwindow)
         self.peer = TextPeer(
             self.cw,
             self.tw,
-            font=("Arial", 1, "bold"),
+            font=("Arial", 2),
             state=tk.DISABLED,
             width=100,
             highlightthickness=0,
             bd=0,
+            wrap=tk.NONE,
             **self.base.theme.minimap
         )
-        self.peerwindow = self.cw.create_window(
-            0, 0, window=self.peer, anchor="nw", height=self.winfo_screenheight()
-        )
-
-    # def redraw(self):
-    #     self.y_bottom_lim = int(self.tw.index(tk.END).split(".")[0]) * 2 + 10
-    #     # self.y_bottom_lim = self.tw.yview()[1] * self.cw.winfo_height()
-
-    # def drag_start(self, event):
-    #     self._drag_data["item"] = self.cw.find_closest(event.x, event.y)[0]
-    #     self._drag_data["y"] = event.y
-
-    # def drag_stop(self, event):
-    #     self._drag_data["item"] = None
-    #     self._drag_data["y"] = 0
-
-    # def drag(self, event):
-    #     item = self._drag_data["item"]
-    #     if item != 1:
-    #         return
-
-    #     delta_y = event.y - self._drag_data["y"]
-    #     self.cw.move(item, 0, delta_y)
-    #     self._drag_data["y"] = event.y
-
-    #     self.yvalue = y = self.cw.coords(item)[1]
-    #     if y <= self.y_top_lim:
-    #         self.cw.move("slider", 0, -(y - self.y_top_lim))
-    #     elif y >= self.y_bottom_lim:
-    #         self.cw.move("slider", 0, -(y - self.y_bottom_lim))
-
-    #     self.tw.yview(int(y / self.cw.winfo_height() * 350))
-    #     self.tw.master.on_scroll()
+        self.peer_window = self.cw.create_window(0, 0, window=self.peer, anchor="nw", width=100)
+        self.sync_scroll()

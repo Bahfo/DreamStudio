@@ -84,13 +84,6 @@ class Text(Text):
         self.bind("<Up>", self.auto_completion.move_up)
         self.bind("<Down>", self.auto_completion.move_down)
 
-        self.bind("<braceleft>", lambda e: self.complete_pair("}"))
-        self.bind("<bracketleft>", lambda e: self.complete_pair("]"))
-        self.bind("<parenleft>", lambda e: self.complete_pair(")"))
-
-        self.bind("<apostrophe>", lambda e: self.surrounding_selection("\'"))
-        self.bind("<quotedbl>", lambda e: self.surrounding_selection("\""))
-
     def key_release_events(self, event):
         if event.keysym not in ("Up", "Down", "Return"):
             self.show_autocomplete(event)
@@ -111,11 +104,11 @@ class Text(Text):
 
             # bracket pair completions
             case "braceleft":
-                return self.complete_pair("}")
+                return self.surrounding_selection("}")
             case "bracketleft":
-                return self.complete_pair("]")
+                return self.surrounding_selection("]")
             case "parenleft":
-                return self.complete_pair(")")
+                return self.surrounding_selection(")")
 
             # surroundings for selection
             case "apostrophe":
