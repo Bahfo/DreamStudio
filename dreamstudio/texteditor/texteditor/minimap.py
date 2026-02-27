@@ -1,148 +1,110 @@
 import tkinter as tk
 from ..utils import Frame
-from .peer import TextPeer
 
 class Minimap(Frame):
-    MIN_SLIDER_HEIGHT = 20  # Minimum height of the slider in pixels
-    BUFFER_LINES = 5        # Extra lines above/below for context
+    MIN_SLIDER_HEIGHT = 20
 
     def __init__(self, master, textw, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.tw = textw
         self.base = master.base
-        self.slider_drag_offset = 0  # For accurate drag handling
-        self._after_id = None        # For scheduled sync callbacks
-        self.config(highlightthickness=0, bg=self.base.theme.border)
-
-        # 1. Canvas container
+        self._after_id = None
+        
+        # Performance: Pre-define the tiny font
+        self.mini_font = ("Arial", 2)
+        self.line_color = "#AAAAAA" # Simple gray for all text
+        
+        self.config(width=110, highlightthickness=0, bg=self.base.theme.border)
+        
         self.cw = tk.Canvas(
-            self, width=100, highlightthickness=0, **self.base.theme.minimap
+            self, width=110, highlightthickness=0, 
+            bg=self.base.theme.minimap.get("background", "#1e1e1e"),
+            # Speed up rendering by disabling borders
+            borderwidth=0
         )
-        self.cw.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=(1, 0))
+        self.cw.pack(fill=tk.BOTH, expand=True)
 
-        # 2. TextPeer (shares buffer with main text)
-        self.peer = TextPeer(
-            self.cw,
-            self.tw,
-            font=("Arial", 2),
-            state=tk.DISABLED,
-            width=100,
-            highlightthickness=0,
-            bd=0,
-            wrap=tk.NONE,
-            **self.base.theme.minimap
-        )
-        self.peer_window = self.cw.create_window(0, 0, window=self.peer, anchor="nw", width=100)
-
-        # 3. Slider (represents visible region)
+        # Slider: A simple outlined frame
         self.slider = tk.Frame(
-            self.cw,
+            self.cw, 
             bg=self.base.theme.border,
-            highlightbackground="white",
+            highlightbackground="white", 
             highlightthickness=1,
             cursor="hand2"
         )
-        self.slider.place(x=0, y=0, width=100, height=self.MIN_SLIDER_HEIGHT)
-
-        # Bindings
-        self.slider.bind("<Button-1>", self._start_drag)
-        self.slider.bind("<B1-Motion>", self._drag)
+        
+        # Interaction
         self.cw.bind("<Button-1>", self._click_scroll)
-        self.bind("<Configure>", self._on_resize)
-        self.tw.bind("<<Change>>", self.sync_scroll)  # Custom virtual event if implemented
-        self.tw.bind("<Configure>", self.sync_scroll)
+        self.cw.bind("<B1-Motion>", self._click_scroll)
+        
+        # Track main text changes
+        self.tw.bind("<<Change>>", self._debounce_draw)
+        self.tw.bind("<Configure>", self._debounce_draw)
+        
+        # Sync scroll
+        self.tw.config(yscrollcommand=self._sync_slider_only)
 
-        # Schedule initial sync
-        self._schedule_sync()
+        self._debounce_draw()
 
-        # Cleanup on destroy
-        self.bind("<Destroy>", lambda e: self._cancel_sync())
-
-    def _schedule_sync(self):
-        self._after_id = self.after(100, self.sync_scroll)
-
-    def _cancel_sync(self):
+    def _debounce_draw(self, *args):
         if self._after_id:
             self.after_cancel(self._after_id)
-            self._after_id = None
+        self._after_id = self.after(100, self.redraw)
 
-    def _on_resize(self, event=None):
-        """Adjust peer height and slider on minimap resize."""
-        try:
-            total_lines = max(1, int(self.tw.index("end-1c").split('.')[0]))
-            canvas_h = self.cw.winfo_height()
-            # Scale peer to match total lines with minimal performance overhead
-            self.cw.itemconfig(self.peer_window, height=canvas_h * total_lines / max(1, int(total_lines / 50)))
-        except Exception:
-            pass
-        self.sync_scroll()
-
-    def sync_scroll(self, event=None):
-        """Update slider position/size and peer scroll."""
-        if not self.tw.winfo_exists() or not self.cw.winfo_exists():
+    def redraw(self):
+        """Draws actual text characters onto the canvas at a tiny scale."""
+        if not self.cw.winfo_exists():
             return
+            
+        self.cw.delete("content")
+        
+        # Get text content (clamped for performance)
+        # 1000 lines is usually plenty for a minimap preview
+        lines = self.tw.get("1.0", "1000.0").splitlines()
+        
+        curr_y = 2
+        line_height = 4 # Small spacing for size 2 font
+        
+        for line in lines:
+            if line.strip():
+                # We use anchor='nw' to align text to the top-left
+                self.cw.create_text(
+                    5, curr_y,
+                    text=line,
+                    fill=self.line_color,
+                    font=self.mini_font,
+                    anchor="nw",
+                    tags="content"
+                )
+            curr_y += line_height
+            
+        self._sync_slider_only()
 
+    def _sync_slider_only(self, *args):
         try:
             top, bottom = self.tw.yview()
-            canvas_h = self.cw.winfo_height()
-            if canvas_h <= 0:
-                return
+            h = self.cw.winfo_height()
+            
+            slider_y = top * h
+            slider_h = max((bottom - top) * h, self.MIN_SLIDER_HEIGHT)
+            
+            # Prevent slider from jittering out of bounds
+            if slider_y + slider_h > h:
+                slider_y = h - slider_h
 
-            slider_y = top * canvas_h
-            slider_h = max((bottom - top) * canvas_h, self.MIN_SLIDER_HEIGHT)
-            self.slider.place(y=slider_y, height=slider_h)
-
-            # Move peer to match main text scroll
-            self.peer.yview_moveto(top)
-        except Exception:
+            self.slider.place(x=0, y=max(0, slider_y), width=self.cw.winfo_width(), height=slider_h)
+        except (tk.TclError, AttributeError):
             pass
 
-        # Reschedule next sync for continuous updates
-        self._schedule_sync()
-
-    def _start_drag(self, event):
-        """Store offset from mouse to slider top for precise dragging."""
-        self.slider_drag_offset = event.y
-
-    def _drag(self, event):
-        """Drag slider to scroll main text."""
-        canvas_h = self.cw.winfo_height()
-        if canvas_h <= 0:
-            return
-
-        mouse_y = self.slider.winfo_y() + event.y - self.slider_drag_offset
-        fraction = mouse_y / canvas_h
-        fraction = max(0, min(fraction, 1.0))
-        self.tw.yview_moveto(fraction)
-        self.sync_scroll()
-
     def _click_scroll(self, event):
-        """Click on minimap to jump scroll position."""
-        canvas_h = self.cw.winfo_height()
-        if canvas_h <= 0:
-            return
-
-        fraction = event.y / canvas_h
-        fraction = max(0, min(fraction, 1.0))
-        self.tw.yview_moveto(fraction)
-        self.sync_scroll()
+        h = self.cw.winfo_height()
+        if h > 0:
+            fraction = event.y / h
+            view_range = self.tw.yview()
+            view_size = view_range[1] - view_range[0]
+            target = fraction - (view_size / 2)
+            self.tw.yview_moveto(max(0, min(target, 1.0)))
 
     def attach(self, textw):
-        """Attach minimap to a new text widget buffer."""
         self.tw = textw
-        if self.peer.winfo_exists():
-            self.peer.destroy()
-
-        self.peer = TextPeer(
-            self.cw,
-            self.tw,
-            font=("Arial", 2),
-            state=tk.DISABLED,
-            width=100,
-            highlightthickness=0,
-            bd=0,
-            wrap=tk.NONE,
-            **self.base.theme.minimap
-        )
-        self.peer_window = self.cw.create_window(0, 0, window=self.peer, anchor="nw", width=100)
-        self.sync_scroll()
+        self._debounce_draw()

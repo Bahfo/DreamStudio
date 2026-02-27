@@ -2,150 +2,248 @@ import os
 import tkinter as tk
 import threading
 from pygments import lex
-from pygments.lexers import get_lexer_by_name, get_lexer_for_filename
+from pygments.lexers import get_lexer_by_name, get_lexer_for_filename, guess_lexer
 from pygments.lexers.special import TextLexer
 
+
 class Highlighter:
+    """
+    Syntax highlighter:
+    - Lexes the full document in a background thread (correct tokens always)
+    - Caches a line→char_offset map so viewport math is O(1), not O(doc)
+    - Applies tags only to the visible viewport (fast UI updates)
+    - Separate fast path for scroll (no re-lex, no full-doc read)
+    """
+
+    BUFFER_LINES = 20
+
     def __init__(self, master, language="", *args, **kwargs):
-        self.text = master
-        self.base = master.base
+        self.text     = master
+        self.base     = master.base
         self.language = language
-        self.debounce_id = None
-        self.last_content_hash = None
-        self.last_visible_range = (None, None)
-        
-        try:
-            if language:
-                self.lexer = get_lexer_by_name(language)
-            else:
-                self.lexer = get_lexer_for_filename(
-                    os.path.basename(master.path),
-                    encoding=master.encoding,
-                )
-        except Exception:
-            self.lexer = TextLexer()
+
+        self._debounce_id   = None
+        self._thread_lock   = threading.Lock()
+        self._active_thread = None
+
+        # Token cache built by background thread
+        # Each entry: (tag_name, abs_char_offset, length)
+        self._token_cache      = []
+        self._token_cache_hash = None
+
+        # Line offset cache: list where index i = char offset of line (i+1)
+        # e.g. _line_offsets[0] = 0 means line 1 starts at char 0
+        # Built alongside the token cache in the background thread.
+        self._line_offsets      = []   # [char_offset_of_line_1, char_offset_of_line_2, ...]
+        self._line_offsets_hash = None
+
+        self.lexer = self._resolve_lexer(language, master)
 
         self.valid_tags = set()
-        self.setup_highlight_tags()
+        self._tag_map   = {}
+        self._setup_tags()
 
-        self.original_yview = master.yview
-        master.yview = self.proxy_yview
-        self.text.bind("<KeyRelease>", self.highlight)
-        self.text.bind("<<Paste>>", self.highlight)
+        # Proxy yview for scroll highlighting
+        self._orig_yview = master.yview
+        master.yview     = self._proxy_yview
 
-    def setup_highlight_tags(self):
-        for token_path, color in self.base.settings.syntax.items():
-            tag_name = f"Token.{token_path}"
-            self.text.tag_configure(tag_name, foreground=color)
-            self.valid_tags.add(tag_name)
+    # -------------------------------------------------------------------------
+    # Lexer resolution
+    # -------------------------------------------------------------------------
 
-    def proxy_yview(self, *args):
-        result = self.original_yview(*args)
-        self.highlight()
+    def _resolve_lexer(self, language, master):
+        if language:
+            try:
+                return get_lexer_by_name(language)
+            except Exception:
+                pass
+        path = getattr(master, "path", "") or ""
+        if path:
+            try:
+                return get_lexer_for_filename(
+                    os.path.basename(path),
+                    encoding=getattr(master, "encoding", "utf-8"),
+                )
+            except Exception:
+                pass
+        try:
+            sample = master.get("1.0", "100.0")
+            if sample.strip():
+                return guess_lexer(sample)
+        except Exception:
+            pass
+        return TextLexer()
+
+    def update_lexer(self, language="", path=""):
+        self.lexer = self._resolve_lexer(language or self.language, self.text)
+        self._token_cache_hash = None
+        self.schedule_highlight()
+
+    # -------------------------------------------------------------------------
+    # Tag setup
+    # -------------------------------------------------------------------------
+
+    def _setup_tags(self):
+        for key, color in self.base.settings.syntax.items():
+            clean = key
+            for prefix in ("Token.", "token."):
+                if clean.startswith(prefix):
+                    clean = clean[len(prefix):]
+                    break
+            tag = f"syn.{clean}"
+            self.text.tag_configure(tag, foreground=color)
+            self.valid_tags.add(tag)
+            self._tag_map[clean] = tag
+
+    def _token_to_tag(self, token_type):
+        parts = str(token_type).split(".")
+        for i in range(len(parts), 1, -1):
+            key = ".".join(parts[1:i])
+            if key in self._tag_map:
+                return self._tag_map[key]
+        return None
+
+    # -------------------------------------------------------------------------
+    # Entry points
+    # -------------------------------------------------------------------------
+
+    def _proxy_yview(self, *args):
+        result = self._orig_yview(*args)
+        self._schedule_apply_only()
         return result
 
-    def highlight(self, event=None):
-        if self.debounce_id:
-            self.text.after_cancel(self.debounce_id)
-        self.debounce_id = self.text.after(20, self.perform_full_update)
+    def schedule_highlight(self, event=None):
+        """Called on keypress — debounced, triggers re-lex if content changed."""
+        if self._debounce_id:
+            self.text.after_cancel(self._debounce_id)
+        self._debounce_id = self.text.after(80, self._collect_and_dispatch)
 
-    def _get_char_offset(self, content_lines, line_num):
-        """Calculates character offset from a list of lines efficiently."""
-        # line_num is 1-based from Tkinter
-        if line_num <= 1: return 0
-        # Sum length of all lines before the target line + newlines
-        return sum(len(line) + 1 for line in content_lines[:line_num - 1])
+    def _schedule_apply_only(self):
+        """Called on scroll — just re-applies cached tokens, no re-lex."""
+        if self._debounce_id:
+            self.text.after_cancel(self._debounce_id)
+        self._debounce_id = self.text.after(16, self._apply_cache_to_viewport)
 
-    def perform_full_update(self):
-        try:
-            # 1. Get view boundaries
-            v_start = self.text.index("@0,0 linestart")
-            v_end = self.text.index(f"@0,{self.text.winfo_height()} lineend")
-            
-            # 2. Extract line numbers safely
-            # We use 'end-1c' because Tkinter always adds a hidden newline at the very end
-            total_lines = int(self.text.index("end-1c").split('.')[0])
-            
-            start_line = max(1, int(v_start.split('.')[0]) - 5)
-            end_line = min(total_lines, int(v_end.split('.')[0]) + 5)
-            
-            # 3. Robust index format: "line.0" to "line.end"
-            tk_start = f"{start_line}.0"
-            tk_end = f"{end_line}.end" 
+    # -------------------------------------------------------------------------
+    # Step 1 — main thread: hash check, spawn thread if needed
+    # -------------------------------------------------------------------------
 
-            content = self.text.get("1.0", "end-1c")
-        except (tk.TclError, ValueError, AttributeError):
-            # If the widget is being destroyed or isn't ready, just exit
+    def _collect_and_dispatch(self):
+        self._debounce_id = None
+
+        if isinstance(self.lexer, TextLexer):
             return
 
-        content_lines = content.split('\n')
-        
-        # Calculate offsets in pure Python (much faster than calling the widget)
-        view_start_off = self._get_char_offset(content_lines, start_line)
-        view_end_off = self._get_char_offset(content_lines, end_line + 1)
-
-        # 4. Debounce check
-        content_hash = hash(content)
-        if content_hash == self.last_content_hash and (v_start, v_end) == self.last_visible_range:
-            return
-        
-        self.last_content_hash = content_hash
-        self.last_visible_range = (v_start, v_end)
-
-        threading.Thread(
-            target=self._async_lex, 
-            args=(content, view_start_off, view_end_off, tk_start, tk_end), 
-            daemon=True
-        ).start()
-
-    def _apply_visible_tokens(self, tokens, tk_start, tk_end):
-        """Batch updates the UI. Uses character offsets for stability."""
         try:
-            # Check if widget still exists
+            full_content = self.text.get("1.0", "end-1c")
+        except tk.TclError:
+            return
+
+        content_hash = hash(full_content)
+
+        if content_hash == self._token_cache_hash:
+            self._apply_cache_to_viewport()
+            return
+
+        with self._thread_lock:
+            if self._active_thread and self._active_thread.is_alive():
+                return
+
+            self._active_thread = threading.Thread(
+                target=self._lex_full_document,
+                args=(full_content, content_hash),
+                daemon=True,
+            )
+            self._active_thread.start()
+
+    # -------------------------------------------------------------------------
+    # Step 2 — background thread: lex + build line offset map
+    # -------------------------------------------------------------------------
+
+    def _lex_full_document(self, full_content, content_hash):
+        try:
+            # Build line offset map: _line_offsets[i] = char offset where
+            # line (i+1) starts.  O(n) once, then O(1) lookups forever.
+            line_offsets = [0]
+            for i, ch in enumerate(full_content):
+                if ch == "\n":
+                    line_offsets.append(i + 1)
+            # line_offsets[0] = start of line 1
+            # line_offsets[k] = start of line (k+1)
+
+            tokens_out  = []
+            char_offset = 0
+            for token_type, value in lex(full_content, self.lexer):
+                t_len = len(value)
+                tag   = self._token_to_tag(token_type)
+                if tag and value.strip():
+                    tokens_out.append((tag, char_offset, t_len))
+                char_offset += t_len
+
+            self.text.after(
+                0,
+                lambda c=tokens_out, lo=line_offsets, h=content_hash:
+                    self._store_and_apply(c, lo, h),
+            )
+        except Exception as exc:
+            print(f"[Highlighter] lex error: {exc}")
+
+    # -------------------------------------------------------------------------
+    # Step 3 — main thread: store cache and apply to viewport
+    # -------------------------------------------------------------------------
+
+    def _store_and_apply(self, token_cache, line_offsets, content_hash):
+        self._token_cache      = token_cache
+        self._line_offsets     = line_offsets
+        self._token_cache_hash = content_hash
+        self._apply_cache_to_viewport()
+
+    def _apply_cache_to_viewport(self):
+        """
+        Apply cached tokens to the visible viewport only.
+        Uses the pre-built line offset map — no full-doc reads here.
+        """
+        if not self._token_cache or not self._line_offsets:
+            return
+
+        try:
             if not self.text.winfo_exists():
                 return
 
-            # Safety check: Ensure our end index hasn't moved past the current end
-            # (e.g., if the user deleted a huge chunk of text while the thread ran)
-            actual_end = self.text.index("end-1c")
-            if self.text.compare(tk_end, ">", actual_end):
-                tk_end = actual_end
+            widget_height = self.text.winfo_height()
+            total_lines   = len(self._line_offsets)
 
-            # 1. Clear tags in the visible block only
+            vis_top    = int(self.text.index("@0,0").split(".")[0])
+            vis_bottom = int(self.text.index(f"@0,{widget_height}").split(".")[0])
+
+            start_line = max(1, vis_top - self.BUFFER_LINES)
+            end_line   = min(total_lines, vis_bottom + self.BUFFER_LINES)
+
+            tk_start = f"{start_line}.0"
+            tk_end   = f"{end_line}.end"
+
+            # O(1) lookup using cached line offsets (no string splitting/reading)
+            slice_start_c = self._line_offsets[start_line - 1]
+
+            if end_line < len(self._line_offsets):
+                # end of end_line = start of next line - 1
+                slice_end_c = self._line_offsets[end_line] - 1
+            else:
+                # last line: use total content length
+                slice_end_c = self._line_offsets[-1] + len(
+                    self.text.get(f"{total_lines}.0", f"{total_lines}.end")
+                )
+
+            # Clear old tags in viewport only
             for tag in self.valid_tags:
                 self.text.tag_remove(tag, tk_start, tk_end)
 
-            # 2. Add tags using character offsets relative to 1.0
-            # This is the most stable way to handle indices during rapid edits
-            for tag_name, start_off, t_len in tokens:
-                s_idx = f"1.0 + {start_off}c"
-                e_idx = f"1.0 + {start_off + t_len}c"
-                self.text.tag_add(tag_name, s_idx, e_idx)
-                
-        except (tk.TclError, RuntimeError):
-            # Catching TclErrors from rapid deletions or window closure
-            pass
+            # Apply tokens overlapping the viewport
+            for tag, abs_off, t_len in self._token_cache:
+                tok_end = abs_off + t_len
+                if tok_end <= slice_start_c or abs_off >= slice_end_c:
+                    continue
+                self.text.tag_add(tag, f"1.0 + {abs_off}c", f"1.0 + {tok_end}c")
 
-    def _async_lex(self, content, start_off, end_off, tk_start, tk_end):
-        try:
-            tokens = list(lex(content, self.lexer))
-            visible_tokens = []
-            current_off = 0
-            
-            for token, value in tokens:
-                t_len = len(value)
-                t_end = current_off + t_len
-                
-                # Filter tokens to only include those in the visible buffer
-                if t_end > start_off and current_off < end_off:
-                    tag_name = str(token)
-                    if tag_name in self.valid_tags:
-                        visible_tokens.append((tag_name, current_off, t_len))
-                
-                current_off = t_end
-                if current_off > end_off: break
-            
-            # Update UI on main thread
-            self.text.after(0, lambda: self._apply_visible_tokens(visible_tokens, tk_start, tk_end))
-        except Exception as e:
-            print(f"Highlight error: {e}")
+        except (tk.TclError, RuntimeError, ValueError):
+            pass

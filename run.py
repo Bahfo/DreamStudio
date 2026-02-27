@@ -1,7 +1,7 @@
 from dreamstudio.ui_build import App
 from startup import *
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("dark")
 
 # CODE REFACTOR FOR MAINTAINING ALL STEPS
 if __name__ == '__main__':

@@ -27,6 +27,8 @@ class TextEditor(BaseEditor):
         self.minimalist = minimalist
         self.language = language
 
+        self._scroll_after_id = None
+
         self.rowconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
 
@@ -53,13 +55,25 @@ class TextEditor(BaseEditor):
         if self.path and os.path.isfile(self.path):
             self.text.load_file()
 
+    # -------------------------------------------------------------------------
+    # Change / scroll callbacks
+    # -------------------------------------------------------------------------
+
     def on_change(self, *_):
-        self.text.refresh()
+        # The Highlighter already handles its own debounced re-highlight via
+        # <KeyRelease> and <<Paste>> bindings — do NOT call refresh() here.
+        # We only need to redraw line numbers.
         self.linenumbers.redraw()
-        # self.minimap.redraw()
 
     def on_scroll(self, *_):
-        self.linenumbers.redraw()
+        # Debounce line number redraws to ~60 fps during fast scrolling.
+        if self._scroll_after_id:
+            self.after_cancel(self._scroll_after_id)
+        self._scroll_after_id = self.after(16, self.linenumbers.redraw)
+
+    # -------------------------------------------------------------------------
+    # Public API
+    # -------------------------------------------------------------------------
 
     def unsupported_file(self):
         self.text.highlighter.lexer = None
@@ -70,12 +84,12 @@ class TextEditor(BaseEditor):
 
     def focus(self):
         self.text.focus()
-        self.on_change()
+        self.linenumbers.redraw()
 
     def set_fontsize(self, size):
         self.font.configure(size=size)
         self.linenumbers.set_bar_width(size * 3)
-        self.on_change()
+        self.linenumbers.redraw()
 
     def save(self, path=None):
         if self.editable:
@@ -103,7 +117,7 @@ class TextEditor(BaseEditor):
 
     def get(self, *args, **kwargs):
         if self.editable:
-            self.text.get(*args, **kwargs)
+            return self.text.get(*args, **kwargs)
 
     def clear(self):
         self.delete("1.0", tk.END)
@@ -111,10 +125,6 @@ class TextEditor(BaseEditor):
     def delete(self, *args, **kwargs):
         if self.editable:
             self.text.delete(*args, **kwargs)
-
-    def mark_set(self, *args, **kwargs):
-        if self.editable:
-            self.text.mark_set(*args, **kwargs)
 
     def compare(self, *args, **kwargs):
         return self.text.compare(*args, **kwargs)
