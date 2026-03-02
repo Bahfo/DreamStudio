@@ -139,10 +139,10 @@ class TabView:
         self.propertiesFrame.pack_propagate(False)
 
         # ==============================
-        # Git Changes Frame
+        # Run and Debug Frame
         # ==============================
 
-        self.gitChanges = ctk.CTkFrame(
+        self.runDebug = ctk.CTkFrame(
             self.mainFrame,
             width=width,
             height=height,
@@ -151,7 +151,32 @@ class TabView:
             fg_color=["#F5F5F5", "#1E1E1E"],
             corner_radius=0
         )
-        self.gitChanges.pack_propagate(False)
+        self.runDebug.pack_propagate(False)
+
+        label1 = ctk.CTkLabel(self.runDebug, width=100, height=30, corner_radius=0, 
+                              fg_color=self.runDebug.cget('fg_color'), text_color=["#1E1E1E", "#FFFFFF"],
+                              text="Run Options", font=("Segoe UI",12), anchor="w")
+        label1.place(x=15, y=10)
+
+        runBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5, fg_color="#004073",
+                               text_color="#FFFFFF", text="Run and Debug", font=("Segoe UI",13), 
+                               hover_color="#0059A2", border_width=0)
+        runBtn.place(x=15, y=40)
+
+        configBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5, fg_color="#004073",
+                               text_color="#FFFFFF", text="Show Run Configurations", font=("Segoe UI",13), 
+                               hover_color="#0059A2", border_width=0)
+        configBtn.place(x=15, y=75)
+
+        label2 = ctk.CTkLabel(self.runDebug, width=100, height=30, corner_radius=0, 
+                              fg_color=self.runDebug.cget('fg_color'), text_color=["#1E1E1E", "#FFFFFF"],
+                              text="Debug Options", font=("Segoe UI",12), anchor="w")
+        label2.place(x=15, y=110)
+
+        debugBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5, fg_color="#004073",
+                               text_color="#FFFFFF", text="Debug Current Code File", font=("Segoe UI",13), 
+                               hover_color="#0059A2", border_width=0)
+        debugBtn.place(x=15, y=140)
 
         # ==============================
         # Tab Changer
@@ -196,11 +221,11 @@ class TabView:
         )
         self.propertiesBtn.place(x=118, y=-5)
 
-        self.gitReposBtn = ctk.CTkButton(
+        self.runDebugBtn = ctk.CTkButton(
             master=self.tabChanger,
             width=50,
             height=(height / 17),
-            text=" Git Repositories ",
+            text="    Run and Debug     ",
             text_color=["#262626", "#E3E3E3"],
             corner_radius=6,
             hover=False,
@@ -208,7 +233,7 @@ class TabView:
             font=("Segoe UI", 12),
             fg_color=["#F5F5F5", "#1E1E1E"]
         )
-        self.gitReposBtn.place(x=222, y=-5)
+        self.runDebugBtn.place(x=222, y=-5)
 
         # --- Button Commands ---
         self.slnExplrBtn.configure(
@@ -219,9 +244,9 @@ class TabView:
             command=lambda: self.show_side_frame(self.propertiesFrame, 
                                                  self.propertiesBtn))
 
-        self.gitReposBtn.configure(
-            command=lambda: self.show_side_frame(self.gitChanges, 
-                                                 self.gitReposBtn))
+        self.runDebugBtn.configure(
+            command=lambda: self.show_side_frame(self.runDebug, 
+                                                 self.runDebugBtn))
 
         # --- Initial State ---
         self.show_side_frame(self.solutionExplorerFrame, self.slnExplrBtn)
@@ -229,10 +254,10 @@ class TabView:
 
     def show_side_frame(self, frame, active_btn):
 
-        for f in (self.solutionExplorerFrame, self.propertiesFrame, self.gitChanges):
+        for f in (self.solutionExplorerFrame, self.propertiesFrame, self.runDebug):
             f.pack_forget()
 
-        for b in (self.slnExplrBtn, self.propertiesBtn, self.gitReposBtn):
+        for b in (self.slnExplrBtn, self.propertiesBtn, self.runDebugBtn):
             b.configure(fg_color=["#E3E3E3", "#2B2B2B"])
             b.configure(border_color=["#E3E3E3", "#2B2B2B"])
 
