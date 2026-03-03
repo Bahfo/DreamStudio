@@ -1,5 +1,6 @@
 from PIL import Image
 import customtkinter as ctk
+from backend.run import run_config
 import dreamstudio.menu_builders as uniwidgets
 from dreamstudio.utils.treeview import FileTree
 
@@ -158,14 +159,16 @@ class TabView:
                               text="Run Options", font=("Segoe UI",12), anchor="w")
         label1.place(x=15, y=10)
 
-        runBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5, fg_color="#004073",
-                               text_color="#FFFFFF", text="Run and Debug", font=("Segoe UI",13), 
-                               hover_color="#0059A2", border_width=0)
+        runBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5,
+                                 fg_color=["#005BA5","#004073"], text_color="#FFFFFF", 
+                                 text="Start Running Code", font=("Segoe UI",13), hover_color="#005398",
+                                 border_width=0, command=self.run_script)
         runBtn.place(x=15, y=40)
 
-        configBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5, fg_color="#004073",
-                               text_color="#FFFFFF", text="Show Run Configurations", font=("Segoe UI",13), 
-                               hover_color="#0059A2", border_width=0)
+        configBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5,
+                                  fg_color=["#005BA5","#004073"], text_color="#FFFFFF", 
+                                  text="Show Run Configurations", font=("Segoe UI",13), hover_color="#005398",
+                                  border_width=0)
         configBtn.place(x=15, y=75)
 
         label2 = ctk.CTkLabel(self.runDebug, width=100, height=30, corner_radius=0, 
@@ -173,9 +176,10 @@ class TabView:
                               text="Debug Options", font=("Segoe UI",12), anchor="w")
         label2.place(x=15, y=110)
 
-        debugBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5, fg_color="#004073",
-                               text_color="#FFFFFF", text="Debug Current Code File", font=("Segoe UI",13), 
-                               hover_color="#0059A2", border_width=0)
+        debugBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5,
+                                 fg_color=["#005BA5","#004073"], text_color="#FFFFFF", 
+                                 text="Debug Current Code File", font=("Segoe UI",13), hover_color="#005398",
+                                 border_width=0)
         debugBtn.place(x=15, y=140)
 
         # ==============================
@@ -265,3 +269,7 @@ class TabView:
 
         active_btn.configure(fg_color=["#F5F5F5", "#1E1E1E"])
         active_btn.configure(border_color=["#A8A8A8", "#555555"])
+
+    def run_script(self):
+        shell_window = run_config.ShellWindow()
+        run_class = run_config.RunFile(code_to_run="""print("Hello")""", arguments=["python",r"C:\Users\Bahaa\Desktop"], ShellWindow=shell_window).run()

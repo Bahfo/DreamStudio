@@ -13,8 +13,9 @@ import customtkinter as ctk
 from functools import lru_cache
 from tkinter import filedialog, messagebox
 
-from dreamstudio.imageload import *
 import dreamstudio.TabView as TabView
+
+from dreamstudio.imageload import *
 from dreamstudio.menu_builders import *
 from dreamstudio.utils.ctk_tabview import *
 from dreamstudio.texteditor.config import Config
@@ -32,6 +33,7 @@ class App:
         self.window.geometry("1000x700")
         self.window.iconbitmap(r"icons/dreamstudio_icon.ico")
         self.window.resizable(True, True)
+        self.window.state('zoomed')
 
         if platform.system() == 'Windows':
             pywinstyles.change_header_color(self.window, color="#004073") 
