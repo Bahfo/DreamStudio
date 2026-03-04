@@ -74,6 +74,7 @@ class Text(Text):
         )
 
         self._schedule_word_rebuild()
+        self.tag_config("error_line",   background="#860000")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Tag & binding setup
@@ -636,3 +637,12 @@ class Text(Text):
             self.event_generate("<<Scroll>>", when="tail")
 
         return result
+
+    def is_error_in_current_line(self, line_to_highlight):
+        self.tag_remove("error_line", "1.0", tk.END)
+        start_index = f"{line_to_highlight}.0"
+        end_index = f"{line_to_highlight}.end"
+        self.tag_add("error_line", start_index, end_index)
+
+    def end_debugging(self, *_):
+        self.tag_remove("error_line", 1.0, tk.END)

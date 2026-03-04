@@ -10,7 +10,6 @@ the following script:
     1. Python
     2. B-Sharp
     3. Lavender
-    4. D-language
     5. C-language
 """
 

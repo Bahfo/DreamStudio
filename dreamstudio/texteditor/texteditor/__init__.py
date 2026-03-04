@@ -262,3 +262,9 @@ class TextEditor(BaseEditor):
 
     def yview_scroll(self, n, what):
         self.text.yview_scroll(n, what)
+
+    def error_in_current_line(self, line):
+        self.text.is_error_in_current_line(line)
+
+    def end_debugging(self):
+        self.text.end_debugging()

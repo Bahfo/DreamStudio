@@ -127,3 +127,9 @@ class Editor(Frame):
         """Gives focus to the content"""
 
         self.content.focus()
+
+    def show_error_in_current_line(self, line):
+        self.content.error_in_current_line(line)
+    
+    def end_debugging(self):
+        self.content.end_debugging()
