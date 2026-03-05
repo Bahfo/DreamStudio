@@ -13,11 +13,13 @@ the following script:
     5. C-language
 """
 
+import re
 import os
 import sys
 import time
 import shutil
 import tempfile
+import platform
 import threading
 import subprocess
 
@@ -62,6 +64,11 @@ class ShellWindow(ctk.CTkToplevel):
         )
         self.textbox.pack(fill="both", expand=True, padx=8, pady=(8, 4))
 
+        # Path text
+        self.textbox.configure(state=ctk.NORMAL)
+        self.textbox.insert("end", f"{os.getcwd()}")
+        self.textbox.configure(state=ctk.DISABLED)
+
         # Terminate button
         self.stop_btn = ctk.CTkButton(
             self,
@@ -93,6 +100,8 @@ class ShellWindow(ctk.CTkToplevel):
             font=("Segoe UI",12)
         )
         self.runTimeEval.pack(pady=(4,8), side="right", anchor="e", padx=8)
+        
+        self.clickable_paths()
 
     def write(self, text: str):
         """Thread-safe append to the textbox."""
@@ -101,12 +110,93 @@ class ShellWindow(ctk.CTkToplevel):
             self.textbox.insert("end", text)
             self.textbox.see("end")
             self.textbox.configure(state="disabled")
-        self.after(0, _insert)      # always schedule on the main thread
+        self.after(0, _insert)
 
     def _on_stop(self):
         if self._stop_callback:
             self._stop_callback()
             self.destroy()
+
+    def open_path(self, path):
+        """Opens the path by clicking the linkable path text"""
+        path = path.strip()
+        if not os.path.exists(path):
+            return f"Path not found {path}"
+        
+        if platform.system() == "Windows":
+            os.startfile(path)
+        elif platform.system() == "Darwin":
+            subprocess.run(["open", path])
+        else:
+            subprocess.run(["xdg-open", path])
+
+    def clickable_paths(self):
+        widget = self.textbox._textbox
+        widget.tag_config("path_link", foreground="#ADCACD", underline=True)
+        widget.tag_config("path_hover", foreground="#E5F8FF", underline=True)
+
+        def highlight_paths():
+            widget.tag_remove("path_link", "1.0", "end")
+            content = widget.get("1.0", "end")
+
+            # Regex for Unix and Windows paths
+            path_pattern = re.compile(
+                r'(?<!\w)'
+                r'('
+                r'(?:[A-Za-z]:\\[\w\\.\- ]+)'    # Windows: C:\Users\...
+                r'|'
+                r'(?:/[\w/.\-]+)'                # Unix: /home/user/...
+                r')',
+                re.MULTILINE)
+            
+            for match in path_pattern.finditer(content):
+                start_idx = f"1.0 + {match.start()} chars"
+                end_idx   = f"1.0 + {match.end()} chars"
+                widget.tag_add("path_link", start_idx, end_idx)
+
+        def on_ctrl_click(event):
+            index = widget.index(f"@{event.x},{event.y}")
+            tags = widget.tag_names(index)
+            if "path_link" in tags:
+                # Fix: second arg must be a valid index, not a relative string alone
+                ranges = widget.tag_prevrange("path_link", f"{index}+1c")
+                if ranges:
+                    path = widget.get(*ranges)
+                    self.open_path(path)
+
+        def on_mouse_move(event):
+            index = widget.index(f"@{event.x},{event.y}")
+            tags = widget.tag_names(index)
+            if "path_link" in tags:
+                widget.config(cursor="hand2")
+                widget.tag_remove("path_hover", "1.0", "end")
+                ranges = widget.tag_prevrange("path_link", index + "+1c")
+                if ranges:
+                    widget.tag_add("path_hover", *ranges)
+            else:
+                widget.config(cursor="")
+                widget.tag_remove("path_hover", "1.0", "end")
+
+        widget.bind("<Control-Button-1>", on_ctrl_click)
+        widget.bind("<Motion>", on_mouse_move)
+
+        widget._orig = widget._w + "_orig"
+        widget.tk.call("rename", widget._w, widget._orig)
+        widget.tk.createcommand(widget._w, lambda *args: self._proxy(widget, highlight_paths, *args))
+
+        highlight_paths()
+
+    def _proxy(self, widget, highlight_paths, *args):
+        """Intercept all widget commands; re-highlight after insert/delete."""
+        try:
+            result = widget.tk.call(widget._orig, *args)
+        except Exception:
+            result = ""
+
+        if args and args[0] in ("insert", "delete", "replace"):
+            highlight_paths()
+
+        return result
 
 class RunFile:
     """
