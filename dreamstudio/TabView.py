@@ -10,8 +10,8 @@ ctk.set_appearance_mode("dark")
 number_of_files: int = 4
 
 project_image = ctk.CTkImage(
-    light_image=Image.open(r"icons\system\projectType.png"),
-    dark_image=Image.open(r"icons\system\projectType.png"),
+    light_image=Image.open(r"icons/system/projectType.png"),
+    dark_image=Image.open(r"icons/system/projectType.png"),
     size=(16, 16)
 )
 
@@ -88,19 +88,19 @@ class TabView:
 
         # --- Gadget Buttons ---
         self.newFileBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                 image_path=r"icons\system\newnew.png")
+                                                 image_path=r"icons/system/newnew.png")
         self.newFileBtn.place(x=2, y=2)
 
         self.newDirBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                image_path=r"icons\system\newDir.png")
+                                                image_path=r"icons/system/newDir.png")
         self.newDirBtn.place(x=26, y=2)
 
         self.refreshBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                 image_path=r"icons\system\refreshDir.png")
+                                                 image_path=r"icons/system/refreshDir.png")
         self.refreshBtn.place(x=50, y=2)
 
         self.collapseBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                  image_path=r"icons\system\collapse.png")
+                                                  image_path=r"icons/system/collapse.png")
         self.collapseBtn.place(x=74, y=2)
 
         self.searchBar = ctk.CTkEntry(
@@ -120,7 +120,7 @@ class TabView:
             master=self.solutionExplorerFrame,
             width=350,
             height=550,
-            root_path=r"C:\Users\Bahaa\Desktop\DreamStudio"
+            root_path=r"C:/Users/Bahaa/Desktop/DreamStudio"
         )
         self.treeView.place(x=5, y=60)
 
@@ -272,4 +272,4 @@ class TabView:
 
     def run_script(self):
         shell_window = run_config.ShellWindow()
-        run_class = run_config.RunFile(code_to_run="""print("Hello")""", arguments=["python",r"C:\Users\Bahaa\Desktop"], ShellWindow=shell_window).run()
+        run_class = run_config.RunFile(code_to_run="""print("Hello")""", arguments=["python",r"C:/Users/Bahaa/Desktop"], ShellWindow=shell_window).run()

@@ -8,8 +8,6 @@ import ctypes
 
 SW_MINIMIZE = 6
 
-user32 = ctypes.windll.user32
-
 patch_notes = """For full patch notes, see the website's\nPatch Notes in Detail.
 ● First version of DreamStudio ALPHA is here!
 ● You can start a new project by clicking\non (New Build).

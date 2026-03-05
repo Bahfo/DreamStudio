@@ -1,5 +1,5 @@
 from dreamstudio.ui_build import App
-from startup import *
+import customtkinter as ctk
 
 ctk.set_appearance_mode("light")
 
