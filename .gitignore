@@ -1,9 +1,34 @@
+# Python caches
 __pycache__/
 *.py[cod]
-tools.txt
-requirements.txt
-venv/
-redundant
+*.pyo
+*.pyd
 
-.vscode
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Package and dependency files
+requirements.txt
+*.egg-info/
+dist/
+build/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store        # macOS
+*.swp            # Vim swap files
+*.swo
+*~
+
+# Misc / temp
+*.log
+*.tmp
+*.bak
+tools.txt
 .fake
+redundant
