@@ -1,50 +1,78 @@
 import tkinter as tk
-
 from .kind import Kind
 from ...utils import Frame
 
-
 class AutoCompleteItem(Frame):
     """
-    The frame used to hold the autocompletion item. 
-    Things to put in mind here:
-    1. The font is now Consolas-11.
-    2. Needs to add some documentation to the autocompletion item. Needs more work 
-    3. Needs a button on right: when clicked, it tells some info about the item, like
-    its attributes, its output, etc.
+    Optimized AutoComplete item.
+    - Fixed ValueError by matching (self, text, kind) signature.
+    - Reduced size by tightening padding and font.
+    - Minimalist layout to prevent lag.
     """
     def __init__(self, master, text, kind=None, *args, **kwargs):
+        # Explicitly accept text and kind so they don't move into *args
         super().__init__(master, *args, **kwargs)
-        self.config(width=400, bg=self.base.theme.autocomplete["background"])
-        self.bg, self.fg, self.hbg, self.hfg = self.base.theme.autocomplete.values()
+        
+        # 1. Theme and Data Cache
+        theme = self.base.theme.autocomplete
+        self.bg = theme["background"]
+        self.fg = theme["foreground"]
+        self.hbg = theme["activebackground"]
+        self.hfg = theme["activeforeground"]
+        self.accent = self.base.theme.accent
 
         self.text = text
         self.kind = kind
+        self.selected = False
 
+        # 2. Compact Configuration
+        self.config(bg=self.bg, pady=0) 
+        self.grid_columnconfigure(1, weight=1)
+
+        # 3. Smaller, Faster Widgets
+        # Kind Icon
         self.kindw = Kind(self, self.master.autocomplete_kinds, kind)
-        self.textw = tk.Text(self, 
-            font=("Consolas", 11), fg=self.fg, bg=self.bg,
-            relief=tk.FLAT, highlightthickness=0, width=30, height=1)
+        
+        # Text - Set width to a fixed value to prevent the popup from being too large
+        self.textw = tk.Text(
+            self, font=("Consolas", 10), fg=self.fg, bg=self.bg,
+            relief=tk.FLAT, highlightthickness=0, height=1,
+            width=25, # Controls horizontal size
+            padx=2, pady=1, cursor="arrow", state=tk.DISABLED,
+            exportselection=False, takefocus=False
+        )
+        self.textw.tag_config("term", foreground=self.accent)
+
+        # Info Button - Compact '›' instead of 'ⓘ'
+        self.infobtn = tk.Label(
+            self, text="›", font=("Consolas", 10), 
+            fg=self.fg, bg=self.bg, padx=3, cursor="hand2"
+        )
+
+        # 4. Grid Placement
+        self.kindw.grid(row=0, column=0, sticky=tk.NSEW)
+        self.textw.grid(row=0, column=1, sticky=tk.NSEW)
+        self.infobtn.grid(row=0, column=2, sticky=tk.NSEW)
+
+        # 5. Initialization
+        self._set_text_internal(text)
+        self._bind_events()
+
+    def _set_text_internal(self, text):
+        """Helper to update text without widget churn."""
+        self.textw.config(state=tk.NORMAL)
+        self.textw.delete(1.0, tk.END)
         self.textw.insert(tk.END, text)
         self.textw.config(state=tk.DISABLED)
 
-        self.textw.tag_config("term", foreground=self.base.theme.accent)
-        
-        self.kindw.bind("<Button-1>", self.on_click)
-        self.textw.bind("<Button-1>", self.on_click)
+    def _bind_events(self):
+        """Bind events once."""
+        for widget in (self, self.kindw, self.textw):
+            widget.bind("<Button-1>", self.on_click)
+            widget.bind("<Enter>", self.on_hover)
+            widget.bind("<Leave>", self.off_hover)
+        self.infobtn.bind("<Button-1>", self.on_info_click)
 
-        self.bind("<Enter>", self.on_hover)
-        self.bind("<Leave>", self.off_hover)
-
-        self.selected = False
-        self.hovered = False
-
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
-
-        self.kindw.grid(row=0, column=0, sticky=tk.NSEW)
-        self.textw.grid(row=0, column=1, sticky=tk.NSEW)
-    
     def get_text(self):
         return self.text
     
@@ -52,38 +80,43 @@ class AutoCompleteItem(Frame):
         return self.kind
 
     def mark_term(self, term):
-        start_pos = self.text.find(term)
-        end_pos = start_pos + len(term)
-        self.textw.tag_remove("term", 1.0, tk.END)
-        self.textw.tag_add("term", f"1.{start_pos}", f"1.{end_pos}")
-    
+        """Highlights the matched part of the string."""
+        self.textw.tag_remove("term", "1.0", tk.END)
+        if not term:
+            return
+
+        start_index = self.text.lower().find(term.lower())
+        if start_index != -1:
+            end_index = start_index + len(term)
+            self.textw.tag_add("term", f"1.{start_index}", f"1.{end_index}")
+
     def on_click(self, *args):
         self.master.choose(self)
-    
+        return "break"
+
+    def on_info_click(self, event):
+        """Placeholder for documentation."""
+        return "break"
+
     def on_hover(self, *args):
         if not self.selected:
-            self.kindw.config(bg=self.hbg)
-            self.textw.config(bg=self.hbg)
-            self.hovered = True
+            self._set_colors(self.hbg, self.fg)
 
     def off_hover(self, *args):
         if not self.selected:
-            self.kindw.config(bg=self.bg)
-            self.textw.config(bg=self.bg)
-            self.hovered = False
-    
-    def toggle_selection(self):
-        if self.selected:
-            self.select()
-        else:
-            self.deselect()
+            self._set_colors(self.bg, self.fg)
 
     def select(self):
-        self.kindw.config(bg=self.hbg)
-        self.textw.config(bg=self.hbg, fg=self.hfg)
         self.selected = True
-    
+        self._set_colors(self.hbg, self.hfg)
+
     def deselect(self):
-        self.kindw.config(bg=self.bg)
-        self.textw.config(bg=self.bg, fg=self.fg)
         self.selected = False
+        self._set_colors(self.bg, self.fg)
+
+    def _set_colors(self, bg, fg):
+        """Batch update colors to reduce UI flickering."""
+        self.config(bg=bg)
+        self.kindw.config(bg=bg)
+        self.textw.config(bg=bg, fg=fg)
+        self.infobtn.config(bg=bg, fg=fg)

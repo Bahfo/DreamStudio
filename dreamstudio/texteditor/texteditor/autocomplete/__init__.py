@@ -1,6 +1,7 @@
 import jedi
 import tkinter as tk
 from itertools import chain
+from threading import Thread, Lock
 
 from ...utils import Toplevel
 from .item import AutoCompleteItem
@@ -8,13 +9,7 @@ from .kinds import Kinds
 from .languages.python_completions import python_completions
 
 class AutoComplete(Toplevel):
-    """AutoComplete class.
-
-    Args:
-        master: Parent widget.
-        items: List of items to autocomplete.
-        active: Whether the autocomplete is active.
-    """
+    """Optimized AutoComplete class with asynchronous Jedi processing."""
 
     def __init__(self, master, items=None, active=False, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
@@ -33,48 +28,84 @@ class AutoComplete(Toplevel):
         self.active_items = []
         self.row = 0
         self.selected = 0
+        
+        # Performance/Threading controls
+        self._lock = Lock()
+        self._debounce_id = None
+        self._jedi_thread = None
+        
         if items is None:
             self.items = {}
         elif isinstance(items, list):
-            # list of tuples [(completion, type)]
             self.items = {name: {"type": kind} for name, kind in items}
         else:
-            # already a dict
             self.items = items
 
         self.add_all_items()
         self.refresh_selected()
 
     def update_completions(self):
-        """Updates and rerenders the completions using Jedi, efficiently."""
-        self.refresh_geometry()
-        self.update_idletasks()
+        """Updates completions using debouncing and background threading."""
+        # Cancel previous pending update
+        if self._debounce_id:
+            self.after_cancel(self._debounce_id)
+        
+        # Debounce: Wait 50ms before starting the heavy Jedi computation
+        self._debounce_id = self.after(50, self._request_jedi_update)
 
+    def _request_jedi_update(self):
+        """Prepares data and starts the background thread."""
         term = self.master.get_current_word()
         line, col = map(int, self.master.index("insert").split("."))
         code = self.master.get_all_text()
+        
+        # Start threading to prevent UI freezing
+        if self._jedi_thread and self._jedi_thread.is_alive():
+            return # Let the current one finish or implement a queue
+            
+        self._jedi_thread = Thread(
+            target=self._compute_jedi, 
+            args=(code, line, col, term), 
+            daemon=True
+        )
+        self._jedi_thread.start()
 
+    def _compute_jedi(self, code, line, col, term):
+        """Heavy lifting done in a background thread."""
         try:
             script = jedi.Script(code)
             jedi_results = {c.name: {"type": c.type} for c in script.complete(line, col)}
         except Exception:
             jedi_results = {}
 
-        all_items = python_completions.copy()
-        all_items.update(self.items)
-        all_items.update(jedi_results)
+        # Merge results efficiently
+        with self._lock:
+            all_items = python_completions.copy()
+            all_items.update(self.items)
+            all_items.update(jedi_results)
+            
+            # Incorporate buffer words
+            for w in self.master.words:
+                if w not in all_items:
+                    all_items[w] = {"type": "word"}
+            
+            self.items = all_items
 
-        for w in self.master.words:
-            if w not in all_items:
-                all_items[w] = {"type": "word"}
+        # Schedule UI update back on the main thread
+        self.after(0, lambda: self._update_ui_items(term))
 
-        self.items = all_items
+    def _update_ui_items(self, term):
+        """Updates the actual widgets on the main thread."""
+        if not self.winfo_exists(): return
 
         existing_texts = {i.get_text() for i in self.menu_items}
+        
+        # Only add widgets for items we don't have yet
         for name, meta in self.items.items():
             if name not in existing_texts:
                 self.add_item(name, meta.get("type") if meta else None)
 
+        # Filtering logic
         exact, starts, includes = [], [], []
         for i in self.menu_items:
             text = i.get_text()
@@ -89,172 +120,102 @@ class AutoComplete(Toplevel):
 
         self.hide_all_items()
         if new_active:
-            self.show_items(new_active[:10] if len(new_active) > 10 else new_active, term)
+            # Refresh geometry before showing to prevent flickering
+            self.refresh_geometry() 
+            self.show_items(new_active[:10], term) # Limit to top 10 for speed
+            self.deiconify()
+            self.active = True
         else:
             self.hide()
 
     def move_up(self, *_):
-        """Moves the selection up."""
         if self.active:
             self.select(-1)
             return "break"
 
     def move_down(self, *_):
-        """Moves the selection down."""
         if self.active:
             self.select(1)
             return "break"
 
     def add_all_items(self):
-        """Adds all items to the menu (dict version)."""
         for completion, meta in self.items.items():
-            # meta could be a dict with type, icon, source, etc.
-            completion_type = meta.get("type") if meta else None
-            self.add_item(completion, completion_type)
-
+            self.add_item(completion, meta.get("type") if meta else None)
         self.active_items = self.menu_items
         self.refresh_selected()
 
     def update_all_words(self):
-        """Updates the words in the menu."""
+        current_texts = self.get_items_text()
         for word in self.master.words:
-            if word not in self.get_items_text():
+            if word not in current_texts:
                 self.add_item(word, "word")
 
-        for word in self.menu_items:
-            if word.get_text() not in self.master.words and word.get_kind() == "word":
-                self.remove_item(word)
-
     def add_item(self, text: str, kind=""):
-        """Adds an item to the menu.
-
-        Args:
-            text: Text to add.
-            kind: Kind of the item.
-        """
-
         new_item = AutoCompleteItem(self, text, kind=kind)
-        new_item.grid(row=self.row, sticky=tk.EW)
-
+        # We don't grid it yet to keep update_completions fast
         self.menu_items.append(new_item)
 
-        self.row += 1
-
     def remove_item(self, item: AutoCompleteItem):
-        """Removes an item from the menu.
-
-        Args:
-            item: Item to remove.
-        """
-
-        a = self.menu_items
         item.grid_forget()
-        self.menu_items.remove(item)
-        self.row -= 1
+        if item in self.menu_items:
+            self.menu_items.remove(item)
+        item.destroy()
 
     def select(self, delta: int):
-        """Selects an item.
-
-        Args:
-            delta: The change in selection.
-        """
-
-        self.selected += delta
-        if self.selected > len(self.active_items) - 1:
-            self.selected = 0
-        elif self.selected < 0:
-            self.selected = len(self.active_items) - 1
+        if not self.active_items: return
+        self.selected = (self.selected + delta) % len(self.active_items)
         self.refresh_selected()
 
     def reset_selection(self):
-        """Resets the selection."""
-
         self.selected = 0
         self.refresh_selected()
 
     def refresh_selected(self):
-        """Refreshes the selected item."""
-
-        for i in self.active_items:
-            i.deselect()
-        if self.selected < len(self.active_items):
-            self.active_items[self.selected].select()
+        for i, item in enumerate(self.active_items):
+            if i == self.selected:
+                item.select()
+            else:
+                item.deselect()
 
     def get_items_text(self):
-        """Gets the text of all items.
-
-        Returns:
-            List of text of all items.
-        """
-
         return [i.get_text() for i in self.menu_items]
 
     def hide_all_items(self):
-        """Hides all items."""
-
         for i in self.menu_items:
             i.grid_forget()
-
         self.active_items = []
-        self.row = 1
+        self.row = 0
 
     def show_items(self, items: list[AutoCompleteItem], term: str):
-        """Shows the items.
-
-        Args:
-            items: Items to show.
-            term: The term to match.
-        """
-
         self.active_items = items
         for i in items:
             i.grid(row=self.row, sticky=tk.EW)
-            self.row += 1
-
             i.mark_term(term)
-
+            self.row += 1
         self.reset_selection()
 
     def refresh_geometry(self, *_):
-        """Refreshes the geometry of the menu."""
-
-        self.update_idletasks()
-        self.geometry("+{}+{}".format(*self.master.cursor_screen_location()))
+        pos = self.master.cursor_screen_location()
+        self.geometry(f"+{pos[0]}+{pos[1]}")
 
     def show(self, pos: tuple[int, int]):
-        """Shows the menu.
-
-        Args:
-            pos: Position to show the menu.
-        """
-
         self.active = True
-        self.update_idletasks()
-        self.geometry("+{}+{}".format(*pos))
+        self.geometry(f"+{pos[0]}+{pos[1]}")
         self.deiconify()
+        self.lift()
 
     def hide(self, *_):
-        """Hides the menu."""
-
         self.active = False
         self.withdraw()
         self.reset()
 
     def reset(self):
-        """Resets the menu."""
-
-        self.reset_selection()
+        self.selected = 0
+        self.row = 0
 
     def choose(self, this=None, *_):
-        """Chooses an item.
-
-        Args:
-            this: The item to choose. Used when user clicks on an item.
-        """
-
         if not self.active_items:
             return
-
         if not this:
             this = self.active_items[self.selected]
 

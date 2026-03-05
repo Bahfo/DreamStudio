@@ -17,6 +17,8 @@ import tkinter as tk
 import typing
 from tkinter.font import Font
 
+from tkinter import font as tkfont
+
 from .breadcrumbs import BreadCrumbs
 from .config import Config
 from .diffeditor import DiffEditor
@@ -89,6 +91,13 @@ class Editor(Frame):
     ) -> None:
         super().__init__(master, *args, **kwargs)
 
+        default_font = tkfont.nametofont("TkDefaultFont")
+        base_size = default_font.cget("size")  # system default
+        base_family = default_font.cget("family")
+
+        scaling = master.tk.call('tk', 'scaling')
+        adjusted_size = int(base_size * scaling)
+
         self.path = path
         self.path2 = path2
         self.diff = diff
@@ -101,7 +110,7 @@ class Editor(Frame):
         self.settings = Config(self, config_file, darkmode, font, uifont)
         self.theme = self.settings.theme
 
-        self.config(bg=self.theme.border)
+        self.config(bg=self.theme.border, border=0)
         self.grid_columnconfigure(0, weight=1)
 
         self.content = get_editor(self, path, path2, diff, language)

@@ -5,7 +5,7 @@
 accent = "#2aaaff"
 background = "white"
 foreground = "#424242"
-border = "#dfdfdf"
+border = "#f9f9f9"
 cursor = "#000000"
 
 [editor]

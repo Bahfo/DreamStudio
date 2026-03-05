@@ -14,7 +14,7 @@ class Minimap(Frame):
         self.mini_font = ("Arial", 2)
         self.line_color = "#AAAAAA" # Simple gray for all text
         
-        self.config(width=110, highlightthickness=0, bg=self.base.theme.border)
+        self.config(width=110, highlightthickness=0, bg=self.base.theme.border, border=0)
         
         self.cw = tk.Canvas(
             self, width=110, highlightthickness=0, 

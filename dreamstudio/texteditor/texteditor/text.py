@@ -529,76 +529,92 @@ class Text(Text):
     # ─────────────────────────────────────────────────────────────────────────
 
     def highlight_current_line(self, *_):
-        self.tag_remove("currentline", 1.0, tk.END)
+        self.tag_remove("currentline", "1.0", tk.END)
+
         if self.get_selected_text():
             return
-        line = int(self.index(tk.INSERT).split(".")[0])
-        self.tag_add("currentline", str(float(line)), str(float(line + 1)))
+
+        line = self.index(tk.INSERT).split(".")[0]
+        self.tag_add("currentline", f"{line}.0", f"{int(line)+1}.0")
+
 
     def select_line(self, line):
         self.clear_all_selection()
-        line  = int(line.split(".")[0])
-        self.tag_add(tk.SEL, str(float(line)), str(float(line + 1)))
-        self.move_cursor(str(float(line + 1)))
+
+        line = line.split(".")[0]
+        self.tag_add(tk.SEL, f"{line}.0", f"{int(line)+1}.0")
+
+        self.move_cursor(f"{int(line)+1}.0")
+
 
     def highlight_current_word(self):
         """
         Highlight all occurrences of the word under the cursor.
-
-        PERFORMANCE: The search is limited to a ±200-line window around the
-        cursor instead of the entire document.  For a 1000-line file this
-        reduces the Tk search space by ~80–90%, cutting main-thread time from
-        several milliseconds to well under 1 ms in most cases.
-        Also debounced at WORD_HIGHLIGHT_DEBOUNCE ms (see key_release_events).
+        Search is limited to a ±200-line window around the cursor.
         """
+
         if self.minimalist or self.get_selected_text():
             return
 
-        self.tag_remove("highlight", 1.0, tk.END)
-        word = re.findall(r"\w+", self.get("insert wordstart", "insert wordend"))
-        if not word or word[0] in self.syntax.keywords:
+        # Determine current word
+        word = self.get("insert wordstart", "insert wordend").strip()
+        if not word or word in self.syntax.keywords:
             return
 
-        # Constrain search to a local window to avoid full-doc scan
         try:
-            cur_line  = int(self.index(tk.INSERT).split(".")[0])
+            cur_line = int(self.index(tk.INSERT).split(".")[0])
             win_start = f"{max(1, cur_line - 200)}.0"
             win_end   = f"{cur_line + 200}.end"
         except (tk.TclError, ValueError):
             win_start, win_end = "1.0", tk.END
 
+        # Remove highlight only inside the working window
+        self.tag_remove("highlight", win_start, win_end)
+
         self.highlight_pattern(
-            f"\\y{word[0]}\\y", "highlight",
-            start=win_start, end=win_end, regexp=True,
+            rf"\y{word}\y",
+            "highlight",
+            start=win_start,
+            end=win_end,
+            regexp=True,
         )
+
 
     def highlight_pattern(self, pattern, tag, start="1.0", end=tk.END, regexp=False):
         start = self.index(start)
-        end   = self.index(end)
+        end = self.index(end)
 
-        self.mark_set("matchStart",   start)
-        self.mark_set("matchEnd",     start)
-        self.mark_set("searchLimit",  end)
-        self.tag_remove(tag, start, end)
+        self.mark_set("matchStart", start)
+        self.mark_set("matchEnd", start)
+        self.mark_set("searchLimit", end)
 
         count = tk.IntVar()
+
         while True:
             index = self.search(
-                pattern, "matchEnd", "searchLimit",
-                count=count, regexp=regexp,
+                pattern,
+                "matchEnd",
+                "searchLimit",
+                count=count,
+                regexp=regexp,
             )
-            if index == "" or count.get() == 0:
+
+            if not index or count.get() == 0:
                 break
+
             self.mark_set("matchStart", index)
-            self.mark_set("matchEnd",   f"{index}+{count.get()}c")
+            self.mark_set("matchEnd", f"{index}+{count.get()}c")
             self.tag_add(tag, "matchStart", "matchEnd")
+
 
     def refresh(self, *args):
         if self.minimalist:
             return
+
         self._update_current_word()
         self.highlight_current_line()
         self._schedule_word_highlight()
+
 
     # ─────────────────────────────────────────────────────────────────────────
     # Tcl proxy

@@ -10,7 +10,8 @@ import subprocess
 import customtkinter as ctk
 
 from functools import lru_cache
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, PhotoImage
+from customtkinter import set_widget_scaling, set_window_scaling
 
 import dreamstudio.TabView as TabView
 
@@ -28,6 +29,32 @@ from dreamstudio.texteditor.config.styles import Style
 class App:
     def __init__(self, workspace):
         self.window = ctk.CTk()
+        screen_dpi = self.window.winfo_fpixels('1i')
+        system = platform.system()
+        scaling_factor = 1.0  # default
+
+        if system == "Windows":
+            # Tk already respects Windows scaling
+            scaling_factor = self.window.tk.call('tk', 'scaling')
+            self.window.iconbitmap(r"icons/logos/ds.ico")
+            self.editor_initial_font = ("Consolas", 13)
+        elif system == "Linux":
+            # Linux Mint: apply a reasonable factor to match Windows
+            scaling_factor = 1.25
+            set_window_scaling(scaling_factor)
+            set_widget_scaling(scaling_factor)
+            icon = PhotoImage(file="icons/logos/dreamStudio_icon.png")
+            self.window.iconphoto(True, icon)
+            self.editor_initial_font = ("Liberation Mono", 10)
+        elif system == "Darwin":
+            # macOS Retina displays usually need 2.0 scaling
+            scaling_factor = 2.0
+            set_window_scaling(scaling_factor)
+            set_widget_scaling(scaling_factor)
+
+        self.window.tk.call('tk', 'scaling', scaling_factor)
+        print("Scaling factor applied:", scaling_factor)
+
         self.window.title("Dream Studio")
         self.window.geometry("1000x700")
         self.window.resizable(True, True)
@@ -393,7 +420,7 @@ class App:
         new_editor = Editor(
             self.tabSwitch.tab(tab_name),
             language=Languages.PYTHON,
-            font=("Consolas", 13),
+            font=self.editor_initial_font,
             showpath=True,
             darkmode= self.text_editor_mode_bool,
             uifont=("Segoe UI", 11))

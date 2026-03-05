@@ -38,38 +38,38 @@ from dreamstudio.utils.animations import *
 # DEFINITIONS
 #####################################
 
-CONFIG_FILE = r"themes\config\config.json"
+CONFIG_FILE = r"themes/config/config.json"
 REFRESH_INTERVAL_MINUTES = 2
 REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000
 
 icon_paths = {
-    "load_ico": r"icons\system\load.png",
-    "refresh_ico": r"icons\system\refresh.png",
-    "console": r"icons\system\console.png",
-    "debug": r"icons\system\debug.png",
-    "manage": r"icons\system\manager.png",
-    "problem": r"icons\system\problem.png",
-    "ver": r"icons\system\version.png",
-    "warning": r"icons\system\warning.png",
+    "load_ico": r"icons/system/load.png",
+    "refresh_ico": r"icons/system/refresh.png",
+    "console": r"icons/system/console.png",
+    "debug": r"icons/system/debug.png",
+    "manage": r"icons/system/manager.png",
+    "problem": r"icons/system/problem.png",
+    "ver": r"icons/system/version.png",
+    "warning": r"icons/system/warning.png",
 }
 
 ctk_icons = {
-    "search_photo": (r"icons\system\search.png", (24, 24)),
-    "open_photo": (r"icons\system\open_folder.png", (24, 24)),
-    "settings_photo": (r"icons\system\settings.png", (24, 24)),
-    "save_photo": (r"icons\system\save_file.png", (24, 24)),
-    "user_photo": (r"icons\system\user.png", (24, 24)),
+    "search_photo": (r"icons/system/search.png", (24, 24)),
+    "open_photo": (r"icons/system/open_folder.png", (24, 24)),
+    "settings_photo": (r"icons/system/settings.png", (24, 24)),
+    "save_photo": (r"icons/system/save_file.png", (24, 24)),
+    "user_photo": (r"icons/system/user.png", (24, 24)),
 }
 
 arrow_icons = {
-    "downArrow": (r"icons\system\down_arrow.png", (8, 8)),
-    "upArrow": (r"icons\system\up_arrow.png", (8, 8)),
-    "rightArrow": (r"icons\system\right_arrow.png", (8, 8)),
-    "stepTo": (r"icons\system\stepTo.png", (20, 20)),
-    "stepOut": (r"icons\system\stepOut.png", (20, 20)),
-    "stepOver": (r"icons\system\stepOver.png", (20, 20)),
-    "runToCursor": (r"icons\system\runToCursor.png", (20, 20)),
-    "toggleCursor": (r"icons\system\toggle.png", (20, 20)),
+    "downArrow": (r"icons/system/down_arrow.png", (8, 8)),
+    "upArrow": (r"icons/system/up_arrow.png", (8, 8)),
+    "rightArrow": (r"icons/system/right_arrow.png", (8, 8)),
+    "stepTo": (r"icons/system/stepTo.png", (20, 20)),
+    "stepOut": (r"icons/system/stepOut.png", (20, 20)),
+    "stepOver": (r"icons/system/stepOver.png", (20, 20)),
+    "runToCursor": (r"icons/system/runToCursor.png", (20, 20)),
+    "toggleCursor": (r"icons/system/toggle.png", (20, 20)),
 }
 
 allowed_extensions = {
@@ -105,31 +105,31 @@ class HomeToolbarBuilder:
     def _create_buttons(self):
         """Defines and creates all buttons using a single loop."""
         buttons = [
-        ("newFile", VerticalButton, r"icons\system\new_file.png", " New Tab ",
+        ("newFile", VerticalButton, r"icons/system/new_file.png", " New Tab ",
         5, 5),
-        ("newMacro", VerticalButton, r"icons\system\new_macro.png", " New Code",
+        ("newMacro", VerticalButton, r"icons/system/new_macro.png", " New Code",
         75, 5),
-        ("openCode", VerticalButton, r"icons\system\open_code.png", "Open Code",
+        ("openCode", VerticalButton, r"icons/system/open_code.png", "Open Code",
         152, 5),
-        ("refreshWorkspace", HorizontalButton, r"icons\system\refresh_workspace.png",
+        ("refreshWorkspace", HorizontalButton, r"icons/system/refresh_workspace.png",
          "Refresh Files", 230, 7),
-        ("saveAll", HorizontalButton, r"icons\system\save_all.png", "Save All Files",
+        ("saveAll", HorizontalButton, r"icons/system/save_all.png", "Save All Files",
         230, 37),
-        ("pasteBtn", VerticalButton, r"icons\system\paste.png", "Paste Code",
+        ("pasteBtn", VerticalButton, r"icons/system/paste.png", "Paste Code",
         350, 5),
-        ("cutBtn", HorizontalButton, r"icons\system\cut.png", " Cut Codes",
+        ("cutBtn", HorizontalButton, r"icons/system/cut.png", " Cut Codes",
         428, 7),
-        ("copyBtn", HorizontalButton, r"icons\system\copy.png", " Copy Codes",
+        ("copyBtn", HorizontalButton, r"icons/system/copy.png", " Copy Codes",
         428, 37),
-        ("undoBtn", HorizontalButton, r"icons\system\undo.png", "Undo Action",
+        ("undoBtn", HorizontalButton, r"icons/system/undo.png", "Undo Action",
         538, 7),
-        ("redoBtn", HorizontalButton, r"icons\system\redo.png", "Redo Action",
+        ("redoBtn", HorizontalButton, r"icons/system/redo.png", "Redo Action",
         538, 37),
-        ("deleteBtn", HorizontalButton, r"icons\system\delete.png", "Delete Codes",
+        ("deleteBtn", HorizontalButton, r"icons/system/delete.png", "Delete Codes",
         648, 7),
-        ("replaceBtn", HorizontalButton, r"icons\system\replace.png", "Find/Replace",
+        ("replaceBtn", HorizontalButton, r"icons/system/replace.png", "Find/Replace",
         648, 37),
-        ("syntaxBtn", VerticalButton, r"icons\system\syntax.png", "Configure \nSyntax",
+        ("syntaxBtn", VerticalButton, r"icons/system/syntax.png", "Configure \nSyntax",
         770, 5)]
 
         for item in buttons:
@@ -185,33 +185,33 @@ class ToolsBarBuilder:
     def _create_buttons(self):
 
         buttons = [
-        ("explorBtn", VerticalButton, r"icons\system\solution.png", " Solution\nExplorer",
+        ("explorBtn", VerticalButton, r"icons/system/solution.png", " Solution\nExplorer",
         5, 5),
-        ("boxBtn", VerticalButton, r"icons\system\tools.png", "Open\n ToolBox ",
+        ("boxBtn", VerticalButton, r"icons/system/tools.png", "Open\n ToolBox ",
         75, 5),
-        ("managerBtn", VerticalButton, r"icons\system\manager.png", "Workspace\nManager",
+        ("managerBtn", VerticalButton, r"icons/system/manager.png", "Workspace\nManager",
         148, 5),
-        ("propertiesBtn", VerticalButton, r"icons\system\properties.png", "Properties\nWindow",
+        ("propertiesBtn", VerticalButton, r"icons/system/properties.png", "Properties\nWindow",
         228, 5),
         ("vertical_sep_3", "separator", None, None,
         304, 7),
-        ("openTerminalBtn", VerticalButton, r"icons\system\terminal.png", "Open\nTerminal",
+        ("openTerminalBtn", VerticalButton, r"icons/system/terminal.png", "Open\nTerminal",
         314, 5),
-        ("cmdWindowBtn", VerticalButton, r"icons\system\command.png", "Command\nWindow",
+        ("cmdWindowBtn", VerticalButton, r"icons/system/command.png", "Command\nWindow",
         382, 5),
-        ("resourcesBtn", VerticalButton, r"icons\system\resources.png", "Manage\nResources",
+        ("resourcesBtn", VerticalButton, r"icons/system/resources.png", "Manage\nResources",
         457, 5),
-        ("containerBtn", VerticalButton, r"icons\system\container.png", "Container\nWindow",
+        ("containerBtn", VerticalButton, r"icons/system/container.png", "Container\nWindow",
         529, 5),
-        ("tasksBtn", VerticalButton, r"icons\system\tasks.png", "Manage\nTasks",
+        ("tasksBtn", VerticalButton, r"icons/system/tasks.png", "Manage\nTasks",
         600, 5),
         ("vertical_sep_4", "separator", None, None,
         664, 7),
-        ("gitBtn", VerticalButton, r"icons\system\git.png", "Repository\nManager",
+        ("gitBtn", VerticalButton, r"icons/system/git.png", "Repository\nManager",
         674, 5),
-        ("gitChangesBtn", HorizontalButton, r"icons\system\gitchanges.png", "Git Changes",
+        ("gitChangesBtn", HorizontalButton, r"icons/system/gitchanges.png", "Git Changes",
         746, 7),
-        ("githubBtn", HorizontalButton, r"icons\system\github.png", "View Github",
+        ("githubBtn", HorizontalButton, r"icons/system/github.png", "View Github",
         746, 37)]
 
         for item in buttons:
@@ -269,23 +269,23 @@ class DatabasesToolbarBuilder:
     def _create_buttons(self):
         """Defines and creates all buttons using a single loop."""
         buttons = [
-        ("databaseBtn", VerticalButton, r"icons\system\database.png", "Manage\nDatabases",
+        ("databaseBtn", VerticalButton, r"icons/system/database.png", "Manage\nDatabases",
         5, 5),
-        ("sourcesBtn", VerticalButton, r"icons\system\datasources.png", "Data\nSources",
+        ("sourcesBtn", VerticalButton, r"icons/system/datasources.png", "Data\nSources",
         75, 5),
-        ("impDataBtn", VerticalButton, r"icons\system\importdata.png", "Import\nData",
+        ("impDataBtn", VerticalButton, r"icons/system/importdata.png", "Import\nData",
         132, 5),
-        ("cleanDataBtn", VerticalButton, r"icons\system\cleandata.png", "Clean\nData",
+        ("cleanDataBtn", VerticalButton, r"icons/system/cleandata.png", "Clean\nData",
         185, 5),
-        ("sqlBtn", VerticalButton, r"icons\system\sql.png", "SQL\nServices",
+        ("sqlBtn", VerticalButton, r"icons/system/sql.png", "SQL\nServices",
         230, 5),
-        ("jsonBtn", HorizontalButton, r"icons\system\json.png", "Open JSON",
+        ("jsonBtn", HorizontalButton, r"icons/system/json.png", "Open JSON",
         290, 7),
-        ("xamlBtn", HorizontalButton, r"icons\system\xaml.png", "Open XAML",
+        ("xamlBtn", HorizontalButton, r"icons/system/xaml.png", "Open XAML",
         290, 37),
-        ("htmlBtn", HorizontalButton, r"icons\system\html.png", "Open HTML",
+        ("htmlBtn", HorizontalButton, r"icons/system/html.png", "Open HTML",
         400, 7),
-        ("webBtn", HorizontalButton, r"icons\system\web.png", "Manage Web",
+        ("webBtn", HorizontalButton, r"icons/system/web.png", "Manage Web",
         400, 37)]
 
         for item in buttons:
@@ -330,7 +330,7 @@ class DebugBuilder:
 
         for attr, icon, txt, x, y in main_btns:
             btn = VerticalButton(self.debugFrame,
-                                 image_path=rf"icons\system\{icon}",
+                                 image_path=rf"icons/system/{icon}",
                                  text=txt, **style)
             btn.place(x=x, y=y)
             setattr(self, attr, btn)
@@ -366,12 +366,12 @@ class TerminalBuilder:
             "font": ("Segoe UI", 12),
             "fg_color": self.parent_color,
             "hover_color": "#3a3a3a"}
-        icon_dir = r"icons\system"
+        icon_dir = r"icons/system"
 
         for attr, icon, text, x in terminal_btns:
             btn = VerticalButton(
                 self.terminalFrame,
-                image_path=f"{icon_dir}\\{icon}",
+                image_path=f"{icon_dir}//{icon}",
                 text=text,
                 **style)
             btn.place(x=x, y=5)
@@ -396,7 +396,7 @@ class HelpBuilder:
         for attr, icon, text, x in help_btns:
             btn = VerticalButton(
                 self.helpFrame,
-                image_path=rf"icons\system\{icon}",
+                image_path=rf"icons/system/{icon}",
                 text=text,
                 **style)
             btn.place(x=x, y=5)
