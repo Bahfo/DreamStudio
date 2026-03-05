@@ -7,7 +7,6 @@ import os
 import json
 import platform
 import subprocess
-import pywinstyles
 import customtkinter as ctk
 
 from functools import lru_cache
@@ -34,11 +33,6 @@ class App:
         self.window.iconbitmap(r"icons/dreamstudio_icon.ico")
         self.window.resizable(True, True)
         self.window.state('zoomed')
-
-        if platform.system() == 'Windows':
-            pywinstyles.change_header_color(self.window, color="#004073") 
-        else:
-            pass
 
         ##############################
         # DEFINITIONS

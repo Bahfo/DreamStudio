@@ -1,101 +1,0 @@
-[1mdiff --git a/.gitignore b/.gitignore[m
-[1mindex 15ac1e7..8cc137b 100644[m
-[1m--- a/.gitignore[m
-[1m+++ b/.gitignore[m
-[36m@@ -1,9 +1,9 @@[m
-[31m-__pycache__/[m
-[31m-*.py[cod][m
-[31m-tools.txt[m
-[31m-requirements.txt[m
-[31m-venv/[m
-[31m-redundant[m
-[31m-[m
-[31m-.vscode[m
-[32m+[m[32m__pycache__/[m[41m[m
-[32m+[m[32m*.py[cod][m[41m[m
-[32m+[m[32mtools.txt[m[41m[m
-[32m+[m[32mrequirements.txt[m[41m[m
-[32m+[m[32mvenv/[m[41m[m
-[32m+[m[32mredundant[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m.vscode[m[41m[m
- .fake[m
-\ No newline at end of file[m
-[1mdiff --git a/README.md b/README.md[m
-[1mindex 5e447bf..ebd9b83 100644[m
-[1m--- a/README.md[m
-[1m+++ b/README.md[m
-[36m@@ -1,42 +1,42 @@[m
-[31m-# DreamStudio[m
-[31m-[m
-[31m-## Where I am right now:[m
-[31m-[m
-[31m-1. Need to continue establishing the textbox in main window. It requires setting the intellisense, and the allowence of multiple files opened at the same time through tab generator.[m
-[31m-[m
-[31m-2. Need to make a treeview generator for files in the current directory.[m
-[31m-[m
-[31m-3. Need to monitor and fix leftmost bar (services bar).[m
-[31m-[m
-[31m-NEXT THINGS IN MIND:[m
-[31m-[m
-[31m-1. Implementing topbar windows one by one (home, view, plots, etc.).[m
-[31m-[m
-[31m-2. Implement the downbar (status bar) because some functionalities are still broken.[m
-[31m-[m
-[31m-3. Implement intellisense support for full integration.[m
-[31m-[m
-[31m-4. Implement the support for multiple intellisense at one time.[m
-[31m-[m
-[31m-NEXT IDEAS:[m
-[31m-[m
-[31m-1. Implement creating new project/solution or opening an existing one.[m
-[31m-[m
-[31m-2. Implement run and debug (should be implemented at last).[m
-[31m-[m
-[31m-3. Fix issues that might occur along the way.[m
-[31m-[m
-[31m-[m
-[31m-## What is next after the studio?[m
-[31m-[m
-[31m-At the same time of developing this studio, I am working on other smaller or interesting side projects that could support:[m
-[31m-[m
-[31m-1. Lavender: A scientific interpreted programming language / Domain Specific Language for Scientific Usage.[m
-[31m-[m
-[31m-2. B-Sharp : A general purpose programming language.[m
-[31m-[m
-[31m-3. DevToys : A set of small tools useful for programmers and developers.[m
-[31m-[m
-[31m-4. NetStudio: A studio for networking applications[m
-[31m-[m
-[32m+[m[32m# DreamStudio[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## Where I am right now:[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m1. Need to continue establishing the textbox in main window. It requires setting the intellisense, and the allowence of multiple files opened at the same time through tab generator.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m2. Need to make a treeview generator for files in the current directory.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m3. Need to monitor and fix leftmost bar (services bar).[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mNEXT THINGS IN MIND:[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m1. Implementing topbar windows one by one (home, view, plots, etc.).[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m2. Implement the downbar (status bar) because some functionalities are still broken.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m3. Implement intellisense support for full integration.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m4. Implement the support for multiple intellisense at one time.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mNEXT IDEAS:[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m1. Implement creating new project/solution or opening an existing one.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m2. Implement run and debug (should be implemented at last).[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m3. Fix issues that might occur along the way.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## What is next after the studio?[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mAt the same time of developing this studio, I am working on other smaller or interestin
