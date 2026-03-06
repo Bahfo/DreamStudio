@@ -10,6 +10,7 @@ import subprocess
 import customtkinter as ctk
 
 from functools import lru_cache
+from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 from tkinter import filedialog, messagebox, PhotoImage
 from customtkinter import set_widget_scaling, set_window_scaling
 
@@ -101,102 +102,169 @@ class App:
         ###############################
         # MENUS LOOP ITERATION
         ###############################
-        self.menubar = ctk.CTkFrame(self.window, height=110, corner_radius=0)
-        self.menubar.pack(fill="x", side="top")
-        self.menubar.pack_propagate(False)
+        self.menubar = CTkMenuBar(self.window, bg_color="#004073", width=20, padx=6, pady=2)
 
-        # Creating Holding Frames for the Menus
-        self.topFrame = ctk.CTkFrame(
-            self.menubar, height=18, fg_color="#004073", corner_radius=0)
-        self.topFrame.pack(fill="x", side="top")
+        file_button = self.menubar.add_cascade("File",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # File dropdown menu and its options
+        file_dropdown = CustomDropdownMenu(widget=file_button, corner_radius=0, font=("Segoe UI",12))
+        file_dropdown.add_option("New File", command=lambda: print(""))
+        file_dropdown.add_option("New Project", command=lambda: print(""))
+        file_dropdown.add_option("Open File", command=lambda: print(""))
+        file_dropdown.add_option("Open Project", command=lambda: print(""))
+        file_dropdown.add_separator()
+        file_dropdown.add_option("Save Current File")
+        file_dropdown.add_option("Save Current File As")
+        file_dropdown.add_option("Save Project")
+        file_dropdown.add_option("Save All")
+        file_dropdown.add_separator()
+        file_dropdown.add_option("Close Current File")
+        file_dropdown.add_option("Close Opened Files")
+        file_dropdown.add_option("Close DreamStudio")
+        file_dropdown.add_separator()
+        file_dropdown.add_option("Exit")
 
-        # Menus Services
-        self.downFrame = ctk.CTkFrame(self.menubar, height=100, corner_radius=0)
-        self.downFrame.pack(fill="x", side="top")
 
-        ###############################
-        # MENUS FRAMES
-        ###############################
-        self.homeFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
-                                      border_color="#5e5e5e", border_width=1,
-                                      fg_color=["#D2D2D2","#1E1E1E"])
-        
-        self.toolsFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
-                                      border_color="#5e5e5e", border_width=1,
-                                      fg_color=["#D2D2D2","#1E1E1E"])
+        edit_button = self.menubar.add_cascade("Edit",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # Edit dropdown menu and its options
+        edit_dropdown = CustomDropdownMenu(widget=edit_button, corner_radius=0, font=("Segoe UI",12))
+        edit_dropdown.add_option("Cut")
+        edit_dropdown.add_option("Copy")
+        edit_dropdown.add_option("Paste")
+        edit_dropdown.add_separator()
+        edit_dropdown.add_option("Find")
+        edit_dropdown.add_option("Replace")
+        edit_dropdown.add_separator()
+        edit_dropdown.add_option("Find in Files")
+        edit_dropdown.add_option("Replace in Files")
+        edit_dropdown.add_separator()
+        edit_dropdown.add_option("Comment Selection")
+        edit_dropdown.add_option("Uncomment Selection")
+        edit_dropdown.add_option("Emmet Selection Left")
+        edit_dropdown.add_option("Emmet Selection Right")
+        edit_dropdown.add_option("Select All")
+        edit_dropdown.add_separator()
+        edit_dropdown.add_option("Switch to Vim Keybindings")
+        edit_dropdown.add_option("Switch to Dream Keybindings")
+        edit_dropdown.add_option("Reset Keybindings (Normal)")
 
-        self.debugFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
-                                      border_color="#5e5e5e", border_width=1,
-                                      fg_color=["#D2D2D2","#1E1E1E"])
 
-        self.terminalFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
-                                      border_color="#5e5e5e", border_width=1,
-                                      fg_color=["#D2D2D2","#1E1E1E"])
+        view_button = self.menubar.add_cascade("View",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # View dropdown menu and its options
+        view_dropdown = CustomDropdownMenu(widget=view_button, corner_radius=0, font=("Segoe UI",12))
+        view_dropdown.add_option("Command Palette")
+        view_dropdown.add_option("PromptX Shell")
+        view_dropdown.add_option("Terminal Window")
+        view_dropdown.add_separator()
+        view_dropdown.add_option("Solution Explorer")
+        view_dropdown.add_option("Team Explorer")
+        view_dropdown.add_option("Server Explorer")
+        view_dropdown.add_option("Cloud Explorer")
+        view_dropdown.add_option("SQL Server Object Explorer")
+        view_dropdown.add_separator()
+        view_dropdown.add_option("Outline Browser")
+        view_dropdown.add_option("Timeline Browser")
+        view_dropdown.add_separator()
+        view_dropdown.add_option("Errors List")
+        view_dropdown.add_option("Output Window")
+        view_dropdown.add_option("Tasks List")
+        view_dropdown.add_option("Toolbox")
+        view_dropdown.add_option("Notifications")
+        view_dropdown.add_separator()
+        view_dropdown.add_option("Python Environment Manager")
+        view_dropdown.add_option("Python Packages Manager")
+        view_dropdown.add_option("JavaScript Environment Manager")
+        view_dropdown.add_option("JavaScript Package Manager")
+        view_dropdown.add_separator()
+        view_dropdown.add_option("Tests Manager")
+        view_dropdown.add_option("Data Tools manager")
+        view_dropdown.add_option("History Manager")
 
-        self.helpFrame = ctk.CTkFrame(self.downFrame, corner_radius=0, height=122,
-                                      border_color="#5e5e5e", border_width=1,
-                                      fg_color=["#D2D2D2","#1E1E1E"])
 
-        BUTTON_CONFIG = {
-            "height": 24,
-            "fg_color": "#004073",
-            "corner_radius": 0,
-            "width": 80,
-            "font": ("Segoe UI", 12)}
+        code_button = self.menubar.add_cascade("Code",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # Code dropdown menu and its options
+        code_dropdown = CustomDropdownMenu(widget=code_button, corner_radius=0, font=("Segoe UI",12))
+        code_dropdown.add_option("Refactor Current File")
+        code_dropdown.add_option("Refactor Selected Content")
+        code_dropdown.add_option("Refactor All Files")
+        code_dropdown.add_separator()
+        code_dropdown.add_option("Go to File")
+        code_dropdown.add_option("Go to Line")
+        code_dropdown.add_option("List Folder Properties")
+        code_dropdown.add_option("List File Properties")
+        code_dropdown.add_separator()
+        code_dropdown.add_option("Next Problem")
+        code_dropdown.add_option("Previous Problem")
+        code_dropdown.add_option("Next Change")
+        code_dropdown.add_option("Previous Change")
 
-        menu_items = [
-            ("HOME", self.homeFrame, "homeBtn"),
-            ("TOOLS", self.toolsFrame, "toolsBtn"),
-            ("DEBUG", self.debugFrame, "debugBtn"),
-            ("TERMINAL", self.terminalFrame, "terminalBtn"),
-            ("HELP", self.helpFrame, "helpBtn")]
 
-        # Looping to create and pack standard buttons
-        for text, frame, attr_name in menu_items:
-            btn = ctk.CTkButton(
-                self.topFrame,
-                text=text,
-                command=lambda f=frame, a=attr_name: self._show_menu_tab(f, getattr(self, a)),
-                **BUTTON_CONFIG
-            )
-            btn.pack(side="left", anchor="w", padx=(8, 0))
-            setattr(self, attr_name, btn)
+        run_button = self.menubar.add_cascade("Debug",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # Code dropdown menu and its options
+        run_dropdown = CustomDropdownMenu(widget=run_button, corner_radius=0, font=("Segoe UI",12))
+        run_dropdown.add_option("Start Debugging")
+        run_dropdown.add_option("Run without Debugging")
+        run_dropdown.add_option("Stop Debugging")
+        run_dropdown.add_option("Restart Debugging")
+        run_dropdown.add_separator()
+        run_dropdown.add_option("Run in Specified Environment")
+        run_dropdown.add_option("Run in Virtual Machine")
+        run_dropdown.add_option("Open Configurations")
+        run_dropdown.add_option("Add Configurations")
+        run_dropdown.add_separator()
+        run_dropdown.add_option("Step Over")
+        run_dropdown.add_option("Step Into")
+        run_dropdown.add_option("Step Out")
+        run_dropdown.add_option("Continue")
+        run_dropdown.add_separator()
+        run_dropdown.add_option("Breakpoints Manager")
+        run_dropdown.add_option("Remove All Breakpoints")
+        run_dropdown.add_option("Enable All Breakpoints")
+        run_dropdown.add_option("Disable All Breakpoints")
 
-        # ACCOUNT button
-        self.accountBtn = ctk.CTkButton(
-            self.topFrame,
-            text="ACCOUNT",
-            image=self.downArrow,
-            width=100,
-            height=20,
-            fg_color="#004073",
-            corner_radius=0,
-            font=("Segoe UI", 12))
-        self.accountBtn.pack(side="right", anchor="e", padx=(8, 8))
 
-        ##############################
-        # MENUS CONSTRUCTOR
-        ##############################
-        
-        for _, name, _ in menu_items:
-            name.pack(fill = "both", side = "top")
-            name.pack_propagate(False)
+        terminal_button = self.menubar.add_cascade("Code",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # Code dropdown menu and its options
+        code_dropdown = CustomDropdownMenu(widget=terminal_button, corner_radius=0, font=("Segoe UI",12))
+        code_dropdown.add_option("Open Terminal")
+        code_dropdown.add_option("Open PromptX Shell in New Window")
+        code_dropdown.add_option("Open Files Manager")
+        code_dropdown.add_separator()
+        code_dropdown.add_option("Open CMake Manager")
+        code_dropdown.add_option("Run Specific Task")
+        code_dropdown.add_separator()
+        code_dropdown.add_option("Configure Tasks")
 
-        self.parent_color = self.homeFrame.cget("fg_color")
 
-        home_toolbar = HomeToolbarBuilder(self.homeFrame, self.parent_color, self)
-        tools_toolbar = ToolsBarBuilder(self.toolsFrame, self.parent_color, self)
-        debug_toolbar = DebugBuilder(self.parent_color, self.debugFrame)
-        terminal_toolbar = TerminalBuilder(self.terminalFrame, self.parent_color)
-        help_toolbar = HelpBuilder(self.helpFrame, self.parent_color)
+        terminal_button = self.menubar.add_cascade("Terminal",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # Code dropdown menu and its options
+        terminal_dropdown = CustomDropdownMenu(widget=terminal_button, corner_radius=0, font=("Segoe UI",12))
+        terminal_dropdown.add_option("Open Terminal")
+        terminal_dropdown.add_option("Open PromptX Shell in New Window")
+        terminal_dropdown.add_option("Open Files Manager")
+        terminal_dropdown.add_separator()
+        terminal_dropdown.add_option("Open CMake Manager")
+        terminal_dropdown.add_option("Run Specific Task")
+        terminal_dropdown.add_separator()
+        terminal_dropdown.add_option("Configure Tasks")
 
-        self.allTabs = [
-            self.homeFrame,
-            self.toolsFrame,
-            self.debugFrame,
-            self.terminalFrame,
-            self.helpFrame]
-        self._show_menu_tab(self.homeFrame, self.homeBtn)
+
+        help_button = self.menubar.add_cascade("Help",text_color = "#FFFFFF",font=("Segoe UI",12))
+        # Code dropdown menu and its options
+        help_dropdown = CustomDropdownMenu(widget=help_button, corner_radius=0, font=("Segoe UI",12))
+        help_dropdown.add_option("Welcome")
+        help_dropdown.add_option("Documentation")
+        help_dropdown.add_option("Keybindings Reference")
+        help_dropdown.add_option("Open DShell Documentation")
+        help_dropdown.add_separator()
+        help_dropdown.add_option("View License")
+        help_dropdown.add_option("Check for Updates")
+        help_dropdown.add_separator()
+        help_dropdown.add_option("About")
+
+
+        self.menuFrame = ctk.CTkFrame(self.window, height=85, corner_radius=0)
+        self.menuFrame.pack(fill="x", side="top")
+        self.menuFrame.pack_propagate(False)
 
         ##############################
         # STATUS BAR
@@ -387,26 +455,6 @@ class App:
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
         print(self.current_session_editors_open)
-
-    def _show_menu_tab(self, frame_to_show, active_button):
-        for frame in self.allTabs:
-            frame.pack_forget()
-
-        if hasattr(frame_to_show, "initialize"):
-            frame_to_show.initialize()
-
-        frame_to_show.pack(fill="both", side="top")
-        frame_to_show.pack_propagate(False)
-
-        tabButtons = [
-            self.homeBtn,
-            self.toolsBtn,
-            self.debugBtn,
-            self.terminalBtn,
-            self.helpBtn]
-
-        for btn in tabButtons:
-            btn.configure(fg_color="#004073")
 
     def _add_new_text_tab(self):
         if self.tab_count >= 10:
