@@ -57,6 +57,8 @@ string checkVersion()
     version(Windows) return "windows";
     version(linux)   return "linux";
     version(OSX)     return "macos";
+    // Fallback if some other target (should not normally be needed)
+    return "unknown";
 }
 
 void openPDF(string filePath)
@@ -71,7 +73,7 @@ void openPDF(string filePath)
     {
         command = `open "` ~ filePath ~ `"`;
     }
-    else version (Unix)
+    else version (linux)
     {
         command = `xdg-open "` ~ filePath ~ `"`;
     }
@@ -230,7 +232,7 @@ void searchSeveral(string rootDir, string topicWord)
         }
 
         string content = readText(matches[index].path);
-        writeln(YELLOW,"---- FILE CONTENT (", matches[index].path, ") ----"<RESET);
+        writeln(YELLOW,"---- FILE CONTENT (", matches[index].path, ") ----", RESET);
         writeln(content);
     }
     catch (Exception)
@@ -340,8 +342,8 @@ void parseUserInput(string arg)
     auto dash_idx = arg.indexOf('-');
     string user_command = (space_idx != -1) ? arg[0 .. space_idx] : arg;
     string search_param = (space_idx != -1) ? arg[space_idx + 1 .. $] : arg;
-    string command_identifier;
-    string command_type;
+    string command_identifier = "";
+    string command_type = "";
     if(dash_idx != -1)
     {
         command_identifier = user_command[0 .. dash_idx];
@@ -385,13 +387,13 @@ void parseUserInput(string arg)
         }
 
         else if (toLower(command_identifier) == "search" &&
-        toLower(command_type == "topic"))
+        toLower(command_type) == "topic")
         {
             searchTopic("./docs", search_param);
         }
 
         else if (toLower(command_identifier) == "search" &&
-        toLower(command_type == "several"))
+        toLower(command_type) == "several")
         {
             searchSeveral("./docs", search_param);
         }

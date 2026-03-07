@@ -16,6 +16,7 @@ from customtkinter import set_widget_scaling, set_window_scaling
 
 import dreamstudio.TabView as TabView
 
+from others.about import *
 from dreamstudio.imageload import *
 from dreamstudio.menu_builders import *
 from dreamstudio.utils.ctk_tabview import *
@@ -251,31 +252,32 @@ class App:
         help_button = self.menubar.add_cascade("Help",text_color = "#FFFFFF",font=("Segoe UI",12))
         # Code dropdown menu and its options
         help_dropdown = CustomDropdownMenu(widget=help_button, corner_radius=0, font=("Segoe UI",12))
-        help_dropdown.add_option("👋   Welcome")
+        help_dropdown.add_option("👋   Welcome", command=print("Hello"))
         help_dropdown.add_option("📘   Documentation")
         help_dropdown.add_option("⌨️   Keybindings Reference")
-        help_dropdown.add_option("📗   Open DShell Documentation")
+        help_dropdown.add_option("📗   Open DShell Documentation", command=lambda: subprocess.Popen(
+                                 ["x-terminal-emulator", "-e", "./ddocs/manual"]))
         help_dropdown.add_separator()
-        help_dropdown.add_option("📜   View License")
-        help_dropdown.add_option("🔄   Check for Updates")
+        help_dropdown.add_option("📜   View License", command=lambda: License(self.window))
+        help_dropdown.add_option("🔄   Check for Updates", command=lambda: CheckForUpdates(self.window))
         help_dropdown.add_separator()
-        help_dropdown.add_option("ℹ️   About")
+        help_dropdown.add_option("ℹ️   About", command=lambda: AboutWindow(self.window))
 
 
         self.menuFrame = ctk.CTkFrame(self.window, height=85, corner_radius=0)
         self.menuFrame.pack(fill="x", side="top")
         self.menuFrame.pack_propagate(False)
 
-        exploreBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/watch.png", 
-                                       text="Track")
+        exploreBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/newvar.png", 
+                                       text="File")
         exploreBtnOptions.place(x=8, y=3)
 
-        findBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/inspector.png", 
-                                        text="Find")
+        findBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/folder.png", 
+                                        text="Open")
         findBtnOptions.place(x=62, y=3)
 
-        mngBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/graphsettings.png", 
-                                        text="Show")
+        mngBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/save_file.png", 
+                                        text="Save")
         mngBtnOptions.place(x=116, y=5)
 
         trackChangesBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/database.png",
@@ -295,56 +297,24 @@ class App:
         RunCode.place(x=296, y=5)
 
         cutBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/bug.png",
-                                  text="Do Debugging")
+                                  text="Debug Files")
         cutBtn.place(x=350, y=5)
 
         copyBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/version.png",
-                                   text="Run no Debug")
+                                   text="Configure")
         copyBtn.place(x=350, y=38)
-
-        deleteBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/task.png",
-                                     text="Configure")
-        deleteBtn.place(x=468, y=5)
-
-        clearBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/restart.png",
-                                    text="Run Options")
-        clearBtn.place(x=468, y=38)
 
         verticalSep2 = CTkFrame(self.menuFrame, width=2, height=78, corner_radius=0, 
                                fg_color=["#C4C4C4","#414141"])
-        verticalSep2.place(x=586, y=3)
+        verticalSep2.place(x=476, y=3)
 
-        commandBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/container.png", 
-                                   text="Contai\n-ners")
-        commandBtn.place(x=594, y=5)
-
-        envBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/console.png", 
-                                   text="See\nEnvs")
-        envBtn.place(x=652, y=5)
-
-        cmdBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/preferences.png", 
-                                   text="Cmdlet")
-        cmdBtn.place(x=710, y=5)
-
-        gitBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/git.png",
-                                   text="Git Changes")
-        gitBtn.place(x=768, y=5)
-
-        githubBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/github.png",
-                                     text="Open Github")
-        githubBtn.place(x=768, y=38)
-
-        verticalSep3 = CTkFrame(self.menuFrame, width=2, height=78, corner_radius=0, 
-                               fg_color=["#C4C4C4","#414141"])
-        verticalSep3.place(x=886, y=3)
-
-        customizeBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/syntax.png", 
+        stylesBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/container.png", 
                                    text="Styles")
-        customizeBtn.place(x=894, y=5)
+        stylesBtn.place(x=484, y=5)
 
-        addonsBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/addons.png", 
+        addonsBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/console.png", 
                                    text="Add\nOns")
-        addonsBtn.place(x=952, y=5)
+        addonsBtn.place(x=542, y=5)
 
 
         ##############################
