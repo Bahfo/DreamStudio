@@ -11,17 +11,20 @@ class VerticalButton(ctk.CTkFrame):
         parent,
         image_path=None,
         text="",
+        width = 50, 
+        height = 75,
         command=None,
         size=(27, 27),
         hover_border=["#454545","#bebebe"],
         click_border=["#737373","#808080"],
         **kwargs,
     ):
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color="transparent", width=width, height=height)
 
         self.command = command
         self.hover_border = hover_border
         self.click_border = click_border
+        self.pack_propagate(False)
 
         self.border_frame = ctk.CTkFrame(
             self,
@@ -49,6 +52,7 @@ class VerticalButton(ctk.CTkFrame):
             text_color=["#1E1E1E", "#c8c8c8"],
         )
         self.label.pack()
+        self.label.pack_propagate(False)
 
         for widget in (
             self,

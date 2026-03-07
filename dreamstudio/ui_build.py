@@ -266,6 +266,87 @@ class App:
         self.menuFrame.pack(fill="x", side="top")
         self.menuFrame.pack_propagate(False)
 
+        exploreBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/watch.png", 
+                                       text="Track")
+        exploreBtnOptions.place(x=8, y=3)
+
+        findBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/inspector.png", 
+                                        text="Find")
+        findBtnOptions.place(x=62, y=3)
+
+        mngBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/graphsettings.png", 
+                                        text="Show")
+        mngBtnOptions.place(x=116, y=5)
+
+        trackChangesBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/database.png",
+                                          text="Track Changes")
+        trackChangesBtn.place(x=170, y=5)
+
+        compareBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/feedback.png",
+                                      text="Compare Files")
+        compareBtn.place(x=170, y=38)
+
+        verticalSep1 = CTkFrame(self.menuFrame, width=2, height=78, corner_radius=0, 
+                               fg_color=["#C4C4C4","#414141"])
+        verticalSep1.place(x=288, y=3)
+
+        RunCode = VerticalButton(self.menuFrame, image_path=r"icons/system/start.png", 
+                                   text="Run\nFile")
+        RunCode.place(x=296, y=5)
+
+        cutBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/bug.png",
+                                  text="Do Debugging")
+        cutBtn.place(x=350, y=5)
+
+        copyBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/version.png",
+                                   text="Run no Debug")
+        copyBtn.place(x=350, y=38)
+
+        deleteBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/task.png",
+                                     text="Configure")
+        deleteBtn.place(x=468, y=5)
+
+        clearBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/restart.png",
+                                    text="Run Options")
+        clearBtn.place(x=468, y=38)
+
+        verticalSep2 = CTkFrame(self.menuFrame, width=2, height=78, corner_radius=0, 
+                               fg_color=["#C4C4C4","#414141"])
+        verticalSep2.place(x=586, y=3)
+
+        commandBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/container.png", 
+                                   text="Contai\n-ners")
+        commandBtn.place(x=594, y=5)
+
+        envBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/console.png", 
+                                   text="See\nEnvs")
+        envBtn.place(x=652, y=5)
+
+        cmdBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/preferences.png", 
+                                   text="Cmdlet")
+        cmdBtn.place(x=710, y=5)
+
+        gitBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/git.png",
+                                   text="Git Changes")
+        gitBtn.place(x=768, y=5)
+
+        githubBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/github.png",
+                                     text="Open Github")
+        githubBtn.place(x=768, y=38)
+
+        verticalSep3 = CTkFrame(self.menuFrame, width=2, height=78, corner_radius=0, 
+                               fg_color=["#C4C4C4","#414141"])
+        verticalSep3.place(x=886, y=3)
+
+        customizeBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/syntax.png", 
+                                   text="Styles")
+        customizeBtn.place(x=894, y=5)
+
+        addonsBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/addons.png", 
+                                   text="Add\nOns")
+        addonsBtn.place(x=952, y=5)
+
+
         ##############################
         # STATUS BAR
         ##############################
@@ -624,7 +705,7 @@ class GettingStartedTab:
                                         fg_color=["#FFFFFF","#1F1F1F"], anchor="w", justify="left")
         welcomeTabLabel3.place(x = 20, y = 250)
 
-        welcomeTabLabel4 = LinkLabel(welcomeTabFrame, text="Start My Tour!", corner_radius=0, font=("Segoe UI",13),
+        welcomeTabLabel4 = LinkLabel(welcomeTabFrame, text="Start My Tour!", corner_radius=0, font=("Segoe UI",12),
                                      width=80, height=18)
         welcomeTabLabel4.place(x = 340, y = 255)
 
@@ -634,7 +715,7 @@ class GettingStartedTab:
         welcomeTabLabel5.place(x = 20, y = 275)
 
         welcomeTabLabel6 = LinkLabel(welcomeTabFrame, text="Read the Documentation", corner_radius=0,
-                                     font=("Segoe UI",13), width=136, height=18)
+                                     font=("Segoe UI",12), width=136, height=18)
         welcomeTabLabel6.place(x = 362, y = 280)
 
         ########## SOME RANDOM BUTTONS TO HELP TOURING ##########
@@ -650,11 +731,11 @@ class GettingStartedTab:
                                     text="Start", anchor="w", justify="left")
         label1_right.place(x = 720, y = 15)
         
-        option1 = LinkLabel(welcomeTabFrame, text="Start a New Project", corner_radius=0, font=("Segoe UI",13),
+        option1 = LinkLabel(welcomeTabFrame, text="Start a New Project", corner_radius=0, font=("Segoe UI",12),
                                      width=106, height=20)
         option1.place(x = 720, y = 50)
 
-        option2 = LinkLabel(welcomeTabFrame, text="Open a Recent Project", corner_radius=0, font=("Segoe UI",13),
+        option2 = LinkLabel(welcomeTabFrame, text="Open a Recent Project", corner_radius=0, font=("Segoe UI",12),
                                      width=125, height=20)
         option2.place(x = 720, y = 70)
 

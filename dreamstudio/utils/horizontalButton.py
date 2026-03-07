@@ -10,6 +10,8 @@ class HorizontalButton(ctk.CTkFrame):
         self,
         parent,
         image_path=None,
+        width = 110, 
+        height = 30,
         text="",
         command=None,
         size=(16, 16),
@@ -18,11 +20,12 @@ class HorizontalButton(ctk.CTkFrame):
         font=("Segoe UI", 11),
         **kwargs,
     ):
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color="transparent", width=width, height=height)
 
         self.command = command
         self.hover_border = hover_border
         self.click_border = click_border
+        self.pack_propagate(False)
 
         self.border_frame = ctk.CTkFrame(
             self,
