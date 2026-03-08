@@ -560,6 +560,8 @@ class Text(Text):
         word = self.get("insert wordstart", "insert wordend").strip()
         if not word or word in self.syntax.keywords:
             return
+        
+        word = self.escape(word)
 
         try:
             cur_line = int(self.index(tk.INSERT).split(".")[0])
