@@ -24,6 +24,17 @@ from dreamstudio.texteditor.config import Config
 from dreamstudio.texteditor import Editor, Languages
 from dreamstudio.texteditor.config.styles import Style
 
+# OUTER DEFINITIONS FOR MENUS
+file_menu = {
+    "New File":lambda: print("New File"),
+    "New Project":lambda: print("New Project")
+}
+
+open_menu = {
+    "Open File":lambda: print("Open File"),
+    "Open Project":lambda: print("Open Project"),
+    "Open File from Template":lambda: print("Open Template")
+}
 
 #######################################
 # MAIN WINDOW
@@ -268,12 +279,16 @@ class App:
         self.menuFrame.pack(fill="x", side="top")
         self.menuFrame.pack_propagate(False)
 
-        exploreBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/newvar.png", 
-                                       text="File")
-        exploreBtnOptions.place(x=8, y=3)
+        self.exploreBtnOptions = VerticalButton(self.menuFrame, 
+                                                image_path=r"icons/system/newvar.png", 
+                                                text="File")
+        self.exploreBtnOptions.place(x=8, y=3)
 
         findBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/folder.png", 
-                                        text="Open")
+                                        text="Open",
+                                        command=lambda: self._add_custom_menuframe(False,
+                                                                                   self.exploreBtnOptions,
+                                                                                   file_menu))
         findBtnOptions.place(x=62, y=3)
 
         mngBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/save_file.png", 
@@ -506,6 +521,22 @@ class App:
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
         print(self.current_session_editors_open)
+
+    def _add_custom_menuframe(self, frame_created, master, dict_of_options:dict[str,Any]):
+        if frame_created:
+            return
+        
+        self.window.update_idletasks()
+
+        x = master.winfo_rootx() + master.winfo_width()
+        y = master.winfo_rooty() + master.winfo_height()
+
+        frame = ctk.CTkFrame(master, corner_radius=0)
+        frame.place(x,y)
+        
+        for option, command in dict_of_options.items():
+            button = ctk.CTkButton(frame, text=f"{option}", command=command)
+            button.pack()
 
     def _add_new_text_tab(self):
         if self.tab_count >= 10:

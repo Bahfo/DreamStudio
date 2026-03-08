@@ -1,3 +1,4 @@
+import pathlib
 from PIL import Image
 import customtkinter as ctk
 from backend.run import run_config
@@ -120,7 +121,7 @@ class TabView:
             master=self.solutionExplorerFrame,
             width=350,
             height=550,
-            root_path=r"C:/Users/Bahaa/Desktop/DreamStudio"
+            root_path=rf"{pathlib.Path.home()}"
         )
         self.treeView.place(x=5, y=60)
 
