@@ -12,7 +12,7 @@ from .symbol_extractor import SymbolExtractor
 class AutoComplete(Toplevel):
     """Autocomplete widget with proper lifecycle management."""
 
-    WIDGET_MIN_WIDTH = 300  # pixels - wider
+    WIDGET_MIN_WIDTH = 300 
     MAX_ITEMS_DISPLAY = 10
 
     def __init__(self, master, items=None, active=False, *args, **kwargs):
@@ -25,7 +25,6 @@ class AutoComplete(Toplevel):
         self.overrideredirect(True)
         self.wm_attributes("-topmost", True)
 
-        # Don't use pack_propagate or grid_propagate on Toplevel
         self.grid_columnconfigure(0, weight=1)
 
         self.active = active
@@ -100,17 +99,17 @@ class AutoComplete(Toplevel):
         """Compute completions in background thread."""
         try:
             script = jedi.Script(code)
-            jedi_results = {
-                c.name: {"type": c.type}
+            self.self.jedi_results = {
+                c.name: {"type": c.type, "completion": c}
                 for c in script.complete(line, col)
             }
         except Exception:
-            jedi_results = {}
+            self.jedi_results = {}
 
         defined_names = SymbolExtractor.get_defined_names_before_cursor(code, line)
         
         filtered_results = {}
-        for name, meta in jedi_results.items():
+        for name, meta in self.jedi_results.items():
             if name in self._builtin_names or name in self._static_items:
                 filtered_results[name] = meta
             elif name in defined_names:
@@ -159,7 +158,7 @@ class AutoComplete(Toplevel):
 
         for name, meta in items_data:
             if name not in existing_texts:
-                self.add_item(name, meta.get("type") if meta else None)
+                self.add_item(name, meta)
 
         self.hide_all_items()
 
@@ -185,7 +184,6 @@ class AutoComplete(Toplevel):
             return "break"
 
     # Item management
-
     def add_all_items(self):
         for completion, meta in self.items.items():
             self.add_item(completion, meta.get("type") if meta else None)
@@ -193,8 +191,10 @@ class AutoComplete(Toplevel):
         self.active_items = self.menu_items
         self.refresh_selected()
 
-    def add_item(self, text, kind=""):
+    def add_item(self, text, meta=None):
+        kind = meta.get("type") if meta else ""
         item = AutoCompleteItem(self, text, kind=kind, min_width=self.WIDGET_MIN_WIDTH)
+        item.meta = meta
         self.menu_items.append(item)
 
     def hide_all_items(self):
@@ -284,8 +284,7 @@ class AutoComplete(Toplevel):
         self.master.confirm_autocomplete(this.get_text())
         self.hide()
 
-    # Key handlers - REMOVED, no special behavior
-
+    # Key handlers
     def handle_escape(self):
         """Escape key - hide widget."""
         self.destroy_widget()
@@ -293,3 +292,22 @@ class AutoComplete(Toplevel):
     def handle_enter(self):
         """Enter key - hide widget."""
         self.destroy_widget()
+
+    def show_item_info(self, name, code, line, column):
+        script = jedi.Script(code)
+        completions = script.complete(line, column)
+
+        for c in completions:
+            if c.name == name:
+                sig = c.get_signatures()
+                sig_text = sig[0].to_string() if sig else ""
+
+                return (
+                    f"Name: {c.name}\n"
+                    f"Type: {c.type}\n"
+                    f"Description: {c.description}\n"
+                    f"Signature: {sig_text}\n\n"
+                    f"{c.docstring()}"
+                )
+
+        return "No documentation available."

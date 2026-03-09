@@ -1,4 +1,5 @@
 import tkinter as tk
+import customtkinter as ctk
 from .kind import Kind
 from ...utils import Frame
 
@@ -27,9 +28,6 @@ class AutoCompleteItem(Frame):
         # Kind Icon
         self.kindw = Kind(self, self.master.autocomplete_kinds, kind)
 
-        # Text label - calculate character width
-        # Consolas 10pt ≈ 6 pixels per character
-        # Account for icon (24px) + padding (8px) = ~32px
         char_width = max(1, (min_width - 32) // 6)
         
         self.textw = tk.Label(
@@ -84,8 +82,22 @@ class AutoCompleteItem(Frame):
         self.master.choose(self)
 
     def on_info_click(self, event):
-        """Info button click."""
-        pass
+        editor = self.master.master
+
+        line, column = map(int, editor.index("insert").split("."))
+
+        content = self.master.show_item_info(
+            name=self.get_text(),
+            code=editor.get_all_text(),
+            line=line,
+            column=column
+        )
+
+        root = self.winfo_toplevel()
+
+        doc = Documentation(root, content)
+        doc.show_near(self.infobtn)
+
 
     def on_hover(self, *args):
         if not self.selected:
@@ -109,3 +121,22 @@ class AutoCompleteItem(Frame):
         self.kindw.config(bg=bg)
         self.textw.config(bg=bg, fg=fg)
         self.infobtn.config(bg=bg, fg=fg)
+
+
+class Documentation(ctk.CTkScrollableFrame):
+
+    def __init__(self, master, text):
+        super().__init__(master, width=350, height=450)
+
+        self.box = ctk.CTkTextbox(self, font=("Consolas", 12))
+        self.box.pack(fill="both", expand=True, padx=5, pady=5)
+
+        self.box.insert("1.0", text)
+        self.box.configure(state="disabled")
+
+    def show_near(self, widget):
+        x = widget.winfo_rootx() + widget.winfo_width() + 5
+        y = widget.winfo_rooty()
+
+        self.place(x=x, y=y)
+
