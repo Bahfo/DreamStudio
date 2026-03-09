@@ -7,10 +7,13 @@ from ...utils import Toplevel
 from .item import AutoCompleteItem
 from .kinds import Kinds
 from .languages.python_completions import python_completions
-
+from .symbol_extractor import SymbolExtractor
 
 class AutoComplete(Toplevel):
-    """Autocomplete widget with controlled destruction/recreation."""
+    """Autocomplete widget with proper lifecycle management."""
+
+    WIDGET_MIN_WIDTH = 300  # pixels - wider
+    MAX_ITEMS_DISPLAY = 10
 
     def __init__(self, master, items=None, active=False, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
@@ -22,6 +25,7 @@ class AutoComplete(Toplevel):
         self.overrideredirect(True)
         self.wm_attributes("-topmost", True)
 
+        # Don't use pack_propagate or grid_propagate on Toplevel
         self.grid_columnconfigure(0, weight=1)
 
         self.active = active
@@ -45,32 +49,34 @@ class AutoComplete(Toplevel):
         else:
             self.items = items
 
+        self._static_items = python_completions.copy()
+        self._static_items.update(self.items)
+        
+        self._builtin_names = set(python_completions.keys())
+
         self.add_all_items()
         self.refresh_selected()
 
     # Widget lifecycle
 
     def destroy_widget(self):
-        """Destroy autocomplete window."""
+        """Hide and reset autocomplete."""
         if self.winfo_exists():
-            self.destroy()
-
-    def recreate_widget(self):
-        """Recreate autocomplete window."""
-        pos = self.master.cursor_screen_location()
-        self.__init__(self.master, items=self.items, active=True)
-        self.geometry(f"+{pos[0]}+{pos[1]}")
-        self.deiconify()
+            self.withdraw()
+            self.reset()
+            self.hide_all_items()
+            self.active = False
 
     # Completion update
 
     def update_completions(self):
+        """Trigger debounced Jedi update."""
         if self._debounce_id:
             self.after_cancel(self._debounce_id)
-
-        self._debounce_id = self.after(60, self._request_jedi_update)
+        self._debounce_id = self.after(100, self._request_jedi_update)
 
     def _request_jedi_update(self):
+        """Request Jedi completions."""
         self._debounce_id = None
 
         term = self.master.get_current_word()
@@ -91,6 +97,7 @@ class AutoComplete(Toplevel):
         self._jedi_thread.start()
 
     def _compute_jedi(self, code, line, col, term, request_id):
+        """Compute completions in background thread."""
         try:
             script = jedi.Script(code)
             jedi_results = {
@@ -100,53 +107,70 @@ class AutoComplete(Toplevel):
         except Exception:
             jedi_results = {}
 
-        with self._lock:
-            all_items = python_completions.copy()
-            all_items.update(self.items)
-            all_items.update(jedi_results)
+        defined_names = SymbolExtractor.get_defined_names_before_cursor(code, line)
+        
+        filtered_results = {}
+        for name, meta in jedi_results.items():
+            if name in self._builtin_names or name in self._static_items:
+                filtered_results[name] = meta
+            elif name in defined_names:
+                filtered_results[name] = meta
 
-            for w in self.master.words:
-                if w not in all_items:
-                    all_items[w] = {"type": "word"}
+        all_items = self._static_items.copy()
+        all_items.update(filtered_results)
+
+        with self._lock:
+            self._last_jedi_cache = (request_id, all_items)
 
         self.after(0, lambda: self._update_ui(all_items, term, request_id))
 
     def _update_ui(self, items, term, request_id):
+        """Update UI from main thread."""
         if request_id != self._request_id:
             return
 
         if not self.winfo_exists():
             return
 
-        existing = {i.get_text() for i in self.menu_items}
-
-        for name, meta in items.items():
-            if name not in existing:
-                self.add_item(name, meta.get("type") if meta else None)
-
         exact, starts, includes = [], [], []
 
-        for i in self.menu_items:
-            text = i.get_text()
+        for name, meta in items.items():
+            if not term or name == term:
+                exact.append((name, meta))
+            elif name.startswith(term):
+                starts.append((name, meta))
+            elif term in name:
+                includes.append((name, meta))
 
-            if text == term:
-                exact.append(i)
-            elif text.startswith(term):
-                starts.append(i)
-            elif term in text:
-                includes.append(i)
+        new_active_data = exact + starts + includes
 
-        new_active = list(chain(exact, starts, includes))
+        if not new_active_data:
+            self.hide()
+            return
+
+        self._render_items(new_active_data[:self.MAX_ITEMS_DISPLAY], term)
+        self.refresh_geometry()
+        self.deiconify()
+        self.active = True
+
+    def _render_items(self, items_data, term):
+        """Render visible items."""
+        existing_texts = {i.get_text() for i in self.menu_items}
+
+        for name, meta in items_data:
+            if name not in existing_texts:
+                self.add_item(name, meta.get("type") if meta else None)
 
         self.hide_all_items()
 
-        if new_active:
-            self.refresh_geometry()
-            self.show_items(new_active[:10], term)
-            self.deiconify()
-            self.active = True
-        else:
-            self.hide()
+        display_items = []
+        for name, meta in items_data:
+            for item in self.menu_items:
+                if item.get_text() == name:
+                    display_items.append(item)
+                    break
+
+        self.show_items(display_items, term)
 
     # Navigation
 
@@ -170,7 +194,7 @@ class AutoComplete(Toplevel):
         self.refresh_selected()
 
     def add_item(self, text, kind=""):
-        item = AutoCompleteItem(self, text, kind=kind)
+        item = AutoCompleteItem(self, text, kind=kind, min_width=self.WIDGET_MIN_WIDTH)
         self.menu_items.append(item)
 
     def hide_all_items(self):
@@ -184,7 +208,7 @@ class AutoComplete(Toplevel):
         self.active_items = items
 
         for i in items:
-            i.grid(row=self.row, sticky=tk.EW)
+            i.grid(row=self.row, column=0, sticky=tk.EW)
             i.mark_term(term)
             self.row += 1
 
@@ -210,30 +234,47 @@ class AutoComplete(Toplevel):
             else:
                 item.deselect()
 
-    # Geometry
+    # Geometry - FIXED WIDTH
 
     def refresh_geometry(self, *_):
+        """Position widget at cursor with fixed width."""
+        if not self.winfo_exists():
+            return
+        
         pos = self.master.cursor_screen_location()
-        self.geometry(f"+{pos[0]}+{pos[1]}")
+        # Calculate height based on active items (each ~25 pixels)
+        height = max(30, len(self.active_items) * 25)
+        # Set explicit geometry: WIDTHxHEIGHT+X+Y
+        self.geometry(f"{self.WIDGET_MIN_WIDTH}x{height}+{pos[0]}+{pos[1]}")
 
-    def show(self, pos):
+    def show(self, pos=None):
+        """Show autocomplete at position or cursor."""
+        if not self.winfo_exists():
+            return
+        
         self.active = True
-        self.geometry(f"+{pos[0]}+{pos[1]}")
+        self.refresh_geometry()
         self.deiconify()
         self.lift()
 
     def hide(self, *_):
+        """Hide autocomplete."""
+        if not self.winfo_exists():
+            return
+        
         self.active = False
         self.withdraw()
         self.reset()
 
     def reset(self):
+        """Reset internal state."""
         self.selected = 0
         self.row = 0
 
     # Choosing completion
 
     def choose(self, this=None, *_):
+        """Accept completion and hide widget."""
         if not self.active_items:
             return
 
@@ -241,20 +282,14 @@ class AutoComplete(Toplevel):
             this = self.active_items[self.selected]
 
         self.master.confirm_autocomplete(this.get_text())
+        self.hide()
 
-        # destroy and recreate (requested behavior)
-        self.destroy_widget()
-        self.recreate_widget()
-
-        return "break"
-
-    # Key handlers
+    # Key handlers - REMOVED, no special behavior
 
     def handle_escape(self):
-        """Escape key behaviour (VSCode style)."""
+        """Escape key - hide widget."""
         self.destroy_widget()
 
     def handle_enter(self):
-        """Enter key behaviour."""
+        """Enter key - hide widget."""
         self.destroy_widget()
-        self.recreate_widget()

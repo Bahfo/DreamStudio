@@ -561,8 +561,6 @@ class Text(Text):
         if not word or word in self.syntax.keywords:
             return
         
-        word = self.escape(word)
-
         try:
             cur_line = int(self.index(tk.INSERT).split(".")[0])
             win_start = f"{max(1, cur_line - 200)}.0"
