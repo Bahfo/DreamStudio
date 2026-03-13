@@ -1,31 +1,74 @@
 import customtkinter as ctk
 import tkinter as tk
 
-class Tooltip(ctk.CTkFrame):
-    def __init__(self, master, text, width=150, height=40, triangle_height=10, **kwargs):
-        super().__init__(master, **kwargs)
-        self.width = width
-        self.height = height
-        self.triangle_height = triangle_height
+ctk.set_appearance_mode("System")
 
-        # Canvas for drawing the triangle
-        self.canvas = tk.Canvas(self, width=width, height=triangle_height, bg=self["bg"], highlightthickness=0)
-        self.canvas.pack(side="bottom", fill="x")
 
-        # Draw the downward-pointing triangle
-        mid = width // 2
-        points = [mid - 10, 0, mid + 10, 0, mid, triangle_height]
-        self.canvas.create_polygon(points, fill="#6B5BFF", outline="#6B5BFF")
+class EditorApp(ctk.CTk):
 
-        # Tooltip label
-        self.label = ctk.CTkLabel(self, text=text, width=width, height=height, fg_color="#6B5BFF", corner_radius=8)
-        self.label.pack(side="top", fill="both")
+    def __init__(self):
+        super().__init__()
 
-# Example usage
-root = ctk.CTk()
-root.geometry("300x200")
+        self.title("Textbox Color Change Example")
+        self.geometry("600x400")
 
-tooltip = Tooltip(root, text="Tooltip design")
-tooltip.place(x=80, y=50)
+        self.dark_mode = True
+        self.textboxes = {}
 
-root.mainloop()
+        # Tab system
+        self.tabview = ctk.CTkTabview(self)
+        self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Control buttons
+        button_frame = ctk.CTkFrame(self)
+        button_frame.pack(fill="x", padx=10, pady=5)
+
+        add_tab_btn = ctk.CTkButton(button_frame, text="Add Tab", command=self.add_tab)
+        add_tab_btn.pack(side="left", padx=5)
+
+        toggle_btn = ctk.CTkButton(button_frame, text="Toggle Theme", command=self.toggle_theme)
+        toggle_btn.pack(side="left", padx=5)
+
+        # First tab
+        self.add_tab()
+
+    def add_tab(self):
+        tab_name = f"Tab {len(self.textboxes)+1}"
+        self.tabview.add(tab_name)
+
+        frame = self.tabview.tab(tab_name)
+
+        text = tk.Text(frame, font=("Consolas", 12))
+        text.pack(fill="both", expand=True)
+
+        self.textboxes[tab_name] = text
+
+        self.apply_color(text)
+
+    def toggle_theme(self):
+        self.dark_mode = not self.dark_mode
+
+        current_tab = self.tabview.get()
+        text_widget = self.textboxes[current_tab]
+
+        self.apply_color(text_widget)
+
+    def apply_color(self, widget):
+
+        if self.dark_mode:
+            widget.configure(
+                bg="#1e1e1e",
+                fg="#ffffff",
+                insertbackground="#ffffff"
+            )
+        else:
+            widget.configure(
+                bg="#ffffff",
+                fg="#000000",
+                insertbackground="#000000"
+            )
+
+
+if __name__ == "__main__":
+    app = EditorApp()
+    app.mainloop()

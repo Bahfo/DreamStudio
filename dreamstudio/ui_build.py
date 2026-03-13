@@ -36,11 +36,6 @@ open_menu = {
     "Open File from Template":lambda: print("Open Template")
 }
 
-styles_menu = {
-    "Light": lambda: ctk.set_appearance_mode("light"),
-    "Dark": lambda: ctk.set_appearance_mode("dark"),
-}
-
 #######################################
 # MAIN WINDOW
 #######################################
@@ -85,8 +80,6 @@ class App:
         self.mode = ctk.get_appearance_mode()
         self.shell_frame = None
 
-        self.text_editor_mode_bool = False
-
         if self.mode == "Light":
             self.text_editor_mode_bool = False
         else:
@@ -106,6 +99,11 @@ class App:
 
         for attr, (path, size) in arrow_icons.items():
             setattr(self, attr, load_ctk_icon(path, size, dark_path=path))
+
+        self.styles_menu = {
+            "Light": lambda: self._on_theme_toggle("light"),
+            "Dark": lambda: self._on_theme_toggle("dark"),
+        }
 
         self.config_obj = Config(
             master=self.window,
@@ -330,7 +328,7 @@ class App:
         stylesBtn = VerticalButton(self.menuFrame,
             image_path=r"icons/system/container.png", 
             text="Styles",
-            command=lambda: open_menu_popup(None, self.window,stylesBtn,styles_menu,484,98))
+            command=lambda: open_menu_popup(None, self.window,stylesBtn,self.styles_menu,484,98))
         stylesBtn.place(x=484, y=5)
 
         addonsBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/console.png", 
@@ -529,13 +527,21 @@ class App:
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
 
+    def _check_for_theme(self):
+        return ctk.get_appearance_mode()
+
+    def _on_theme_toggle(self, type):
+        ctk.set_appearance_mode(type)
+        mode = self._check_for_theme()
+        update_all_editors_theme(mode)
+
     def _rename_tab_in_texteditor_tabs(self, old_name, new_name):
         if old_name not in self.tabSwitch._tab_dict:
             messagebox.showerror("Error in Tabs Construction",
                                  message="Tab is not found",
                                  default="ok")
             return
-        
+
         self.tabSwitch._tab_dict[new_name] = self.tabSwitch._tab_dict.pop(old_name)
         values = self.tabSwitch._segmented_button.cget("values")
         new_values = [new_name if v == old_name else v for v in values]

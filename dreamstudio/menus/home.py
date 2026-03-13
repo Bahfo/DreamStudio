@@ -6,7 +6,9 @@ import os
 import tkinter as tk
 import customtkinter as ctk
 
+
 from typing import Any
+from dreamstudio.texteditor import Config
 from tkinter import filedialog, messagebox
 from dreamstudio.texteditor import Editor, Languages
 
@@ -120,10 +122,11 @@ class Notifications(ctk.CTkFrame):
 
 def add_new_text_tab(tabSwitch, editor_initial_font, mode):
     global tab_count
+
     if tab_count >= 10:
         messagebox.showerror("Tabs Construction Error", "Cannot create more than 10 tabs")
         return None
-    
+
     tab_count += 1
     tab_name = f"    Untitled-{tab_count}    "
     tabSwitch.add(tab_name)
@@ -133,13 +136,15 @@ def add_new_text_tab(tabSwitch, editor_initial_font, mode):
         language=Languages.PYTHON,
         font=editor_initial_font,
         showpath=True,
-        darkmode= mode,
-        uifont=("Segoe UI", 11))
-    new_editor.pack(fill='both', expand=True)
-    
+        darkmode=mode,
+        uifont=("Segoe UI", 11)
+    )
+
+    new_editor.pack(fill="both", expand=True)
+
     current_session_editors_open[tab_name] = new_editor
-    
     tabSwitch.set(tab_name)
+
     return tab_name
 
 
@@ -175,6 +180,22 @@ def open_current_file(status_button,
         messagebox.showerror("Error", f"Could not open file:\n{e}")
         if status_button:
             status_button.configure(text="Operation Failed")
+
+def update_all_editors_theme(mode):
+
+    for editor in current_session_editors_open.values():
+
+        editor.darkmode = mode
+        editor.settings = Config(
+            editor,
+            editor.config_file,
+            mode,
+            None,
+            None
+        )
+
+        editor.theme = editor.settings.theme
+        editor.configure(bg=editor.theme.border)
 
 
 # def save_temporary_file():
