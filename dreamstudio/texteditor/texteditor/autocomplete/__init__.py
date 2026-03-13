@@ -1,6 +1,5 @@
 import jedi
 import tkinter as tk
-from itertools import chain
 from threading import Thread, Lock
 
 from ...utils import Toplevel
@@ -13,7 +12,7 @@ class AutoComplete(Toplevel):
     """Autocomplete widget with proper lifecycle management."""
 
     WIDGET_MIN_WIDTH = 300 
-    MAX_ITEMS_DISPLAY = 10
+    MAX_ITEMS_DISPLAY = 20
 
     def __init__(self, master, items=None, active=False, *args, **kwargs):
         super().__init__(master, *args, **kwargs)

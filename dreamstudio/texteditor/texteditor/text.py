@@ -552,11 +552,9 @@ class Text(Text):
         Highlight all occurrences of the word under the cursor.
         Search is limited to a ±200-line window around the cursor.
         """
-
         if self.minimalist or self.get_selected_text():
             return
 
-        # Determine current word
         word = self.get("insert wordstart", "insert wordend").strip()
         if not word or word in self.syntax.keywords:
             return
@@ -568,11 +566,15 @@ class Text(Text):
         except (tk.TclError, ValueError):
             win_start, win_end = "1.0", tk.END
 
-        # Remove highlight only inside the working window
         self.tag_remove("highlight", win_start, win_end)
 
+        # Escape special regex characters in the word
+        escaped_word = re.escape(word)
+        # Use \m and \M for Tcl word boundaries (not \y)
+        pattern = rf"\m{escaped_word}\M"
+
         self.highlight_pattern(
-            rf"\y{word}\y",
+            pattern,
             "highlight",
             start=win_start,
             end=win_end,

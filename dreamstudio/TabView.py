@@ -7,7 +7,6 @@ from dreamstudio.utils.treeview import FileTree
 
 
 # --- Global Configuration ---
-ctk.set_appearance_mode("dark")
 number_of_files: int = 4
 
 project_image = ctk.CTkImage(

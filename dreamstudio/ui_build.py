@@ -10,18 +10,18 @@ import subprocess
 import customtkinter as ctk
 
 from functools import lru_cache
+from tkinter import messagebox, PhotoImage
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
-from tkinter import filedialog, messagebox, PhotoImage
 from customtkinter import set_widget_scaling, set_window_scaling
 
 import dreamstudio.TabView as TabView
 
 from others.about import *
 from dreamstudio.imageload import *
+from dreamstudio.menus.home import *
 from dreamstudio.menu_builders import *
 from dreamstudio.utils.ctk_tabview import *
 from dreamstudio.texteditor.config import Config
-from dreamstudio.texteditor import Editor, Languages
 from dreamstudio.texteditor.config.styles import Style
 
 # OUTER DEFINITIONS FOR MENUS
@@ -34,6 +34,11 @@ open_menu = {
     "Open File":lambda: print("Open File"),
     "Open Project":lambda: print("Open Project"),
     "Open File from Template":lambda: print("Open Template")
+}
+
+styles_menu = {
+    "Light": lambda: ctk.set_appearance_mode("light"),
+    "Dark": lambda: ctk.set_appearance_mode("dark"),
 }
 
 #######################################
@@ -77,10 +82,8 @@ class App:
         ##############################
 
         self.workspace = dict[str, ctk.CTkButton]
-        self.current_session_editors_open = {}
         self.mode = ctk.get_appearance_mode()
         self.shell_frame = None
-        self.tab_count = 0
 
         self.text_editor_mode_bool = False
 
@@ -284,11 +287,12 @@ class App:
                                                 text="File")
         self.exploreBtnOptions.place(x=8, y=3)
 
-        findBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/folder.png", 
-                                        text="Open",
-                                        command=lambda: self._add_custom_menuframe(False,
-                                                                                   self.exploreBtnOptions,
-                                                                                   file_menu))
+        findBtnOptions = VerticalButton(
+            self.menuFrame,
+            image_path=r"icons/system/folder.png",
+            text="Open",
+            command=lambda: open_menu_popup(None, self.window, findBtnOptions, open_menu,66,98)
+        )
         findBtnOptions.place(x=62, y=3)
 
         mngBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/save_file.png", 
@@ -323,8 +327,10 @@ class App:
                                fg_color=["#C4C4C4","#414141"])
         verticalSep2.place(x=476, y=3)
 
-        stylesBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/container.png", 
-                                   text="Styles")
+        stylesBtn = VerticalButton(self.menuFrame,
+            image_path=r"icons/system/container.png", 
+            text="Styles",
+            command=lambda: open_menu_popup(None, self.window,stylesBtn,styles_menu,484,98))
         stylesBtn.place(x=484, y=5)
 
         addonsBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/console.png", 
@@ -421,7 +427,9 @@ class App:
             height=36,
             corner_radius=5,
             fg_color=self.services_bar.cget("fg_color"),
-            command=self.open_current_file)
+            command=lambda: open_current_file(self.status_button, current_session_editors_open,
+                                              self.tabSwitch, self.editor_initial_font,
+                                              self.text_editor_mode_bool))
         self.open_button.pack(pady=5)
         ToolTip(self.open_button, "Opens a file")
 
@@ -508,7 +516,7 @@ class App:
         self.tabSwitch.pack(expand=0.9, fill='both')
         self.tabSwitch._segmented_button.configure(font = self.seg_font)
 
-        self.tabSwitch.newtab_btn.configure(command=self._add_new_text_tab)
+        self.tabSwitch.newtab_btn.configure(command=self.on_add_tab_click)
 
         self.tabSwitch.add("    Welcome Page    ")
         welcome_tab = self.tabSwitch.tab("    Welcome Page    ")
@@ -520,46 +528,6 @@ class App:
         #################################################################################################
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
-        print(self.current_session_editors_open)
-
-    def _add_custom_menuframe(self, frame_created, master, dict_of_options:dict[str,Any]):
-        if frame_created:
-            return
-        
-        self.window.update_idletasks()
-
-        x = master.winfo_rootx() + master.winfo_width()
-        y = master.winfo_rooty() + master.winfo_height()
-
-        frame = ctk.CTkFrame(master, corner_radius=0)
-        frame.place(x,y)
-        
-        for option, command in dict_of_options.items():
-            button = ctk.CTkButton(frame, text=f"{option}", command=command)
-            button.pack()
-
-    def _add_new_text_tab(self):
-        if self.tab_count >= 10:
-            messagebox.showerror("Tabs Construction Error", "Cannot create more than 10 tabs")
-            return None
-        
-        self.tab_count += 1
-        tab_name = f"    Untitled-{self.tab_count}    "
-        self.tabSwitch.add(tab_name)
-
-        new_editor = Editor(
-            self.tabSwitch.tab(tab_name),
-            language=Languages.PYTHON,
-            font=self.editor_initial_font,
-            showpath=True,
-            darkmode= self.text_editor_mode_bool,
-            uifont=("Segoe UI", 11))
-        new_editor.pack(fill='both', expand=True)
-        
-        self.current_session_editors_open[tab_name] = new_editor
-        
-        self.tabSwitch.set(tab_name)
-        return tab_name
 
     def _rename_tab_in_texteditor_tabs(self, old_name, new_name):
         if old_name not in self.tabSwitch._tab_dict:
@@ -576,7 +544,7 @@ class App:
         self.tabSwitch.set(new_name)
 
     def on_add_tab_click(self):
-        self._add_new_text_tab()
+        add_new_text_tab(self.tabSwitch, self.editor_initial_font, self.text_editor_mode_bool)
 
     def on_rename_tab_click(self, new_name):
         current_tab = self.tabSwitch.get()
@@ -589,35 +557,6 @@ class App:
 
     def open_terminal(self, event=None):
         subprocess.Popen("start cmd", shell=True)
-
-    def open_current_file(self):
-        current_file = filedialog.askopenfilename(title="Select an existing file")
-        if not current_file:
-            return
-
-        if self.status_button:
-            self.status_button.configure(text="Opening file...")
-
-        try:
-            with open(current_file, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            tab_name = self._add_new_text_tab()
-            
-            if tab_name:
-                target_editor = self.current_session_editors_open.get(tab_name)
-
-                if target_editor:
-                    target_editor.content.delete("1.0", "end")
-                    target_editor.content.insert("1.0", content)
-                    
-                    if self.status_button:
-                        self.status_button.configure(text=f"Opened: {current_file}")
-                        
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open file:\n{e}")
-            if self.status_button:
-                self.status_button.configure(text="Operation Failed")
 
     def load_theme(self):
         if os.path.exists(CONFIG_FILE):
