@@ -493,6 +493,7 @@ class App:
         self.tabSwitch._segmented_button.configure(font = self.seg_font)
 
         self.tabSwitch.newtab_btn.configure(command=self.on_add_tab_click)
+        self.tabSwitch.close_btn.configure(command=self._close_tab)
 
         for btn in self.tabSwitch._segmented_button._buttons_dict.values():
             btn.bind("<Double-Button-1>", lambda event: self.on_rename_tab_click("New Name 1"))
@@ -547,6 +548,9 @@ class App:
     def on_add_tab_click(self):
         add_new_text_tab(self.tabSwitch, self.editor_initial_font, self.text_editor_mode_bool)
         self._bind_tab_rename_events()
+
+    def _close_tab(self):
+        on_close_tab_click(self.tabSwitch)
 
     def on_rename_tab_click(self, event=None):
         """Open rename dialog for the currently selected tab

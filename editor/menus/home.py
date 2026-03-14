@@ -300,6 +300,24 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
         if status_button:
             status_button.configure(text="Operation Failed")
 
+
+def on_close_tab_click(tabSwitch, event=None):
+    """Close the currently selected tab"""
+    current_tab = tabSwitch.get()
+
+    if not current_tab:
+        messagebox.showwarning("No Tab", "No tab is currently selected")
+        return
+
+    if current_tab in current_session_editors_open:
+        del current_session_editors_open[current_tab]
+
+    tabSwitch.delete(current_tab)
+
+    if len(tabSwitch._name_list) == 0:
+        tabSwitch._segmented_button.grid_forget()
+
+
 def update_all_editors_theme(mode):
 
     for editor in current_session_editors_open.values():
