@@ -78,6 +78,11 @@ class FileTreeItem(ctk.CTkFrame):
         self.bind("<Button-1>", self._on_click)
         self.text_label.bind("<Button-1>", self._on_click)
         self.icon_label.bind("<Button-1>", self._on_click)
+        
+        # Bind double-click events
+        self.bind("<Double-Button-1>", self._on_double_click)
+        self.text_label.bind("<Double-Button-1>", self._on_double_click)
+        self.icon_label.bind("<Double-Button-1>", self._on_double_click)
 
         # Apply Theme Colors
         self._update_theme_colors()

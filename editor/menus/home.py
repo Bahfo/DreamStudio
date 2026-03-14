@@ -234,6 +234,72 @@ def open_current_file(status_button,
         if status_button:
             status_button.configure(text="Operation Failed")
 
+
+def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode):
+    """Open a file from the treeview in a new tab
+    
+    Args:
+        file_path: Path to the file to open
+        status_button: Status bar widget to show messages
+        tab_switch: The tab switcher widget
+        editor_font: Font for the editor
+        mode: Dark mode boolean
+    """
+    import os
+    
+    # Verify it's a file, not a directory
+    if not os.path.isfile(file_path):
+        messagebox.showwarning("Invalid", "Selected item is not a file")
+        return
+    
+    if status_button:
+        status_button.configure(text=f"Opening: {os.path.basename(file_path)}...")
+    
+    try:
+        # Try to open with UTF-8 encoding
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # Create new tab
+        tab_name = add_new_text_tab(tab_switch, editor_font, mode)
+        
+        if tab_name:
+            target_editor = current_session_editors_open.get(tab_name)
+            
+            if target_editor:
+                # Rename tab to filename for clarity
+                file_name = os.path.basename(file_path)
+                file_name_with_spaces = "   " + file_name + "   "
+                tab_switch.rename(tab_name, file_name_with_spaces)
+                
+                # Insert content
+                target_editor.content.delete("1.0", "end")
+                target_editor.content.insert("1.0", content)
+                
+                # Store file path for later reference (optional)
+                target_editor.file_path = file_path
+                
+                if status_button:
+                    status_button.configure(text=f"Opened: {file_path}")
+    
+    except UnicodeDecodeError as e:
+        messagebox.showerror(
+            "Encoding Error",
+            f"File is not UTF-8 encoded.\n\n"
+            f"Error: {str(e)}\n\n"
+            f"Only UTF-8 files are supported."
+        )
+        if status_button:
+            status_button.configure(text="Failed: Unsupported encoding")
+    
+    except Exception as e:
+        messagebox.showerror(
+            "Error",
+            f"Could not open file:\n{str(e)}"
+        )
+        if status_button:
+            status_button.configure(text="Operation Failed")
+
 def update_all_editors_theme(mode):
 
     for editor in current_session_editors_open.values():

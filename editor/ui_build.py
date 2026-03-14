@@ -153,13 +153,7 @@ class App:
         edit_dropdown.add_separator()
         edit_dropdown.add_option("💬   Comment Selection")
         edit_dropdown.add_option("🧹   Uncomment Selection")
-        edit_dropdown.add_option("⬅️   Emmet Selection Left")
-        edit_dropdown.add_option("➡️   Emmet Selection Right")
         edit_dropdown.add_option("🔲   Select All")
-        edit_dropdown.add_separator()
-        edit_dropdown.add_option("⌨️   Switch to Vim Keybindings")
-        edit_dropdown.add_option("🎹   Switch to Dream Keybindings")
-        edit_dropdown.add_option("♻️   Reset Keybindings (Normal)")
 
 
         view_button = self.menubar.add_cascade("View",text_color = "#FFFFFF",font=("Segoe UI",12))
@@ -168,29 +162,17 @@ class App:
         view_dropdown.add_option("🎛️   Command Palette")
         view_dropdown.add_option("💻   PromptX Shell")
         view_dropdown.add_option("🖥️   Terminal Window")
-        view_dropdown.add_separator()
-        view_dropdown.add_option("📁   Solution Explorer")
-        view_dropdown.add_option("👥   Team Explorer")
-        view_dropdown.add_option("🗄️   Server Explorer")
-        view_dropdown.add_option("☁️   Cloud Explorer")
-        view_dropdown.add_option("🗃️   SQL Server Object Explorer")
-        view_dropdown.add_separator()
-        view_dropdown.add_option("🧭   Outline Browser")
-        view_dropdown.add_option("📅   Timeline Browser")
+        view_dropdown.add_option("📂   Open Files Manager")
         view_dropdown.add_separator()
         view_dropdown.add_option("📛   Errors List")
         view_dropdown.add_option("📟   Output Window")
         view_dropdown.add_option("📌   Tasks List")
-        view_dropdown.add_option("🧰   Toolbox")
         view_dropdown.add_option("🔔   Notifications")
         view_dropdown.add_separator()
         view_dropdown.add_option("🐍   Python Environment Manager")
         view_dropdown.add_option("📦   Python Packages Manager")
-        view_dropdown.add_option("🧩   JavaScript Environment Manager")
-        view_dropdown.add_option("📚   JavaScript Package Manager")
         view_dropdown.add_separator()
         view_dropdown.add_option("🧪   Tests Manager")
-        view_dropdown.add_option("📊   Data Tools Manager")
         view_dropdown.add_option("📜   History Manager")
 
 
@@ -208,8 +190,6 @@ class App:
         code_dropdown.add_separator()
         code_dropdown.add_option("⏭️   Next Problem")
         code_dropdown.add_option("⏮️   Previous Problem")
-        code_dropdown.add_option("➡️   Next Change")
-        code_dropdown.add_option("⬅️   Previous Change")
 
 
         run_button = self.menubar.add_cascade("Debug",text_color = "#FFFFFF",font=("Segoe UI",12))
@@ -220,8 +200,7 @@ class App:
         run_dropdown.add_option("◼️   Stop Debugging")
         run_dropdown.add_option("🔄   Restart Debugging")
         run_dropdown.add_separator()
-        run_dropdown.add_option("🌐   Run in Specified Environment")
-        run_dropdown.add_option("🖥️   Run in Virtual Machine")
+        run_dropdown.add_option("🖥️   Run in Virtual Environment")
         run_dropdown.add_option("⚙️   Open Configurations")
         run_dropdown.add_option("➕   Add Configurations")
         run_dropdown.add_separator()
@@ -234,31 +213,6 @@ class App:
         run_dropdown.add_option("🗑️   Remove All Breakpoints")
         run_dropdown.add_option("🔔   Enable All Breakpoints")
         run_dropdown.add_option("🔕   Disable All Breakpoints")
-
-
-        build_button = self.menubar.add_cascade("Build",text_color = "#FFFFFF",font=("Segoe UI",12))
-        # Code dropdown menu and its options
-        build_dropdown = CustomDropdownMenu(widget=build_button, corner_radius=0, font=("Segoe UI",12))
-        build_dropdown.add_option("🔨   Build Solution")
-        build_dropdown.add_option("⚙️   Configure Build Options")
-        build_dropdown.add_option("🧹   Clean Options")
-        build_dropdown.add_option("📦   Pack Build")
-        build_dropdown.add_separator()
-        build_dropdown.add_option("🧾   Configure Build Options in JSON")
-        build_dropdown.add_option("🕘   Show Build History")
-
-
-        terminal_button = self.menubar.add_cascade("Terminal",text_color = "#FFFFFF",font=("Segoe UI",12))
-        # Code dropdown menu and its options
-        terminal_dropdown = CustomDropdownMenu(widget=terminal_button, corner_radius=0, font=("Segoe UI",12))
-        terminal_dropdown.add_option("🖥️   Open Terminal")
-        terminal_dropdown.add_option("💻   Open PromptX Shell in New Window")
-        terminal_dropdown.add_option("📂   Open Files Manager")
-        terminal_dropdown.add_separator()
-        terminal_dropdown.add_option("🧱   Open CMake Manager")
-        terminal_dropdown.add_option("🏃   Run Specific Task")
-        terminal_dropdown.add_separator()
-        terminal_dropdown.add_option("⚙️   Configure Tasks")
 
 
         help_button = self.menubar.add_cascade("Help",text_color = "#FFFFFF",font=("Segoe UI",12))
@@ -543,6 +497,15 @@ class App:
         for btn in self.tabSwitch._segmented_button._buttons_dict.values():
             btn.bind("<Double-Button-1>", lambda event: self.on_rename_tab_click("New Name 1"))
 
+        # Set up treeview file opening callback
+        self.sidebar.treeView.file_click_callback = lambda file_path: open_file_from_tree(
+            file_path,
+            self.status_button,
+            self.tabSwitch,
+            self.editor_initial_font,
+            self.text_editor_mode_bool
+        )
+
         #################################################################################################
         # BINDINGS
         #################################################################################################
@@ -574,37 +537,46 @@ class App:
 
     #### TABSWITCH LOGIC ####
 
-    def _rename_tab_in_texteditor_tabs(self, old_name, new_name):
-        if old_name not in self.tabSwitch._tab_dict:
-            messagebox.showerror("Error in Tabs Construction",
-                                 message="Tab is not found",
-                                 default="ok")
-            return
-
-        self.tabSwitch._tab_dict[new_name] = self.tabSwitch._tab_dict.pop(old_name)
-        values = self.tabSwitch._segmented_button.cget("values")
-        new_values = [new_name if v == old_name else v for v in values]
-        self.tabSwitch._segmented_button.configure(values = new_values)
-
-        self.tabSwitch.set(new_name)
-
     def _bind_tab_rename_events(self):
+        """Bind double-click rename to all tab buttons"""
         for btn in self.tabSwitch._segmented_button._buttons_dict.values():
             btn.bind(
                 "<Double-Button-1>",
-                lambda event: self.on_rename_tab_click("New Name 1"))
+                self.on_rename_tab_click)
 
     def on_add_tab_click(self):
         add_new_text_tab(self.tabSwitch, self.editor_initial_font, self.text_editor_mode_bool)
         self._bind_tab_rename_events()
 
-    def on_rename_tab_click(self, new_name):
+    def on_rename_tab_click(self, event=None):
+        """Open rename dialog for the currently selected tab
+        
+        If user closes the dialog without entering a name, the original tab name is preserved.
+        """
         current_tab = self.tabSwitch.get()
 
+        if not current_tab:
+            messagebox.showwarning("No Tab", "No tab is currently selected")
+            return
+
+        def on_confirm(new_name):
+            """Called when user confirms rename"""
+            try:
+                self.tabSwitch.rename(current_tab, new_name)
+                # Update the current tab to the new name to sync internal state
+                self.tabSwitch.set(new_name)
+            except ValueError as e:
+                messagebox.showerror("Rename Error", str(e))
+
+        def on_cancel():
+            """Called when user cancels or closes the dialog - original name is preserved"""
+            pass
+
         RenameDialog(
-            self.tabSwitch,
+            self.window,
             current_name=current_tab,
-            callback=lambda new: self._rename_tab_in_texteditor_tabs(current_tab, new))
+            on_confirm=on_confirm,
+            on_cancel=on_cancel)
         
 
     #### TERMINAL LOGIC ####
