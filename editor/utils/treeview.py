@@ -1,7 +1,7 @@
 import os
 import customtkinter as ctk
 from typing import Callable, Optional, List
-from dreamstudio.utils.icons_utils import *
+from editor.utils.icons_utils import *
 
 COLORS = {
     "light": {

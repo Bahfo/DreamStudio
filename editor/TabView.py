@@ -2,8 +2,8 @@ import pathlib
 from PIL import Image
 import customtkinter as ctk
 from backend.run import run_config
-import dreamstudio.menu_builders as uniwidgets
-from dreamstudio.utils.treeview import FileTree
+import editor.menu_builders as uniwidgets
+from editor.utils.treeview import FileTree
 
 
 # --- Global Configuration ---

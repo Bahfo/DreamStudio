@@ -1,5 +1,5 @@
 import tkinter as tk
-from dreamstudio.texteditor import Editor
+from editor.texteditor import Editor
 
 class ShowErrorLogMessage(tk.Frame):
     def __init__(self, error_message, error_line, editor:Editor, is_error:bool, **kwargs):

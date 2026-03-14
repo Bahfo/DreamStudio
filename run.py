@@ -1,4 +1,4 @@
-from dreamstudio.ui_build import App
+from editor.ui_build import App
 import customtkinter as ctk
 
 ctk.set_appearance_mode("dark")

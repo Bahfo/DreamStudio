@@ -6,7 +6,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk, ImageSequence
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import dreamstudio.ui_build as ui_build
+import editor.ui_build as ui_build
 
 
 def agreement_registeration():

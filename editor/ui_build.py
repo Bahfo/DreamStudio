@@ -1,6 +1,5 @@
 # COPYRIGHT 2026 DREAMSTUDIO IDE ... EX-TECHNOLOGIES
 # WRITTEN BY BAHAA NOFAL 
-
 # CODE IS LICENSED UNDER THE CLOSED LICENSE OF DREAMSTUDIO
 
 import os
@@ -14,15 +13,16 @@ from tkinter import messagebox, PhotoImage
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 from customtkinter import set_widget_scaling, set_window_scaling
 
-import dreamstudio.TabView as TabView
+import editor.TabView as TabView
 
 from others.about import *
-from dreamstudio.imageload import *
-from dreamstudio.menus.home import *
-from dreamstudio.menu_builders import *
-from dreamstudio.utils.ctk_tabview import *
-from dreamstudio.texteditor.config import Config
-from dreamstudio.texteditor.config.styles import Style
+from editor.imageload import *
+from editor.menus.home import *
+from editor.rename_util import *
+from editor.menu_builders import *
+from editor.utils.ctk_tabview import *
+from editor.texteditor.config import Config
+from editor.texteditor.config.styles import Style
 
 # OUTER DEFINITIONS FOR MENUS
 file_menu = {
@@ -280,9 +280,10 @@ class App:
         self.menuFrame.pack(fill="x", side="top")
         self.menuFrame.pack_propagate(False)
 
-        self.exploreBtnOptions = VerticalButton(self.menuFrame, 
-                                                image_path=r"icons/system/newvar.png", 
-                                                text="File")
+        self.exploreBtnOptions = VerticalButton(
+            self.menuFrame, 
+            image_path=r"icons/system/newvar.png", 
+            text="File")
         self.exploreBtnOptions.place(x=8, y=3)
 
         findBtnOptions = VerticalButton(
@@ -293,46 +294,68 @@ class App:
         )
         findBtnOptions.place(x=62, y=3)
 
-        mngBtnOptions = VerticalButton(self.menuFrame, image_path=r"icons/system/save_file.png", 
-                                        text="Save")
+        mngBtnOptions = VerticalButton(
+            self.menuFrame,
+            image_path=r"icons/system/save_file.png", 
+            text="Save")
         mngBtnOptions.place(x=116, y=5)
 
-        trackChangesBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/database.png",
-                                          text="Track Changes")
+        trackChangesBtn = HorizontalButton(
+            self.menuFrame,
+            image_path=r"icons/system/database.png",
+            text="Track Changes")
         trackChangesBtn.place(x=170, y=5)
 
-        compareBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/feedback.png",
-                                      text="Compare Files")
+        compareBtn = HorizontalButton(
+            self.menuFrame, 
+            image_path=r"icons/system/feedback.png",
+            text="Compare Files")
         compareBtn.place(x=170, y=38)
 
-        verticalSep1 = CTkFrame(self.menuFrame, width=2, height=78, corner_radius=0, 
-                               fg_color=["#C4C4C4","#414141"])
+        verticalSep1 = CTkFrame(
+            self.menuFrame, 
+            width=2, height=78, 
+            corner_radius=0, 
+            fg_color=["#C4C4C4","#414141"])
         verticalSep1.place(x=288, y=3)
 
-        RunCode = VerticalButton(self.menuFrame, image_path=r"icons/system/start.png", 
-                                   text="Run\nFile")
+        RunCode = VerticalButton(
+            self.menuFrame, 
+            image_path=r"icons/system/start.png", 
+            text="Run\nFile")
         RunCode.place(x=296, y=5)
 
-        cutBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/bug.png",
-                                  text="Debug Files")
+        cutBtn = HorizontalButton(
+            self.menuFrame,
+            image_path=r"icons/system/bug.png",
+            text="Debug Files")
         cutBtn.place(x=350, y=5)
 
-        copyBtn = HorizontalButton(self.menuFrame, image_path=r"icons/system/version.png",
-                                   text="Configure")
+        copyBtn = HorizontalButton(
+            self.menuFrame,
+            image_path=r"icons/system/version.png",
+            text="Configure")
         copyBtn.place(x=350, y=38)
 
-        verticalSep2 = CTkFrame(self.menuFrame, width=2, height=78, corner_radius=0, 
-                               fg_color=["#C4C4C4","#414141"])
+        verticalSep2 = CTkFrame(
+            self.menuFrame,
+            width=2,
+            height=78,
+            corner_radius=0, 
+            fg_color=["#C4C4C4","#414141"])
         verticalSep2.place(x=476, y=3)
 
-        stylesBtn = VerticalButton(self.menuFrame,
+        stylesBtn = VerticalButton(
+            self.menuFrame,
             image_path=r"icons/system/container.png", 
             text="Styles",
             command=lambda: open_menu_popup(None, self.window,stylesBtn,self.styles_menu,484,98))
         stylesBtn.place(x=484, y=5)
 
-        addonsBtn = VerticalButton(self.menuFrame, image_path=r"icons/system/console.png", 
-                                   text="Add\nOns")
+        addonsBtn = VerticalButton(
+            self.menuFrame,
+            image_path=r"icons/system/console.png", 
+            text="Add\nOns")
         addonsBtn.place(x=542, y=5)
 
 
@@ -501,31 +524,32 @@ class App:
         # It also has an image viewer to view images.
         # It can also show diff windows for comparing two files together side by side.
         
-        self.tabSwitch = CTkTabview(self.upper_frame,
-                                        corner_radius=0,
-                                        border_width=0,
-                                        anchor="w",
-                                        text_color=["#1E1E1E","#FFFFFF"],
-                                        fg_color=["#F5F5F5","#454545"],
-                                        segmented_button_fg_color=["#F5F5F5","#1F1F1F"],
-                                        segmented_button_selected_color=["#FFFFFF","#1F1F1F"],
-                                        segmented_button_selected_hover_color=["#FFFFFF","#1F1F1F"],
-                                        segmented_button_unselected_color=["#F5F5F5","#454545"])
+        self.tabSwitch = CTkTabview(
+            self.upper_frame,
+            corner_radius=0,
+            border_width=0,
+            anchor="w",
+            text_color=["#1E1E1E","#FFFFFF"],
+            fg_color=["#F5F5F5","#454545"],
+            segmented_button_fg_color=["#F5F5F5","#1F1F1F"],
+            segmented_button_selected_color=["#FFFFFF","#1F1F1F"],
+            segmented_button_selected_hover_color=["#FFFFFF","#1F1F1F"],
+            segmented_button_unselected_color=["#F5F5F5","#454545"])
         self.tabSwitch.pack(expand=0.9, fill='both')
         self.tabSwitch._segmented_button.configure(font = self.seg_font)
 
         self.tabSwitch.newtab_btn.configure(command=self.on_add_tab_click)
 
-        self.tabSwitch.add("    Welcome Page    ")
-        welcome_tab = self.tabSwitch.tab("    Welcome Page    ")
-
-        welcomeTabElements = GettingStartedTab(welcome_tab)
+        for btn in self.tabSwitch._segmented_button._buttons_dict.values():
+            btn.bind("<Double-Button-1>", lambda event: self.on_rename_tab_click("New Name 1"))
 
         #################################################################################################
         # BINDINGS
         #################################################################################################
         self.window.bind("<Control-t>", self.open_terminal)
         self.window.bind("<Control-m>", self.open_shell)
+
+    ############### FUNCTIONS ###############
 
     def _check_for_theme(self):
         return ctk.get_appearance_mode()
@@ -534,6 +558,21 @@ class App:
         ctk.set_appearance_mode(type)
         mode = self._check_for_theme()
         update_all_editors_theme(mode)
+
+    def load_theme(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f:
+                    config = json.load(f)
+                    theme = config.get("theme")
+                    if theme in ["Light", "Dark"]:
+                        return theme
+            except json.JSONDecodeError:
+                pass
+        return "Dark"
+
+
+    #### TABSWITCH LOGIC ####
 
     def _rename_tab_in_texteditor_tabs(self, old_name, new_name):
         if old_name not in self.tabSwitch._tab_dict:
@@ -549,35 +588,32 @@ class App:
 
         self.tabSwitch.set(new_name)
 
+    def _bind_tab_rename_events(self):
+        for btn in self.tabSwitch._segmented_button._buttons_dict.values():
+            btn.bind(
+                "<Double-Button-1>",
+                lambda event: self.on_rename_tab_click("New Name 1"))
+
     def on_add_tab_click(self):
         add_new_text_tab(self.tabSwitch, self.editor_initial_font, self.text_editor_mode_bool)
+        self._bind_tab_rename_events()
 
     def on_rename_tab_click(self, new_name):
         current_tab = self.tabSwitch.get()
-        self._rename_tab_in_texteditor_tabs(current_tab, new_name)
 
-    def customDropDownFrameChanger(self, frame_to_show):
-        for f in [self.plots2d, self.plots3d, self.scientific]:
-            f.place_forget()
-        frame_to_show.place(x=2, y=2)
+        RenameDialog(
+            self.tabSwitch,
+            current_name=current_tab,
+            callback=lambda new: self._rename_tab_in_texteditor_tabs(current_tab, new))
+        
+
+    #### TERMINAL LOGIC ####
 
     def open_terminal(self, event=None):
         subprocess.Popen("start cmd", shell=True)
 
-    def load_theme(self):
-        if os.path.exists(CONFIG_FILE):
-            try:
-                with open(CONFIG_FILE, "r") as f:
-                    config = json.load(f)
-                    theme = config.get("theme")
-                    if theme in ["Light", "Dark"]:
-                        return theme
-            except json.JSONDecodeError:
-                pass
-        return "Dark"
-
     def open_shell(self):
-        import dreamstudio.command_window as command_window
+        import editor.command_window as command_window
 
         if self.shell_frame is None:
             self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
@@ -596,112 +632,10 @@ class App:
                 self.middle_frame.place(relx=0, rely=0.70, relwidth=1, relheight=0.30)
                 self.shell_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
+
+    #### RUN LOGIC ####
+
     @lru_cache(maxsize=None)
     def run(self):
         self.window.mainloop()
         self.window.update_idletasks()
-
-news1 = """A new era with B# has started!
-Get to be of the first developers to try B#: A modern 
-established, strongly-typed, and compiled programming 
-language. Think of what you can build and try with its 
-standard, but huge ecosystem. Available inside 
-DreamStudio."""
-
-news2 = """Get started with a strong ecosystem for your 
-Python applications.
-Python, and its ecosystem, are all built-in DreamStudio. 
-Not only that, but with visual  support (Visual Python) 
-for UI related applications.  Drag and drop the elements 
-using  Visual-Dream Engine support inside DreamStudio.
-"""
-
-news3 = """The cloud, and databases are available.
-DreamStudio comes with strong support for databases and 
-cloud applications through its  rich and huge ecosystem."""
-
-class GettingStartedTab:
-    def __init__(self, welcome_tab):
-        welcomeTabFrame = ctk.CTkFrame(welcome_tab, fg_color=["#FFFFFF","#1F1F1F"], corner_radius=0, border_width=0)
-        welcomeTabFrame.pack(fill="both", expand=True)
-
-        welcomeTabLabel = ctk.CTkLabel(welcomeTabFrame, text="Get Started With", font=("Microsoft YaHei UI",22),
-                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       anchor="w", justify="left")
-        welcomeTabLabel.place(x = 20, y = 15)
-
-        welcomeTabLabel2 = ctk.CTkLabel(welcomeTabFrame, text="DreamStudio", font=("Microsoft YaHei UI",46),
-                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       anchor="w", justify="left")
-        welcomeTabLabel2.place(x = 20, y = 50)
-
-        versionLabel = ctk.CTkLabel(welcomeTabFrame, text="version 1.0 - 0.0.1 BETA", font=("Microsoft YaHei UI",14),
-                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       anchor="w", justify="left")
-        versionLabel.place(x = 320, y = 80)
-
-        whats_new_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",16),
-                                       text_color=["#730047","#FF97E2"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       text="Discover Stronger Tools to Build Your Next Dream App", 
-                                       anchor="w", justify="left")
-        whats_new_label.place(x = 60, y = 150)
-
-        welcomeTabLabel3 = ctk.CTkLabel(welcomeTabFrame, text="Take a tour in DreamStudio to help you get started",
-                                        font=("Microsoft YaHei UI",13), text_color=["#000000","#FFFFFF"], 
-                                        fg_color=["#FFFFFF","#1F1F1F"], anchor="w", justify="left")
-        welcomeTabLabel3.place(x = 20, y = 250)
-
-        welcomeTabLabel4 = LinkLabel(welcomeTabFrame, text="Start My Tour!", corner_radius=0, font=("Segoe UI",12),
-                                     width=80, height=18)
-        welcomeTabLabel4.place(x = 340, y = 255)
-
-        welcomeTabLabel5 = ctk.CTkLabel(welcomeTabFrame, text="Or read the full documentation for further information",
-                                        font=("Microsoft YaHei UI",13), text_color=["#000000","#FFFFFF"], 
-                                        fg_color=["#FFFFFF","#1F1F1F"], anchor="w", justify="left")
-        welcomeTabLabel5.place(x = 20, y = 275)
-
-        welcomeTabLabel6 = LinkLabel(welcomeTabFrame, text="Read the Documentation", corner_radius=0,
-                                     font=("Segoe UI",12), width=136, height=18)
-        welcomeTabLabel6.place(x = 362, y = 280)
-
-        ########## SOME RANDOM BUTTONS TO HELP TOURING ##########
-        copyright_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",10),
-                                       text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       text="Copyright 2026 © DreamStudio - All Rights Reserved",
-                                       anchor="w", justify="left")
-        copyright_label.place(x = 20, y = 600)
-
-        ########## THE OTHER RIGHT-SIDE ###########
-        label1_right = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",16),
-                                    text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                    text="Start", anchor="w", justify="left")
-        label1_right.place(x = 720, y = 15)
-        
-        option1 = LinkLabel(welcomeTabFrame, text="Start a New Project", corner_radius=0, font=("Segoe UI",12),
-                                     width=106, height=20)
-        option1.place(x = 720, y = 50)
-
-        option2 = LinkLabel(welcomeTabFrame, text="Open a Recent Project", corner_radius=0, font=("Segoe UI",12),
-                                     width=125, height=20)
-        option2.place(x = 720, y = 70)
-
-        label2_right = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",16),
-                                    text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                    text="What's New?", anchor="w", justify="left")
-        label2_right.place(x = 720, y = 120)
-
-        label3_right = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",11), width=80,
-                                    text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                    text=news1, anchor="w", justify="left")
-        label3_right.place(x = 720, y = 150)
-
-        label4_right = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",11), width=80,
-                                    text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                    text=news2, anchor="w", justify="left")
-        label4_right.place(x = 720, y = 260)
-
-        label5_right = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",11), width=80,
-                                    text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                    text=news3, anchor="w", justify="left")
-        label5_right.place(x = 720, y = 370)
-        

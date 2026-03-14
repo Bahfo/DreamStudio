@@ -23,16 +23,16 @@ from DreamStudio's development environment.
 """
 
 import customtkinter as ctk
-from dreamstudio.utils.colorDialog import ColorDialog
-from dreamstudio.utils.largeButton import LargeButton
-from dreamstudio.utils.layoutsTab import LayoutsTab
-from dreamstudio.utils.largeButton import LargeButton
-from dreamstudio.utils.linkLabel import LinkLabel
-from dreamstudio.utils.smallButton import SmallButton
-from dreamstudio.utils.toolTip import ToolTip
-from dreamstudio.utils.horizontalButton import HorizontalButton
-from dreamstudio.utils.verticalButton import VerticalButton
-from dreamstudio.utils.animations import *
+from editor.utils.colorDialog import ColorDialog
+from editor.utils.largeButton import LargeButton
+from editor.utils.layoutsTab import LayoutsTab
+from editor.utils.largeButton import LargeButton
+from editor.utils.linkLabel import LinkLabel
+from editor.utils.smallButton import SmallButton
+from editor.utils.toolTip import ToolTip
+from editor.utils.horizontalButton import HorizontalButton
+from editor.utils.verticalButton import VerticalButton
+from editor.utils.animations import *
 
 
 CONFIG_FILE = r"themes/config/config.json"
