@@ -15,6 +15,7 @@ from editor.texteditor import Editor, Languages
 
 # Variables
 tab_count = 0
+naming_counter = 0
 current_session_editors_open = {}
 
 # Popups Classes
@@ -123,65 +124,114 @@ class Notifications(ctk.CTkFrame):
 
 class GettingStartedTab:
     def __init__(self, welcome_tab):
-        welcomeTabFrame = ctk.CTkFrame(welcome_tab, fg_color=["#FFFFFF","#1F1F1F"], corner_radius=0, border_width=0)
+        welcomeTabFrame = ctk.CTkFrame(
+            welcome_tab, 
+            fg_color=["#FFFFFF","#1F1F1F"], 
+            corner_radius=0, 
+            border_width=0)
         welcomeTabFrame.pack(fill="both", expand=True)
 
-        welcomeTabLabel = ctk.CTkLabel(welcomeTabFrame, text="Get Started With", font=("Microsoft YaHei UI",22),
-                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       anchor="w", justify="left")
+        welcomeTabLabel = ctk.CTkLabel(
+            welcomeTabFrame, 
+            text="Get Started With", 
+            font=("Microsoft YaHei UI",22),
+            text_color=["#004073","#97C0FF"],
+            fg_color=["#FFFFFF","#1F1F1F"],
+            anchor="w",
+            justify="left")
         welcomeTabLabel.place(x = 20, y = 15)
 
-        welcomeTabLabel2 = ctk.CTkLabel(welcomeTabFrame, text="DreamStudio", font=("Microsoft YaHei UI",46),
-                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       anchor="w", justify="left")
+        welcomeTabLabel2 = ctk.CTkLabel(
+            welcomeTabFrame, 
+            text="DreamStudio", 
+            font=("Microsoft YaHei UI",46),
+            text_color=["#004073","#97C0FF"], 
+            fg_color=["#FFFFFF","#1F1F1F"],
+            anchor="w", 
+            justify="left")
         welcomeTabLabel2.place(x = 20, y = 50)
 
-        versionLabel = ctk.CTkLabel(welcomeTabFrame, text="version 1.0 - 0.0.1 BETA", font=("Microsoft YaHei UI",14),
-                                       text_color=["#004073","#97C0FF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       anchor="w", justify="left")
+        versionLabel = ctk.CTkLabel(
+            welcomeTabFrame, 
+            text="version 1.0 - 0.0.1 BETA", 
+            font=("Microsoft YaHei UI",14),
+            text_color=["#004073","#97C0FF"], 
+            fg_color=["#FFFFFF","#1F1F1F"],
+            anchor="w", 
+            justify="left")
         versionLabel.place(x = 320, y = 80)
 
-        whats_new_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",16),
-                                       text_color=["#730047","#FF97E2"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       text="Discover Stronger Tools to Build Your Next Dream App", 
-                                       anchor="w", justify="left")
+        whats_new_label = ctk.CTkLabel(
+            welcomeTabFrame, 
+            font=("Microsoft YaHei UI",16),
+            text_color=["#730047","#FF97E2"], 
+            fg_color=["#FFFFFF","#1F1F1F"],
+            text="Discover Stronger Tools to Build Your Next Dream App", 
+            anchor="w", 
+            justify="left")
         whats_new_label.place(x = 60, y = 150)
 
-        welcomeTabLabel3 = ctk.CTkLabel(welcomeTabFrame, text="Take a tour in DreamStudio to help you get started",
-                                        font=("Microsoft YaHei UI",13), text_color=["#000000","#FFFFFF"], 
-                                        fg_color=["#FFFFFF","#1F1F1F"], anchor="w", justify="left")
+        welcomeTabLabel3 = ctk.CTkLabel(
+            welcomeTabFrame, 
+            text="Take a tour in DreamStudio to help you get started",
+            font=("Microsoft YaHei UI",13), 
+            text_color=["#000000","#FFFFFF"], 
+            fg_color=["#FFFFFF","#1F1F1F"], 
+            anchor="w", 
+            justify="left")
         welcomeTabLabel3.place(x = 20, y = 250)
 
-        welcomeTabLabel4 = LinkLabel(welcomeTabFrame, text="Start My Tour!", corner_radius=0, font=("Segoe UI",12),
-                                     width=80, height=18)
+        welcomeTabLabel4 = LinkLabel(
+            welcomeTabFrame, 
+            text="Start My Tour!", 
+            corner_radius=0, 
+            font=("Segoe UI",12),
+            width=80, 
+            height=18)
         welcomeTabLabel4.place(x = 340, y = 255)
 
-        welcomeTabLabel5 = ctk.CTkLabel(welcomeTabFrame, text="Or read the full documentation for further information",
-                                        font=("Microsoft YaHei UI",13), text_color=["#000000","#FFFFFF"], 
-                                        fg_color=["#FFFFFF","#1F1F1F"], anchor="w", justify="left")
+        welcomeTabLabel5 = ctk.CTkLabel(
+            welcomeTabFrame, 
+            text="Or read the full documentation for further information",
+            font=("Microsoft YaHei UI",13), 
+            text_color=["#000000","#FFFFFF"], 
+            fg_color=["#FFFFFF","#1F1F1F"], 
+            anchor="w", 
+            justify="left")
         welcomeTabLabel5.place(x = 20, y = 275)
 
-        welcomeTabLabel6 = LinkLabel(welcomeTabFrame, text="Read the Documentation", corner_radius=0,
-                                     font=("Segoe UI",12), width=136, height=18)
+        welcomeTabLabel6 = LinkLabel(
+            welcomeTabFrame, 
+            text="Read the Documentation", 
+            corner_radius=0,
+            font=("Segoe UI",12), 
+            width=136, 
+            height=18)
         welcomeTabLabel6.place(x = 362, y = 280)
 
         ########## SOME RANDOM BUTTONS TO HELP TOURING ##########
-        copyright_label = ctk.CTkLabel(welcomeTabFrame, font=("Microsoft YaHei UI",10),
-                                       text_color=["#000000","#FFFFFF"], fg_color=["#FFFFFF","#1F1F1F"],
-                                       text="Copyright 2026 © DreamStudio - All Rights Reserved",
-                                       anchor="w", justify="left")
+        copyright_label = ctk.CTkLabel(
+            welcomeTabFrame, 
+            font=("Microsoft YaHei UI",10),
+            text_color=["#000000","#FFFFFF"], 
+            fg_color=["#FFFFFF","#1F1F1F"],
+            text="Copyright 2026 © DreamStudio - All Rights Reserved",
+            anchor="w", 
+            justify="left")
         copyright_label.place(x = 20, y = 600)
 
 
 def add_new_text_tab(tabSwitch, editor_initial_font, mode):
     global tab_count
+    global naming_counter
 
     if tab_count >= 10:
         messagebox.showerror("Tabs Construction Error", "Cannot create more than 10 tabs")
         return None
 
     tab_count += 1
-    tab_name = f"    Untitled-{tab_count}    "
+    naming_counter += 1
+    tab_name = f"    Untitled-{naming_counter}    "
     tabSwitch.add(tab_name)
 
     new_editor = Editor(
@@ -245,7 +295,6 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
         editor_font: Font for the editor
         mode: Dark mode boolean
     """
-    import os
     
     # Verify it's a file, not a directory
     if not os.path.isfile(file_path):
@@ -254,29 +303,34 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
     
     if status_button:
         status_button.configure(text=f"Opening: {os.path.basename(file_path)}...")
+        
+    # Check if the file is already open
+    for tab_name, editor in current_session_editors_open.items():
+        if getattr(editor, "file_path", None) == file_path:
+            tab_switch.set(tab_name)
+
+            if status_button:
+                status_button.configure(text=f"Focused: {file_path}")
+
+            return
     
     try:
-        # Try to open with UTF-8 encoding
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
         
-        # Create new tab
         tab_name = add_new_text_tab(tab_switch, editor_font, mode)
         
         if tab_name:
             target_editor = current_session_editors_open.get(tab_name)
             
             if target_editor:
-                # Rename tab to filename for clarity
                 file_name = os.path.basename(file_path)
                 file_name_with_spaces = "   " + file_name + "   "
                 tab_switch.rename(tab_name, file_name_with_spaces)
                 
-                # Insert content
                 target_editor.content.delete("1.0", "end")
                 target_editor.content.insert("1.0", content)
                 
-                # Store file path for later reference (optional)
                 target_editor.file_path = file_path
                 
                 if status_button:
@@ -303,6 +357,7 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
 
 def on_close_tab_click(tabSwitch, event=None):
     """Close the currently selected tab"""
+    global tab_count
     current_tab = tabSwitch.get()
 
     if not current_tab:
@@ -311,6 +366,7 @@ def on_close_tab_click(tabSwitch, event=None):
 
     if current_tab in current_session_editors_open:
         del current_session_editors_open[current_tab]
+        tab_count -= 1
 
     tabSwitch.delete(current_tab)
 
