@@ -222,6 +222,16 @@ class GettingStartedTab:
 
 
 def add_new_text_tab(tabSwitch, editor_initial_font, mode):
+    """
+    This documentation is powered by _autoDocstring_. 
+    _summary_
+    Adds a new tab with cupcake editor inside
+
+    Args:
+        tabSwitch (_type_): The tab manager to reference.
+        editor_initial_font (_type_): the font of the editor (global variable)
+        mode (_type_): boolean (True/False) for Dark/Light.
+    """
     global tab_count
     global naming_counter
 
@@ -234,19 +244,24 @@ def add_new_text_tab(tabSwitch, editor_initial_font, mode):
     tab_name = f"    Untitled-{naming_counter}    "
     tabSwitch.add(tab_name)
 
+    # Immediately grid the tab frame so the editor can be packed inside
+    tab_frame = tabSwitch.tab(tab_name)
+    tab_frame.grid(row=0, column=0, sticky="nsew")
+    tabSwitch.update_idletasks()  # <- ensures layout is processed immediately
+
     new_editor = Editor(
-        tabSwitch.tab(tab_name),
+        tab_frame,
         language=Languages.PYTHON,
         font=editor_initial_font,
         showpath=True,
         darkmode=mode,
         uifont=("Segoe UI", 11)
     )
-
     new_editor.pack(fill="both", expand=True)
 
     current_session_editors_open[tab_name] = new_editor
-    tabSwitch.set(tab_name)
+
+    tabSwitch.set(tab_name)  # set the tab after the frame is gridded
 
     return tab_name
 
@@ -307,7 +322,8 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
     # Check if the file is already open
     for tab_name, editor in current_session_editors_open.items():
         if getattr(editor, "file_path", None) == file_path:
-            tab_switch.set(tab_name)
+            tab_switch.after(10, lambda name=tab_name: tab_switch.set(name)) # to avoid race-coniditions with
+                                                                             # the tab-view methods
 
             if status_button:
                 status_button.configure(text=f"Focused: {file_path}")
@@ -322,19 +338,38 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
         
         if tab_name:
             target_editor = current_session_editors_open.get(tab_name)
-            
+
             if target_editor:
+                # Here comes the mess: structure is so bad I can't look at it anymore
                 file_name = os.path.basename(file_path)
                 file_name_with_spaces = "   " + file_name + "   "
-                tab_switch.rename(tab_name, file_name_with_spaces)
+                new_tab_name = file_name_with_spaces # Adding a new variable to fix naming errors
+                tab_switch.rename(tab_name, new_tab_name) # Here we have renaming method
                 
-                target_editor.content.delete("1.0", "end")
-                target_editor.content.insert("1.0", content)
+                editor_obj = current_session_editors_open.pop(tab_name)
+                current_session_editors_open[new_tab_name] = editor_obj
+                
+                # Re-aliasing the name to prevent crashing
+                tab_name = new_tab_name
+                target_editor = editor_obj
+                tab_switch.set(tab_name)
+
+
+                def activate_and_load(name=tab_name, editor=target_editor, data=content):
+                    """
+                    An insider function that all its purpose to update the idletasks of GUI simultaneously
+                    without the worry about using threaded (after) function. This is an internal function
+                    and has no outer usage.
+                    """
+                    editor.content.delete("1.0", "end")
+                    editor.content.insert("1.0", data)
+
+                tab_switch.after(10, activate_and_load)
                 
                 target_editor.file_path = file_path
-                
+
                 if status_button:
-                    status_button.configure(text=f"Opened: {file_path}")
+                    status_button.configure(text=f"Opened: {new_tab_name}")
     
     except UnicodeDecodeError as e:
         messagebox.showerror(

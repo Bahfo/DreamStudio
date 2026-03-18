@@ -130,6 +130,7 @@ class CTkTabview(CTkBaseClass):
         self._draw()
 
     def _segmented_button_callback(self, selected_name):
+        print(self._tab_dict)
         self._tab_dict[self._current_name].grid_forget()
         self._current_name = selected_name
         self._set_grid_current_tab()
@@ -401,6 +402,10 @@ class CTkTabview(CTkBaseClass):
             raise ValueError(f"CTkTabview new_index {new_index} not in range of name list with len {len(self._name_list)}")
 
     def rename(self, old_name: str, new_name: str):
+        
+        # Some bad logic here: checking for name existence
+        if old_name not in self._tab_dict:
+            raise ValueError(f"No tab named '{old_name}'")
         if new_name in self._name_list:
             raise ValueError(f"new_name '{new_name}' already exists")
 
@@ -415,6 +420,9 @@ class CTkTabview(CTkBaseClass):
 
         # tab dictionary
         self._tab_dict[new_name] = self._tab_dict.pop(old_name)
+        
+        if self._current_name == old_name:
+            self._current_name = new_name
 
     def delete(self, name: str):
         """ delete tab by name """
@@ -447,6 +455,7 @@ class CTkTabview(CTkBaseClass):
 
     def set(self, name: str):
         """ select tab by name """
+        print(self._tab_dict)
 
         if name in self._tab_dict:
             self._current_name = name

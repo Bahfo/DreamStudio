@@ -489,7 +489,7 @@ class App:
             segmented_button_selected_color=["#FFFFFF","#1F1F1F"],
             segmented_button_selected_hover_color=["#FFFFFF","#1F1F1F"],
             segmented_button_unselected_color=["#F5F5F5","#454545"])
-        self.tabSwitch.pack(expand=0.9, fill='both')
+        self.tabSwitch.pack(expand=True, fill='both')
         self.tabSwitch._segmented_button.configure(font = self.seg_font)
 
         self.tabSwitch.newtab_btn.configure(command=self.on_add_tab_click)
