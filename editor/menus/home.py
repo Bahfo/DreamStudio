@@ -259,7 +259,9 @@ def add_new_text_tab(tabSwitch, editor_initial_font, mode):
     )
     new_editor.pack(fill="both", expand=True)
 
-    current_session_editors_open[tab_name] = new_editor
+    editor_id = id(new_editor)
+    current_session_editors_open[editor_id] = new_editor
+    new_editor._tab_name = tab_name
 
     tabSwitch.set(tab_name)  # set the tab after the frame is gridded
 
@@ -285,7 +287,9 @@ def open_current_file(status_button,
         tab_name = add_new_text_tab(tab_switch, editor_font, mode)
 
         if tab_name:
-            target_editor = current_session_editors_open.get(tab_name)
+            target_editor = next(
+                (e for e in current_session_editors_open.values() if e._tab_name == tab_name),
+                None)
 
             if target_editor:
                 target_editor.content.delete("1.0", "end")
@@ -320,10 +324,9 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
         status_button.configure(text=f"Opening: {os.path.basename(file_path)}...")
         
     # Check if the file is already open
-    for tab_name, editor in current_session_editors_open.items():
+    for editor in current_session_editors_open.values():
         if getattr(editor, "file_path", None) == file_path:
-            tab_switch.after(10, lambda name=tab_name: tab_switch.set(name)) # to avoid race-coniditions with
-                                                                             # the tab-view methods
+            tab_switch.after(10, lambda name=editor._tab_name: tab_switch.set(name))
 
             if status_button:
                 status_button.configure(text=f"Focused: {file_path}")
@@ -337,21 +340,21 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
         tab_name = add_new_text_tab(tab_switch, editor_font, mode)
         
         if tab_name:
-            target_editor = current_session_editors_open.get(tab_name)
+            target_editor = next(
+                (e for e in current_session_editors_open.values() if e._tab_name == tab_name),
+                None)
 
             if target_editor:
                 # Here comes the mess: structure is so bad I can't look at it anymore
                 file_name = os.path.basename(file_path)
                 file_name_with_spaces = "   " + file_name + "   "
                 new_tab_name = file_name_with_spaces # Adding a new variable to fix naming errors
-                tab_switch.rename(tab_name, new_tab_name) # Here we have renaming method
-                
-                editor_obj = current_session_editors_open.pop(tab_name)
-                current_session_editors_open[new_tab_name] = editor_obj
+                target_editor._tab_name = new_tab_name
+                tab_switch.rename(tab_name, new_tab_name)
+                tab_name = new_tab_name
                 
                 # Re-aliasing the name to prevent crashing
                 tab_name = new_tab_name
-                target_editor = editor_obj
                 tab_switch.set(tab_name)
 
 
@@ -364,7 +367,7 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
                     editor.content.delete("1.0", "end")
                     editor.content.insert("1.0", data)
 
-                tab_switch.after(10, activate_and_load)
+                activate_and_load()
                 
                 target_editor.file_path = file_path
 
@@ -399,9 +402,10 @@ def on_close_tab_click(tabSwitch, event=None):
         messagebox.showwarning("No Tab", "No tab is currently selected")
         return
 
-    if current_tab in current_session_editors_open:
-        del current_session_editors_open[current_tab]
-        tab_count -= 1
+    for key, editor in list(current_session_editors_open.items()):
+        if editor._tab_name == current_tab:
+            del current_session_editors_open[key]
+            break
 
     tabSwitch.delete(current_tab)
 

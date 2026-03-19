@@ -454,14 +454,11 @@ class CTkTabview(CTkBaseClass):
             raise ValueError(f"CTkTabview has no tab named '{name}'")
 
     def set(self, name: str):
-        """ select tab by name """
-        print(self._tab_dict)
-
         if name in self._tab_dict:
+            self._grid_forget_all_tabs(exclude_name=name)  # FIRST
             self._current_name = name
             self._segmented_button.set(name)
-            self._set_grid_current_tab()
-            self.after(100, lambda: self._grid_forget_all_tabs(exclude_name=name))
+            self._set_grid_current_tab()  # THEN show
         else:
             raise ValueError(f"CTkTabview has no tab named '{name}'")
 

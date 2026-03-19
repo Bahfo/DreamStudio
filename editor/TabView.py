@@ -199,7 +199,7 @@ class TabView:
 
         self.slnExplrBtn = ctk.CTkButton(
             master=self.tabChanger,
-            width=50,
+            width=45,
             height=(height / 17),
             text="Solution Explorer ",
             text_color=["#262626", "#E3E3E3"],
@@ -213,9 +213,9 @@ class TabView:
 
         self.propertiesBtn = ctk.CTkButton(
             master=self.tabChanger,
-            width=50,
+            width=45,
             height=(height / 17),
-            text="      Properties      ",
+            text="    Properties    ",
             text_color=["#262626", "#E3E3E3"],
             corner_radius=6,
             hover=False,
@@ -223,13 +223,13 @@ class TabView:
             font=("Segoe UI", 12),
             fg_color=["#F5F5F5", "#1E1E1E"]
         )
-        self.propertiesBtn.place(x=118, y=-5)
+        self.propertiesBtn.place(x=125, y=-5)
 
         self.runDebugBtn = ctk.CTkButton(
             master=self.tabChanger,
-            width=50,
+            width=45,
             height=(height / 17),
-            text="    Run and Debug     ",
+            text="  Run and Debug   ",
             text_color=["#262626", "#E3E3E3"],
             corner_radius=6,
             hover=False,
@@ -237,7 +237,7 @@ class TabView:
             font=("Segoe UI", 12),
             fg_color=["#F5F5F5", "#1E1E1E"]
         )
-        self.runDebugBtn.place(x=222, y=-5)
+        self.runDebugBtn.place(x=229, y=-5)
 
         # --- Button Commands ---
         self.slnExplrBtn.configure(
