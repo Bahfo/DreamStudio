@@ -12,11 +12,14 @@ from editor.texteditor import Config
 from tkinter import filedialog, messagebox
 from editor.utils.linkLabel import LinkLabel
 from editor.texteditor import Editor, Languages
+from editor.utils.largeButton import LargeButton
 
 # Variables
 tab_count = 0
 naming_counter = 0
+notifications_class = {}
 current_session_editors_open = {}
+image = "icons/system/feedback.png"
 
 # Popups Classes
 class OpenPopup(ctk.CTkFrame):
@@ -76,50 +79,48 @@ class OpenPopup(ctk.CTkFrame):
             pass
 
 
+def open_menu_popup(event, root, button, options, x, y):
+    popup = OpenPopup(master=root, options=options)
+    popup.place(x=x, y=y)
+
+
 class Notifications(ctk.CTkFrame):
     """
-    Same as a popup class, but differs in contents.
-
-    Made differently to control each without worrying about an abstraction layer
+    Popup notification menu.
+    Closes automatically if the user clicks outside.
     """
-    def __init__(self, master, title, content, width: int = 200):
+    def __init__(self, master, title, content, width: int = 250):
         super().__init__(master, width=width, border_color="#9D9D9D", border_width=1,
                          fg_color=["#F2F2F2","#252525"], corner_radius=0)
-
-        self.triangle_height = 10
-        self.label = title
-        self.content = content
         self.master = master
         self.width = width
 
-        self.master.bind("<Button-1>", self._checkIfMouseLeft, add="+")
+        self.title_label = ctk.CTkLabel(self, text=title, font=ctk.CTkFont(size=12, weight="bold"))
+        self.title_label.pack(padx=10, pady=(10, 2))
 
-    def new_notification(self):
-        """
-        Add a new notification to the menu. It also notifies the user
-        """
-        holder = ctk.CTkFrame()
-        
+        self.content_label = ctk.CTkLabel(self, text=content, font=ctk.CTkFont(size=10))
+        self.content_label.pack(padx=10, pady=(0, 10))
 
-    def _checkIfMouseLeft(self, event):
-        """
-        Check if mouse has left the menu area and hide menus accordingly.
-        """
-        
+        self._bind_id = self.master.bind("<Button-1>", self._check_if_mouse_left, add="+")
+
+    def _check_if_mouse_left(self, event):
         try:
             x1 = self.winfo_rootx()
             y1 = self.winfo_rooty()
             x2 = x1 + self.winfo_width()
             y2 = y1 + self.winfo_height()
 
-            mouse_x = self.winfo_pointerx()
-            mouse_y = self.winfo_pointery()
-
-            if not (x1 <= mouse_x <= x2 and y1 <= mouse_y <= y2):
+            if not (x1 <= event.x_root <= x2 and y1 <= event.y_root <= y2):
                 self.destroy()
-                self.master.unbind_all("<Button-1>")
+                self.master.unbind("<Button-1>", self._bind_id)
         except tk.TclError:
             pass
+
+
+def open_notifications(root_window, title, content):
+    """Creates and displays a notification popup at (x, y)"""
+    popup = Notifications(master=root_window, title=title, content=content)
+    popup.place(relx = 0.87, rely=0.855)
 
 
 class GettingStartedTab:
@@ -432,7 +433,3 @@ def update_all_editors_theme(mode):
 
 # def save_temporary_file():
 
-
-def open_menu_popup(event, root, button, options, x, y):
-    popup = OpenPopup(master=root, options=options)
-    popup.place(x=x, y=y)

@@ -66,7 +66,6 @@ class App:
             set_widget_scaling(scaling_factor)
 
         self.window.tk.call('tk', 'scaling', scaling_factor)
-        print("Scaling factor applied:", scaling_factor)
 
         self.window.title("Dream Studio")
         self.window.geometry("1000x700")
@@ -354,6 +353,18 @@ class App:
             font=("Segoe UI", 12))
         self.line_and_pos.pack(padx=(10, 0), side="left")
 
+        self.notifications_button = ctk.CTkButton(
+            self.status_bar,
+            fg_color="#004073",
+            text="🔔", 
+            width=30,
+            corner_radius=0,
+            command=lambda: open_notifications(
+                root_window=self.window,
+                title="Update Available",
+                content="Version 1.0.1 BETA is ready to download"))
+        self.notifications_button.pack(padx=(7, 7), side="right")
+
         self.Version_button = ctk.CTkLabel(
             self.status_bar,
             text_color="#D5D5D5",
@@ -586,9 +597,12 @@ class App:
     #### TERMINAL LOGIC ####
 
     def open_terminal(self, event=None):
-        subprocess.Popen("start cmd", shell=True)
+        if platform.system() == "Windows":
+            subprocess.Popen("start cmd", shell=True)
+        elif platform.system() == "Linux":
+            subprocess.Popen(['gnome-terminal'], shell=True)
 
-    def open_shell(self):
+    def open_shell(self, event=None):
         import editor.command_window as command_window
 
         if self.shell_frame is None:

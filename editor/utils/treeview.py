@@ -153,6 +153,7 @@ class FileTreeItem(ctk.CTkFrame):
                         self.child_widgets.append(child_node)
 
             except PermissionError:
+                # TODO: link this to the new message box
                 print(f"Permission denied: {self.path}")
 
         elif self.is_expanded:
