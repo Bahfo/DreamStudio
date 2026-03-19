@@ -1,5 +1,8 @@
 import os
+
 import customtkinter as ctk
+
+from editor.utils.ctk_scrollable_frame import CTkScrollableFrame
 from typing import Callable, Optional, List
 from editor.utils.icons_utils import *
 
@@ -190,7 +193,7 @@ class FileTreeItem(ctk.CTkFrame):
         self.configure(fg_color=bg)
 
 
-class FileTree(ctk.CTkScrollableFrame):
+class FileTree(CTkScrollableFrame):
     """
     The main Tree View Widget.
     Inherits from CTkScrollableFrame to provide automatic scrolling.
@@ -204,11 +207,12 @@ class FileTree(ctk.CTkScrollableFrame):
                          corner_radius=0, fg_color=["#F5F5F5","#1E1E1E"],
                          **kwargs)
         
+        # TODO: Apply adding watchdog by using cached files and items paths instead of dir loading
         self.fs_cache = {}
         self.fs_items = {}
         self.path_to_node = {}
         
-        self._scrollbar.configure(corner_radius=0, width=5,
+        self._scrollbar.configure(corner_radius=0, width=8,
                                   fg_color=["#F5F5F5","#1E1E1E"])
         
         self._scrollbar._button_hover_color = ["#E3E3E3","#141414"]

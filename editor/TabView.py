@@ -119,7 +119,7 @@ class TabView:
         self.treeView = FileTree(
             master=self.solutionExplorerFrame,
             width=350,
-            height=550,
+            height=530,
             root_path=rf"{pathlib.Path.home()}"
         )
         self.treeView.place(x=5, y=60)
