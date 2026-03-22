@@ -38,22 +38,22 @@ class Highlighter:
     BUFFER_LINES = 20
 
     def __init__(self, master, language="", *args, **kwargs):
-        self.text     = master
-        self.base     = master.base
+        self.text = master
+        self.base = master.base
         self.language = language
 
-        self._debounce_id   = None
-        self._thread_lock   = threading.Lock()
+        self._debounce_id = None
+        self._thread_lock = threading.Lock()
         self._active_thread = None
-        self._pending_lex   = None
+        self._pending_lex = None
 
         # Token cache — each entry:
         #   (abs_start, abs_end, tag, tk_start_str, tk_end_str)
         # Sorted by abs_start.  _token_offsets is a parallel list of abs_start
         # values used exclusively for bisect lookups.
-        self._token_cache:   list[tuple] = []
-        self._token_offsets: list[int]   = []
-        self._token_cache_hash            = None
+        self._token_cache: list[tuple] = []
+        self._token_offsets: list[int] = []
+        self._token_cache_hash = None
 
         # line_offsets[i] = char offset where line (i+1) begins
         self._line_offsets: list[int] = []
@@ -62,12 +62,12 @@ class Highlighter:
 
         self.lexer = self._resolve_lexer(language, master)
 
-        self.valid_tags: set[str]  = set()
-        self._tag_map:  dict[str, str] = {}
+        self.valid_tags: set[str] = set()
+        self._tag_map: dict[str, str] = {}
         self._setup_tags()
 
         self._orig_yview = master.yview
-        master.yview     = self._proxy_yview
+        master.yview = self._proxy_yview
 
     # ─────────────────────────────────────────────────────────────────────────
     # Lexer resolution
@@ -98,7 +98,7 @@ class Highlighter:
 
     def update_lexer(self, language="", path=""):
         self.lexer = self._resolve_lexer(language or self.language, self.text)
-        self._token_cache_hash    = None
+        self._token_cache_hash = None
         self._last_rendered_range = (-1, -1)
         self.schedule_highlight()
 
@@ -111,7 +111,7 @@ class Highlighter:
             clean = key
             for prefix in ("Token.", "token."):
                 if clean.startswith(prefix):
-                    clean = clean[len(prefix):]
+                    clean = clean[len(prefix) :]
                     break
             tag = f"syn.{clean}"
             self.text.tag_configure(tag, foreground=color)
@@ -138,11 +138,11 @@ class Highlighter:
     def _on_scroll(self):
         """Fire a repaint only when the visible integer line range changes."""
         try:
-            h          = self.text.winfo_height()
-            vis_top    = int(self.text.index("@0,0").split(".")[0])
+            h = self.text.winfo_height()
+            vis_top = int(self.text.index("@0,0").split(".")[0])
             vis_bottom = int(self.text.index(f"@0,{h}").split(".")[0])
-            new_range  = (
-                max(1, vis_top    - self.BUFFER_LINES),
+            new_range = (
+                max(1, vis_top - self.BUFFER_LINES),
                 vis_bottom + self.BUFFER_LINES,
             )
             if new_range == self._last_rendered_range:
@@ -187,7 +187,7 @@ class Highlighter:
                 self._pending_lex = (full_content, content_hash)
                 return
 
-            self._pending_lex   = None
+            self._pending_lex = None
             self._active_thread = threading.Thread(
                 target=self._lex_full_document,
                 args=(full_content, content_hash),
@@ -210,54 +210,57 @@ class Highlighter:
             # Lex and pre-compute "LINE.COL" index strings.
             # We maintain a running (cur_line, cur_col) cursor so we never
             # need to call bisect or split strings inside this loop.
-            tokens_out:  list[tuple] = []
-            offsets_out: list[int]   = []
+            tokens_out: list[tuple] = []
+            offsets_out: list[int] = []
 
             char_offset = 0
-            cur_line    = 1   # 1-based (matches Tk)
-            cur_col     = 0   # 0-based (matches Tk)
+            cur_line = 1  # 1-based (matches Tk)
+            cur_col = 0  # 0-based (matches Tk)
 
             for token_type, value in lex(full_content, self.lexer):
-                t_len    = len(value)
-                tag      = self._token_to_tag(token_type)
+                t_len = len(value)
+                tag = self._token_to_tag(token_type)
                 newlines = value.count("\n")
 
                 if tag and value.strip():
                     tk_start = f"{cur_line}.{cur_col}"
 
                     if newlines:
-                        last_nl  = value.rfind("\n")
+                        last_nl = value.rfind("\n")
                         end_line = cur_line + newlines
-                        end_col  = t_len - last_nl - 1
+                        end_col = t_len - last_nl - 1
                     else:
                         end_line = cur_line
-                        end_col  = cur_col + t_len
+                        end_col = cur_col + t_len
 
                     tk_end = f"{end_line}.{end_col}"
-                    tokens_out.append((char_offset, char_offset + t_len, tag, tk_start, tk_end))
+                    tokens_out.append(
+                        (char_offset, char_offset + t_len, tag, tk_start, tk_end)
+                    )
                     offsets_out.append(char_offset)
 
                 # Advance running cursor (for tagged and untagged tokens alike)
                 if newlines:
-                    last_nl   = value.rfind("\n")
+                    last_nl = value.rfind("\n")
                     cur_line += newlines
-                    cur_col   = t_len - last_nl - 1
+                    cur_col = t_len - last_nl - 1
                 else:
-                    cur_col  += t_len
+                    cur_col += t_len
 
                 char_offset += t_len
 
             self.text.after(
                 0,
-                lambda c=tokens_out, o=offsets_out, lo=line_offsets, h=content_hash:
-                    self._store_and_apply(c, o, lo, h),
+                lambda c=tokens_out, o=offsets_out, lo=line_offsets, h=content_hash: self._store_and_apply(
+                    c, o, lo, h
+                ),
             )
         except Exception as exc:
             print(f"[Highlighter] lex error: {exc}")
         finally:
             # Pick up any edit that arrived while we were busy.
             with self._thread_lock:
-                pending           = self._pending_lex
+                pending = self._pending_lex
                 self._pending_lex = None
 
             if pending:
@@ -275,10 +278,10 @@ class Highlighter:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _store_and_apply(self, token_cache, token_offsets, line_offsets, content_hash):
-        self._token_cache         = token_cache
-        self._token_offsets       = token_offsets
-        self._line_offsets        = line_offsets
-        self._token_cache_hash    = content_hash
+        self._token_cache = token_cache
+        self._token_offsets = token_offsets
+        self._line_offsets = line_offsets
+        self._token_cache_hash = content_hash
         self._last_rendered_range = (-1, -1)
         self._apply_cache_to_viewport()
 
@@ -301,14 +304,14 @@ class Highlighter:
             if not self.text.winfo_exists():
                 return
 
-            h           = self.text.winfo_height()
+            h = self.text.winfo_height()
             total_lines = len(self._line_offsets)
 
-            vis_top    = int(self.text.index("@0,0").split(".")[0])
+            vis_top = int(self.text.index("@0,0").split(".")[0])
             vis_bottom = int(self.text.index(f"@0,{h}").split(".")[0])
 
-            start_line = max(1, vis_top    - self.BUFFER_LINES)
-            end_line   = min(total_lines,   vis_bottom + self.BUFFER_LINES)
+            start_line = max(1, vis_top - self.BUFFER_LINES)
+            end_line = min(total_lines, vis_bottom + self.BUFFER_LINES)
 
             new_range = (start_line, end_line)
             if new_range == self._last_rendered_range:
@@ -321,10 +324,10 @@ class Highlighter:
                 slice_end_c = self._line_offsets[end_line] - 1
             else:
                 last_line_text = self.text.get(f"{total_lines}.0", f"{total_lines}.end")
-                slice_end_c    = self._line_offsets[-1] + len(last_line_text)
+                slice_end_c = self._line_offsets[-1] + len(last_line_text)
 
             tk_vp_start = f"{start_line}.0"
-            tk_vp_end   = f"{end_line}.end"
+            tk_vp_end = f"{end_line}.end"
 
             # ── 1. Clear old syntax tags in viewport ──────────────────────────
             for tag in self.valid_tags:
@@ -344,7 +347,9 @@ class Highlighter:
             # ── 3. Accumulate per-tag range pairs ─────────────────────────────
             ranges_by_tag: dict[str, list[str]] = {}
 
-            for abs_start, abs_end, tag, tk_s, tk_e in self._token_cache[left_idx:right_idx]:
+            for abs_start, abs_end, tag, tk_s, tk_e in self._token_cache[
+                left_idx:right_idx
+            ]:
                 # Fine-grained filter for tokens that straddle a boundary
                 if abs_end <= slice_start_c or abs_start >= slice_end_c:
                     continue

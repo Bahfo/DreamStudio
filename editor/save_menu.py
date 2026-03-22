@@ -2,6 +2,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 import editor.menu_builders as uniwidgets
 
+
 class SaveFile(ctk.CTkToplevel):
     def __init__(self, main_app, workspace_container, status_button=None):
         super().__init__(main_app.window)

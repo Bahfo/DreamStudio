@@ -26,7 +26,9 @@ class EditorApp(ctk.CTk):
         add_tab_btn = ctk.CTkButton(button_frame, text="Add Tab", command=self.add_tab)
         add_tab_btn.pack(side="left", padx=5)
 
-        toggle_btn = ctk.CTkButton(button_frame, text="Toggle Theme", command=self.toggle_theme)
+        toggle_btn = ctk.CTkButton(
+            button_frame, text="Toggle Theme", command=self.toggle_theme
+        )
         toggle_btn.pack(side="left", padx=5)
 
         # First tab
@@ -56,17 +58,9 @@ class EditorApp(ctk.CTk):
     def apply_color(self, widget):
 
         if self.dark_mode:
-            widget.configure(
-                bg="#1e1e1e",
-                fg="#ffffff",
-                insertbackground="#ffffff"
-            )
+            widget.configure(bg="#1e1e1e", fg="#ffffff", insertbackground="#ffffff")
         else:
-            widget.configure(
-                bg="#ffffff",
-                fg="#000000",
-                insertbackground="#000000"
-            )
+            widget.configure(bg="#ffffff", fg="#000000", insertbackground="#000000")
 
 
 if __name__ == "__main__":

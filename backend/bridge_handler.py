@@ -30,29 +30,30 @@ NO_EVENT_HANDLER_EVENT_GIVEN = """Error: No event handler event given
 No event for the event handler is specified, watchdog terminated.
 """
 
+
 class DreamStudioErrors(Exception):
 
     _ERRORS = {
-        (1,1) : ERROR_NO_INITIAL_CONFIG,
-        (1,2) : ERROR_NO_INFO_FOUND,
-        (1,3) : ERROR_NO_TYPE_GIVEN,
-
-        (2,1) : UNEXPECTED_ERROR_OCCURED,
-
-        (3,1) : NO_EVENT_HANDLER_EVENT_GIVEN
+        (1, 1): ERROR_NO_INITIAL_CONFIG,
+        (1, 2): ERROR_NO_INFO_FOUND,
+        (1, 3): ERROR_NO_TYPE_GIVEN,
+        (2, 1): UNEXPECTED_ERROR_OCCURED,
+        (3, 1): NO_EVENT_HANDLER_EVENT_GIVEN,
     }
 
-    def __init__(self,
-                 error_code : int,
-                 error_description_code : int, 
-                 root_cause : None,
-                 window_cause: None):
+    def __init__(
+        self,
+        error_code: int,
+        error_description_code: int,
+        root_cause: None,
+        window_cause: None,
+    ):
         self.error_code = error_code
         self.error_desc_code = error_description_code
 
-        message = self._ERRORS.get((error_code,
-                                    error_description_code),
-                                   "Unknown IDE Error")
+        message = self._ERRORS.get(
+            (error_code, error_description_code), "Unknown IDE Error"
+        )
         super.__init__(message)
 
 
@@ -70,27 +71,31 @@ class WatchdogBridgeHandler(FileSystemEventHandler):
         self.debouncer.push({"type": "FILE_CHANGED", "path": event.src_path})
 
     def on_moved(self, event):
-        self.debouncer.push({
-            "type": "FILE_MOVED",
-            "path": event.dest_path,
-            "old_path": event.src_path
-        })
+        self.debouncer.push(
+            {"type": "FILE_MOVED", "path": event.dest_path, "old_path": event.src_path}
+        )
         if isinstance(event, DirMovedEvent):
             for old_path, data in list(self.debouncer.pending.items()):
                 if old_path.startswith(event.src_path + "/"):
-                    relative = old_path[len(event.src_path):]
+                    relative = old_path[len(event.src_path) :]
                     new_path = event.dest_path + relative
-                    self.debouncer.pending[new_path] = self.debouncer.pending.pop(old_path)
+                    self.debouncer.pending[new_path] = self.debouncer.pending.pop(
+                        old_path
+                    )
                     self.debouncer.pending[new_path]["event"]["path"] = new_path
-        
+
+
 class Debouncer:
-    def __init__(self, delay=0.2, output_queue=None, persist_file="debounce_state.json"):
+    def __init__(
+        self, delay=0.2, output_queue=None, persist_file="debounce_state.json"
+    ):
         self.delay = delay
         self.pending = {}  # path -> {"event":..., "time":...}
         self.output_queue = output_queue
         self.persist_file = persist_file
         self.load_state()
         import atexit
+
         atexit.register(self.save_state)
 
     def save_state(self):
@@ -109,7 +114,7 @@ class Debouncer:
             pass
 
     def push(self, event):
-        if event["path"].endswith(('.tmp', '.swp', '~', '.log')):
+        if event["path"].endswith((".tmp", ".swp", "~", ".log")):
             return
         key = event["path"]
         self.pending[key] = {"event": event, "time": time.monotonic()}

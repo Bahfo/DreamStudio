@@ -20,17 +20,11 @@ class RenameDialog(ctk.CTkToplevel):
         container.pack(fill="both", expand=True, padx=20, pady=20)
 
         self.label = ctk.CTkLabel(
-            container,
-            text="Enter new name",
-            font=("Segoe UI", 14, "bold")
+            container, text="Enter new name", font=("Segoe UI", 14, "bold")
         )
         self.label.pack(anchor="w", pady=(0, 8))
 
-        self.entry = ctk.CTkEntry(
-            container,
-            height=34,
-            font=("Segoe UI", 13)
-        )
+        self.entry = ctk.CTkEntry(container, height=34, font=("Segoe UI", 13))
         self.entry.insert(0, current_name)
         self.entry.pack(fill="x", pady=(0, 15))
 
@@ -42,15 +36,12 @@ class RenameDialog(ctk.CTkToplevel):
             text="Cancel",
             width=100,
             fg_color="gray30",
-            command=self._on_cancel
+            command=self._on_cancel,
         )
         cancel_btn.pack(side="right", padx=(10, 0))
 
         ok_btn = ctk.CTkButton(
-            buttons,
-            text="Rename",
-            width=100,
-            command=self._on_confirm
+            buttons, text="Rename", width=100, command=self._on_confirm
         )
         ok_btn.pack(side="right")
 
@@ -58,7 +49,7 @@ class RenameDialog(ctk.CTkToplevel):
         self.entry.select_range(0, "end")  # Select all text for quick replacement
         self.bind("<Return>", lambda e: self._on_confirm())
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)  # Handle window close button
-        
+
         # Defer grab_set() with a small delay to ensure window is fully rendered
         self.after(100, self._try_grab)
 

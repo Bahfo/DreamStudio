@@ -10,8 +10,10 @@ class LineNumbers(Canvas):
         self.fg = self.base.theme.linenumbers["foreground"]
         self.hfg = self.base.theme.linenumbers["activeforeground"]
         self.config(
-            width=65, bd=0, highlightthickness=0,
-            bg=self.base.theme.linenumbers["background"]
+            width=65,
+            bd=0,
+            highlightthickness=0,
+            bg=self.base.theme.linenumbers["background"],
         )
         self.text = text
 
@@ -24,9 +26,17 @@ class LineNumbers(Canvas):
             return
         y = dline[1]
         btn = Menubutton(
-            self, text=">", font=self.font, cursor="hand2",
-            borderwidth=0, width=2, height=1, pady=0, padx=0,
-            relief=tk.FLAT, **self.base.theme.linenumbers
+            self,
+            text=">",
+            font=self.font,
+            cursor="hand2",
+            borderwidth=0,
+            width=2,
+            height=1,
+            pady=0,
+            padx=0,
+            relief=tk.FLAT,
+            **self.base.theme.linenumbers,
         )
         self.create_window(70, y - 2, anchor=tk.NE, window=btn)
 
@@ -67,28 +77,30 @@ class LineNumbers(Canvas):
             color = self.hfg if (cur_y is not None and y == cur_y) else self.fg
 
             self.create_text(
-                40, y,
+                40,
+                y,
                 anchor=tk.NE,
                 text=linenum,
                 font=self.font,
                 fill=color,
                 tag=i,
             )
-            self.tag_bind(i, "<Button-1>",
-                          lambda _, idx=i: self.text.select_line(idx))
+            self.tag_bind(i, "<Button-1>", lambda _, idx=i: self.text.select_line(idx))
 
             if current_indent > prev_indent:
                 fold_tag = f"f{i}"
                 self.create_text(
-                    50, y,
+                    50,
+                    y,
                     anchor=tk.NW,
                     text="+",
                     font=self.font,
                     fill=self.fg,
                     tag=fold_tag,
                 )
-                self.tag_bind(fold_tag, "<Button-1>",
-                              lambda _, idx=i: print(f"Fold from {idx}"))
+                self.tag_bind(
+                    fold_tag, "<Button-1>", lambda _, idx=i: print(f"Fold from {idx}")
+                )
 
             prev_indent = current_indent
 

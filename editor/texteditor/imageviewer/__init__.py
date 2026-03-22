@@ -28,4 +28,3 @@ class ImageViewer(BaseEditor):
             self, image=self.tk_image, bg=self.base.theme.background
         )
         self.image_label.pack(fill=tk.BOTH, expand=True)
-

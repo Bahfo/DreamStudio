@@ -5,6 +5,7 @@ class BaseEditor(Frame):
     """
     Base class for editors.
     """
+
     def __init__(self, master, path=None, path2=None, editable=True, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.config(bg=self.base.theme.background)
@@ -17,5 +18,4 @@ class BaseEditor(Frame):
         self.content = None
         self.diff = False
 
-    def save(self, *_):
-        ...
+    def save(self, *_): ...

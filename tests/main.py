@@ -23,6 +23,7 @@ PYTHON_KEYWORDS = keyword.kwlist
 
 allowed_extensions = {".py", ".txt", ".html", ".json", ".js"}
 
+
 def auto_indent(text_editor):
     line_index = text_editor.index("insert linestart")
     current_line = text_editor.get(line_index, "insert")
@@ -32,6 +33,7 @@ def auto_indent(text_editor):
         indent += "    "  # 4 spaces per level
     text_editor.insert("insert", f"\n{indent}")
     return "break"
+
 
 def highlight_errors(text_editor):
     text_editor.tag_remove("error_underline", "1.0", "end")
@@ -48,6 +50,7 @@ def highlight_errors(text_editor):
         end_index = f"{line}.end"
         text_editor.tag_add("error_underline", start_index, end_index)
         text_editor.tag_config("error_underline", underline=True, foreground="#FF0000")
+
 
 class Highlighter(ctk.CTkTextbox):
     def __init__(self, master=None, **kwargs):
@@ -79,23 +82,25 @@ class Highlighter(ctk.CTkTextbox):
             self.tag_add("string", start, end)
 
         for kw in PYTHON_KEYWORDS:
-            for match in re.finditer(rf'\b{kw}\b', content):
+            for match in re.finditer(rf"\b{kw}\b", content):
                 start = f"1.0+{match.start()}c"
                 end = f"1.0+{match.end()}c"
                 self.tag_add("keyword", start, end)
 
+
 class CTkWorkspaceTree:
     def __init__(self, parent, text_editor_widget):
-        self.root_frame = ctk.CTkScrollableFrame(parent, corner_radius=0,
-                                                fg_color="transparent",height=500)
+        self.root_frame = ctk.CTkScrollableFrame(
+            parent, corner_radius=0, fg_color="transparent", height=500
+        )
         self.root_frame.pack(fill="both", padx=17, pady=3)
 
-        if platform.system() == 'Linux':
+        if platform.system() == "Linux":
             ctk.set_widget_scaling(1.2)
             ctk.set_window_scaling(1.2)
 
-        self.nodes = {}        # node_id → node data
-        self.node_order = []   # preserved visual order
+        self.nodes = {}  # node_id → node data
+        self.node_order = []  # preserved visual order
         self.text_editor = text_editor_widget
 
     # ------------------- ICONS -------------------
@@ -108,7 +113,11 @@ class CTkWorkspaceTree:
         node_id = id(path_obj)
 
         # The container where this node's row and its children_frame will live
-        container = self.root_frame if parent_id is None else self.nodes[parent_id]["children_frame"]
+        container = (
+            self.root_frame
+            if parent_id is None
+            else self.nodes[parent_id]["children_frame"]
+        )
 
         # Main "row"
         row = ctk.CTkFrame(container, fg_color="transparent")
@@ -119,10 +128,14 @@ class CTkWorkspaceTree:
 
         # Expand button
         arrow = ctk.CTkButton(
-            row, width=18, height=18, font=("Segoe UI", 12),
+            row,
+            width=18,
+            height=18,
+            font=("Segoe UI", 12),
             text="▶" if path_obj.is_dir() else "",
-            fg_color="transparent", hover_color="gray15",
-            command=lambda nid=node_id: self.toggle(nid)
+            fg_color="transparent",
+            hover_color="gray15",
+            command=lambda nid=node_id: self.toggle(nid),
         )
         arrow.pack(side="left", padx=(indent * 20, 5))
 
@@ -133,7 +146,7 @@ class CTkWorkspaceTree:
         icon.pack(side="left")
 
         # Label
-        label = ctk.CTkLabel(row, text=name, font=("Segoe UI",12))
+        label = ctk.CTkLabel(row, text=name, font=("Segoe UI", 12))
         label.pack(side="left", padx=5)
 
         # Child container (hidden initially)
@@ -149,7 +162,7 @@ class CTkWorkspaceTree:
             "children": [],
             "expanded": False,
             "indent": indent,
-            "parent": parent_id
+            "parent": parent_id,
         }
 
         # Register in workspace container
@@ -178,7 +191,10 @@ class CTkWorkspaceTree:
         # First time loading children
         if not node["children"]:
             try:
-                for child in sorted(node["path"].iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+                for child in sorted(
+                    node["path"].iterdir(),
+                    key=lambda p: (not p.is_dir(), p.name.lower()),
+                ):
                     child_id = self.insert_node_lazy(node_id, child)
                     node["children"].append(child_id)
             except (PermissionError, FileNotFoundError):
@@ -220,7 +236,7 @@ class CTkWorkspaceTree:
 
 def main():
 
-    ctk.set_appearance_mode('dark')
+    ctk.set_appearance_mode("dark")
     mode = ctk.get_appearance_mode()
     ################################################################################################
     # MAIN WINDOW
@@ -235,7 +251,7 @@ def main():
     #################################################################################################
     # PROCESSES AND SERVICES
     #################################################################################################
-    
+
     def open_version_license():
         license_window = ctk.CTk()
         license_window.title("Software License")
@@ -265,7 +281,7 @@ def main():
             text=license_text,
             font=("Segoe UI", 13),
             wraplength=480,
-            justify="left"
+            justify="left",
         )
         license_label.pack(padx=10, pady=10)
 
@@ -275,11 +291,20 @@ def main():
         "File": ["New", "Open", "Save", "Exit"],
         "Edit": ["Undo", "Redo", "Cut", "Copy", "Paste"],
         "View": ["Zoom In", "Zoom Out", "Reset Zoom"],
-        "Run":  ["Run", "Debug"],
-        "Help": ["About", "Documentation","license"]}
+        "Run": ["Run", "Debug"],
+        "Help": ["About", "Documentation", "license"],
+    }
 
     class ToolTip:
-        def __init__(self, widget, text, delay=400, bg="#2b2b2b", fg="white", font=("Segoe UI", 10)):
+        def __init__(
+            self,
+            widget,
+            text,
+            delay=400,
+            bg="#2b2b2b",
+            fg="white",
+            font=("Segoe UI", 10),
+        ):
             self.widget = widget
             self.text = text
             self.delay = delay
@@ -336,7 +361,8 @@ def main():
                 font=self.font,
                 bd=0,
                 padx=6,
-                pady=3)
+                pady=3,
+            )
             label.pack()
 
         def hide_tip(self):
@@ -350,18 +376,21 @@ def main():
     def create_new_file():
         creating_new_file = ctk.CTkToplevel()
         creating_new_file.title("Create a New File")
-        creating_new_file.iconbitmap(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/new.ico")
+        creating_new_file.iconbitmap(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/new.ico"
+        )
         creating_new_file.geometry("360x160")
         creating_new_file.resizable(False, False)
         creating_new_file.attributes("-topmost", True)
 
-        label = ctk.CTkLabel(creating_new_file, text="Enter file name:", font=("Segoe UI", 12))
+        label = ctk.CTkLabel(
+            creating_new_file, text="Enter file name:", font=("Segoe UI", 12)
+        )
         label.pack(pady=(20, 5))
 
         file_naming_box = ctk.CTkEntry(
-            creating_new_file,
-            width=250,
-            placeholder_text="untitled.txt")
+            creating_new_file, width=250, placeholder_text="untitled.txt"
+        )
         file_naming_box.pack(pady=(0, 20))
 
         def confirm_create():
@@ -369,7 +398,7 @@ def main():
             if not file_name:
                 file_name = "untitled.txt"
             with open(file_name, "w", encoding="utf-8") as f:
-                f.write("")  
+                f.write("")
             creating_new_file.destroy()
 
         confirm_button = ctk.CTkButton(
@@ -378,7 +407,8 @@ def main():
             text="Create",
             width=100,
             corner_radius=6,
-            command=confirm_create)
+            command=confirm_create,
+        )
         confirm_button.pack(pady=(0, 10))
 
     current_file_path = None
@@ -395,7 +425,7 @@ def main():
 
             text_editor.delete("1.0", "end")
             text_editor.insert("1.0", content)
-            current_file_path = current_file 
+            current_file_path = current_file
         except Exception as e:
             messagebox.showerror("Error", f"Could not open file: \n{e}")
 
@@ -412,9 +442,9 @@ def main():
 
         search_bar_inside.protocol("WM_DELETE_WINDOW", on_close)
 
-        label = ctk.CTkLabel(search_bar_inside,
-                            text="Enter Keyword/Sentence/.etc",
-                            font=("Segoe UI", 12))
+        label = ctk.CTkLabel(
+            search_bar_inside, text="Enter Keyword/Sentence/.etc", font=("Segoe UI", 12)
+        )
         label.pack(pady=(20, 5))
 
         search_entry = ctk.CTkEntry(search_bar_inside, width=250)
@@ -441,9 +471,7 @@ def main():
                 text_editor.see(start_index)
 
                 text_editor.tag_config(
-                    "highlight",
-                    background="#633B24",
-                    foreground="#FFFFFF"
+                    "highlight", background="#633B24", foreground="#FFFFFF"
                 )
 
         confirm_button = ctk.CTkButton(
@@ -452,14 +480,14 @@ def main():
             text="Search",
             width=100,
             corner_radius=6,
-            command=searching
+            command=searching,
         )
         confirm_button.pack(pady=(0, 10))
 
         search_entry.bind("<Return>", searching)
 
         search_entry.focus_set()
-    
+
     font_size_var = ctk.IntVar(value=13)
 
     def save_current_workspace_file():
@@ -469,14 +497,20 @@ def main():
 
         save_current_workspace = ctk.CTkToplevel()
         save_current_workspace.title("Save File")
-        save_current_workspace.iconbitmap(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/save.ico")
+        save_current_workspace.iconbitmap(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/save.ico"
+        )
         save_current_workspace.geometry("360x160")
         save_current_workspace.resizable(False, False)
 
-        label = ctk.CTkLabel(save_current_workspace, text="Enter file name:", font=("Segoe UI", 12))
+        label = ctk.CTkLabel(
+            save_current_workspace, text="Enter file name:", font=("Segoe UI", 12)
+        )
         label.pack(pady=(20, 5))
 
-        file_naming_box = ctk.CTkEntry(save_current_workspace, width=250, placeholder_text="untitled.txt")
+        file_naming_box = ctk.CTkEntry(
+            save_current_workspace, width=250, placeholder_text="untitled.txt"
+        )
         file_naming_box.pack(pady=(0, 20))
 
         def save_file():
@@ -508,7 +542,7 @@ def main():
             text="Save",
             width=100,
             command=save_file,
-            corner_radius=6
+            corner_radius=6,
         )
         confirm_button.pack(pady=(0, 10))
 
@@ -516,45 +550,94 @@ def main():
         settings.open_settings_window()
 
     menus = {
-        "File": ["New File","New Folder", "Open File", "Open Folder", "Save", "Save as","Exit and Close"],
+        "File": [
+            "New File",
+            "New Folder",
+            "Open File",
+            "Open Folder",
+            "Save",
+            "Save as",
+            "Exit and Close",
+        ],
         "Edit": ["Undo", "Redo", "Cut", "Copy", "Paste"],
-        "View": ["View Terminal","Debug Console"],
-        "Run":  ["Start Debugging", "Run without Debugging", "Stop Running"],
-        "Help": ["Help","Documentation","About"]}
+        "View": ["View Terminal", "Debug Console"],
+        "Run": ["Start Debugging", "Run without Debugging", "Stop Running"],
+        "Help": ["Help", "Documentation", "About"],
+    }
 
     ################################################################################################
     # MENUBAR
-    ################################################################################################    
+    ################################################################################################
     active_menu = {"menu": None}
 
-    def file_new(): print("File → New clicked")
-    def file_open(): print("File → Open clicked")
-    def file_save(): print("File → Save clicked")
-    def file_exit(): window.destroy()
+    def file_new():
+        print("File → New clicked")
 
-    def edit_undo(): print("Edit → Undo clicked")
-    def edit_redo(): print("Edit → Redo clicked")
-    def edit_cut(): print("Edit → Cut clicked")
-    def edit_copy(): print("Edit → Copy clicked")
-    def edit_paste(): print("Edit → Paste clicked")
+    def file_open():
+        print("File → Open clicked")
 
-    def view_toggle_sidebar(): print("View → Toggle Sidebar clicked")
-    def view_toggle_toolbar(): print("View → Toggle Toolbar clicked")
+    def file_save():
+        print("File → Save clicked")
 
-    def run_start(): print("Run → Start clicked")
-    def run_stop(): print("Run → Stop clicked")
-    def run_restart(): print("Run → Restart clicked")
+    def file_exit():
+        window.destroy()
 
-    def help_about(): print("Help → About clicked")
-    def help_docs(): print("Help → Documentation clicked")
+    def edit_undo():
+        print("Edit → Undo clicked")
+
+    def edit_redo():
+        print("Edit → Redo clicked")
+
+    def edit_cut():
+        print("Edit → Cut clicked")
+
+    def edit_copy():
+        print("Edit → Copy clicked")
+
+    def edit_paste():
+        print("Edit → Paste clicked")
+
+    def view_toggle_sidebar():
+        print("View → Toggle Sidebar clicked")
+
+    def view_toggle_toolbar():
+        print("View → Toggle Toolbar clicked")
+
+    def run_start():
+        print("Run → Start clicked")
+
+    def run_stop():
+        print("Run → Stop clicked")
+
+    def run_restart():
+        print("Run → Restart clicked")
+
+    def help_about():
+        print("Help → About clicked")
+
+    def help_docs():
+        print("Help → Documentation clicked")
 
     menus = {
-        "File": [("New", file_new), ("Open", file_open), ("Save", file_save), ("Exit", file_exit)],
-        "Edit": [("Undo", edit_undo), ("Redo", edit_redo), ("Cut", edit_cut), 
-                ("Copy", edit_copy), ("Paste", edit_paste)],
-        "View": [("Toggle Sidebar", view_toggle_sidebar), ("Toggle Toolbar", view_toggle_toolbar)],
+        "File": [
+            ("New", file_new),
+            ("Open", file_open),
+            ("Save", file_save),
+            ("Exit", file_exit),
+        ],
+        "Edit": [
+            ("Undo", edit_undo),
+            ("Redo", edit_redo),
+            ("Cut", edit_cut),
+            ("Copy", edit_copy),
+            ("Paste", edit_paste),
+        ],
+        "View": [
+            ("Toggle Sidebar", view_toggle_sidebar),
+            ("Toggle Toolbar", view_toggle_toolbar),
+        ],
         "Run": [("Start", run_start), ("Stop", run_stop), ("Restart", run_restart)],
-        "Help": [("About", help_about), ("Documentation", help_docs)]
+        "Help": [("About", help_about), ("Documentation", help_docs)],
     }
 
     def create_menu_frame(menu_name, x_pos):
@@ -563,66 +646,115 @@ def main():
             active_menu["menu"].destroy()
             active_menu["menu"] = None
 
-        active_menu["menu"] = ctk.CTkFrame(window,
-                                        fg_color="transparent",
-                                        border_color="#6f6f6f",
-                                        border_width=2,
-                                        corner_radius=10)
+        active_menu["menu"] = ctk.CTkFrame(
+            window,
+            fg_color="transparent",
+            border_color="#6f6f6f",
+            border_width=2,
+            corner_radius=10,
+        )
         active_menu["menu"].place(x=x_pos, y=28)
 
         for name, func in menus[menu_name]:
-            btn = ctk.CTkButton(active_menu["menu"], text=name,
-                                corner_radius=0, width=190, height=25,
-                                fg_color="transparent",
-                                anchor="w", font=("Segoe UI", 13),
-                                border_color="#5E5E5E", border_width=1,
-                                command=func)
+            btn = ctk.CTkButton(
+                active_menu["menu"],
+                text=name,
+                corner_radius=0,
+                width=190,
+                height=25,
+                fg_color="transparent",
+                anchor="w",
+                font=("Segoe UI", 13),
+                border_color="#5E5E5E",
+                border_width=1,
+                command=func,
+            )
             btn.pack()
 
-    def file_menu(): create_menu_frame("File", 2)
-    def edit_menu(): create_menu_frame("Edit", 55)
-    def view_menu(): create_menu_frame("View", 108)
-    def run_menu(): create_menu_frame("Run", 161)
-    def help_menu(): create_menu_frame("Help", 213)
+    def file_menu():
+        create_menu_frame("File", 2)
 
-    menubar = ctk.CTkFrame(window, height=31,corner_radius=0, border_color="#5E5E5E", 
-                           fg_color="#007ACC",border_width=1)
+    def edit_menu():
+        create_menu_frame("Edit", 55)
+
+    def view_menu():
+        create_menu_frame("View", 108)
+
+    def run_menu():
+        create_menu_frame("Run", 161)
+
+    def help_menu():
+        create_menu_frame("Help", 213)
+
+    menubar = ctk.CTkFrame(
+        window,
+        height=31,
+        corner_radius=0,
+        border_color="#5E5E5E",
+        fg_color="#007ACC",
+        border_width=1,
+    )
     menubar.pack(fill="x", side="top")
     menubar.pack_propagate(False)
 
-    file_button_menu = ctk.CTkButton(menubar,corner_radius=3,
-                                        width=45, height=26, text="File",
-                                        fg_color=menubar.cget('fg_color'),
-                                        font=("Segoe UI",12))
-    file_button_menu.place(x=3,y=2)
+    file_button_menu = ctk.CTkButton(
+        menubar,
+        corner_radius=3,
+        width=45,
+        height=26,
+        text="File",
+        fg_color=menubar.cget("fg_color"),
+        font=("Segoe UI", 12),
+    )
+    file_button_menu.place(x=3, y=2)
     file_button_menu.configure(command=file_menu)
 
-    edit_button_menu = ctk.CTkButton(menubar, corner_radius=3,
-                                        width=45, height=26, text="Edit",
-                                        fg_color=menubar.cget('fg_color'),
-                                        font=("Segoe UI",12))
-    edit_button_menu.place(x=55,y=2)
+    edit_button_menu = ctk.CTkButton(
+        menubar,
+        corner_radius=3,
+        width=45,
+        height=26,
+        text="Edit",
+        fg_color=menubar.cget("fg_color"),
+        font=("Segoe UI", 12),
+    )
+    edit_button_menu.place(x=55, y=2)
     edit_button_menu.configure(command=edit_menu)
 
-    view_button_menu = ctk.CTkButton(menubar, corner_radius=3,
-                                        width=45, height=26, text="View",
-                                        fg_color=menubar.cget('fg_color'),
-                                        font=("Segoe UI",12))
-    view_button_menu.place(x=108,y=2)
+    view_button_menu = ctk.CTkButton(
+        menubar,
+        corner_radius=3,
+        width=45,
+        height=26,
+        text="View",
+        fg_color=menubar.cget("fg_color"),
+        font=("Segoe UI", 12),
+    )
+    view_button_menu.place(x=108, y=2)
     view_button_menu.configure(command=view_menu)
 
-    run_button_menu = ctk.CTkButton(menubar, corner_radius=3,
-                                        width=45, height=26, text="Run",
-                                        fg_color=menubar.cget('fg_color'),
-                                        font=("Segoe UI",12))
-    run_button_menu.place(x=161,y=2)
+    run_button_menu = ctk.CTkButton(
+        menubar,
+        corner_radius=3,
+        width=45,
+        height=26,
+        text="Run",
+        fg_color=menubar.cget("fg_color"),
+        font=("Segoe UI", 12),
+    )
+    run_button_menu.place(x=161, y=2)
     run_button_menu.configure(command=run_menu)
 
-    help_button_menu = ctk.CTkButton(menubar,corner_radius=3,
-                                        width=45, height=26, text="Help",
-                                        fg_color=menubar.cget('fg_color'),
-                                        font=("Segoe UI",12))
-    help_button_menu.place(x=214,y=2)
+    help_button_menu = ctk.CTkButton(
+        menubar,
+        corner_radius=3,
+        width=45,
+        height=26,
+        text="Help",
+        fg_color=menubar.cget("fg_color"),
+        font=("Segoe UI", 12),
+    )
+    help_button_menu.place(x=214, y=2)
     help_button_menu.configure(command=help_menu)
 
     def close_on_click_outside(event):
@@ -648,7 +780,9 @@ def main():
         except tk.TclError:
             mbx1 = mby1 = mbx2 = mby2 = 0
 
-        if (mx1 <= x_root <= mx2 and my1 <= y_root <= my2) or (mbx1 <= x_root <= mbx2 and mby1 <= y_root <= mby2):
+        if (mx1 <= x_root <= mx2 and my1 <= y_root <= my2) or (
+            mbx1 <= x_root <= mbx2 and mby1 <= y_root <= mby2
+        ):
             return
 
         active_menu["menu"].destroy()
@@ -659,65 +793,139 @@ def main():
     #################################################################################################
     # STATUS BAR
     #################################################################################################
-    status_bar = ctk.CTkFrame(window, height=28, corner_radius=0, border_color="#5E5E5E", 
-                              border_width=1, fg_color="#007ACC")
+    status_bar = ctk.CTkFrame(
+        window,
+        height=28,
+        corner_radius=0,
+        border_color="#5E5E5E",
+        border_width=1,
+        fg_color="#007ACC",
+    )
     status_bar.pack(fill="x", side="bottom")
 
-    Version_button = ctk.CTkLabel(status_bar,text="Version 0.0.1 BETA",font=("Segoe UI",11),
-                                   text_color= "#DCDCDC",
-                                    width=15,height=8, corner_radius=0,
-                                    fg_color=status_bar.cget('fg_color'))
-    Version_button.pack(padx=(10,10),side="right",pady=(2,2))
+    Version_button = ctk.CTkLabel(
+        status_bar,
+        text="Version 0.0.1 BETA",
+        font=("Segoe UI", 11),
+        text_color="#DCDCDC",
+        width=15,
+        height=8,
+        corner_radius=0,
+        fg_color=status_bar.cget("fg_color"),
+    )
+    Version_button.pack(padx=(10, 10), side="right", pady=(2, 2))
 
     #################################################################################################
     # SERVICES LEFTMOST BAR
     #################################################################################################
-    services_bar = ctk.CTkFrame(window, width=50,corner_radius=0, border_color="#5E5E5E", border_width=1)
+    services_bar = ctk.CTkFrame(
+        window, width=50, corner_radius=0, border_color="#5E5E5E", border_width=1
+    )
     services_bar.pack_propagate(False)
     services_bar.pack(side="left", fill="y")
 
-    search_photo   = ctk.CTkImage(light_image=Image.open(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/zoom.ico"), size=(24, 24))
-    open_photo     = ctk.CTkImage(light_image=Image.open(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/open.ico"), size=(24, 24))
-    settings_photo = ctk.CTkImage(light_image=Image.open(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/settings.ico"), size=(24, 24))
-    new_photo      = ctk.CTkImage(light_image=Image.open(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/new.ico"), size=(24, 24))
-    save_photo     = ctk.CTkImage(light_image=Image.open(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/save.ico"), size=(24,24))
+    search_photo = ctk.CTkImage(
+        light_image=Image.open(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/zoom.ico"
+        ),
+        size=(24, 24),
+    )
+    open_photo = ctk.CTkImage(
+        light_image=Image.open(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/open.ico"
+        ),
+        size=(24, 24),
+    )
+    settings_photo = ctk.CTkImage(
+        light_image=Image.open(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/settings.ico"
+        ),
+        size=(24, 24),
+    )
+    new_photo = ctk.CTkImage(
+        light_image=Image.open(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/new.ico"
+        ),
+        size=(24, 24),
+    )
+    save_photo = ctk.CTkImage(
+        light_image=Image.open(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/save.ico"
+        ),
+        size=(24, 24),
+    )
 
-    search_button = ctk.CTkButton(services_bar,text="",image=search_photo,width=36,height=36,
-                                    corner_radius=5,fg_color=services_bar.cget('fg_color'),
-                                    command=search_for_keywords)
+    search_button = ctk.CTkButton(
+        services_bar,
+        text="",
+        image=search_photo,
+        width=36,
+        height=36,
+        corner_radius=5,
+        fg_color=services_bar.cget("fg_color"),
+        command=search_for_keywords,
+    )
     search_button.pack(pady=5)
-    ToolTip(search_button,"Searches inside the file for a specific key")
+    ToolTip(search_button, "Searches inside the file for a specific key")
 
-    open_button = ctk.CTkButton(services_bar,text="",image=open_photo,width=36,height=36,
-                                fg_color=services_bar.cget('fg_color'),
-                                    corner_radius=5,
-                                    command= open_current_file)
+    open_button = ctk.CTkButton(
+        services_bar,
+        text="",
+        image=open_photo,
+        width=36,
+        height=36,
+        fg_color=services_bar.cget("fg_color"),
+        corner_radius=5,
+        command=open_current_file,
+    )
     open_button.pack(pady=5)
     ToolTip(open_button, "Opens a file")
 
-    settings_button = ctk.CTkButton(services_bar,text="",image=settings_photo,width=36,height=36,
-                                    fg_color=services_bar.cget('fg_color'),
-                                    corner_radius=5, command=open_settings)
+    settings_button = ctk.CTkButton(
+        services_bar,
+        text="",
+        image=settings_photo,
+        width=36,
+        height=36,
+        fg_color=services_bar.cget("fg_color"),
+        corner_radius=5,
+        command=open_settings,
+    )
     settings_button.pack(pady=5)
     ToolTip(settings_button, "Show IDE settings and preferences")
 
-    new_button = ctk.CTkButton(services_bar,text="",image=new_photo,width=36,height=36,
-                                    corner_radius=5,
-                                    fg_color=services_bar.cget('fg_color'),
-                                    command=create_new_file)
+    new_button = ctk.CTkButton(
+        services_bar,
+        text="",
+        image=new_photo,
+        width=36,
+        height=36,
+        corner_radius=5,
+        fg_color=services_bar.cget("fg_color"),
+        command=create_new_file,
+    )
     new_button.pack(pady=5)
-    ToolTip(new_button,"Creates a new empty file")
+    ToolTip(new_button, "Creates a new empty file")
 
-    save_button = ctk.CTkButton(services_bar,text="",image=save_photo,width=36,height=36,
-                                corner_radius=5,fg_color=services_bar.cget('fg_color'),
-                                command=save_current_workspace_file)
+    save_button = ctk.CTkButton(
+        services_bar,
+        text="",
+        image=save_photo,
+        width=36,
+        height=36,
+        corner_radius=5,
+        fg_color=services_bar.cget("fg_color"),
+        command=save_current_workspace_file,
+    )
     save_button.pack(pady=5)
-    ToolTip(save_button,"Saves the current loaded workspace file")
+    ToolTip(save_button, "Saves the current loaded workspace file")
 
     #################################################################################################
     # LEFT SIDEBAR FRAME
     #################################################################################################
-    sidebar = ctk.CTkFrame(window, width=360, border_width=1, border_color="#5E5E5E", corner_radius=0)
+    sidebar = ctk.CTkFrame(
+        window, width=360, border_width=1, border_color="#5E5E5E", corner_radius=0
+    )
     sidebar.pack_propagate(False)
     sidebar.pack(side="left", fill="y")
     editor_frame = ctk.CTkFrame(window)
@@ -727,7 +935,7 @@ def main():
         font=("consolas", 14),
         border_width=1,
         border_color="#5E5E5E",
-        corner_radius=0
+        corner_radius=0,
     )
 
     def on_open_workspace():
@@ -741,21 +949,40 @@ def main():
         refresh_workspace_tree(tree)
 
     run_btn = ctk.CTkButton(
-        sidebar, text="Python Integrated Runner", fg_color="#004C7E", width=320,
-        height=25, font=("Segoe UI", 13), corner_radius=5)
+        sidebar,
+        text="Python Integrated Runner",
+        fg_color="#004C7E",
+        width=320,
+        height=25,
+        font=("Segoe UI", 13),
+        corner_radius=5,
+    )
     run_btn.pack(pady=(12, 2), padx=8)
     run_btn.pack_propagate(False)
 
     open_btn = ctk.CTkButton(
-        sidebar, text="Open Workspace", fg_color="#004C7E", width=320,
-        height=25, font=("Segoe UI", 13), corner_radius=5, command=on_open_workspace)
+        sidebar,
+        text="Open Workspace",
+        fg_color="#004C7E",
+        width=320,
+        height=25,
+        font=("Segoe UI", 13),
+        corner_radius=5,
+        command=on_open_workspace,
+    )
     open_btn.pack(pady=(8, 5), padx=8)
     open_btn.pack_propagate(False)
 
     currentDirLabel = ctk.CTkLabel(
-        sidebar, text="CURRENT DIRECTORY",anchor='w',justify='left',
-        width=320, height=20, font=("Segoe UI", 12))
-    currentDirLabel.pack(pady=(20,5), padx=8)
+        sidebar,
+        text="CURRENT DIRECTORY",
+        anchor="w",
+        justify="left",
+        width=320,
+        height=20,
+        font=("Segoe UI", 12),
+    )
+    currentDirLabel.pack(pady=(20, 5), padx=8)
 
     horizontalFrame = ctk.CTkFrame(sidebar, fg_color="#595959", width=320, height=2)
     horizontalFrame.pack(pady=(0, 10), padx=20, fill="x")
@@ -767,13 +994,16 @@ def main():
             file_to_run = current_file_path
         else:
             code = text_editor.get("1.0", "end-1c")
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".py", delete=False
+            ) as tmp_file:
                 tmp_file.write(code)
                 file_to_run = tmp_file.name
 
         subprocess.Popen(
             [sys.executable, "-i", file_to_run],
-            creationflags=subprocess.CREATE_NEW_CONSOLE)
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+        )
 
     run_btn.configure(command=run_python_debugger)
 
@@ -806,8 +1036,7 @@ def main():
 
         # Lookup existing children by name
         existing_children = {
-            tree_widget.nodes[c]["name"]: c
-            for c in tree_widget.get_children(node_id)
+            tree_widget.nodes[c]["name"]: c for c in tree_widget.get_children(node_id)
         }
 
         # Add new children only
@@ -819,7 +1048,6 @@ def main():
                 tree_widget.nodes[node_id]["children"].append(new_child_id)
         except PermissionError:
             pass
-
 
     #################################################################################################
     # MAIN EDITOR AREA
@@ -855,28 +1083,36 @@ def main():
         content = pyperclip.paste()
         text_editor.insert(tk.INSERT, content)
         return "break"
-    
-    terminal_box = ctk.CTkTextbox(editor_frame,
-                               font=("consolas", 14),
-                               border_width=1,
-                               border_color="#5E5E5E",
-                               corner_radius=0)
-    terminal_box.insert("1.0",f"{os.getcwd()} >>> ")
+
+    terminal_box = ctk.CTkTextbox(
+        editor_frame,
+        font=("consolas", 14),
+        border_width=1,
+        border_color="#5E5E5E",
+        corner_radius=0,
+    )
+    terminal_box.insert("1.0", f"{os.getcwd()} >>> ")
     terminal_box.mark_set("input_start", "insert")
 
     def open_windows_terminal():
         try:
             subprocess.Popen(
-                ["powershell.exe"],
-                creationflags=subprocess.CREATE_NEW_CONSOLE
+                ["powershell.exe"], creationflags=subprocess.CREATE_NEW_CONSOLE
             )
         except Exception as e:
             pass
 
-    Terminal_button = ctk.CTkButton(status_bar,text="Open Terminal",font=("Segoe UI",11),width=15,
-                                    text_color="#2D2D2D" if mode == 'Light' else "#DCDCDC",
-                                    fg_color=status_bar.cget('fg_color'),
-                                    height=8, corner_radius=0, command=open_windows_terminal)
+    Terminal_button = ctk.CTkButton(
+        status_bar,
+        text="Open Terminal",
+        font=("Segoe UI", 11),
+        width=15,
+        text_color="#2D2D2D" if mode == "Light" else "#DCDCDC",
+        fg_color=status_bar.cget("fg_color"),
+        height=8,
+        corner_radius=0,
+        command=open_windows_terminal,
+    )
 
     def update_line_col():
         pos = text_editor.index("insert")
@@ -884,30 +1120,33 @@ def main():
         line_and_pos.configure(text=f"Ln: {line}, Col: {int(col)+1}")
         line_and_pos.after(100, update_line_col)
 
-    line_and_pos = ctk.CTkLabel(status_bar,text="Ln: 1, Col: 1",font=("Segoe UI",11),
-                                    text_color= "#DCDCDC",
-                                    width=15,height=8, corner_radius=0,
-                                    fg_color=status_bar.cget('fg_color'))
-    line_and_pos.pack(padx=(2,10),side="right",pady=(2,2))
+    line_and_pos = ctk.CTkLabel(
+        status_bar,
+        text="Ln: 1, Col: 1",
+        font=("Segoe UI", 11),
+        text_color="#DCDCDC",
+        width=15,
+        height=8,
+        corner_radius=0,
+        fg_color=status_bar.cget("fg_color"),
+    )
+    line_and_pos.pack(padx=(2, 10), side="right", pady=(2, 2))
 
     update_line_col()
 
-    Terminal_button.pack(padx=(2,10),side="right",pady=(2,2))
+    Terminal_button.pack(padx=(2, 10), side="right", pady=(2, 2))
 
-    text_editor.bind('<Control-c>',copy_text_event)
-    text_editor.bind('<Control-x>',cut_text_event)
-    text_editor.bind('<Control-v>',paste_text_event)
-    text_editor.bind('<Control-s>',save_current_workspace_file)
+    text_editor.bind("<Control-c>", copy_text_event)
+    text_editor.bind("<Control-x>", cut_text_event)
+    text_editor.bind("<Control-v>", paste_text_event)
+    text_editor.bind("<Control-s>", save_current_workspace_file)
     text_editor.bind("<KeyRelease>", lambda event: highlight_errors(text_editor))
     text_editor.bind("<Return>", lambda e: auto_indent(text_editor))
 
     error_box = ctk.CTkLabel(
-        editor_frame,
-        height=20,
-        font=("Segoe UI", 12),
-        justify="left",
-        anchor="w")
-    error_box.pack(fill="x", side="bottom",padx=5)
+        editor_frame, height=20, font=("Segoe UI", 12), justify="left", anchor="w"
+    )
+    error_box.pack(fill="x", side="bottom", padx=5)
 
     def update_problems():
         code = text_editor.get("1.0", "end-1c")
@@ -915,7 +1154,9 @@ def main():
             ast.parse(code)
             error_box.configure(text="No mistakes catched! Working Fine Wine")
         except SyntaxError as e:
-            error_box.configure(text=f"SyntaxError: {e.msg} at line {e.lineno}, col {e.offset}")
+            error_box.configure(
+                text=f"SyntaxError: {e.msg} at line {e.lineno}, col {e.offset}"
+            )
 
         defined_names = set()
         for line in code.splitlines():
@@ -931,7 +1172,11 @@ def main():
         for line in code.splitlines():
             tokens = line.strip().split()
             for t in tokens:
-                if t.isidentifier() and t not in keyword.kwlist and t not in defined_names:
+                if (
+                    t.isidentifier()
+                    and t not in keyword.kwlist
+                    and t not in defined_names
+                ):
                     error_box.configure(text=f"Warning: '{t}'")
 
         text_editor.after(500, lambda: update_problems())
@@ -943,13 +1188,16 @@ def main():
     #################################################################################################
     window.mainloop()
 
+
 def loading_screen():
-    ctk.set_appearance_mode('dark')
+    ctk.set_appearance_mode("dark")
     splash = ctk.CTk()
     splash.resizable(False, False)
     splash.overrideredirect(False)
     splash.title("EX Technologies")
-    splash.iconbitmap(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/softdream.ico")
+    splash.iconbitmap(
+        r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/softdream.ico"
+    )
 
     window_width = 400
     window_height = 300
@@ -964,9 +1212,14 @@ def loading_screen():
     splash.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     logo_image = ctk.CTkImage(
-        light_image=Image.open(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/logo.png"),
-        dark_image=Image.open(r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/logo.png"),
-        size=(180, 180))
+        light_image=Image.open(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/logo.png"
+        ),
+        dark_image=Image.open(
+            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/logo.png"
+        ),
+        size=(180, 180),
+    )
 
     image_label = ctk.CTkLabel(splash, image=logo_image, text="")
     image_label.pack(pady=20)
@@ -978,20 +1231,25 @@ def loading_screen():
     loading_label = ctk.CTkLabel(splash, text="Loading ...", font=("Segoe UI", 12))
     loading_label.pack(pady=10)
 
-    for i in range(101): 
-        progress_bar.set(i / 100) 
-        if i == 25: loading_label.configure(text="Loading Modules ...") 
-        elif i == 50: loading_label.configure(text="Setting up Interface ...") 
-        elif i == 75: loading_label.configure(text="Initializing Components ...") 
-        elif i == 90: loading_label.configure(text="Finalizing ...") 
-        splash.update() 
+    for i in range(101):
+        progress_bar.set(i / 100)
+        if i == 25:
+            loading_label.configure(text="Loading Modules ...")
+        elif i == 50:
+            loading_label.configure(text="Setting up Interface ...")
+        elif i == 75:
+            loading_label.configure(text="Initializing Components ...")
+        elif i == 90:
+            loading_label.configure(text="Finalizing ...")
+        splash.update()
         time.sleep(0.05)
 
     splash.destroy()
     main()
 
+
 #####################################################################################################
 # RUN AND MODIFY
 #####################################################################################################
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

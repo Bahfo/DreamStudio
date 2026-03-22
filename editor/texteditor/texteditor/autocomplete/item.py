@@ -3,12 +3,13 @@ import customtkinter as ctk
 from .kind import Kind
 from ...utils import Frame
 
+
 class AutoCompleteItem(Frame):
     """Autocomplete item with fixed minimum width."""
-    
+
     def __init__(self, master, text, kind=None, min_width=300, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-        
+
         theme = self.base.theme.autocomplete
         self.bg = theme["background"]
         self.fg = theme["foreground"]
@@ -29,18 +30,28 @@ class AutoCompleteItem(Frame):
         self.kindw = Kind(self, self.master.autocomplete_kinds, kind)
 
         char_width = max(1, (min_width - 32) // 6)
-        
+
         self.textw = tk.Label(
-            self, text=text, font=("Consolas", 10), fg=self.fg, bg=self.bg,
-            anchor=tk.W, justify=tk.LEFT,
+            self,
+            text=text,
+            font=("Consolas", 10),
+            fg=self.fg,
+            bg=self.bg,
+            anchor=tk.W,
+            justify=tk.LEFT,
             width=char_width,
-            wraplength=min_width - 32
+            wraplength=min_width - 32,
         )
 
         # Info Button
         self.infobtn = tk.Label(
-            self, text="›", font=("Consolas", 10),
-            fg=self.fg, bg=self.bg, padx=3, cursor="hand2"
+            self,
+            text="›",
+            font=("Consolas", 10),
+            fg=self.fg,
+            bg=self.bg,
+            padx=3,
+            cursor="hand2",
         )
 
         # Grid layout
@@ -87,17 +98,13 @@ class AutoCompleteItem(Frame):
         line, column = map(int, editor.index("insert").split("."))
 
         content = self.master.show_item_info(
-            name=self.get_text(),
-            code=editor.get_all_text(),
-            line=line,
-            column=column
+            name=self.get_text(), code=editor.get_all_text(), line=line, column=column
         )
 
         root = self.winfo_toplevel()
 
         doc = Documentation(root, content)
         doc.show_near(self.infobtn)
-
 
     def on_hover(self, *args):
         if not self.selected:
@@ -139,4 +146,3 @@ class Documentation(ctk.CTkScrollableFrame):
         y = widget.winfo_rooty()
 
         self.place(x=x, y=y)
-

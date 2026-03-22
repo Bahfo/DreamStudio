@@ -5,7 +5,7 @@
 """
 Backend - Run - run_config.py:
 A script written in Python to pass user arguments and script code to Runtime File Runner.
-Since currently the the IDE focuses on the following languages, they would be hard-coded by default inside 
+Since currently the the IDE focuses on the following languages, they would be hard-coded by default inside
 the following script:
     1. Python
     2. B-Sharp
@@ -43,6 +43,7 @@ LANGUAGE_CONFIGS = {
     },
 }
 
+
 class ShellWindow(ctk.CTkToplevel):
     """A floating terminal-style window that displays runtime output."""
 
@@ -78,38 +79,35 @@ class ShellWindow(ctk.CTkToplevel):
             text="■",
             fg_color="#a10000",
             hover_color="#c00000",
-            command=self._on_stop)
+            command=self._on_stop,
+        )
         self.stop_btn.pack(pady=(4, 8), side="left", anchor="w", padx=8)
 
-        self._stop_callback = None   # set by RunFile after creation
+        self._stop_callback = None  # set by RunFile after creation
 
         # Exit status
         self.exit_status = ctk.CTkLabel(
-            self,
-            text="",
-            text_color=["#1E1E1E","#FFFFFF"],
-            font=("Segoe UI",12)
+            self, text="", text_color=["#1E1E1E", "#FFFFFF"], font=("Segoe UI", 12)
         )
-        self.exit_status.pack(pady=(4,8), side="right", anchor="e", padx=16)
+        self.exit_status.pack(pady=(4, 8), side="right", anchor="e", padx=16)
 
-        # Runtime evaluate 
+        # Runtime evaluate
         self.runTimeEval = ctk.CTkLabel(
-            self,
-            text="",
-            text_color=["#1E1E1E","#FFFFFF"],
-            font=("Segoe UI",12)
+            self, text="", text_color=["#1E1E1E", "#FFFFFF"], font=("Segoe UI", 12)
         )
-        self.runTimeEval.pack(pady=(4,8), side="right", anchor="e", padx=8)
-        
+        self.runTimeEval.pack(pady=(4, 8), side="right", anchor="e", padx=8)
+
         self.clickable_paths()
 
     def write(self, text: str):
         """Thread-safe append to the textbox."""
+
         def _insert():
             self.textbox.configure(state="normal")
             self.textbox.insert("end", text)
             self.textbox.see("end")
             self.textbox.configure(state="disabled")
+
         self.after(0, _insert)
 
     def _on_stop(self):
@@ -122,7 +120,7 @@ class ShellWindow(ctk.CTkToplevel):
         path = path.strip()
         if not os.path.exists(path):
             return f"Path not found {path}"
-        
+
         if platform.system() == "Windows":
             os.startfile(path)
         elif platform.system() == "Darwin":
@@ -141,17 +139,18 @@ class ShellWindow(ctk.CTkToplevel):
 
             # Regex for Unix and Windows paths
             path_pattern = re.compile(
-                r'(?<!\w)'
-                r'('
-                r'(?:[A-Za-z]:\\[\w\\.\- ]+)'    # Windows: C:\Users\...
-                r'|'
-                r'(?:/[\w/.\-]+)'                # Unix: /home/user/...
-                r')',
-                re.MULTILINE)
-            
+                r"(?<!\w)"
+                r"("
+                r"(?:[A-Za-z]:\\[\w\\.\- ]+)"  # Windows: C:\Users\...
+                r"|"
+                r"(?:/[\w/.\-]+)"  # Unix: /home/user/...
+                r")",
+                re.MULTILINE,
+            )
+
             for match in path_pattern.finditer(content):
                 start_idx = f"1.0 + {match.start()} chars"
-                end_idx   = f"1.0 + {match.end()} chars"
+                end_idx = f"1.0 + {match.end()} chars"
                 widget.tag_add("path_link", start_idx, end_idx)
 
         def on_ctrl_click(event):
@@ -182,7 +181,9 @@ class ShellWindow(ctk.CTkToplevel):
 
         widget._orig = widget._w + "_orig"
         widget.tk.call("rename", widget._w, widget._orig)
-        widget.tk.createcommand(widget._w, lambda *args: self._proxy(widget, highlight_paths, *args))
+        widget.tk.createcommand(
+            widget._w, lambda *args: self._proxy(widget, highlight_paths, *args)
+        )
 
         highlight_paths()
 
@@ -198,6 +199,7 @@ class ShellWindow(ctk.CTkToplevel):
 
         return result
 
+
 class RunFile:
     """
     Arguments list contract (arg[0], arg[1]):
@@ -205,10 +207,10 @@ class RunFile:
         arg[1]  - project CWD path (falls back to os.getcwd() if invalid)
     """
 
-    def __init__(self, code_to_run: str, arguments: list, ShellWindow : ctk.CTkTextbox):
+    def __init__(self, code_to_run: str, arguments: list, ShellWindow: ctk.CTkTextbox):
         self.code_to_run = code_to_run
-        self._shell      = ShellWindow
-        self.arguments   = arguments
+        self._shell = ShellWindow
+        self.arguments = arguments
         self._process: subprocess.Popen | None = None
 
     def run(self):
@@ -238,8 +240,8 @@ class RunFile:
 
     def _parse_arguments(self):
         language_type = self.arguments[0].lower().strip()
-        raw_cwd       = self.arguments[1] if len(self.arguments) > 1 else ""
-        cwd           = raw_cwd if os.path.exists(raw_cwd) else os.getcwd()
+        raw_cwd = self.arguments[1] if len(self.arguments) > 1 else ""
+        cwd = raw_cwd if os.path.exists(raw_cwd) else os.getcwd()
 
         if language_type not in LANGUAGE_CONFIGS:
             raise ValueError(
@@ -279,7 +281,9 @@ class RunFile:
             end_time = time.perf_counter()
 
             self._shell.exit_status.configure(text=f"Exit Code: {bool_value}")
-            self._shell.runTimeEval.configure(text=f"Total Runtime: {end_time - start_time} seconds")
+            self._shell.runTimeEval.configure(
+                text=f"Total Runtime: {end_time - start_time} seconds"
+            )
 
         except Exception as e:
             self._emit(f"[Runtime Error] {e}\n")

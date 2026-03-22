@@ -3,6 +3,7 @@ import customtkinter as ctk
 
 _PIL_CACHE = {}
 
+
 def _load_pil(path):
     if path is None:
         return None
@@ -11,6 +12,7 @@ def _load_pil(path):
         img = Image.open(path).convert("RGBA")
         _PIL_CACHE[path] = img
     return img
+
 
 class AppIcons:
     _tk_cache = {}
@@ -37,6 +39,7 @@ class AppIcons:
 
 
 _CTK_CACHE = {}
+
 
 def load_ctk_icon(path, size, dark_path=None):
     key = (path, size, dark_path)

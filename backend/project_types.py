@@ -5,17 +5,14 @@ PYTHON_CONSOLE_APP = {
     "project_type_code": 11,
     "project_main_language": "PYTHON",
     "configurations": [
-        {
-            "venv_version": 3.13,
-            "venv_activate": True
-        },
+        {"venv_version": 3.13, "venv_activate": True},
         {
             "helper_tools": [
                 [
                     "system_terminal",
                     "promptX_terminal",
                     "developer_tools_for_dreamstudio_terminal",
-                    "daydream_terminal"
+                    "daydream_terminal",
                 ],
                 [
                     "task_builder",
@@ -23,11 +20,11 @@ PYTHON_CONSOLE_APP = {
                     "run_task",
                     "performance_analyzer",
                     "memory_profiler",
-                    "watch_window"
-                ]
+                    "watch_window",
+                ],
             ]
-        }
-    ]
+        },
+    ],
 }
 
 PYTHON_LIBRARY_PROJECT = {
@@ -37,17 +34,14 @@ PYTHON_LIBRARY_PROJECT = {
     "project_type_code": 12,
     "project_main_language": "PYTHON",
     "configurations": [
-        {
-            "venv_version": 3.13,
-            "venv_activate": True
-        },
+        {"venv_version": 3.13, "venv_activate": True},
         {
             "helper_tools": [
                 [
                     "system_terminal",
                     "promptX_terminal",
                     "developer_tools_for_dreamstudio_terminal",
-                    "daydream_terminal"
+                    "daydream_terminal",
                 ],
                 [
                     "task_builder",
@@ -55,12 +49,12 @@ PYTHON_LIBRARY_PROJECT = {
                     "run_task",
                     "performance_analyzer",
                     "memory_profiler",
-                    "watch_window"
-                ]
+                    "watch_window",
+                ],
             ]
-        }
+        },
     ],
-    "Prerequested Libraries":"pytest,mypy,sphinx,pydantic,cffi"
+    "Prerequested Libraries": "pytest,mypy,sphinx,pydantic,cffi",
 }
 
 PYTHON_LIBRARY_PROJECT = {
@@ -70,17 +64,14 @@ PYTHON_LIBRARY_PROJECT = {
     "project_type_code": 12,
     "project_main_language": "PYTHON",
     "configurations": [
-        {
-            "venv_version": 3.13,
-            "venv_activate": True
-        },
+        {"venv_version": 3.13, "venv_activate": True},
         {
             "helper_tools": [
                 [
                     "system_terminal",
                     "promptX_terminal",
                     "developer_tools_for_dreamstudio_terminal",
-                    "daydream_terminal"
+                    "daydream_terminal",
                 ],
                 [
                     "task_builder",
@@ -88,10 +79,10 @@ PYTHON_LIBRARY_PROJECT = {
                     "run_task",
                     "performance_analyzer",
                     "memory_profiler",
-                    "watch_window"
-                ]
+                    "watch_window",
+                ],
             ]
-        }
+        },
     ],
-    "Prerequested Libraries":"socket,flask,django,json,scrapy,pillow,pydantic,pytest"
+    "Prerequested Libraries": "socket,flask,django,json,scrapy,pillow,pydantic,pytest",
 }

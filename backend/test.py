@@ -5,6 +5,7 @@ from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 from core import WatchDog  # Your backend
 
+
 class FileExplorer(ttk.Frame):
     """
     FileExplorer widget for Tkinter / CustomTkinter.
@@ -20,9 +21,16 @@ class FileExplorer(ttk.Frame):
         show_editor (bool): If True, shows a right-side editor panel.
     """
 
-    def __init__(self, parent, directory=None, theme="dark",
-                 border_width=2, border_color="#555555",
-                 show_editor=True, **kwargs):
+    def __init__(
+        self,
+        parent,
+        directory=None,
+        theme="dark",
+        border_width=2,
+        border_color="#555555",
+        show_editor=True,
+        **kwargs
+    ):
         # Use style instead of bg directly
         super().__init__(parent, style="FileExplorer.TFrame", **kwargs)
         self.parent = parent
@@ -48,10 +56,17 @@ class FileExplorer(ttk.Frame):
         # ----------------------------
         # Treeview panel
         # ----------------------------
-        self.tree_frame = ttk.Frame(self.paned, style="TreePanel.TFrame", borderwidth=self.border_width, relief="solid")
+        self.tree_frame = ttk.Frame(
+            self.paned,
+            style="TreePanel.TFrame",
+            borderwidth=self.border_width,
+            relief="solid",
+        )
         self.tree = ttk.Treeview(self.tree_frame, show="tree")
         self.tree.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=2, pady=2)
-        self.tree_scroll = ttk.Scrollbar(self.tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        self.tree_scroll = ttk.Scrollbar(
+            self.tree_frame, orient=tk.VERTICAL, command=self.tree.yview
+        )
         self.tree.configure(yscrollcommand=self.tree_scroll.set)
         self.tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.paned.add(self.tree_frame, weight=1)
@@ -60,8 +75,15 @@ class FileExplorer(ttk.Frame):
         # Optional editor panel
         # ----------------------------
         if self.show_editor:
-            self.editor_frame = ttk.Frame(self.paned, style="EditorPanel.TFrame", borderwidth=self.border_width, relief="solid")
-            self.editor = tk.Text(self.editor_frame, wrap=tk.NONE, bg=self.bg, fg=self.fg)
+            self.editor_frame = ttk.Frame(
+                self.paned,
+                style="EditorPanel.TFrame",
+                borderwidth=self.border_width,
+                relief="solid",
+            )
+            self.editor = tk.Text(
+                self.editor_frame, wrap=tk.NONE, bg=self.bg, fg=self.fg
+            )
             self.editor.pack(fill=tk.BOTH, expand=True)
             self.paned.add(self.editor_frame, weight=3)
 
@@ -80,9 +102,14 @@ class FileExplorer(ttk.Frame):
         # ----------------------------
         # Right-click menu
         # ----------------------------
-        self.menu = tk.Menu(self, tearoff=0, bg=self.bg, fg=self.fg,
-                            activebackground="#007acc" if self.theme=="dark" else "#cce6ff",
-                            activeforeground=self.fg)
+        self.menu = tk.Menu(
+            self,
+            tearoff=0,
+            bg=self.bg,
+            fg=self.fg,
+            activebackground="#007acc" if self.theme == "dark" else "#cce6ff",
+            activeforeground=self.fg,
+        )
         self.menu.add_command(label="Add File", command=self.add_file)
         self.menu.add_command(label="Add Folder", command=self.add_folder)
         self.menu.add_command(label="Remove", command=self.remove_item)
@@ -93,14 +120,30 @@ class FileExplorer(ttk.Frame):
         # Modern tree appearance
         # ----------------------------
         self.style.configure("Treeview", rowheight=24, font=("Segoe UI", 10))
-        self.style.map("Treeview", foreground=[("selected", "#ffffff")],
-                                  background=[("selected", "#007acc" if self.theme=="dark" else "#3399ff")])
+        self.style.map(
+            "Treeview",
+            foreground=[("selected", "#ffffff")],
+            background=[("selected", "#007acc" if self.theme == "dark" else "#3399ff")],
+        )
         # Replace default plus/minus indicators with modern layout
-        self.tree.tk.call("ttk::style", "layout", "Treeview.Item",
-                          [('Treeitem.padding', {'sticky': 'nswe', 'children':
-                            [('Treeitem.indicator', {'side':'left', 'sticky':''}),
-                             ('Treeitem.image', {'side':'left', 'sticky':''}),
-                             ('Treeitem.text', {'side':'left', 'sticky':'we'})]})])
+        self.tree.tk.call(
+            "ttk::style",
+            "layout",
+            "Treeview.Item",
+            [
+                (
+                    "Treeitem.padding",
+                    {
+                        "sticky": "nswe",
+                        "children": [
+                            ("Treeitem.indicator", {"side": "left", "sticky": ""}),
+                            ("Treeitem.image", {"side": "left", "sticky": ""}),
+                            ("Treeitem.text", {"side": "left", "sticky": "we"}),
+                        ],
+                    },
+                )
+            ],
+        )
 
     # ----------------------------
     # Theme setup
@@ -117,8 +160,9 @@ class FileExplorer(ttk.Frame):
         self.style.configure("EditorPanel.TFrame", background=self.bg)
 
         # Treeview styles
-        self.style.configure("Treeview", background=self.bg, foreground=self.fg,
-                             fieldbackground=self.bg)
+        self.style.configure(
+            "Treeview", background=self.bg, foreground=self.fg, fieldbackground=self.bg
+        )
         self.style.configure("Treeview.Heading", background=self.bg, foreground=self.fg)
 
     # ----------------------------
@@ -127,9 +171,9 @@ class FileExplorer(ttk.Frame):
     def load_icons(self):
         self.icons = {}
         try:
-            folder_img = Image.open(r"backend\folder.png").resize((16,16))
+            folder_img = Image.open(r"backend\folder.png").resize((16, 16))
             self.icons["folder"] = ImageTk.PhotoImage(folder_img)
-            unknown_img = Image.open(r"backend\unknown.png").resize((16,16))
+            unknown_img = Image.open(r"backend\unknown.png").resize((16, 16))
             self.icons["file"] = ImageTk.PhotoImage(unknown_img)
         except Exception as e:
             print("Error loading icons:", e)
@@ -145,8 +189,13 @@ class FileExplorer(ttk.Frame):
     # ----------------------------
     def load_directory(self, directory):
         self.directory = directory
-        root_id = self.tree.insert("", "end", text=os.path.basename(directory),
-                                   open=True, image=self.get_icon(directory))
+        root_id = self.tree.insert(
+            "",
+            "end",
+            text=os.path.basename(directory),
+            open=True,
+            image=self.get_icon(directory),
+        )
         self.path_to_id[directory] = root_id
         self.populate_tree(directory, root_id)
         self.watchdog.start_tracker(directory)
@@ -156,11 +205,19 @@ class FileExplorer(ttk.Frame):
             for item in os.listdir(path):
                 full_path = os.path.join(path, item)
                 if os.path.isdir(full_path):
-                    dir_id = self.tree.insert(parent_id, "end", text=item, image=self.get_icon(full_path), open=False)
+                    dir_id = self.tree.insert(
+                        parent_id,
+                        "end",
+                        text=item,
+                        image=self.get_icon(full_path),
+                        open=False,
+                    )
                     self.path_to_id[full_path] = dir_id
                     self.populate_tree(full_path, dir_id)
                 else:
-                    file_id = self.tree.insert(parent_id, "end", text=item, image=self.get_icon(full_path))
+                    file_id = self.tree.insert(
+                        parent_id, "end", text=item, image=self.get_icon(full_path)
+                    )
                     self.path_to_id[full_path] = file_id
         except PermissionError:
             pass
@@ -191,13 +248,18 @@ class FileExplorer(ttk.Frame):
             if os.path.isdir(path):
                 self.add_folder_recursive(path, parent_id)
             else:
-                file_id = self.tree.insert(parent_id, "end", text=os.path.basename(path),
-                                           image=self.get_icon(path))
+                file_id = self.tree.insert(
+                    parent_id,
+                    "end",
+                    text=os.path.basename(path),
+                    image=self.get_icon(path),
+                )
                 self.path_to_id[path] = file_id
 
     def add_folder_recursive(self, path, parent_id):
-        dir_id = self.tree.insert(parent_id, "end", text=os.path.basename(path),
-                                   image=self.get_icon(path))
+        dir_id = self.tree.insert(
+            parent_id, "end", text=os.path.basename(path), image=self.get_icon(path)
+        )
         self.path_to_id[path] = dir_id
         try:
             for item in os.listdir(path):
@@ -205,7 +267,9 @@ class FileExplorer(ttk.Frame):
                 if os.path.isdir(full_path):
                     self.add_folder_recursive(full_path, dir_id)
                 else:
-                    file_id = self.tree.insert(dir_id, "end", text=item, image=self.get_icon(full_path))
+                    file_id = self.tree.insert(
+                        dir_id, "end", text=item, image=self.get_icon(full_path)
+                    )
                     self.path_to_id[full_path] = file_id
         except PermissionError:
             pass
@@ -254,6 +318,7 @@ class FileExplorer(ttk.Frame):
         path = self.get_path(node)
         if path:
             import shutil
+
             if os.path.isdir(path):
                 shutil.rmtree(path)
             else:
@@ -281,6 +346,7 @@ class FileExplorer(ttk.Frame):
         self.watchdog.stop_tracker()
         self.destroy()
 
+
 root = ctk.CTk()
 root.geometry("1000x650")
 ctk.set_appearance_mode("dark")
@@ -294,7 +360,7 @@ explorer = FileExplorer(
     theme="dark",
     border_width=3,
     border_color="#222222",
-    show_editor=True
+    show_editor=True,
 )
 explorer.pack(fill="both", expand=True, padx=10, pady=10)
 

@@ -8,10 +8,11 @@ from .kinds import Kinds
 from .languages.python_completions import python_completions
 from .symbol_extractor import SymbolExtractor
 
+
 class AutoComplete(Toplevel):
     """Autocomplete widget with proper lifecycle management."""
 
-    WIDGET_MIN_WIDTH = 300 
+    WIDGET_MIN_WIDTH = 300
     MAX_ITEMS_DISPLAY = 20
 
     def __init__(self, master, items=None, active=False, *args, **kwargs):
@@ -49,7 +50,7 @@ class AutoComplete(Toplevel):
 
         self._static_items = python_completions.copy()
         self._static_items.update(self.items)
-        
+
         self._builtin_names = set(python_completions.keys())
 
         self.add_all_items()
@@ -90,7 +91,7 @@ class AutoComplete(Toplevel):
         self._jedi_thread = Thread(
             target=self._compute_jedi,
             args=(code, line, col, term, request_id),
-            daemon=True
+            daemon=True,
         )
         self._jedi_thread.start()
 
@@ -106,7 +107,7 @@ class AutoComplete(Toplevel):
             self.jedi_results = {}
 
         defined_names = SymbolExtractor.get_defined_names_before_cursor(code, line)
-        
+
         filtered_results = {}
         for name, meta in self.jedi_results.items():
             if name in self._builtin_names or name in self._static_items:
@@ -146,7 +147,7 @@ class AutoComplete(Toplevel):
             self.hide()
             return
 
-        self._render_items(new_active_data[:self.MAX_ITEMS_DISPLAY], term)
+        self._render_items(new_active_data[: self.MAX_ITEMS_DISPLAY], term)
         self.refresh_geometry()
         self.deiconify()
         self.active = True
@@ -239,7 +240,7 @@ class AutoComplete(Toplevel):
         """Position widget at cursor with fixed width."""
         if not self.winfo_exists():
             return
-        
+
         pos = self.master.cursor_screen_location()
         # Calculate height based on active items (each ~25 pixels)
         height = max(30, len(self.active_items) * 25)
@@ -250,7 +251,7 @@ class AutoComplete(Toplevel):
         """Show autocomplete at position or cursor."""
         if not self.winfo_exists():
             return
-        
+
         self.active = True
         self.refresh_geometry()
         self.deiconify()
@@ -260,7 +261,7 @@ class AutoComplete(Toplevel):
         """Hide autocomplete."""
         if not self.winfo_exists():
             return
-        
+
         self.active = False
         self.withdraw()
         self.reset()

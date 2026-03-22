@@ -1,8 +1,11 @@
 import tkinter as tk
 from editor.texteditor import Editor
 
+
 class ShowErrorLogMessage(tk.Frame):
-    def __init__(self, error_message, error_line, editor:Editor, is_error:bool, **kwargs):
+    def __init__(
+        self, error_message, error_line, editor: Editor, is_error: bool, **kwargs
+    ):
         super().__init__(editor, bg="#880000", **kwargs)
         self.error_message = error_message
         self.error_line = error_line
@@ -17,13 +20,15 @@ class ShowErrorLogMessage(tk.Frame):
             border=0,
             state=tk.DISABLED,
             height=self.error_message.count("\n") + 2,
-            wrap="word"
+            wrap="word",
         )
         self.text_area.pack(padx=2, pady=2, fill="x")
 
     def _fill_error_message(self):
         self.text_area.configure(state=tk.NORMAL)
-        self.text_area.insert("1.0", f"Runtime Failure Occurred in Line {self.error_line}\n")
+        self.text_area.insert(
+            "1.0", f"Runtime Failure Occurred in Line {self.error_line}\n"
+        )
         self.text_area.insert("end", self.error_message)
         self.text_area.see("end")
         self.text_area.configure(state=tk.DISABLED)

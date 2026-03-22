@@ -13,11 +13,11 @@ class LineNumbers(Canvas):
         self.text.tag_config("sel", background="#48484f", foreground="#e1e1e6")
         self.text.bind("<Configure>", self.redraw)
         self.text.bind("<<Change>>", self.redraw)
-        
-        if platform.system() == 'Linux':
+
+        if platform.system() == "Linux":
             self.text.bind("<Button-4>", self.redraw)
             self.text.bind("<Button-5>", self.redraw)
-        elif platform.system() == 'Windows'or platform.system() == 'Darwin':
+        elif platform.system() == "Windows" or platform.system() == "Darwin":
             self.text.bind("<MouseWheel>", self.redraw)
         else:
             pass
@@ -62,11 +62,12 @@ class LineNumbers(Canvas):
             color = "#83838f" if (cur_y is not None and y == cur_y) else "#525259"
 
             self.create_text(
-                40, y,
+                40,
+                y,
                 anchor=tk.NE,
                 text=line_num_with_indent,
                 font=("Consolas", 14),
-                fill=color
+                fill=color,
             )
 
             prev_indent = current_indent
@@ -76,27 +77,40 @@ class LineNumbers(Canvas):
 class Text(tk.Text):
     def __init__(self, master=None, **kw):
         super().__init__(master, **kw)
-        self.mark_set('input', 'insert')
-        self.mark_gravity('input', 'left')
+        self.mark_set("input", "insert")
+        self.mark_gravity("input", "left")
 
         self._orig = self._w + "_orig"
         self.tk.call("rename", self._w, self._orig)
         self.tk.createcommand(self._w, self._proxy)
-        
+
     def _proxy(self, *args):
-        if args[0] == 'get' and (args[1] == tk.SEL_FIRST and args[2] == tk.SEL_LAST) and not self.tag_ranges(tk.SEL): 
+        if (
+            args[0] == "get"
+            and (args[1] == tk.SEL_FIRST and args[2] == tk.SEL_LAST)
+            and not self.tag_ranges(tk.SEL)
+        ):
             return
-        if args[0] == 'delete' and (args[1] == tk.SEL_FIRST and args[2] == tk.SEL_LAST) and not self.tag_ranges(tk.SEL): 
+        if (
+            args[0] == "delete"
+            and (args[1] == tk.SEL_FIRST and args[2] == tk.SEL_LAST)
+            and not self.tag_ranges(tk.SEL)
+        ):
             return
 
         cmd = (self._orig,) + args
         result = self.tk.call(cmd)
 
-        if (args[0] in ("insert", "replace", "delete") or args[0:3] == ("mark", "set", "insert") 
-            or args[0:2] == ("xview", "moveto") or args[0:2] == ("yview", "moveto") 
-            or args[0:2] == ("xview", "scroll") or args[0:2] == ("yview", "scroll")):
+        if (
+            args[0] in ("insert", "replace", "delete")
+            or args[0:3] == ("mark", "set", "insert")
+            or args[0:2] == ("xview", "moveto")
+            or args[0:2] == ("yview", "moveto")
+            or args[0:2] == ("xview", "scroll")
+            or args[0:2] == ("yview", "scroll")
+        ):
             self.event_generate("<<Change>>", when="tail")
-            
+
         return result
 
 
@@ -104,7 +118,9 @@ class ExampleApp:
     def __init__(self, root):
         self.font = ("Consolas", 14)
 
-        self.text_widget = Text(root, wrap=tk.NONE, font=self.font, bg="#2e2e32", fg="#e1e1e6")
+        self.text_widget = Text(
+            root, wrap=tk.NONE, font=self.font, bg="#2e2e32", fg="#e1e1e6"
+        )
         self.line_numbers = LineNumbers(root, text=self.text_widget, bg="#2e2e32")
 
         self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
@@ -122,6 +138,7 @@ print("Code folding based on indentation.")
 """
         self.text_widget.insert(tk.END, sample_code)
         self.line_numbers.redraw()
+
 
 if __name__ == "__main__":
     root = tk.Tk()

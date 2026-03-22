@@ -3,8 +3,8 @@ import customtkinter as ctk
 
 ctk.set_appearance_mode("light")
 
-if __name__ == '__main__':
-    app = App(None) 
+if __name__ == "__main__":
+    app = App(None)
     app.run()
 
     # welcome_window = Initialize()

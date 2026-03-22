@@ -3,6 +3,7 @@ import customtkinter as ctk
 from .treeview import CTkTreeview
 from .utils import grid
 
+
 def main():
     app = ctk.CTk()
     app.title("CTkTreeview Example")
@@ -22,11 +23,12 @@ def main():
         tc.width("#0", 30)
         tc.minwidth("#0", 30)
 
-    tree.insert("", 'end', values=("John", "Smith", "30"))
-    tree.insert("", 'end', values=("Jane", "Doe", "28"))
-    tree.insert("", 'end', values=("Andrew", "Johnson", "27"))
+    tree.insert("", "end", values=("John", "Smith", "30"))
+    tree.insert("", "end", values=("Jane", "Doe", "28"))
+    tree.insert("", "end", values=("Andrew", "Johnson", "27"))
 
     app.mainloop()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

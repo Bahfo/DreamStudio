@@ -1,6 +1,7 @@
 """
 LOG Workspace for DreamStudio IDE
 """
+
 import customtkinter as ctk
 
 import json
@@ -14,21 +15,25 @@ from queue import Queue
 from project_types import *
 from watchdog.observers import Observer
 
+
 class Workspace:
     """
     Responsible for initializing the workspace where the project will be created at.
     Bootstraps the entire project from scratch given the directory and name specified
-    by the user, as well as the project type. 
+    by the user, as well as the project type.
     Creates a JSON file and a .gitignore file by default.
     """
-    def __init__(self,
-                 root_window : ctk.CTk,
-                 root_directory : str,
-                 configuration_json : json.__file__,
-                 workspace_directory : str, 
-                 project_langauge : str,
-                 project_type : str, 
-                 project_name : str):
+
+    def __init__(
+        self,
+        root_window: ctk.CTk,
+        root_directory: str,
+        configuration_json: json.__file__,
+        workspace_directory: str,
+        project_langauge: str,
+        project_type: str,
+        project_name: str,
+    ):
 
         self.root_window = root_window
         self.root_directory = root_directory
@@ -47,49 +52,54 @@ class Workspace:
             case "console":
                 return PYTHON_CONSOLE_APP
             case _:
-                raise DreamStudioErrors(1,3)
+                raise DreamStudioErrors(1, 3)
 
     def bootstrap(self):
         """
         Bootstraps and initializes a project from scratch based on user's defined project type.
         Should take in consideration all user requirements (name, path, etc.) and resolve into
         a working project structure.
-        NOTE: Projects are configured using the config.json file. Any changes to some fields in 
+        NOTE: Projects are configured using the config.json file. Any changes to some fields in
         this file should be resolved and corrected immediately by the core.
         """
-        if (self.configuration_json is None):
-            raise DreamStudioErrors(1,1)
-        
-        if (self.workspace_directory is None
+        if self.configuration_json is None:
+            raise DreamStudioErrors(1, 1)
+
+        if (
+            self.workspace_directory is None
             or self.project_type is None
             or self.project_language is None
-            or self.project_name is None):
-            raise DreamStudioErrors(1,2)
-        
+            or self.project_name is None
+        ):
+            raise DreamStudioErrors(1, 2)
+
         # Creating a project directory with the specified-checked information:
         try:
-            self.JSON_FILE_DIRECTORY = self.workspace_directory / f"{self.project_name}/config.json"
+            self.JSON_FILE_DIRECTORY = (
+                self.workspace_directory / f"{self.project_name}/config.json"
+            )
             self.gitignore_file = self.workspace_directory / ".gitignore"
             self.json_data = self._match_project_with_type()
 
             for subfolder in ["src", "imports", "tests", "others"]:
                 (self.workspace_directory / subfolder).mkdir(exist_ok=True)
 
-            with self.JSON_FILE_DIRECTORY.open('w', encoding='utf-8') as file:
+            with self.JSON_FILE_DIRECTORY.open("w", encoding="utf-8") as file:
                 json.dump(self.json_data, file, indent=4)
 
-            with self.gitignore_file.open('w', encoding='utf-8') as git_file:
+            with self.gitignore_file.open("w", encoding="utf-8") as git_file:
                 git_file.write("")
 
         except Exception as e:
-            raise DreamStudioErrors(2,1) from e
-        
+            raise DreamStudioErrors(2, 1) from e
+
     def return_directory_for_tree(self):
         return self.workspace_directory
 
     def check_root_directory(self):
         if self.root_directory is None:
             self.root_directory = os.getcwd()
+
 
 class WatchDog:
     def __init__(self, gui_callback=None):

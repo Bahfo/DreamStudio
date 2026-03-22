@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import re
 
+
 class KeywordSearch(ctk.CTkToplevel):
     def __init__(self, main_app, text_frame, status_button=None):
         super().__init__(main_app.window)

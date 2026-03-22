@@ -10,16 +10,16 @@ COPYRIGHT 2026 DREAMSTUDIO - EX_TECHNOLOGIES - ALL RIGHTS RESREVED
 Ironkinter is a supplementary header file wrapped above customtkinter
 that imporves widgets creation, adds additional widgets, and animations.
 
-The above copyright shall be included in all copies or substantial 
+The above copyright shall be included in all copies or substantial
 portions of the software.
 
-Please note that DreamStudio's universal widgets wrappers is not a 
+Please note that DreamStudio's universal widgets wrappers is not a
 subject to publish. You got access to this file only as a developer
 under the DreamStudio's agreement. The free publishable version and
 edited for user experience is available under Ironkinter's framework,
 which is a general purpose wrapper around tkinter that improves overall
 performance, increasing thread acceptability and adds the same widgets
-from DreamStudio's development environment. 
+from DreamStudio's development environment.
 """
 
 import customtkinter as ctk
@@ -46,7 +46,7 @@ icon_paths = {
     "debug": r"icons/system/debug.png",
     "manage": r"icons/system/manager.png",
     "problem": r"icons/system/problem.png",
-    "ver": r"icons/system/version.png",
+    "ver": r"icons/system/manager.png",
     "warning": r"icons/system/warning.png",
 }
 
@@ -59,17 +59,33 @@ ctk_icons = {
 }
 
 arrow_icons = {
-    "downArrow": (r"icons/system/down_arrow.png", (8, 8)),
-    "upArrow": (r"icons/system/up_arrow.png", (8, 8)),
     "rightArrow": (r"icons/system/right_arrow.png", (8, 8)),
     "stepTo": (r"icons/system/stepTo.png", (20, 20)),
     "stepOut": (r"icons/system/stepOut.png", (20, 20)),
     "stepOver": (r"icons/system/stepOver.png", (20, 20)),
-    "runToCursor": (r"icons/system/runToCursor.png", (20, 20)),
-    "toggleCursor": (r"icons/system/toggle.png", (20, 20)),
 }
 
 allowed_extensions = {
-    ".py",".txt",".c",".cpp",".json",".docx",".ppt",".pptx",".apk",
-    ".cpp",".cs",".cc",".cxx",".html",".js",".java",".swift",".rb",
-    ".ts",".jsx",".py",".h"}
+    ".py",
+    ".txt",
+    ".c",
+    ".cpp",
+    ".json",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".apk",
+    ".cpp",
+    ".cs",
+    ".cc",
+    ".cxx",
+    ".html",
+    ".js",
+    ".java",
+    ".swift",
+    ".rb",
+    ".ts",
+    ".jsx",
+    ".py",
+    ".h",
+}

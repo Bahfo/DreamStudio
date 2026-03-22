@@ -13,7 +13,7 @@ from .syntax import Syntax
 class Text(Text):
     """Improved Text widget with syntax highlighting and autocompletion.
 
-    Performance changes vs. v2
+    Performance changes
     ──────────────────────────
     • highlight_current_word() no longer runs a full-document Tk search on
       every keypress.  Instead it is DEBOUNCED (150 ms) and the search is
@@ -27,30 +27,30 @@ class Text(Text):
       the rebuild interval is kept at 2 s to limit frequency.
     """
 
-    WORD_REBUILD_INTERVAL   = 2000   # ms between background word-list rebuilds
-    WORD_HIGHLIGHT_DEBOUNCE = 150    # ms debounce for current-word highlight
-    AC_UPDATE_DEBOUNCE      = 60     # ms debounce for autocomplete update
+    WORD_REBUILD_INTERVAL = 2000  # ms between background word-list rebuilds
+    WORD_HIGHLIGHT_DEBOUNCE = 150  # ms debounce for current-word highlight
+    AC_UPDATE_DEBOUNCE = 60  # ms debounce for autocomplete update
 
     def __init__(self, master, path="", minimalist=False, language="", *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-        self.path       = path
-        self.data       = None
-        self.encoding   = "utf-8"
+        self.path = path
+        self.data = None
+        self.encoding = "utf-8"
         self.minimalist = minimalist
 
-        self.buffer_size  = 1000
-        self.bom          = True
+        self.buffer_size = 1000
+        self.bom = True
         self.current_word = ""
-        self.words:  list[str] = []
+        self.words: list[str] = []
 
         # Debounce IDs
         self._word_highlight_id: str | None = None
-        self._ac_update_id:      str | None = None
+        self._ac_update_id: str | None = None
 
         # Background word-list state
-        self._word_thread:      threading.Thread | None = None
-        self._word_thread_lock: threading.Lock          = threading.Lock()
-        self._word_after_id:    str | None              = None
+        self._word_thread: threading.Thread | None = None
+        self._word_thread_lock: threading.Lock = threading.Lock()
+        self._word_after_id: str | None = None
 
         self.syntax = Syntax(self)
         self.auto_completion = (
@@ -74,17 +74,17 @@ class Text(Text):
         )
 
         self._schedule_word_rebuild()
-        self.tag_config("error_line",   background="#860000")
+        self.tag_config("error_line", background="#860000")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Tag & binding setup
     # ─────────────────────────────────────────────────────────────────────────
 
     def config_tags(self):
-        self.tag_config(tk.SEL,         background=self.base.theme.editor.selection)
-        self.tag_config("highlight",    background=self.base.theme.editor.currentword)
-        self.tag_config("currentline",  background=self.base.theme.editor.currentline)
-        self.tag_config("found",        background=self.base.theme.editor.found)
+        self.tag_config(tk.SEL, background=self.base.theme.editor.selection)
+        self.tag_config("highlight", background=self.base.theme.editor.currentword)
+        self.tag_config("currentline", background=self.base.theme.editor.currentline)
+        self.tag_config("found", background=self.base.theme.editor.found)
         self.tag_config("foundcurrent", background=self.base.theme.editor.foundcurrent)
 
     def config_bindings(self):
@@ -92,18 +92,18 @@ class Text(Text):
 
         self.bind("<Control-f>", self.open_find_replace)
         self.bind("<Control-d>", self.multi_selection)
-        self.bind("<Control-Left>",  lambda e: self.handle_ctrl_hmovement())
+        self.bind("<Control-Left>", lambda e: self.handle_ctrl_hmovement())
         self.bind("<Control-Right>", lambda e: self.handle_ctrl_hmovement(True))
 
         self.bind("<Return>", self.enter_key_events)
-        self.bind("<Tab>",    self.tab_key_events)
+        self.bind("<Tab>", self.tab_key_events)
 
         if self.minimalist:
             return
 
-        self.bind("<FocusOut>",  self.hide_autocomplete)
+        self.bind("<FocusOut>", self.hide_autocomplete)
         self.bind("<Button-1>", self.hide_autocomplete)
-        self.bind("<Up>",   self.auto_completion.move_up)
+        self.bind("<Up>", self.auto_completion.move_up)
         self.bind("<Down>", self.auto_completion.move_down)
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -119,8 +119,12 @@ class Text(Text):
 
         match event.keysym:
             case (
-                "Button-2" | "BackSpace" | "Escape"
-                | "Control_L" | "Control_R" | "space"
+                "Button-2"
+                | "BackSpace"
+                | "Escape"
+                | "Control_L"
+                | "Control_R"
+                | "space"
             ):
                 self.hide_autocomplete()
 
@@ -215,10 +219,7 @@ class Text(Text):
         return self.get(1.0, tk.END)
 
     def get_all_text_ac(self, *args):
-        return (
-            self.get(1.0, "insert-1c wordstart-1c")
-            + self.get("insert+1c", tk.END)
-        )
+        return self.get(1.0, "insert-1c wordstart-1c") + self.get("insert+1c", tk.END)
 
     def get_current_word(self):
         return (self.current_word or "").strip()
@@ -290,8 +291,15 @@ class Text(Text):
 
     def check_autocomplete_keys(self, event):
         return event.keysym not in [
-            "BackSpace", "Escape", "Return", "Tab", "space",
-            "Up", "Down", "Control_L", "Control_R",
+            "BackSpace",
+            "Escape",
+            "Return",
+            "Tab",
+            "space",
+            "Up",
+            "Down",
+            "Control_L",
+            "Control_R",
         ]
 
     def cursor_screen_location(self):
@@ -362,7 +370,7 @@ class Text(Text):
         return "break"
 
     def update_current_indent(self):
-        line  = self.get("insert linestart", "insert lineend")
+        line = self.get("insert linestart", "insert lineend")
         match = re.match(r"^(\s+)", line)
         self.current_indent = len(match.group(0)) if match else 0
 
@@ -409,10 +417,10 @@ class Text(Text):
 
     def load_file(self):
         try:
-            encoding      = self.detect_encoding(self.path)
-            file          = open(self.path, "r", encoding=encoding)
+            encoding = self.detect_encoding(self.path)
+            file = open(self.path, "r", encoding=encoding)
             self.encoding = encoding
-            self.queue    = queue.Queue()
+            self.queue = queue.Queue()
             threading.Thread(target=self.read_file, args=(file,), daemon=True).start()
             self.process_queue()
         except Exception:
@@ -460,14 +468,26 @@ class Text(Text):
     # Clipboard / widget state
     # ─────────────────────────────────────────────────────────────────────────
 
-    def copy(self, *_):  self.event_generate("<<Copy>>")
-    def cut(self, *_):   self.event_generate("<<Cut>>")
-    def paste(self, *_): self.event_generate("<<Paste>>")
+    def copy(self, *_):
+        self.event_generate("<<Copy>>")
 
-    def set_data(self, data):   self.data = data
-    def clear(self):            self.delete(1.0, tk.END)
-    def write(self, text, *a):  self.insert(tk.END, text, *a)
-    def newline(self, *a):      self.write("\n", *a)
+    def cut(self, *_):
+        self.event_generate("<<Cut>>")
+
+    def paste(self, *_):
+        self.event_generate("<<Paste>>")
+
+    def set_data(self, data):
+        self.data = data
+
+    def clear(self):
+        self.delete(1.0, tk.END)
+
+    def write(self, text, *a):
+        self.insert(tk.END, text, *a)
+
+    def newline(self, *a):
+        self.write("\n", *a)
 
     def get_all_text(self):
         return self.get(1.0, tk.END)
@@ -495,13 +515,16 @@ class Text(Text):
         return [lc[0], int(lc[1]) + 1]
 
     def scroll_to_end(self):
-        self.mark_set(tk.INSERT, tk.END); self.see(tk.INSERT)
+        self.mark_set(tk.INSERT, tk.END)
+        self.see(tk.INSERT)
 
     def scroll_to_start(self):
-        self.mark_set(tk.INSERT, 1.0); self.see(tk.INSERT)
+        self.mark_set(tk.INSERT, 1.0)
+        self.see(tk.INSERT)
 
     def scroll_to_line(self, line):
-        self.mark_set(tk.INSERT, line); self.see(tk.INSERT)
+        self.mark_set(tk.INSERT, line)
+        self.see(tk.INSERT)
 
     def set_wrap(self, flag=True):
         self.configure(wrap=tk.WORD if flag else tk.NONE)
@@ -537,7 +560,6 @@ class Text(Text):
         line = self.index(tk.INSERT).split(".")[0]
         self.tag_add("currentline", f"{line}.0", f"{int(line)+1}.0")
 
-
     def select_line(self, line):
         self.clear_all_selection()
 
@@ -545,7 +567,6 @@ class Text(Text):
         self.tag_add(tk.SEL, f"{line}.0", f"{int(line)+1}.0")
 
         self.move_cursor(f"{int(line)+1}.0")
-
 
     def highlight_current_word(self):
         """
@@ -558,11 +579,11 @@ class Text(Text):
         word = self.get("insert wordstart", "insert wordend").strip()
         if not word or word in self.syntax.keywords:
             return
-        
+
         try:
             cur_line = int(self.index(tk.INSERT).split(".")[0])
             win_start = f"{max(1, cur_line - 200)}.0"
-            win_end   = f"{cur_line + 200}.end"
+            win_end = f"{cur_line + 200}.end"
         except (tk.TclError, ValueError):
             win_start, win_end = "1.0", tk.END
 
@@ -580,7 +601,6 @@ class Text(Text):
             end=win_end,
             regexp=True,
         )
-
 
     def highlight_pattern(self, pattern, tag, start="1.0", end=tk.END, regexp=False):
         start = self.index(start)
@@ -608,7 +628,6 @@ class Text(Text):
             self.mark_set("matchEnd", f"{index}+{count.get()}c")
             self.tag_add(tag, "matchStart", "matchEnd")
 
-
     def refresh(self, *args):
         if self.minimalist:
             return
@@ -616,7 +635,6 @@ class Text(Text):
         self._update_current_word()
         self.highlight_current_line()
         self._schedule_word_highlight()
-
 
     # ─────────────────────────────────────────────────────────────────────────
     # Tcl proxy
@@ -641,16 +659,20 @@ class Text(Text):
         ):
             return
 
-        cmd    = (self._orig,) + args
+        cmd = (self._orig,) + args
         result = self.tk.call(cmd)
 
         if args[0] in ("insert", "replace", "delete") or args[0:3] == (
-            "mark", "set", "insert",
+            "mark",
+            "set",
+            "insert",
         ):
             self.event_generate("<<Change>>", when="tail")
         elif args[0:2] in [
-            ("xview", "moveto"), ("yview", "moveto"),
-            ("xview", "scroll"), ("yview", "scroll"),
+            ("xview", "moveto"),
+            ("yview", "moveto"),
+            ("xview", "scroll"),
+            ("yview", "scroll"),
         ]:
             self.event_generate("<<Scroll>>", when="tail")
 

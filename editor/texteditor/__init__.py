@@ -95,7 +95,7 @@ class Editor(Frame):
         base_size = default_font.cget("size")  # system default
         base_family = default_font.cget("family")
 
-        scaling = master.tk.call('tk', 'scaling')
+        scaling = master.tk.call("tk", "scaling")
         adjusted_size = int(base_size * scaling)
 
         self.path = path
@@ -139,6 +139,6 @@ class Editor(Frame):
 
     def show_error_in_current_line(self, line):
         self.content.error_in_current_line(line)
-    
+
     def end_debugging(self):
         self.content.end_debugging()

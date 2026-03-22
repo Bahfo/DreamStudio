@@ -136,6 +136,7 @@ ctk.set_default_color_theme("dark-blue")
 
 variables = {}
 
+
 class stdout:
     def __init__(self, textbox):
         self.textbox = textbox
@@ -147,6 +148,7 @@ class stdout:
 
     def flush(self):
         pass
+
 
 class Terminal:
     def __init__(self):
@@ -161,14 +163,16 @@ class Terminal:
             fg_color="#1d1d1d",
             corner_radius=0,
             wrap="word",
-            font=("Consolas", 14))
+            font=("Consolas", 14),
+        )
         self.cmd_shell = cmdCommands(stdout=stdout(self.terminal_textbox))
 
-        self.terminal_textbox.pack(
-            padx=5, pady=5, fill="both", expand=True)
+        self.terminal_textbox.pack(padx=5, pady=5, fill="both", expand=True)
 
         self.terminal_textbox.insert(
-            "0.0", "DreamStudio Cybersecurity Developer's Kit \nCOPYRIGHT 2026 EX Technologies\n")
+            "0.0",
+            "DreamStudio Cybersecurity Developer's Kit \nCOPYRIGHT 2026 EX Technologies\n",
+        )
         self.terminal_textbox.configure(state="normal")
 
         # ---------------------- History ----------------------
@@ -190,7 +194,7 @@ class Terminal:
         self.editable_index = self.terminal_textbox.index("end-1c")
         self.terminal_textbox.mark_set("insert", self.editable_index)
         self.terminal_textbox.see(ctk.END)
-        self.history_index = 0 # RESET
+        self.history_index = 0  # RESET
 
     def up_arrow(self, event):
         if not self.list_of_commands:
@@ -244,6 +248,7 @@ class Terminal:
 
     def run(self):
         self.window.mainloop()
+
 
 class cmdCommands(cmd.Cmd):
     def __init__(self, stdout=None):
@@ -321,9 +326,10 @@ class cmdCommands(cmd.Cmd):
             "help",
             "showcommands",
             "clear",
-            "exit"}
+            "exit",
+        }
 
-    def parse_args(self, arg:str):
+    def parse_args(self, arg: str):
         parts = arg.split()
         args = {}
         for p in parts:
@@ -342,9 +348,29 @@ class cmdCommands(cmd.Cmd):
                     """
                     if "=" in p:
                         var_name, var_value = p.split("=")
-                        if var_name and (var_name.startswith(tuple["1234567890"]) or var_name == n for n in self.commandsList):
+                        if var_name and (
+                            var_name.startswith(tuple["1234567890"]) or var_name == n
+                            for n in self.commandsList
+                        ):
                             return "Naming Error: Could not name a variable starting with a number"
-                        elif (m in var_value for m in ["!","@","#","$","%","^","&","*","(",")","-","+","="]):
+                        elif (
+                            m in var_value
+                            for m in [
+                                "!",
+                                "@",
+                                "#",
+                                "$",
+                                "%",
+                                "^",
+                                "&",
+                                "*",
+                                "(",
+                                ")",
+                                "-",
+                                "+",
+                                "=",
+                            ]
+                        ):
                             return f"Assigning Error: Cannot assign the specified value into variable {var_name}"
                         else:
                             variables[var_name] = var_value
@@ -363,15 +389,15 @@ class cmdCommands(cmd.Cmd):
     def do_help(self, arg):
         """
         NAME:
-            help 
+            help
         SYNTAX:
             help -arg
         PARAMETERS:
             -arg: Name of a command, unit, function, method, etc.
         DESCRIPTION:
             <help> is designed to generate documented help within the terminal
-            about a specific topic. Users can type in the command's name and an 
-            auto-help will be generated about the command specified. There is 
+            about a specific topic. Users can type in the command's name and an
+            auto-help will be generated about the command specified. There is
             also documentation about topics. The user can type in the topic name
             and some help can be generated.
         FEATURES:
@@ -392,14 +418,15 @@ class cmdCommands(cmd.Cmd):
         -src/--source:  source path, default is current working directory if file is found
         -dest/--destination: destination path, must be specified
         -file name: if source not specified
-        Optional Parameters:  
-        -f/--force: force copying the file 
+        Optional Parameters:
+        -f/--force: force copying the file
         -r/--rec: recursively copies the file
-        """        
+        """
 
         # if re.search(source_path,f'{os.getcwd()}'):
         #     if (source_path == os.getcwd()):
         #         source_path + rf'\{file_name}'
+
 
 if __name__ == "__main__":
     cmd = Terminal()

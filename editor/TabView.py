@@ -12,7 +12,7 @@ number_of_files: int = 4
 project_image = ctk.CTkImage(
     light_image=Image.open(r"icons/system/projectType.png"),
     dark_image=Image.open(r"icons/system/projectType.png"),
-    size=(16, 16)
+    size=(16, 16),
 )
 
 
@@ -28,7 +28,7 @@ class TabView:
         border_color=None,
         background_corner_colors=None,
         overwrite_preferred_drawing_method=None,
-        **kwargs
+        **kwargs,
     ):
 
         # --- Main Frame ---
@@ -42,7 +42,7 @@ class TabView:
             border_width=border_width,
             border_color=border_color,
             background_corner_colors=background_corner_colors,
-            overwrite_preferred_drawing_method=overwrite_preferred_drawing_method
+            overwrite_preferred_drawing_method=overwrite_preferred_drawing_method,
         )
         self.mainFrame.pack_propagate(False)
 
@@ -57,7 +57,7 @@ class TabView:
             border_color=border_color,
             border_width=1,
             fg_color=["#F5F5F5", "#1E1E1E"],
-            corner_radius=0
+            corner_radius=0,
         )
 
         self.explnLabel = ctk.CTkLabel(
@@ -71,7 +71,7 @@ class TabView:
             height=18,
             justify="left",
             anchor="w",
-            text_color=["#1E1E1E", "#F5F5F5"]
+            text_color=["#1E1E1E", "#F5F5F5"],
         )
         self.explnLabel.place(x=5, y=5)
 
@@ -82,25 +82,29 @@ class TabView:
             fg_color=["#F5F5F5", "#1E1E1E"],
             border_width=1,
             corner_radius=0,
-            border_color=["#C8C8C8", "#444444"]
+            border_color=["#C8C8C8", "#444444"],
         )
         self.gadgetsFrame.place(x=0, y=26)
 
         # --- Gadget Buttons ---
-        self.newFileBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                 image_path=r"icons/system/newnew.png")
+        self.newFileBtn = uniwidgets.SmallButton(
+            self.gadgetsFrame, image_path=r"icons/system/newnew.png"
+        )
         self.newFileBtn.place(x=2, y=2)
 
-        self.newDirBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                image_path=r"icons/system/newDir.png")
+        self.newDirBtn = uniwidgets.SmallButton(
+            self.gadgetsFrame, image_path=r"icons/system/newDir.png"
+        )
         self.newDirBtn.place(x=26, y=2)
 
-        self.refreshBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                 image_path=r"icons/system/refreshDir.png")
+        self.refreshBtn = uniwidgets.SmallButton(
+            self.gadgetsFrame, image_path=r"icons/system/refreshDir.png"
+        )
         self.refreshBtn.place(x=50, y=2)
 
-        self.collapseBtn = uniwidgets.SmallButton(self.gadgetsFrame,
-                                                  image_path=r"icons/system/collapse.png")
+        self.collapseBtn = uniwidgets.SmallButton(
+            self.gadgetsFrame, image_path=r"icons/system/collapse.png"
+        )
         self.collapseBtn.place(x=74, y=2)
 
         self.searchBar = ctk.CTkEntry(
@@ -112,7 +116,7 @@ class TabView:
             font=("Segoe UI", 12),
             width=250,
             corner_radius=0,
-            placeholder_text="🔍 Search Solution Explorer"
+            placeholder_text="🔍 Search Solution Explorer",
         )
         self.searchBar.place(x=(width - 252), y=2)
 
@@ -120,7 +124,7 @@ class TabView:
             master=self.solutionExplorerFrame,
             width=350,
             height=530,
-            root_path=rf"{pathlib.Path.home()}"
+            root_path=rf"{pathlib.Path.home()}",
         )
         self.treeView.place(x=5, y=60)
 
@@ -135,7 +139,7 @@ class TabView:
             border_width=border_width,
             border_color=border_color,
             fg_color=["#F5F5F5", "#1E1E1E"],
-            corner_radius=0
+            corner_radius=0,
         )
         self.propertiesFrame.pack_propagate(False)
 
@@ -150,36 +154,77 @@ class TabView:
             border_width=border_width,
             border_color=border_color,
             fg_color=["#F5F5F5", "#1E1E1E"],
-            corner_radius=0
+            corner_radius=0,
         )
         self.runDebug.pack_propagate(False)
 
-        label1 = ctk.CTkLabel(self.runDebug, width=100, height=30, corner_radius=0, 
-                              fg_color=self.runDebug.cget('fg_color'), text_color=["#1E1E1E", "#FFFFFF"],
-                              text="Run Options", font=("Segoe UI",12), anchor="w")
+        label1 = ctk.CTkLabel(
+            self.runDebug,
+            width=100,
+            height=30,
+            corner_radius=0,
+            fg_color=self.runDebug.cget("fg_color"),
+            text_color=["#1E1E1E", "#FFFFFF"],
+            text="Run Options",
+            font=("Segoe UI", 12),
+            anchor="w",
+        )
         label1.place(x=15, y=10)
 
-        runBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5,
-                                 fg_color=["#005BA5","#004073"], text_color="#FFFFFF", 
-                                 text="Start Running Code", font=("Segoe UI",13), hover_color="#005398",
-                                 border_width=0, command=self.run_script)
+        runBtn = ctk.CTkButton(
+            self.runDebug,
+            width=340,
+            height=25,
+            corner_radius=5,
+            fg_color=["#005BA5", "#004073"],
+            text_color="#FFFFFF",
+            text="Start Running Code",
+            font=("Segoe UI", 13),
+            hover_color="#005398",
+            border_width=0,
+            command=self.run_script,
+        )
         runBtn.place(x=15, y=40)
 
-        configBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5,
-                                  fg_color=["#005BA5","#004073"], text_color="#FFFFFF", 
-                                  text="Show Run Configurations", font=("Segoe UI",13), hover_color="#005398",
-                                  border_width=0)
+        configBtn = ctk.CTkButton(
+            self.runDebug,
+            width=340,
+            height=25,
+            corner_radius=5,
+            fg_color=["#005BA5", "#004073"],
+            text_color="#FFFFFF",
+            text="Show Run Configurations",
+            font=("Segoe UI", 13),
+            hover_color="#005398",
+            border_width=0,
+        )
         configBtn.place(x=15, y=75)
 
-        label2 = ctk.CTkLabel(self.runDebug, width=100, height=30, corner_radius=0, 
-                              fg_color=self.runDebug.cget('fg_color'), text_color=["#1E1E1E", "#FFFFFF"],
-                              text="Debug Options", font=("Segoe UI",12), anchor="w")
+        label2 = ctk.CTkLabel(
+            self.runDebug,
+            width=100,
+            height=30,
+            corner_radius=0,
+            fg_color=self.runDebug.cget("fg_color"),
+            text_color=["#1E1E1E", "#FFFFFF"],
+            text="Debug Options",
+            font=("Segoe UI", 12),
+            anchor="w",
+        )
         label2.place(x=15, y=110)
 
-        debugBtn = ctk.CTkButton(self.runDebug, width=340, height=25, corner_radius=5,
-                                 fg_color=["#005BA5","#004073"], text_color="#FFFFFF", 
-                                 text="Debug Current Code File", font=("Segoe UI",13), hover_color="#005398",
-                                 border_width=0)
+        debugBtn = ctk.CTkButton(
+            self.runDebug,
+            width=340,
+            height=25,
+            corner_radius=5,
+            fg_color=["#005BA5", "#004073"],
+            text_color="#FFFFFF",
+            text="Debug Current Code File",
+            font=("Segoe UI", 13),
+            hover_color="#005398",
+            border_width=0,
+        )
         debugBtn.place(x=15, y=140)
 
         # ==============================
@@ -193,7 +238,7 @@ class TabView:
             corner_radius=0,
             border_width=0,
             fg_color=["#E3E3E3", "#2B2B2B"],
-            bg_color=["#E3E3E3", "#2B2B2B"]
+            bg_color=["#E3E3E3", "#2B2B2B"],
         )
         self.tabChanger.place(relx=0, rely=1.0, anchor="sw", relwidth=1.0)
 
@@ -207,7 +252,7 @@ class TabView:
             hover=False,
             border_width=0,
             font=("Segoe UI", 12),
-            fg_color=["#F5F5F5", "#1E1E1E"]
+            fg_color=["#F5F5F5", "#1E1E1E"],
         )
         self.slnExplrBtn.place(x=8, y=-5)
 
@@ -221,7 +266,7 @@ class TabView:
             hover=False,
             border_width=0,
             font=("Segoe UI", 12),
-            fg_color=["#F5F5F5", "#1E1E1E"]
+            fg_color=["#F5F5F5", "#1E1E1E"],
         )
         self.propertiesBtn.place(x=125, y=-5)
 
@@ -235,22 +280,26 @@ class TabView:
             hover=False,
             border_width=0,
             font=("Segoe UI", 12),
-            fg_color=["#F5F5F5", "#1E1E1E"]
+            fg_color=["#F5F5F5", "#1E1E1E"],
         )
         self.runDebugBtn.place(x=229, y=-5)
 
         # --- Button Commands ---
         self.slnExplrBtn.configure(
-            command=lambda: self.show_side_frame(self.solutionExplorerFrame,
-                                                 self.slnExplrBtn))
+            command=lambda: self.show_side_frame(
+                self.solutionExplorerFrame, self.slnExplrBtn
+            )
+        )
 
         self.propertiesBtn.configure(
-            command=lambda: self.show_side_frame(self.propertiesFrame, 
-                                                 self.propertiesBtn))
+            command=lambda: self.show_side_frame(
+                self.propertiesFrame, self.propertiesBtn
+            )
+        )
 
         self.runDebugBtn.configure(
-            command=lambda: self.show_side_frame(self.runDebug, 
-                                                 self.runDebugBtn))
+            command=lambda: self.show_side_frame(self.runDebug, self.runDebugBtn)
+        )
 
         # --- Initial State ---
         self.show_side_frame(self.solutionExplorerFrame, self.slnExplrBtn)
@@ -272,4 +321,8 @@ class TabView:
 
     def run_script(self):
         shell_window = run_config.ShellWindow()
-        run_class = run_config.RunFile(code_to_run="""print("Hello")""", arguments=["python",r"C:/Users/Bahaa/Desktop"], ShellWindow=shell_window).run()
+        run_class = run_config.RunFile(
+            code_to_run="""print("Hello")""",
+            arguments=["python", r"C:/Users/Bahaa/Desktop"],
+            ShellWindow=shell_window,
+        ).run()

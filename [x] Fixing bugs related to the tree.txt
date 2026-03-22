@@ -4,8 +4,8 @@
 [ ] Bug in not being able to scroll the preview textbox
 [ ] Needs to support large files
 ----------------------------------------------------------
-[ ] Fixing blacking-out issue when we minimize the window
-[ ] Double clicking a file in the treeview (if supported) opens it in the editor
+[x] Fixing blacking-out issue when we minimize the window
+[x] Double clicking a file in the treeview (if supported) opens it in the editor
 
 
 

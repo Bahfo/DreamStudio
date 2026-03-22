@@ -292,12 +292,13 @@ from collections import deque
 # ---------------- Redirect stdout to GUI ----------------
 class GUIStdout:
     """
-    Redirects the standard output of the command line interface into 
-    custom-tkinter's textbox. Works by writing the text into the 
+    Redirects the standard output of the command line interface into
+    custom-tkinter's textbox. Works by writing the text into the
     textbox, and moving the cursor's position into the end of the line.
-    The other method `flush` is an empty method for instantly flushing 
+    The other method `flush` is an empty method for instantly flushing
     the textbox.
     """
+
     def __init__(self, textbox):
         self.textbox = textbox
 
@@ -313,13 +314,14 @@ class GUIStdout:
 # ---------------- Command Line Logic ----------------
 class CommandLine(cmd.Cmd):
     """
-    Command-Line class inherited from `cmd` library. 
+    Command-Line class inherited from `cmd` library.
     Inside, it has the backend and logic structure for generating
     responses of commands. It makes usage of the `cmd` library by
     generating a `do_command` function for each typed function on
     the user's screen. The text enters from the `GUIStdout` class
-    and leaves towards. 
+    and leaves towards.
     """
+
     def __init__(self, stdout=None):
         super().__init__(stdout=stdout)
         self.currentDir = os.getcwd()
@@ -368,7 +370,7 @@ class CommandLine(cmd.Cmd):
         two -must written- characters (-) and (=). It splits each argument
         from the assign character (=). Then strips any dashes, or quotations
         found to store all parameters in one list.
-        
+
         :param self: self parameter for class.
         :param arg: arguments to be parsed in.
         :return: dictionary of each parameter and its value assigned.
@@ -407,7 +409,7 @@ class CommandLine(cmd.Cmd):
         Scans the history of commands to get the previous commmand, which is
         a normal behavior in command-line tools after clicking the top-arrow
         on the keyboard.
-        
+
         :param self: self parameter for class
         :return: previous command.
         :rtype: Any | Literal['']
@@ -422,7 +424,7 @@ class CommandLine(cmd.Cmd):
         Scans the history of commands to get the next command, which is obtained
         if the user is checking the history. Works fine with `get_previous_command`
         method.
-        
+
         :param self: self parameter for class
         :return: previous command.
         :rtype: Any | Literal ['']
@@ -650,7 +652,7 @@ class CommandLine(cmd.Cmd):
             f"Current time: {current_date.time()}\n"
             f"{current_date}"
         )
-    
+
     # -------------------- Deletedir -------------------
     def do_deletedir(self, arg):
         """
@@ -661,13 +663,13 @@ class CommandLine(cmd.Cmd):
         Usage: deletedir --path=<path>     %% removes directory in <path>
                deletedir                   %% removes current working directory
 
-        Output: 
+        Output:
             - Removing a directory of files and folders
-        Errors: 
+        Errors:
             - Privilage Error (42): Mixed exceptions provided by the operating system
 
         Hot-Topic Commands:
-            erase, help 
+            erase, help
         """
         if not arg:
             path = os.getcwd()
@@ -877,7 +879,7 @@ class CommandLine(cmd.Cmd):
             clearhistory, help
         """
         return f"\ncurrent working directory: {os.getcwd()}"
-    
+
     # -------------------- Makedir -----------------
     def do_makedir(self, arg):
         """
@@ -890,7 +892,7 @@ class CommandLine(cmd.Cmd):
             makedir [--path=<path>]                    %% Could be a directory with a path containing a name
                                                        %% or a directory with no name ('untitled' by default)
         Parameters:
-            --path       Path to create the directory at 
+            --path       Path to create the directory at
             --name       Name of the directory
         Output:
             Creates the directory at the specified location with the given content. Returns a success message including the full file path
@@ -1271,6 +1273,7 @@ class PromptXShell(ctk.CTkFrame):
     It hosts the area where the user should type-in commands. Behaves like a
     normal TUI tool that can be used inside DreamStudio's main terminal window.
     """
+
     def __init__(self, main_app=None, status_button=None):
         super().__init__(main_app)
         self.main_app = main_app
@@ -1291,11 +1294,11 @@ class PromptXShell(ctk.CTkFrame):
             self,
             corner_radius=0,
             font=("Consolas", 13),
-            text_color=["#1E1E1E","#D4D4D4"],
+            text_color=["#1E1E1E", "#D4D4D4"],
             bg_color=["#606060", "#BABABA"],
-            fg_color=["#F5F5F5" , "#1E1E1E"],
+            fg_color=["#F5F5F5", "#1E1E1E"],
             border_color="#5E5E5E",
-            border_width=1
+            border_width=1,
         )
         self.textbox.place(x=0, y=0, relwidth=1, relheight=1)
 
@@ -1333,10 +1336,10 @@ class PromptXShell(ctk.CTkFrame):
     # ---------------- Prompt ----------------
     def insert_prompt(self):
         """
-        Inserts a prompt at the current cursor's location, a prompt consisting 
+        Inserts a prompt at the current cursor's location, a prompt consisting
         of the current working directory. It disables writing on the textbox
         accept last line where the current last prompt is inserted at.
-        
+
         :param self: self parameter for class
         """
         self.textbox.configure(state=ctk.NORMAL)
@@ -1358,9 +1361,7 @@ class PromptXShell(ctk.CTkFrame):
                 return "break"
 
     def onClick(self, event):
-        """
-        
-        """
+        """ """
         self.after(1, self.fix_cursor)
 
     def fix_cursor(self):
@@ -1407,7 +1408,8 @@ class PromptXShell(ctk.CTkFrame):
             "Compiling": "#00F736",
             "added": "#00F736",
             "[WinError 2]": "red",
-            "(venv)": "#00F736"}
+            "(venv)": "#00F736",
+        }
 
         if not line.strip():
             return False
@@ -1427,9 +1429,15 @@ class PromptXShell(ctk.CTkFrame):
                 self.destroy()
             elif isinstance(result, str):
                 if result.lower().startswith("error"):
-                    self.print_output(f"\n{result}\n", "dark_mode" if self.mode == 'dark' else "light_mode")
+                    self.print_output(
+                        f"\n{result}\n",
+                        "dark_mode" if self.mode == "dark" else "light_mode",
+                    )
                 else:
-                    self.print_output(f"\n{result}\n", "dark_mode" if self.mode == 'dark' else "light_mode")
+                    self.print_output(
+                        f"\n{result}\n",
+                        "dark_mode" if self.mode == "dark" else "light_mode",
+                    )
             for word, color in highlight_dict.items():
                 self.highlight_word(word, color=color)
 
@@ -1461,8 +1469,15 @@ class PromptXShell(ctk.CTkFrame):
 
     def highlight_syntax(self):
         # Remove previous tags
-        for tag in ["command","number","string","filename",
-                    "path","subcommand","language"]:
+        for tag in [
+            "command",
+            "number",
+            "string",
+            "filename",
+            "path",
+            "subcommand",
+            "language",
+        ]:
 
             self.textbox.tag_remove(tag, self.readonly_index, "end")
 
