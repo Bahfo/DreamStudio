@@ -655,7 +655,7 @@ class App:
             subprocess.Popen(["gnome-terminal"], shell=True)
 
     def open_shell(self, event=None):
-        import editor.command_window as command_window
+        import shells.command_window as command_window
 
         if self.shell_frame is None:
             self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)

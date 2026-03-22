@@ -284,6 +284,7 @@ import zipfile
 import datetime
 import platform
 import subprocess
+import tkinter as tk
 import customtkinter as ctk
 from itertools import islice
 from collections import deque
@@ -1276,6 +1277,16 @@ class PromptXShell(ctk.CTkFrame):
 
     def __init__(self, main_app=None, status_button=None):
         super().__init__(main_app)
+
+        # Platform specific scaling:
+        if platform.system() == "Windows":
+            pass
+        elif platform.system() == "Linux":
+            ctk.set_window_scaling(1.25)
+        else: # Empty for now for XOS
+            pass
+
+
         self.main_app = main_app
         self.status_button = status_button
         self._corner_radius = 0

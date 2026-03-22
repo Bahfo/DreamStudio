@@ -434,5 +434,5 @@ def main_terminal():
 
     window.mainloop()
 
-
-main_terminal()
+if __name__ == '__main__':
+    main_terminal()
