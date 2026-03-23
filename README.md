@@ -3,6 +3,8 @@
 ![Static Badge](https://img.shields.io/badge/Company-Excellent_Technologies-006FCD?style=for-the-badge)
 ![Static Badge](https://img.shields.io/badge/Author-Bahaa_Nofal-CBA317?style=for-the-badge)
 
+![DreamStudio](assets/logos/dreamStudio_icon2.png)
+
 DreamStudio is an open-source Integrated Development Environment developed by *Excellent Technologies* (known as _EX Technologies_) to develop, ship, and manage solutions of various programming languages.
 
 ![DreamStudio in Action](assets/logos/dreamstudio_in_action.png)
