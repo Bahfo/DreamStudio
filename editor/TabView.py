@@ -116,7 +116,7 @@ class TabView:
             font=("Segoe UI", 12),
             width=250,
             corner_radius=0,
-            placeholder_text="🔍 Search Solution Explorer",
+            placeholder_text="🔍    Search Solution Explorer",
         )
         self.searchBar.place(x=(width - 252), y=2)
 

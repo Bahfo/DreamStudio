@@ -23,6 +23,7 @@ PYTHON_KEYWORDS = keyword.kwlist
 
 allowed_extensions = {".py", ".txt", ".html", ".json", ".js"}
 
+ctk.set_appearance_mode("dark")
 
 def auto_indent(text_editor):
     line_index = text_editor.index("insert linestart")
@@ -235,8 +236,6 @@ class CTkWorkspaceTree:
 
 
 def main():
-
-    ctk.set_appearance_mode("dark")
     mode = ctk.get_appearance_mode()
     ################################################################################################
     # MAIN WINDOW
@@ -260,20 +259,20 @@ def main():
         license_window.attributes("-topmost", True)
 
         license_text = """
-    Copyright 2026 EX Technologies
-    An Integrated Development Environment (IDE) designed to be light, professional, and user-friendly.
+Copyright 2026 EX Technologies
+An Integrated Development Environment (IDE) designed to be light, professional, and user-friendly.
 
-    Proprietary Freeware License:
-    Softdream is free to download and use, but the user is restricted to the following keypoints:
+Proprietary Freeware License:
+Softdream is free to download and use, but the user is restricted to the following keypoints:
 
-    - The software is free to use (gratis).
-    - Users cannot modify the software.
-    - Users cannot sell or distribute it.
-    - You may use this software for personal or internal purposes only.
-    - You may not modify, reverse engineer, or create derivative works.
-    - You may not redistribute, sell, or sublicense this software.
+- The software is free to use (gratis).
+- Users cannot modify the software.
+- Users cannot sell or distribute it.
+- You may use this software for personal or internal purposes only.
+- You may not modify, reverse engineer, or create derivative works.
+- You may not redistribute, sell, or sublicense this software.
 
-    For more info, download the full documentation.
+For more info, download the full documentation.
     """
 
         license_label = ctk.CTkLabel(
@@ -377,7 +376,7 @@ def main():
         creating_new_file = ctk.CTkToplevel()
         creating_new_file.title("Create a New File")
         creating_new_file.iconbitmap(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/new.ico"
+            r"tests/icons/new.ico"
         )
         creating_new_file.geometry("360x160")
         creating_new_file.resizable(False, False)
@@ -498,7 +497,7 @@ def main():
         save_current_workspace = ctk.CTkToplevel()
         save_current_workspace.title("Save File")
         save_current_workspace.iconbitmap(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/save.ico"
+            r"tests/icons/save.ico"
         )
         save_current_workspace.geometry("360x160")
         save_current_workspace.resizable(False, False)
@@ -668,6 +667,7 @@ def main():
                 border_color="#5E5E5E",
                 border_width=1,
                 command=func,
+                text_color=["#1E1E1E","#FFFFFF"]
             )
             btn.pack()
 
@@ -826,31 +826,31 @@ def main():
 
     search_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/zoom.ico"
+            r"tests/icons/zoom.ico"
         ),
         size=(24, 24),
     )
     open_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/open.ico"
+            r"tests/icons/open.ico"
         ),
         size=(24, 24),
     )
     settings_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/settings.ico"
+            r"tests/icons/settings.ico"
         ),
         size=(24, 24),
     )
     new_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/new.ico"
+            r"tests/icons/new.ico"
         ),
         size=(24, 24),
     )
     save_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/save.ico"
+            r"tests/icons/save.ico"
         ),
         size=(24, 24),
     )
@@ -1060,7 +1060,7 @@ def main():
     font_size_var.trace_add("write", update_text_font)
     code_font_var.trace_add("write", update_text_font)
     text_editor.pack(fill="both", expand=True)
-    text_editor.insert("1.0", "# Softdream Code Editor")
+    text_editor.insert("1.0", "# Type anything to start")
 
     def copy_text_event(event=None):
         try:
@@ -1190,14 +1190,10 @@ def main():
 
 
 def loading_screen():
-    ctk.set_appearance_mode("dark")
     splash = ctk.CTk()
     splash.resizable(False, False)
     splash.overrideredirect(False)
     splash.title("EX Technologies")
-    splash.iconbitmap(
-        r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/softdream.ico"
-    )
 
     window_width = 400
     window_height = 300
@@ -1213,10 +1209,10 @@ def loading_screen():
 
     logo_image = ctk.CTkImage(
         light_image=Image.open(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/logo.png"
+            r"tests/icons/logo.png"
         ),
         dark_image=Image.open(
-            r"/home/bahaa/Desktop/DreamStudio/DreamStudio/tests/icons/logo.png"
+            r"tests/icons/logo.png"
         ),
         size=(180, 180),
     )
@@ -1252,4 +1248,4 @@ def loading_screen():
 # RUN AND MODIFY
 #####################################################################################################
 if __name__ == "__main__":
-    main()
+    loading_screen()
