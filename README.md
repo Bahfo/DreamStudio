@@ -5,7 +5,7 @@
 
 DreamStudio is an open-source Integrated Development Environment developed by *Excellent Technologies* (known as _EX Technologies_) to develop, ship, and manage solutions of various programming languages.
 
-![DreamStudio in Action](icons/logos/dreamstudio_in_action.png)
+![DreamStudio in Action](assets/logos/dreamstudio_in_action.png)
 
 ## Programming Languages Hosted
 ![](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
