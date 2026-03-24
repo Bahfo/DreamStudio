@@ -40,29 +40,18 @@ REFRESH_INTERVAL_MINUTES = 2
 REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000
 
 icon_paths = {
-    "load_ico": r"icons/system/load.png",
-    "refresh_ico": r"icons/system/refresh.png",
-    "console": r"icons/system/console.png",
-    "debug": r"icons/system/debug.png",
-    "manage": r"icons/system/manager.png",
-    "problem": r"icons/system/problem.png",
-    "ver": r"icons/system/manager.png",
-    "warning": r"icons/system/warning.png",
+    "manage": r"assets/system/manager.png",
+    "problem": r"assets/system/problem.png",
+    "ver": r"assets/system/manager.png",
+    "warning": r"assets/system/warning.png",
 }
 
 ctk_icons = {
-    "search_photo": (r"icons/system/search.png", (24, 24)),
-    "open_photo": (r"icons/system/open_folder.png", (24, 24)),
-    "settings_photo": (r"icons/system/settings.png", (24, 24)),
-    "save_photo": (r"icons/system/save_file.png", (24, 24)),
-    "user_photo": (r"icons/system/user.png", (24, 24)),
-}
-
-arrow_icons = {
-    "rightArrow": (r"icons/system/right_arrow.png", (8, 8)),
-    "stepTo": (r"icons/system/stepTo.png", (20, 20)),
-    "stepOut": (r"icons/system/stepOut.png", (20, 20)),
-    "stepOver": (r"icons/system/stepOver.png", (20, 20)),
+    "search_photo": (r"assets/system/search.png", (24, 24)),
+    "open_photo": (r"assets/system/open_folder.png", (24, 24)),
+    "settings_photo": (r"assets/system/settings.png", (24, 24)),
+    "save_photo": (r"assets/system/save_file.png", (24, 24)),
+    "user_photo": (r"assets/system/user.png", (24, 24)),
 }
 
 allowed_extensions = {

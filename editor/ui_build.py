@@ -50,14 +50,14 @@ class App:
         if system == "Windows":
             # Tk already respects Windows scaling
             scaling_factor = self.window.tk.call("tk", "scaling")
-            self.window.iconbitmap(r"icons/logos/ds.ico")
+            self.window.iconbitmap(r"assets/logos/ds.ico")
             self.editor_initial_font = ("Consolas", 13)
         elif system == "Linux":
             # Linux Mint: apply a reasonable factor to match Windows
             scaling_factor = 1.25
             set_window_scaling(scaling_factor)
             set_widget_scaling(scaling_factor)
-            icon = PhotoImage(file="icons/logos/dreamStudio_icon.png")
+            icon = PhotoImage(file="assets/logos/dreamStudio_icon.png")
             self.window.iconphoto(True, icon)
             self.editor_initial_font = ("Liberation Mono", 10)
         elif system == "Darwin":
@@ -96,9 +96,6 @@ class App:
 
         for attr, (path, size) in ctk_icons.items():
             setattr(self, attr, load_ctk_icon(path, size))
-
-        for attr, (path, size) in arrow_icons.items():
-            setattr(self, attr, load_ctk_icon(path, size, dark_path=path))
 
         self.styles_menu = {
             "Light": lambda: self._on_theme_toggle("light"),
@@ -257,13 +254,13 @@ class App:
         self.menuFrame.pack_propagate(False)
 
         self.exploreBtnOptions = VerticalButton(
-            self.menuFrame, image_path=r"icons/system/newvar.png", text="File"
+            self.menuFrame, image_path=r"assets/system/newvar.png", text="File"
         )
         self.exploreBtnOptions.place(x=8, y=3)
 
         findBtnOptions = VerticalButton(
             self.menuFrame,
-            image_path=r"icons/system/folder.png",
+            image_path=r"assets/system/folder.png",
             text="Open",
             command=lambda: open_menu_popup(
                 None, self.window, findBtnOptions, open_menu, 66, 98
@@ -272,20 +269,23 @@ class App:
         findBtnOptions.place(x=62, y=3)
 
         mngBtnOptions = VerticalButton(
-            self.menuFrame, image_path=r"icons/system/save_file.png", text="Save"
+            self.menuFrame,
+            image_path=r"assets/system/save_file.png",
+            text="Save",
+            size=(20, 20),
         )
         mngBtnOptions.place(x=116, y=5)
 
         trackChangesBtn = HorizontalButton(
             self.menuFrame,
-            image_path=r"icons/system/database.png",
+            image_path=r"assets/system/changes.png",
             text="Track Changes",
         )
         trackChangesBtn.place(x=170, y=5)
 
         compareBtn = HorizontalButton(
             self.menuFrame,
-            image_path=r"icons/system/feedback.png",
+            image_path=r"assets/system/compare.png",
             text="Compare Files",
         )
         compareBtn.place(x=170, y=38)
@@ -300,17 +300,17 @@ class App:
         verticalSep1.place(x=288, y=3)
 
         RunCode = VerticalButton(
-            self.menuFrame, image_path=r"icons/system/start.png", text="Run\nFile"
+            self.menuFrame, image_path=r"assets/system/start.png", text="Run\nFile"
         )
         RunCode.place(x=296, y=5)
 
         debugBtn = HorizontalButton(
-            self.menuFrame, image_path=r"icons/system/bug.png", text="Debug Files"
+            self.menuFrame, image_path=r"assets/system/bug.png", text="Debug Files"
         )
         debugBtn.place(x=350, y=5)
 
         configBtn = HorizontalButton(
-            self.menuFrame, image_path=r"icons/system/manager.png", text="Configure"
+            self.menuFrame, image_path=r"assets/system/manager.png", text="Configure"
         )
         configBtn.place(x=350, y=38)
 
@@ -325,8 +325,9 @@ class App:
 
         stylesBtn = VerticalButton(
             self.menuFrame,
-            image_path=r"icons/system/container.png",
+            image_path=r"assets/system/styles.png",
             text="Styles",
+            size=(32, 32),
             command=lambda: open_menu_popup(
                 None, self.window, stylesBtn, self.styles_menu, 484, 98
             ),
@@ -334,7 +335,7 @@ class App:
         stylesBtn.place(x=484, y=5)
 
         addonsBtn = VerticalButton(
-            self.menuFrame, image_path=r"icons/system/console.png", text="Add\nOns"
+            self.menuFrame, image_path=r"assets/system/console.png", text="Add\nOns"
         )
         addonsBtn.place(x=542, y=5)
 
@@ -473,18 +474,6 @@ class App:
         )
         self.search_button.pack(pady=5)
         ToolTip(self.search_button, "Searches inside the file for a specific key")
-
-        self.save_button = ctk.CTkButton(
-            self.services_bar,
-            text="",
-            image=self.save_photo,
-            width=36,
-            height=36,
-            corner_radius=5,
-            fg_color=self.services_bar.cget("fg_color"),
-        )
-        self.save_button.pack(pady=5)
-        ToolTip(self.save_button, "Saves the current loaded workspace file")
 
         self.user_button = ctk.CTkButton(
             self.services_bar,

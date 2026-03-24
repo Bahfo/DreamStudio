@@ -10,8 +10,8 @@
    inkscape:export-filename="dreamStudio_icon.png"
    inkscape:export-xdpi="96"
    inkscape:export-ydpi="96"
-   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
-   sodipodi:docname="drawing.svg"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="ds.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -28,17 +28,39 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="4.1100582"
-     inkscape:cx="65.570848"
-     inkscape:cy="67.273987"
+     inkscape:zoom="2.691658"
+     inkscape:cx="221.2391"
+     inkscape:cy="79.876417"
      inkscape:window-width="1920"
-     inkscape:window-height="991"
-     inkscape:window-x="-9"
-     inkscape:window-y="-9"
+     inkscape:window-height="959"
+     inkscape:window-x="0"
+     inkscape:window-y="40"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g15025" />
+     inkscape:current-layer="g15025">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="35.277779"
+       height="35.277779"
+       id="page465" />
+    <inkscape:page
+       x="45.277779"
+       y="0"
+       width="35.277779"
+       height="35.277779"
+       id="page467"
+       inkscape:export-filename="Page 2.png"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+  </sodipodi:namedview>
   <defs
      id="defs2">
+    <rect
+       x="201.35975"
+       y="33.598375"
+       width="74.506061"
+       height="70.02431"
+       id="rect3938" />
     <linearGradient
        inkscape:collect="always"
        id="linearGradient15015">
@@ -155,6 +177,12 @@
        x2="18.397818"
        y2="9.0584679"
        gradientTransform="matrix(0.71503367,0,0,0.71503367,5.2340197,4.9162441)" />
+    <rect
+       x="201.35975"
+       y="33.598375"
+       width="74.506061"
+       height="70.02431"
+       id="rect4048" />
   </defs>
   <g
      inkscape:label="Layer 1"
@@ -223,6 +251,47 @@
                style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Microsoft YaHei UI';-inkscape-font-specification:'Microsoft YaHei UI Bold';fill:url(#linearGradient15001);fill-opacity:1;stroke-width:0.499999"
                x="11.939649"
                y="23.047245">D</tspan></text>
+        </g>
+        <g
+           id="g353">
+          <rect
+             style="fill:#005cbc;fill-opacity:1;stroke-width:0.349032"
+             id="rect521"
+             width="32.085884"
+             height="32.933296"
+             x="46.713268"
+             y="1.1722879" />
+          <text
+             xml:space="preserve"
+             transform="matrix(0.70595252,0,0,0.70595252,-93.947643,-24.081342)"
+             id="text3936"
+             style="font-weight:bold;font-size:37.3333px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';white-space:pre;shape-inside:url(#rect3938);fill:#005cbc;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"><tspan
+               x="201.35938"
+               y="67.566301"
+               id="tspan425"><tspan
+                 style="font-family:Arial;-inkscape-font-specification:'Arial Bold';fill:#ffffff"
+                 id="tspan423">D</tspan></tspan></text>
+          <text
+             xml:space="preserve"
+             transform="matrix(0.45888748,0,0,0.45888748,-27.193082,0.19532415)"
+             id="text4046"
+             style="font-weight:bold;font-size:37.3333px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';white-space:pre;shape-inside:url(#rect4048);fill:#005cbc;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"><tspan
+               x="201.35938"
+               y="67.566301"
+               id="tspan429"><tspan
+                 style="font-family:Arial;-inkscape-font-specification:'Arial Bold';fill:#ffffff"
+                 id="tspan427">S</tspan></tspan></text>
+          <text
+             xml:space="preserve"
+             style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:7.83675px;font-family:Arial;-inkscape-font-specification:'Arial Bold';fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
+             x="49.743595"
+             y="32.053352"
+             id="text4052"><tspan
+               sodipodi:role="line"
+               id="tspan4050"
+               style="stroke-width:0"
+               x="49.743595"
+               y="32.053352">&gt;&gt;&gt;</tspan></text>
         </g>
       </g>
     </g>

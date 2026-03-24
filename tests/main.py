@@ -376,7 +376,7 @@ For more info, download the full documentation.
         creating_new_file = ctk.CTkToplevel()
         creating_new_file.title("Create a New File")
         creating_new_file.iconbitmap(
-            r"tests/icons/new.ico"
+            r"tests/assets/new.ico"
         )
         creating_new_file.geometry("360x160")
         creating_new_file.resizable(False, False)
@@ -497,7 +497,7 @@ For more info, download the full documentation.
         save_current_workspace = ctk.CTkToplevel()
         save_current_workspace.title("Save File")
         save_current_workspace.iconbitmap(
-            r"tests/icons/save.ico"
+            r"tests/assets/save.ico"
         )
         save_current_workspace.geometry("360x160")
         save_current_workspace.resizable(False, False)
@@ -826,31 +826,31 @@ For more info, download the full documentation.
 
     search_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"tests/icons/zoom.ico"
+            r"tests/assets/zoom.ico"
         ),
         size=(24, 24),
     )
     open_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"tests/icons/open.ico"
+            r"tests/assets/open.ico"
         ),
         size=(24, 24),
     )
     settings_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"tests/icons/settings.ico"
+            r"tests/assets/settings.ico"
         ),
         size=(24, 24),
     )
     new_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"tests/icons/new.ico"
+            r"tests/assets/new.ico"
         ),
         size=(24, 24),
     )
     save_photo = ctk.CTkImage(
         light_image=Image.open(
-            r"tests/icons/save.ico"
+            r"tests/assets/save.ico"
         ),
         size=(24, 24),
     )
@@ -1209,10 +1209,10 @@ def loading_screen():
 
     logo_image = ctk.CTkImage(
         light_image=Image.open(
-            r"tests/icons/logo.png"
+            r"tests/assets/logo.png"
         ),
         dark_image=Image.open(
-            r"tests/icons/logo.png"
+            r"tests/assets/logo.png"
         ),
         size=(180, 180),
     )

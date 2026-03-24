@@ -14,7 +14,7 @@ class AboutWindow(ctk.CTkToplevel):
         self.geometry("600x460")
         self.resizable(False, False)
 
-        bg_img = Image.open("icons/themes/theme2.png")
+        bg_img = Image.open("assets/themes/theme2.png")
         ctkbgimg = ctk.CTkImage(bg_img, bg_img, (600, 460))
 
         #### BACKGROUND

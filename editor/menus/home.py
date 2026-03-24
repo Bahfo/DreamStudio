@@ -20,7 +20,7 @@ tab_count = 0
 naming_counter = 0
 notifications_class = {}
 current_session_editors_open = {}
-image = "icons/system/feedback.png"
+image = "assets/system/styles.png"
 
 
 # Popups Classes
