@@ -9,10 +9,10 @@ import time
 import os
 
 from pathlib import Path
-from bridge_handler import *
+from .bridge_handler import *
 from threading import Thread
 from queue import Queue
-from project_types import *
+from .project_types import *
 from watchdog.observers import Observer
 
 

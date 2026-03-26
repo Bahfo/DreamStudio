@@ -1,9 +1,9 @@
 import os
-
+import shutil
+import tkinter
 import customtkinter as ctk
-
 from editor.utils.ctk_scrollable_frame import CTkScrollableFrame
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Set, Dict, Tuple
 from editor.utils.icons_utils import *
 
 COLORS = {
@@ -24,268 +24,345 @@ COLORS = {
 }
 
 class FileTreeItem(ctk.CTkFrame):
-    """
-    Represents a single file or folder in the tree.
-    Handles rendering, indentation, and selection state.
-    """
-    def __init__(self, master, parent_tree_ref, path: str, level: int = 0, is_folder: bool = False, **kwargs):
+    def __init__(self, master, parent_tree_ref, path: str, level: int = 0, is_folder: bool = False, parent_node: Optional['FileTreeItem'] = None, **kwargs):
         super().__init__(master, **kwargs)
 
-        self.parent_tree = parent_tree_ref 
+        self.parent_tree = parent_tree_ref
         self.path = path
         self.level = level
         self.is_folder = is_folder
         self.is_expanded = False
-        self.child_widgets: Optional[List['FileTreeItem']] = None
-        
-        self.name = os.path.basename(path)
-        if not self.name:
-            self.name = path
-        
+        self.parent = parent_node
+        self.child_items: List['FileTreeItem'] = []
+        self._is_reloading = False
+
+        self.name = os.path.basename(path) or path
         self.ext = os.path.splitext(self.name)[1].replace(".", "") if not is_folder else "folder"
 
-        self.configure(fg_color="transparent", height=25, corner_radius=0)
-        self.pack(fill="x", padx=(level * 10 + 5, 0), pady=(1, 1)) # Indentation logic
-
-        # --- UI ELEMENTS ---
-        self.arrow_label = ctk.CTkLabel(self, text="", width=15, font=("Segoe UI", 12, "bold"), height=23)
-        self.arrow_label.pack(side="left", padx=(2,0))
+        self.configure(fg_color="transparent", height=22, corner_radius=0)
+        
+        self._indent = level * 18
+        
+        self.arrow_label = ctk.CTkLabel(self, text="", width=16, font=("Segoe UI", 10, "bold"), height=20)
+        self.arrow_label.pack(side="left", padx=(self._indent, 0), pady=0)
 
         if self.is_folder:
-            self.arrow_label.configure(text=">", text_color=COLORS["dark"]["arrow"])
+            self._update_arrow_icon()
             self.arrow_label.bind("<Button-1>", lambda e: self.toggle())
 
-        # Determine which icon to use
         icon_key = "folder" if self.is_folder else (self.ext if self.ext in ICONS else "default")
-        icon_img = ICONS.get(icon_key, ICONS.get("default"))
+        self.icon_label = ctk.CTkLabel(self, image=ICONS.get(icon_key, ICONS.get("default")), text="", width=16, height=20)
+        self.icon_label.pack(side="left", padx=(2, 0), pady=0)
 
-        self.icon_label = ctk.CTkLabel(self, image=icon_img, text="", width=20, height=23)
-        self.icon_label.pack(side="left", padx=(0, 5))
+        self.text_label = ctk.CTkLabel(self, text=self.name, font=("Segoe UI", 12), anchor="w", justify="left", height=20, padx=0)
+        self.text_label.pack(side="left", fill="both", expand=True)
 
-        self.text_label = ctk.CTkLabel(
-            self, 
-            text=self.name, 
-            font=("Segoe UI", 12), 
-            anchor="w",
-            justify="left",
-            height=23)
-        self.text_label.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        for widget in [self, self.text_label, self.icon_label]:
+            widget.bind("<Button-1>", self._on_click)
+            widget.bind("<Double-Button-1>", self._on_double_click)
+            widget.bind("<B1-Motion>", self._on_drag)
+            widget.bind("<ButtonRelease-1>", self._on_drop)
 
-        # --- BINDINGS ---
-        # Bind click events to the whole row
-        self.bind("<Button-1>", self._on_click)
-        self.text_label.bind("<Button-1>", self._on_click)
-        self.icon_label.bind("<Button-1>", self._on_click)
-        
-        # Bind double-click events
-        self.bind("<Double-Button-1>", self._on_double_click)
-        self.text_label.bind("<Double-Button-1>", self._on_double_click)
-        self.icon_label.bind("<Double-Button-1>", self._on_double_click)
-
-        # Apply Theme Colors
         self._update_theme_colors()
 
-    def _update_theme_colors(self):
-        """Updates colors based on current CTk theme."""
-        mode = ctk.get_appearance_mode()
-        theme = "dark" if mode == "Dark" else "light"
-        colors = COLORS[theme]
+    def _update_arrow_icon(self):
+        if not self.winfo_exists(): return
+        mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
+        char = "▾" if self.is_expanded else "▸"
+        self.arrow_label.configure(text=char, text_color=COLORS[mode]["arrow"])
 
-        self.configure(fg_color=colors["bg"])
+    def _update_theme_colors(self):
+        if not self.winfo_exists(): return
+        mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
+        colors = COLORS[mode]
+        is_selected = (self == self.parent_tree.selected_item)
+        self.configure(fg_color=colors["selected_bg"] if is_selected else colors["bg"])
         self.text_label.configure(text_color=colors["fg"])
-        
-        if self.is_folder:
-            arrow_char = "▾" if self.is_expanded else "▸"
-            self.arrow_label.configure(text=arrow_char, text_color=colors["arrow"])
+        if self.is_folder: self._update_arrow_icon()
 
     def _on_click(self, event):
         self.parent_tree.select_item(self)
-
-        if self.is_folder:
-            self.toggle()
-        else:
-            if self.parent_tree.file_click_callback:
-                self.parent_tree.file_click_callback(self.path)
-
-    def _on_double_click(self, event):
-        """Handles double click: Expand folder or Open file."""
-        if self.is_folder:
-            self.toggle()
-        else:
+        if self.is_folder: self.toggle()
+        elif self.parent_tree.file_click_callback:
             self.parent_tree.file_click_callback(self.path)
 
-    def toggle(self):
-        if not self.is_folder:
-            return
+    def _on_double_click(self, event):
+        if self.is_folder: self.toggle()
+        else: self.parent_tree.file_click_callback(self.path)
 
+    def _on_drag(self, event):
+        self.configure(cursor="fleur")
+
+    def _on_drop(self, event):
+        self.configure(cursor="")
+        target = self.winfo_containing(event.x_root, event.y_root)
+        while target and not isinstance(target, FileTreeItem):
+            target = target.master
+
+        if target and target != self:
+            dest_dir = target.path if target.is_folder else os.path.dirname(target.path)
+            if dest_dir.startswith(self.path): return 
+            
+            try:
+                shutil.move(self.path, os.path.join(dest_dir, self.name))
+            except Exception as e:
+                print(f"Move error: {e}")
+
+    def update_path(self, new_path: str):
+        old_path = self.path
+        old_name = self.name
+        
+        del self.parent_tree.items[old_path]
+        self.path = new_path
+        self.name = os.path.basename(new_path) or new_path
+        self.ext = os.path.splitext(self.name)[1].replace(".", "") if not self.is_folder else "folder"
+        self.parent_tree.items[new_path] = self
+        
+        self.text_label.configure(text=self.name)
+        
+        icon_key = "folder" if self.is_folder else (self.ext if self.ext in ICONS else "default")
+        self.icon_label.configure(image=ICONS.get(icon_key, ICONS.get("default")))
+
+    def toggle(self):
+        if not self.is_folder or not os.path.exists(self.path): return
         self.is_expanded = not self.is_expanded
 
-        if self.is_expanded and self.child_widgets is None:
-            self.child_widgets = []
-            try:
-                entries = os.listdir(self.path)
-                entries.sort(
-                    key=lambda x: (
-                        not os.path.isdir(os.path.join(self.path, x)),
-                        x.lower()
-                    )
-                )
-
-                insert_after = self
-
-                for entry in entries:
-                    child_path = os.path.join(self.path, entry)
-
-                    child_node = self.parent_tree._add_node(
-                        path=child_path,
-                        level=self.level + 1,
-                        parent_frame=self.parent_tree
-                    )
-
-                    if child_node:
-                        child_node.pack(
-                            fill="x",
-                            padx=((self.level + 1) * 10 + 5, 0),
-                            pady=(1, 1),
-                            after=insert_after
-                        )
-                        insert_after = child_node
-                        self.child_widgets.append(child_node)
-
-            except PermissionError:
-                # TODO: link this to the new message box
-                print(f"Permission denied: {self.path}")
-
+        if self.is_expanded and not self.child_items:
+            self._load_children()
         elif self.is_expanded:
-            insert_after = self
-            for child in self.child_widgets:
-                child.pack(
-                    fill="x",
-                    padx=((self.level + 1) * 10 + 5, 0),
-                    pady=(1, 1),
-                    after=insert_after
-                )
-                insert_after = child
-
+            self._show_children()
         else:
-            if self.child_widgets:
-                self._hide_children(self.child_widgets)
+            self._hide_children()
+        
+        self._update_arrow_icon()
 
-        self._update_theme_colors()
+    def _load_children(self):
+        try:
+            entries = sorted(os.listdir(self.path), key=lambda x: (not os.path.isdir(os.path.join(self.path, x)), x.lower()))
+            last_shown = self
+            for entry in entries:
+                child_path = os.path.join(self.path, entry)
+                if child_path in self.parent_tree.items:
+                    continue
 
-    def _hide_children(self, children):
-        """Recursively hides child items."""
-        if not children:
-            return
+                child_node = self.parent_tree._add_node(child_path, self.level + 1, parent_node=self)
+                if child_node and last_shown.winfo_exists():
+                    child_node.pack(fill="x", padx=(child_node._indent, 0), pady=(0, 0), after=last_shown)
+                    last_shown = child_node
+                    self.child_items.append(child_node)
+        except (PermissionError, FileNotFoundError):
+            pass
 
-        for child in children:
-            child.pack_forget()
+    def _show_children(self):
+        last_shown = self
+        for child in self.child_items:
+            if child.winfo_exists():
+                child.pack(fill="x", padx=(child._indent, 0), pady=(0, 0), after=last_shown)
+                last_shown = child
+                if child.is_expanded:
+                    last_shown = child._show_descendants(last_shown)
+                else:
+                    child._show_children()
+                    child._hide_children()
 
-            if child.is_folder and child.child_widgets:
-                self._hide_children(child.child_widgets)
+    def _show_descendants(self, last_shown: 'FileTreeItem') -> 'FileTreeItem':
+        for child in self.child_items:
+            if child.winfo_exists():
+                child.pack(fill="x", padx=(child._indent, 0), pady=(0, 0), after=last_shown)
+                last_shown = child
+                if child.is_expanded:
+                    last_shown = child._show_descendants(last_shown)
+        return last_shown
 
+    def _hide_children(self):
+        for child in self.child_items:
+            if child.winfo_exists():
+                child.pack_forget()
             child.is_expanded = False
-            child._update_theme_colors()
+
+    def _destroy_recursive(self):
+        for child in self.child_items:
+            child._destroy_recursive()
+            if child.path in self.parent_tree.items:
+                del self.parent_tree.items[child.path]
+            if child.winfo_exists():
+                child.destroy()
+        self.child_items = []
 
     def configure_selected(self, is_selected: bool):
-        """Visual feedback for selection."""
+        if not self.winfo_exists(): return
         mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
-        bg = COLORS[mode]["selected_bg"] if is_selected else COLORS[mode]["bg"]
+        bg = COLORS[mode]["selected_bg"] if is_selected else "transparent"
         self.configure(fg_color=bg)
 
 
 class FileTree(CTkScrollableFrame):
-    """
-    The main Tree View Widget.
-    Inherits from CTkScrollableFrame to provide automatic scrolling.
-    """
-    def __init__(self, master, width, height, root_path: str = "", 
-                 file_click_callback: Optional[Callable] = None,
-                 ignore_patterns: List[str] = None, 
-                 **kwargs):
-        
-        super().__init__(master, width=width, height=height, 
-                         corner_radius=0, fg_color=["#F5F5F5","#1E1E1E"],
-                         **kwargs)
-        
-        # TODO: Apply adding watchdog by using cached files and items paths instead of dir loading
-        self.fs_cache = {}
-        self.fs_items = {}
-        self.path_to_node = {}
-        
-        self._scrollbar.configure(corner_radius=0, width=8,
-                                  fg_color=["#F5F5F5","#1E1E1E"])
-        
-        self._scrollbar._button_hover_color = ["#E3E3E3","#141414"]
-        self._scrollbar._button_color = ["#F5F5F5","#1E1E1E"]
+    def __init__(
+        self,
+        master,
+        width: int,
+        height: int,
+        root_path: str = "",
+        file_click_callback: Optional[Callable[[str], None]] = None,
+        file_change_callback: Optional[Callable[[str, str, str], None]] = None,
+        ignore_patterns: Optional[List[str]] = None,
+        **kwargs
+    ):
+        super().__init__(master, width=width, height=height, corner_radius=0, fg_color=["#F5F5F5","#1E1E1E"], **kwargs)
         
         self.root_path = root_path
         self.file_click_callback = file_click_callback
+        self.file_change_callback = file_change_callback
         self.ignore_patterns = ignore_patterns or [
-            "node_modules", "ini", "in", "exe", "lnk", 
-            "sys", "thumbs.db", "DS_Store"]
+            "node_modules", ".git", ".cache", ".config", ".local", 
+            "wireplumber", "mozilla", "sessionstore", "sqlite", ".tmp"
+        ]
         
-        self.selected_item: Optional[FileTreeItem] = None
-        self.items = {}
+        self.selected_item = None
+        self.items: Dict[str, FileTreeItem] = {}
+        self.watchdog = None
+
+        self._scrollbar.configure(corner_radius=0, width=8, fg_color=["#F5F5F5","#1E1E1E"])
 
         if self.root_path and os.path.exists(self.root_path):
             self.populate_tree(self.root_path)
 
-    def _update_theme_colors(self):
-        mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
-        self.configure(fg_color=COLORS[mode]["bg"])
-
     def _should_ignore(self, name: str, is_dir: bool) -> bool:
-        """Check if a file/folder should be ignored based on patterns."""
-        if is_dir:
-            if name in self.ignore_patterns:
-                return True
-            if name.startswith('.'):
-                return True
-        else:
-            if name.startswith('.'):
-                return True
-            _, ext = os.path.splitext(name)
-            if ext.replace(".", "") in self.ignore_patterns:
-                return True
-        return False
+        if name.startswith(('.', '~$', '.~')): return True
+        name_lower = name.lower()
+        return any(pattern in name_lower for pattern in self.ignore_patterns)
 
-    def populate_tree(self, root_path):
-        """Populates the tree starting from root_path."""
+    def populate_tree(self, root_path: str):
+        self.root_path = root_path
         for widget in self.winfo_children():
-            widget.destroy()
+            if isinstance(widget, FileTreeItem):
+                widget.destroy()
+        
         self.items = {}
-        
-        self._add_node(root_path, level=0)
+        if self.watchdog:
+            self.watchdog.stop_tracker()
 
-    def _add_node(self, path: str, level: int, parent_frame=None):
-        name = os.path.basename(path)
-        if not name: name = path
+        root_node = self._add_node(root_path, level=0)
+        if root_node:
+            root_node.pack(fill="x", padx=(0, 0), pady=(0, 0))
+        
+        from backend.watcher.core import WatchDog 
+        self.watchdog = WatchDog(gui_callback=self._on_fs_event_safe)
+        self.watchdog.start_tracker(root_path)
+
+    def _add_node(self, path: str, level: int, parent_node: Optional[FileTreeItem] = None) -> Optional[FileTreeItem]:
+        name = os.path.basename(path) or path
         is_folder = os.path.isdir(path)
-        
-        if self._should_ignore(name, is_folder):
-            return None
+        if self._should_ignore(name, is_folder): return None
 
-        master_frame = self
-
-        node = FileTreeItem(
-            master=master_frame,
-            path=path,
-            level=level,
-            is_folder=is_folder,
-            parent_tree_ref=self)
-
+        node = FileTreeItem(master=self, parent_tree_ref=self, path=path, level=level, is_folder=is_folder, parent_node=parent_node)
         self.items[path] = node
-
-        if is_folder:
-            node.child_widgets = None
-
         return node
 
+    def _on_fs_event_safe(self, stable_event):
+        try:
+            if self.winfo_exists():
+                self.after(0, lambda: self._handle_fs_event(stable_event))
+        except (tkinter.TclError, RuntimeError):
+            pass
+
+    def _handle_fs_event(self, event_data: dict):
+        event_type = event_data.get("type")
+        path = event_data.get("path")
+        old_path = event_data.get("old_path")
+
+        if old_path and path:
+            self._handle_rename(old_path, path)
+        elif path:
+            parent_path = os.path.dirname(path)
+            if parent_path in self.items:
+                self._refresh_node_smart(parent_path)
+
+    def _handle_rename(self, old_path: str, new_path: str):
+        if old_path not in self.items:
+            parent_path = os.path.dirname(old_path)
+            if parent_path in self.items:
+                self._refresh_node_smart(parent_path)
+            parent_path = os.path.dirname(new_path)
+            if parent_path in self.items:
+                self._refresh_node_smart(parent_path)
+            return
+
+        old_node = self.items[old_path]
+        
+        if self.file_change_callback:
+            self.file_change_callback("rename", old_path, new_path)
+
+        old_node.update_path(new_path)
+
+        if not old_node.is_folder and old_node.parent:
+            old_node.parent.child_items = [c for c in old_node.parent.child_items if c != old_node]
+
+    def _refresh_node_smart(self, parent_path: str):
+        node = self.items.get(parent_path)
+        if not node or not node.is_folder:
+            return
+
+        node._is_reloading = True
+        try:
+            current_entries: Set[str] = set()
+            try:
+                current_entries = set(os.listdir(parent_path))
+            except (PermissionError, FileNotFoundError):
+                return
+
+            existing_names = {child.name for child in node.child_items}
+            new_entries = current_entries - existing_names
+            removed_names = existing_names - current_entries
+
+            if removed_names:
+                self._remove_stale_children(node, removed_names)
+
+            if new_entries:
+                self._add_new_children(node, new_entries)
+        finally:
+            node.after(100, lambda: setattr(node, '_is_reloading', False))
+
+    def _remove_stale_children(self, node: FileTreeItem, removed_names: Set[str]):
+        to_remove = [child for child in node.child_items if child.name in removed_names]
+        for child in to_remove:
+            if self.selected_item == child or self._is_descendant(self.selected_item, child):
+                self.selected_item = None
+            if self.file_change_callback:
+                self.file_change_callback("delete", child.path, "")
+            child._destroy_recursive()
+            node.child_items.remove(child)
+
+    def _add_new_children(self, node: FileTreeItem, new_names: Set[str]):
+        last_shown = node.child_items[-1] if node.child_items else node
+        entries = sorted(new_names, key=lambda x: (not os.path.isdir(os.path.join(node.path, x)), x.lower()))
+        
+        for entry in entries:
+            child_path = os.path.join(node.path, entry)
+            if child_path in self.items:
+                continue
+            child_node = self._add_node(child_path, node.level + 1, parent_node=node)
+            if child_node and last_shown.winfo_exists():
+                child_node.pack(fill="x", padx=(child_node._indent, 0), pady=(0, 0), after=last_shown)
+                last_shown = child_node
+                node.child_items.append(child_node)
+
+    def _is_descendant(self, item: Optional[FileTreeItem], ancestor: FileTreeItem) -> bool:
+        while item:
+            if item == ancestor:
+                return True
+            item = item.parent
+        return False
+
     def select_item(self, item: FileTreeItem):
-        """Handles visual selection of an item."""
-        if self.selected_item:
+        if self.selected_item and self.selected_item.winfo_exists():
             self.selected_item.configure_selected(False)
         
-        item.configure_selected(True)
         self.selected_item = item
+        if item and item.winfo_exists():
+            item.configure_selected(True)
+
+    def destroy(self):
+        if self.watchdog:
+            self.watchdog.stop_tracker()
+        super().destroy()

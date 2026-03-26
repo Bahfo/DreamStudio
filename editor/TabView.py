@@ -1,3 +1,4 @@
+import os
 import pathlib
 from PIL import Image
 import customtkinter as ctk
@@ -65,7 +66,7 @@ class TabView:
             text=f"  Solution: {number_of_files} files found",
             font=("Segoe UI", 12),
             fg_color=["#F5F5F5", "#1E1E1E"],
-            width=width - 2,
+            width=width - 30,
             image=project_image,
             compound="left",
             height=18,

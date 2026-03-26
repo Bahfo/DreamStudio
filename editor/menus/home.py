@@ -20,6 +20,7 @@ tab_count = 0
 naming_counter = 0
 notifications_class = {}
 current_session_editors_open = {}
+current_session_editors_content = {}
 image = "assets/system/styles.png"
 
 
@@ -332,6 +333,7 @@ def open_current_file(
             if target_editor:
                 target_editor.content.delete("1.0", "end")
                 target_editor.content.insert("1.0", content)
+                current_session_editors_content[tab_name] = content
 
                 if status_button:
                     status_button.configure(text=f"Opened: {current_file}")
@@ -376,6 +378,7 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
             content = f.read()
 
         tab_name = add_new_text_tab(tab_switch, editor_font, mode)
+        current_session_editors_content[tab_name] = content
 
         if tab_name:
             target_editor = next(
@@ -437,23 +440,31 @@ def open_file_from_tree(file_path, status_button, tab_switch, editor_font, mode)
 
 
 def on_close_tab_click(tabSwitch, event=None):
-    """Close the currently selected tab"""
+    """Close the currently selected tab and cleanup memory"""
     global tab_count
     current_tab = tabSwitch.get()
 
     if not current_tab:
-        messagebox.showwarning("No Tab", "No tab is currently selected")
+        if len(tabSwitch._name_list) == 0:
+            tab_count = 0 
         return
 
     for key, editor in list(current_session_editors_open.items()):
-        if editor._tab_name == current_tab:
+        if hasattr(editor, '_tab_name') and editor._tab_name == current_tab:
             del current_session_editors_open[key]
             break
 
-    tabSwitch.delete(current_tab)
+    try:
+        tabSwitch.delete(current_tab)
+    except Exception as e:
+        print(f"Tab deletion error: {e}")
+
+    if tab_count > 0:
+        tab_count -= 1
 
     if len(tabSwitch._name_list) == 0:
         tabSwitch._segmented_button.grid_forget()
+        tab_count = 0 
 
 
 def update_all_editors_theme(mode):
@@ -467,4 +478,39 @@ def update_all_editors_theme(mode):
         editor.configure(bg=editor.theme.border)
 
 
-# def save_temporary_file():
+def save_current_opened_file(tab_switch, save_popup=None):
+    current_tab = tab_switch.get()
+    
+    if not current_tab:
+        return # No tabs opened
+
+    # Finding the editor instance linked to the current tab
+    active_editor = None
+    for editor in current_session_editors_open.values():
+        if getattr(editor, '_tab_name', None) == current_tab:
+            active_editor = editor
+            break
+
+    if not active_editor:
+        return
+
+    # File already exists (Overwrite)
+    if hasattr(active_editor, 'file_path') and active_editor.file_path:
+        try:
+            content = active_editor.content.get("1.0", "end-1c")
+            with open(active_editor.file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+                
+            print(f"Successfully saved to {active_editor.file_path}")
+            
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Could not save file:\n{e}")
+
+    # New file created via add_new_text_tab (Prompt User)
+    else:
+        if save_popup:
+            save_popup.target_editor = active_editor
+            save_popup.tab_switch = tab_switch
+            save_popup.show()
+        else:
+            messagebox.showwarning("Notice", "Save functionality is missing the popup reference.")
