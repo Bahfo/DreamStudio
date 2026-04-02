@@ -32,3 +32,5 @@ build/
 tools.txt
 .fake
 redundant
+
+debounce_state.json

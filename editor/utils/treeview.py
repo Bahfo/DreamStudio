@@ -24,7 +24,17 @@ COLORS = {
 }
 
 class FileTreeItem(ctk.CTkFrame):
-    def __init__(self, master, parent_tree_ref, path: str, level: int = 0, is_folder: bool = False, parent_node: Optional['FileTreeItem'] = None, **kwargs):
+    def __init__(
+        self, 
+        master, 
+        parent_tree_ref, 
+        path: str, 
+        level: int = 0,
+        is_folder: bool = False, 
+        fg_color = ["#F5F5F5", "#1E1E1E"], 
+        parent_node: Optional['FileTreeItem'] = None, 
+        height=25, 
+        **kwargs):
         super().__init__(master, **kwargs)
 
         self.parent_tree = parent_tree_ref
@@ -35,13 +45,14 @@ class FileTreeItem(ctk.CTkFrame):
         self.parent = parent_node
         self.child_items: List['FileTreeItem'] = []
         self._is_reloading = False
+        self.pack_propagate(False)
 
         self.name = os.path.basename(path) or path
         self.ext = os.path.splitext(self.name)[1].replace(".", "") if not is_folder else "folder"
 
         self.configure(fg_color="transparent", height=22, corner_radius=0)
         
-        self._indent = level * 18
+        self._indent = level * 6
         
         self.arrow_label = ctk.CTkLabel(self, text="", width=16, font=("Segoe UI", 10, "bold"), height=20)
         self.arrow_label.pack(side="left", padx=(self._indent, 0), pady=0)
@@ -54,7 +65,8 @@ class FileTreeItem(ctk.CTkFrame):
         self.icon_label = ctk.CTkLabel(self, image=ICONS.get(icon_key, ICONS.get("default")), text="", width=16, height=20)
         self.icon_label.pack(side="left", padx=(2, 0), pady=0)
 
-        self.text_label = ctk.CTkLabel(self, text=self.name, font=("Segoe UI", 12), anchor="w", justify="left", height=20, padx=0)
+        self.text_label = ctk.CTkLabel(self, text=f"    {self.name}", 
+            font=("Segoe UI", 12), anchor="w", justify="left", height=23, padx=0)
         self.text_label.pack(side="left", fill="both", expand=True)
 
         for widget in [self, self.text_label, self.icon_label]:
@@ -192,7 +204,8 @@ class FileTreeItem(ctk.CTkFrame):
     def configure_selected(self, is_selected: bool):
         if not self.winfo_exists(): return
         mode = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
-        bg = COLORS[mode]["selected_bg"] if is_selected else "transparent"
+        colors = COLORS[mode]
+        bg = colors["selected_bg"] if is_selected else colors["bg"]
         self.configure(fg_color=bg)
 
 
