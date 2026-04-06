@@ -21,7 +21,7 @@ from editor.menus.home import *
 from editor.rename_util import *
 from backend.save import save_menu
 from editor.menu_builders import *
-from editor.utils.ctk_tabview import * 
+from editor.utils.ctk_tabview import *
 from editor.texteditor.config import Config
 from editor.texteditor.config.styles import Style
 
@@ -79,10 +79,10 @@ class App:
 
         self.workspace = dict[str, ctk.CTkButton]
         self.workspace_container = {
-            "path": None, 
+            "path": None,
             "name": "No Project",
             "files": [],
-            "is_git": False
+            "is_git": False,
         }
         self.mode = ctk.get_appearance_mode()
         self.shell_frame = None
@@ -117,9 +117,7 @@ class App:
         )
         self.app_style = Style(self.window, self.config_obj)
 
-        self.saveMenu = save_menu.SaveFile(
-            self.window, 
-            self.workspace_container)
+        self.saveMenu = save_menu.SaveFile(self.window, self.workspace_container)
         ###############################
         # MENUS LOOP ITERATION
         ###############################
@@ -283,7 +281,7 @@ class App:
             image_path=r"assets/system/save_file.png",
             text="Save",
             size=(20, 20),
-            command= lambda: save_current_opened_file(self.tabSwitch, self.saveMenu)
+            command=lambda: save_current_opened_file(self.tabSwitch, self.saveMenu),
         )
         saveBtn.place(x=116, y=5)
 
@@ -570,9 +568,13 @@ class App:
                 self.text_editor_mode_bool,
             )
         )
-        
+
         # Set up treeview file change callback
-        self.sidebar.treeView.file_change_callback = lambda event_type, old_path, new_path: self._on_file_change(event_type, old_path, new_path)
+        self.sidebar.treeView.file_change_callback = (
+            lambda event_type, old_path, new_path: self._on_file_change(
+                event_type, old_path, new_path
+            )
+        )
 
         #################################################################################################
         # BINDINGS
@@ -621,7 +623,7 @@ class App:
     def _on_file_change(self, event_type: str, old_path: str, new_path: str):
         for name, tab in self.tabSwitch._tab_dict.items():
             editor = tab.winfo_children()[0] if tab.winfo_children() else None
-            if editor and hasattr(editor, 'path') and editor.path == old_path:
+            if editor and hasattr(editor, "path") and editor.path == old_path:
                 if event_type == "rename":
                     editor.path = new_path
                     new_name = os.path.basename(new_path)
