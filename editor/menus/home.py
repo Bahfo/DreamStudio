@@ -331,12 +331,37 @@ def open_current_file(
             )
 
             if target_editor:
-                target_editor.content.delete("1.0", "end")
-                target_editor.content.insert("1.0", content)
-                current_session_editors_content[tab_name] = content
+                # Here comes the mess: structure is so bad I can't look at it anymore
+                file_name = os.path.basename(current_file)
+                file_name_with_spaces = "   " + file_name + "   "
+                new_tab_name = (
+                    file_name_with_spaces  # Adding a new variable to fix naming errors
+                )
+                target_editor._tab_name = new_tab_name
+                tab_switch.rename(tab_name, new_tab_name)
+                tab_name = new_tab_name
+
+                # Re-aliasing the name to prevent crashing
+                tab_name = new_tab_name
+                tab_switch.set(tab_name)
+
+                def activate_and_load(
+                    name=tab_name, editor=target_editor, data=content
+                ):
+                    """
+                    An insider function that all its purpose to update the idletasks of GUI simultaneously
+                    without the worry about using threaded (after) function. This is an internal function
+                    and has no outer usage.
+                    """
+                    editor.content.delete("1.0", "end")
+                    editor.content.insert("1.0", data)
+
+                activate_and_load()
+
+                target_editor.file_path = current_file
 
                 if status_button:
-                    status_button.configure(text=f"Opened: {current_file}")
+                    status_button.configure(text=f"Opened: {new_tab_name}")
 
     except Exception as e:
         messagebox.showerror("Error", f"Could not open file:\n{e}")
@@ -446,11 +471,11 @@ def on_close_tab_click(tabSwitch, event=None):
 
     if not current_tab:
         if len(tabSwitch._name_list) == 0:
-            tab_count = 0 
+            tab_count = 0
         return
 
     for key, editor in list(current_session_editors_open.items()):
-        if hasattr(editor, '_tab_name') and editor._tab_name == current_tab:
+        if hasattr(editor, "_tab_name") and editor._tab_name == current_tab:
             del current_session_editors_open[key]
             break
 
@@ -464,7 +489,7 @@ def on_close_tab_click(tabSwitch, event=None):
 
     if len(tabSwitch._name_list) == 0:
         tabSwitch._segmented_button.grid_forget()
-        tab_count = 0 
+        tab_count = 0
 
 
 def update_all_editors_theme(mode):
@@ -480,14 +505,14 @@ def update_all_editors_theme(mode):
 
 def save_current_opened_file(tab_switch, save_popup=None):
     current_tab = tab_switch.get()
-    
+
     if not current_tab:
-        return # No tabs opened
+        return  # No tabs opened
 
     # Finding the editor instance linked to the current tab
     active_editor = None
     for editor in current_session_editors_open.values():
-        if getattr(editor, '_tab_name', None) == current_tab:
+        if getattr(editor, "_tab_name", None) == current_tab:
             active_editor = editor
             break
 
@@ -495,14 +520,14 @@ def save_current_opened_file(tab_switch, save_popup=None):
         return
 
     # File already exists (Overwrite)
-    if hasattr(active_editor, 'file_path') and active_editor.file_path:
+    if hasattr(active_editor, "file_path") and active_editor.file_path:
         try:
             content = active_editor.content.get("1.0", "end-1c")
             with open(active_editor.file_path, "w", encoding="utf-8") as f:
                 f.write(content)
-                
+
             print(f"Successfully saved to {active_editor.file_path}")
-            
+
         except Exception as e:
             messagebox.showerror("Save Error", f"Could not save file:\n{e}")
 
@@ -513,4 +538,6 @@ def save_current_opened_file(tab_switch, save_popup=None):
             save_popup.tab_switch = tab_switch
             save_popup.show()
         else:
-            messagebox.showwarning("Notice", "Save functionality is missing the popup reference.")
+            messagebox.showwarning(
+                "Notice", "Save functionality is missing the popup reference."
+            )
