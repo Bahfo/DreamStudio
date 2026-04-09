@@ -12,9 +12,6 @@ from .symbol_extractor import SymbolExtractor
 class AutoComplete(Toplevel):
     """Autocomplete widget with proper lifecycle management."""
 
-    WIDGET_MIN_WIDTH = 300
-    MAX_ITEMS_DISPLAY = 20
-
     def __init__(self, master, items=None, active=False, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
 
@@ -72,7 +69,7 @@ class AutoComplete(Toplevel):
         """Trigger debounced Jedi update."""
         if self._debounce_id:
             self.after_cancel(self._debounce_id)
-        self._debounce_id = self.after(100, self._request_jedi_update)
+        self._debounce_id = self.after(250, self._request_jedi_update)
 
     def _request_jedi_update(self):
         """Request Jedi completions."""
@@ -99,17 +96,17 @@ class AutoComplete(Toplevel):
         """Compute completions in background thread."""
         try:
             script = jedi.Script(code)
-            self.self.jedi_results = {
+            jedi_results = {
                 c.name: {"type": c.type, "completion": c}
                 for c in script.complete(line, col)
             }
         except Exception:
-            self.jedi_results = {}
+            jedi_results = {}
 
         defined_names = SymbolExtractor.get_defined_names_before_cursor(code, line)
 
         filtered_results = {}
-        for name, meta in self.jedi_results.items():
+        for name, meta in jedi_results.items():
             if name in self._builtin_names or name in self._static_items:
                 filtered_results[name] = meta
             elif name in defined_names:
@@ -147,7 +144,7 @@ class AutoComplete(Toplevel):
             self.hide()
             return
 
-        self._render_items(new_active_data[: self.MAX_ITEMS_DISPLAY], term)
+        self._render_items(new_active_data[:10], term)
         self.refresh_geometry()
         self.deiconify()
         self.active = True
@@ -193,7 +190,7 @@ class AutoComplete(Toplevel):
 
     def add_item(self, text, meta=None):
         kind = meta.get("type") if meta else ""
-        item = AutoCompleteItem(self, text, kind=kind, min_width=self.WIDGET_MIN_WIDTH)
+        item = AutoCompleteItem(self, text, kind=kind)
         item.meta = meta
         self.menu_items.append(item)
 
@@ -242,10 +239,8 @@ class AutoComplete(Toplevel):
             return
 
         pos = self.master.cursor_screen_location()
-        # Calculate height based on active items (each ~25 pixels)
-        height = max(30, len(self.active_items) * 25)
-        # Set explicit geometry: WIDTHxHEIGHT+X+Y
-        self.geometry(f"{self.WIDGET_MIN_WIDTH}x{height}+{pos[0]}+{pos[1]}")
+        height = max(30, len(self.active_items) * 30)
+        self.geometry(f"{500}x{height}+{pos[0]}+{pos[1]}")
 
     def show(self, pos=None):
         """Show autocomplete at position or cursor."""

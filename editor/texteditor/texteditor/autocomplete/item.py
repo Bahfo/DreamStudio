@@ -7,7 +7,9 @@ from ...utils import Frame
 class AutoCompleteItem(Frame):
     """Autocomplete item with fixed minimum width."""
 
-    def __init__(self, master, text, kind=None, min_width=300, *args, **kwargs):
+    def __init__(
+        self, master, text, height=30, kind=None, min_width=500, *args, **kwargs
+    ):
         super().__init__(master, *args, **kwargs)
 
         theme = self.base.theme.autocomplete
@@ -16,6 +18,7 @@ class AutoCompleteItem(Frame):
         self.hbg = theme["activebackground"]
         self.hfg = theme["activeforeground"]
         self.accent = self.base.theme.accent
+        self.configure(height=height)
 
         self.text = text
         self.kind = kind
