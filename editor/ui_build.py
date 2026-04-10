@@ -48,13 +48,15 @@ class App:
         system = platform.system()
         scaling_factor = 1.0  # default
 
+        self.window.attributes("-zoomed", True)
+
         if system == "Windows":
             # Tk already respects Windows scaling
             scaling_factor = self.window.tk.call("tk", "scaling")
             self.window.iconbitmap(r"assets/logos/ds.ico")
             self.editor_initial_font = ("Consolas", 13)
         elif system == "Linux":
-            # Linux Mint: apply a reasonable factor to match Windows
+            # Linux: apply a reasonable factor to match Windows
             scaling_factor = 1.25
             set_window_scaling(scaling_factor)
             set_widget_scaling(scaling_factor)

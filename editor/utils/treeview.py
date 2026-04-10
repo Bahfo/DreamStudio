@@ -53,6 +53,12 @@ class FileTreeItem(ctk.CTkFrame):
         self.configure(fg_color="transparent", height=22, corner_radius=0)
         
         self._indent = level * 6
+
+        # Lazy loader: load children in chunks to keep UI responsive
+        self._is_loading_children = False
+        self._child_load_chunk_size = 100  # number of entries to load per tick
+        self._pending_child_entries = []  # type: List[str]
+        self._pending_child_index = 0
         
         self.arrow_label = ctk.CTkLabel(self, text="", width=16, font=("Segoe UI", 10, "bold"), height=20)
         self.arrow_label.pack(side="left", padx=(self._indent, 0), pady=0)
@@ -149,21 +155,49 @@ class FileTreeItem(ctk.CTkFrame):
         self._update_arrow_icon()
 
     def _load_children(self):
+        # Load children gradually to avoid blocking the UI when directories are large
+        if self._is_loading_children:
+            return
+        self._is_loading_children = True
         try:
-            entries = sorted(os.listdir(self.path), key=lambda x: (not os.path.isdir(os.path.join(self.path, x)), x.lower()))
-            last_shown = self
-            for entry in entries:
-                child_path = os.path.join(self.path, entry)
-                if child_path in self.parent_tree.items:
-                    continue
+            # Prepare a list of entries using scandir for better performance
+            try:
+                with os.scandir(self.path) as it:
+                    entries = [entry for entry in it if not self.parent_tree._should_ignore(entry.name, entry.is_dir())]
+                # sort: folders first, then by name
+                entries.sort(key=lambda e: (not e.is_dir(), e.name.lower()))
+            except (PermissionError, FileNotFoundError):
+                entries = []
+            self._pending_child_entries = [e.name for e in entries]
+            self._pending_child_index = 0
 
-                child_node = self.parent_tree._add_node(child_path, self.level + 1, parent_node=self)
-                if child_node and last_shown.winfo_exists():
-                    child_node.pack(fill="x", padx=(child_node._indent, 0), pady=(0, 0), after=last_shown)
-                    last_shown = child_node
-                    self.child_items.append(child_node)
-        except (PermissionError, FileNotFoundError):
-            pass
+            # Schedule first batch
+            self._load_next_chunk()
+        finally:
+            self._is_loading_children = False
+
+    def _load_next_chunk(self):
+        # Load the next chunk of children to keep UI responsive
+        if not self._pending_child_entries:
+            return
+        end = min(self._pending_child_index + self._child_load_chunk_size, len(self._pending_child_entries))
+        last_shown = self
+        for i in range(self._pending_child_index, end):
+            entry_name = self._pending_child_entries[i]
+            child_path = os.path.join(self.path, entry_name)
+            if child_path in self.parent_tree.items:
+                continue
+            child_node = self.parent_tree._add_node(child_path, self.level + 1, parent_node=self)
+            if child_node and last_shown.winfo_exists():
+                child_node.pack(fill="x", padx=(child_node._indent, 0), pady=(0, 0), after=last_shown)
+                last_shown = child_node
+                self.child_items.append(child_node)
+        self._pending_child_index = end
+        if self._pending_child_index < len(self._pending_child_entries):
+            self.after(1, self._load_next_chunk)
+        else:
+            self._pending_child_entries = []
+            self._pending_child_index = 0
 
     def _show_children(self):
         last_shown = self
@@ -191,6 +225,9 @@ class FileTreeItem(ctk.CTkFrame):
             if child.winfo_exists():
                 child.pack_forget()
             child.is_expanded = False
+        # If a batch of children is loading, cancel it to avoid unnecessary work
+        self._pending_child_entries = []
+        self._pending_child_index = 0
 
     def _destroy_recursive(self):
         for child in self.child_items:

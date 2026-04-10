@@ -125,7 +125,7 @@ class TabView:
             master=self.solutionExplorerFrame,
             width=350,
             height=530,
-            root_path=rf"{pathlib.Path.home()}",
+            root_path=rf"{pathlib.Path.home()}/Desktop",
         )
         self.treeView.place(x=5, y=60)
 

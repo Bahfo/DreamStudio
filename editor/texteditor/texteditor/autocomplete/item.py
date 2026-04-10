@@ -40,7 +40,7 @@ class AutoCompleteItem(Frame):
 
         self.textw = tk.Text(
             self,
-            font=("Consolas", 10),
+            font=("Jetbrains Mono", 10),
             fg=self.fg,
             bg=self.bg,
             width=char_width,
@@ -55,7 +55,7 @@ class AutoCompleteItem(Frame):
         self.infobtn = tk.Label(
             self,
             text="›",
-            font=("Consolas", 10),
+            font=("Jetbrains Mono", 10),
             fg=self.fg,
             bg=self.bg,
             padx=3,
@@ -170,7 +170,7 @@ class Documentation(ctk.CTkToplevel):
         self.height = 450
         self.overrideredirect(True)
 
-        self.box = ctk.CTkTextbox(self, font=("Consolas", 12))
+        self.box = ctk.CTkTextbox(self, font=("Jetbrains Mono", 12))
         self.box.pack(fill="both", expand=True, padx=5, pady=5)
         self.box.configure(state="disabled")
 

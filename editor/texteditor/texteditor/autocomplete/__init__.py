@@ -4,6 +4,7 @@ import logging
 from threading import Thread, Lock
 
 from ...utils import Toplevel
+
 logger = logging.getLogger(__name__)
 from .item import AutoCompleteItem
 from .kinds import Kinds
@@ -338,7 +339,7 @@ class AutoComplete(Toplevel):
             return
 
         pos = self.master.cursor_screen_location()
-        height = max(30, len(self.active_items) * 30)
+        height = max(27, len(self.active_items) * 27)
         self.geometry(f"{500}x{height}+{pos[0]}+{pos[1]}")
 
     def show(self, pos=None):
