@@ -28,6 +28,11 @@ class AutoComplete(Toplevel):
         if not active:
             self.withdraw()
 
+        # Bind mouse wheel for scrolling
+        self.bind("<MouseWheel>", self._on_mousewheel)
+        self.bind("<Button-4>", self._on_mousewheel)  # Linux
+        self.bind("<Button-5>", self._on_mousewheel)  # Linux
+
         self.menu_items = []
         self.active_items = []
         self.row = 0
@@ -37,6 +42,7 @@ class AutoComplete(Toplevel):
         self._debounce_id = None
         self._jedi_thread = None
         self._request_id = 0
+        self._scroll_offset = 0  # For scrolling through completions
 
         if items is None:
             self.items = {}
@@ -49,6 +55,13 @@ class AutoComplete(Toplevel):
         self._static_items.update(self.items)
 
         self._builtin_names = set(python_completions.keys())
+
+        # Widget pooling: Pre-create 10 items for reuse
+        self._item_pool = []
+        self._pool_size = 10
+        for _ in range(self._pool_size):
+            item = AutoCompleteItem(self, "")
+            self._item_pool.append(item)
 
         self.add_all_items()
         self.refresh_selected()
@@ -76,7 +89,7 @@ class AutoComplete(Toplevel):
         self._debounce_id = None
 
         term = self.master.get_current_word()
-        line, col = map(int, self.master.index("insert").split("."))
+        line, col = map(int, self.master.index(tk.INSERT).split("."))
         code = self.master.get_all_text()
 
         self._request_id += 1
@@ -120,6 +133,49 @@ class AutoComplete(Toplevel):
 
         self.after(0, lambda: self._update_ui(all_items, term, request_id))
 
+    def _score_match(self, term, name):
+        """Score a completion match for better relevance."""
+        if not term:
+            return 0
+        if not name:
+            return -1000  # Very low score for empty names
+
+        term_lower = term.lower()
+        name_lower = name.lower()
+
+        # Exact match
+        if term_lower == name_lower:
+            return 1000
+
+        # Starts with term
+        if name_lower.startswith(term_lower):
+            return 900 + len(term)  # Longer term = higher score
+
+        # Contains term
+        pos = name_lower.find(term_lower)
+        if pos != -1:
+            # Earlier position = higher score
+            # Fewer gaps between matched chars = higher score
+            return 800 - pos * 10
+
+        # Fuzzy matching: count consecutive matches
+        # Simple version: count how many chars of term appear in order in name
+        term_idx = 0
+        name_idx = 0
+        matched_chars = 0
+
+        while term_idx < len(term_lower) and name_idx < len(name_lower):
+            if term_lower[term_idx] == name_lower[name_idx]:
+                matched_chars += 1
+                term_idx += 1
+            name_idx += 1
+
+        if matched_chars > 0:
+            # Score based on percentage of term matched and consecutiveness
+            return 700 + (matched_chars * 10) - ((len(term) - matched_chars) * 5)
+
+        return 0  # No match
+
     def _update_ui(self, items, term, request_id):
         """Update UI from main thread."""
         if request_id != self._request_id:
@@ -128,43 +184,82 @@ class AutoComplete(Toplevel):
         if not self.winfo_exists():
             return
 
-        exact, starts, includes = [], [], []
+        if not term:
+            # No term, show all items
+            scored_items = [(name, meta, 0) for name, meta in items.items()]
+        else:
+            # Score all items
+            scored_items = []
+            for name, meta in items.items():
+                score = self._score_match(term, name)
+                if score > 0:  # Only include items with some match
+                    scored_items.append((name, meta, score))
 
-        for name, meta in items.items():
-            if not term or name == term:
-                exact.append((name, meta))
-            elif name.startswith(term):
-                starts.append((name, meta))
-            elif term in name:
-                includes.append((name, meta))
-
-        new_active_data = exact + starts + includes
+        # Sort by score (descending) and take items based on scroll offset
+        scored_items.sort(key=lambda x: x[2], reverse=True)
+        # Track maximum offset for scrolling (show 10 items at a time)
+        self._scroll_max = max(0, len(scored_items) - 10)
+        # Get items for current view (10 items at a time)
+        start_idx = self._scroll_offset
+        end_idx = start_idx + 10
+        new_active_data = [
+            (name, meta) for name, meta, score in scored_items[start_idx:end_idx]
+        ]
 
         if not new_active_data:
             self.hide()
             return
 
-        self._render_items(new_active_data[:10], term)
+        self._render_items(new_active_data, term)
         self.refresh_geometry()
         self.deiconify()
         self.active = True
 
+    def _on_mousewheel(self, event):
+        """Handle mouse wheel scrolling for completions."""
+        if not self.active or not self.active_items:
+            return "break"
+        # Determine scroll direction (1 item per notch)
+        if getattr(event, "num", None) == 5 or getattr(event, "delta", 0) < 0:
+            delta = 1
+        else:
+            delta = -1
+        max_off = getattr(self, "_scroll_max", 0)
+        current = getattr(self, "_scroll_offset", 0)
+        self._scroll_offset = max(0, min(max_off, current + delta))
+        # Refresh UI with new offset using cached items if available
+        with self._lock:
+            cache = getattr(self, "_last_jedi_cache", None)
+        if cache:
+            request_id, items = cache
+            term = (
+                self.master.get_current_word()
+                if hasattr(self.master, "get_current_word")
+                else ""
+            )
+            self._update_ui(items, term, request_id)
+        return "break"
+
     def _render_items(self, items_data, term):
-        """Render visible items."""
-        existing_texts = {i.get_text() for i in self.menu_items}
-
-        for name, meta in items_data:
-            if name not in existing_texts:
-                self.add_item(name, meta)
-
+        """Render visible items using widget pool."""
         self.hide_all_items()
 
+        # Use pooled widgets, updating their content
         display_items = []
-        for name, meta in items_data:
-            for item in self.menu_items:
-                if item.get_text() == name:
-                    display_items.append(item)
-                    break
+        for i, (name, meta) in enumerate(items_data[: self._pool_size]):
+            if i < len(self._item_pool):
+                item = self._item_pool[i]
+                item.text = name
+                item.kind = meta.get("type") if meta else ""
+                item.meta = meta
+                # Update the UI components
+                # For tk.Text widget, we need to delete and insert text
+                item.textw.configure(state="normal")
+                item.textw.delete("1.0", "end")
+                item.textw.insert("1.0", name)
+                item.textw.configure(state="disabled")
+                item.kindw.set_kind(item.kind)
+                display_items.append(item)
 
         self.show_items(display_items, term)
 
@@ -182,17 +277,15 @@ class AutoComplete(Toplevel):
 
     # Item management
     def add_all_items(self):
-        for completion, meta in self.items.items():
-            self.add_item(completion, meta.get("type") if meta else None)
-
-        self.active_items = self.menu_items
+        # With widget pooling, we don't need to pre-add all items
+        # Items will be added dynamically in _render_items
+        self.active_items = []
         self.refresh_selected()
 
+    # add_item is no longer needed with widget pooling
+    # Keeping it for compatibility but it won't be used
     def add_item(self, text, meta=None):
-        kind = meta.get("type") if meta else ""
-        item = AutoCompleteItem(self, text, kind=kind)
-        item.meta = meta
-        self.menu_items.append(item)
+        pass  # Widget pooling handles item creation
 
     def hide_all_items(self):
         for i in self.menu_items:
@@ -289,6 +382,28 @@ class AutoComplete(Toplevel):
         self.destroy_widget()
 
     def show_item_info(self, name, code, line, column):
+        # 1) Try to use cached Jedi completions for performance
+        with self._lock:
+            cache = getattr(self, "_last_jedi_cache", None)
+        if cache:
+            request_id, items = cache
+            if name in items:
+                comp = items[name].get("completion")
+                if comp is not None:
+                    try:
+                        sig = comp.get_signatures()
+                        sig_text = sig[0].to_string() if sig else ""
+                        return (
+                            f"Name: {comp.name}\n"
+                            f"Type: {comp.type}\n"
+                            f"Description: {comp.description}\n"
+                            f"Signature: {sig_text}\n\n"
+                            f"{comp.docstring()}"
+                        )
+                    except Exception:
+                        pass
+
+        # 2) Fallback: compute using Jedi normally
         script = jedi.Script(code)
         completions = script.complete(line, column)
 

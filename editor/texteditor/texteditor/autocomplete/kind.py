@@ -16,6 +16,11 @@ class Kind(Label):
         self.config(bg=self.base.theme.autocomplete["background"])
         self.config_image()
 
+    def set_kind(self, kind):
+        """Update the displayed icon for the given kind."""
+        self.kind = kind or ""
+        self.config_image()
+
     def config_image(self):
         match self.kind:
             case "method":

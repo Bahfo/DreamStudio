@@ -21,30 +21,33 @@ class AutoCompleteItem(Frame):
         self.configure(height=height)
 
         self.text = text
-        self.kind = kind
+        self.kind = kind or ""  # Handle None case
         self.selected = False
         self.min_width = min_width
+        self.meta = None  # For storing metadata
 
         # Frame config
         self.config(bg=self.bg, pady=2, padx=1)
         self.grid_columnconfigure(1, weight=1)
 
         # Kind Icon
-        self.kindw = Kind(self, self.master.autocomplete_kinds, kind)
+        self.kindw = Kind(self, self.master.autocomplete_kinds, kind or "")
 
         char_width = max(1, (min_width - 32) // 6)
 
-        self.textw = tk.Label(
+        self.textw = tk.Text(
             self,
-            text=text,
             font=("Consolas", 10),
             fg=self.fg,
             bg=self.bg,
-            anchor=tk.W,
-            justify=tk.LEFT,
             width=char_width,
-            wraplength=min_width - 32,
+            height=1,
+            wrap="none",
+            highlightthickness=0,
+            borderwidth=0,
         )
+        self.textw.insert("1.0", text)
+        self.textw.configure(state="disabled")
 
         # Info Button
         self.infobtn = tk.Label(
@@ -84,12 +87,23 @@ class AutoCompleteItem(Frame):
             self.textw.config(fg=self.fg)
             return
 
+        # Enable editing to apply tags
+        self.textw.configure(state="normal")
+        
+        # Clear previous tags
+        self.textw.tag_remove("highlight", "1.0", "end")
+        
+        # Find term position and highlight
         start_idx = self.text.lower().find(term.lower())
-        if start_idx == -1:
+        if start_idx != -1:
+            end_idx = start_idx + len(term)
+            self.textw.tag_add("highlight", f"1.{start_idx}", f"1.{end_idx}")
+            self.textw.tag_config("highlight", foreground=self.accent)
+        else:
             self.textw.config(fg=self.fg)
-            return
-
-        self.textw.config(fg=self.accent)
+        
+        # Disable editing
+        self.textw.configure(state="disabled")
 
     def on_click(self, *args):
         """Handle click - choose item."""
@@ -97,17 +111,34 @@ class AutoCompleteItem(Frame):
 
     def on_info_click(self, event):
         editor = self.master.master
-
         line, column = map(int, editor.index("insert").split("."))
+        name = self.get_text()
+        code = editor.get_all_text()
 
-        content = self.master.show_item_info(
-            name=self.get_text(), code=editor.get_all_text(), line=line, column=column
-        )
-
+        # Get or create documentation widget
         root = self.winfo_toplevel()
+        if not hasattr(root, 'doc_widget') or not root.doc_widget.winfo_exists():
+            root.doc_widget = Documentation(root)
+        
+        # Show loading state
+        root.doc_widget.show_loading()
+        root.doc_widget.show_near(self.infobtn)
 
-        doc = Documentation(root, content)
-        doc.show_near(self.infobtn)
+        # Fetch documentation in background thread
+        def fetch_docs():
+            try:
+                content = self.master.show_item_info(
+                    name=name, code=code, line=line, column=column
+                )
+                # Update UI on main thread
+                root.doc_widget.after(0, lambda: root.doc_widget.show_content(content))
+            except Exception as e:
+                error_msg = f"Error loading documentation: {str(e)}"
+                root.doc_widget.after(0, lambda: root.doc_widget.show_content(error_msg))
+
+        from threading import Thread
+        thread = Thread(target=fetch_docs, daemon=True)
+        thread.start()
 
     def on_hover(self, *args):
         if not self.selected:
@@ -133,19 +164,42 @@ class AutoCompleteItem(Frame):
         self.infobtn.config(bg=bg, fg=fg)
 
 
-class Documentation(ctk.CTkScrollableFrame):
+class Documentation(ctk.CTkToplevel):
 
-    def __init__(self, master, text):
-        super().__init__(master, width=350, height=450)
+    def __init__(self, master):
+        super().__init__(master)
+        self.width = 350
+        self.height = 450
 
         self.box = ctk.CTkTextbox(self, font=("Consolas", 12))
         self.box.pack(fill="both", expand=True, padx=5, pady=5)
+        self.box.configure(state="disabled")
 
+        # Make it float without title bar
+        self.overrideredirect(True)
+        self.wm_attributes("-topmost", True)
+
+        # Bind escape key to close
+        self.bind("<Escape>", lambda e: self.withdraw())
+        # Bind click outside to close
+        self.bind("<FocusOut>", lambda e: self.withdraw() if not self.winfo_containing(e.x_root, e.y_root) else None)
+
+    def show_loading(self):
+        """Show loading state."""
+        self.box.configure(state="normal")
+        self.box.delete("1.0", "end")
+        self.box.insert("1.0", "Loading documentation...")
+        self.box.configure(state="disabled")
+
+    def show_content(self, text):
+        """Show documentation content."""
+        self.box.configure(state="normal")
+        self.box.delete("1.0", "end")
         self.box.insert("1.0", text)
         self.box.configure(state="disabled")
 
     def show_near(self, widget):
         x = widget.winfo_rootx() + widget.winfo_width() + 5
         y = widget.winfo_rooty()
-
-        self.place(x=x, y=y)
+        self.geometry(f"{self.width}x{self.height}+{x}+{y}")
+        self.deiconify()
