@@ -1,8 +1,10 @@
 import jedi
 import tkinter as tk
+import logging
 from threading import Thread, Lock
 
 from ...utils import Toplevel
+logger = logging.getLogger(__name__)
 from .item import AutoCompleteItem
 from .kinds import Kinds
 from .languages.python_completions import python_completions
@@ -114,6 +116,7 @@ class AutoComplete(Toplevel):
                 for c in script.complete(line, col)
             }
         except Exception:
+            logger.exception("Jedi computation failed in _compute_jedi")
             jedi_results = {}
 
         defined_names = SymbolExtractor.get_defined_names_before_cursor(code, line)
@@ -219,11 +222,14 @@ class AutoComplete(Toplevel):
         """Handle mouse wheel scrolling for completions."""
         if not self.active or not self.active_items:
             return "break"
-        # Determine scroll direction (1 item per notch)
-        if getattr(event, "num", None) == 5 or getattr(event, "delta", 0) < 0:
-            delta = 1
+        # Normalize wheel delta across platforms
+        delta = 0
+        if getattr(event, "num", None) in (4, 5):
+            # Linux: Button-4 (up) and Button-5 (down)
+            delta = -1 if getattr(event, "num") == 4 else 1
         else:
-            delta = -1
+            # Windows/macOS
+            delta = -1 if getattr(event, "delta", 0) > 0 else 1
         max_off = getattr(self, "_scroll_max", 0)
         current = getattr(self, "_scroll_offset", 0)
         self._scroll_offset = max(0, min(max_off, current + delta))
@@ -390,27 +396,35 @@ class AutoComplete(Toplevel):
             if name in items:
                 comp = items[name].get("completion")
                 if comp is not None:
+                    sig_text = ""
                     try:
                         sig = comp.get_signatures()
                         sig_text = sig[0].to_string() if sig else ""
-                        return (
-                            f"Name: {comp.name}\n"
-                            f"Type: {comp.type}\n"
-                            f"Description: {comp.description}\n"
-                            f"Signature: {sig_text}\n\n"
-                            f"{comp.docstring()}"
-                        )
                     except Exception:
-                        pass
+                        sig_text = ""
+                    return (
+                        f"Name: {comp.name}\n"
+                        f"Type: {comp.type}\n"
+                        f"Description: {comp.description}\n"
+                        f"Signature: {sig_text}\n\n"
+                        f"{comp.docstring()}"
+                    )
 
         # 2) Fallback: compute using Jedi normally
         script = jedi.Script(code)
-        completions = script.complete(line, column)
+        try:
+            completions = script.complete(line, column)
+        except Exception:
+            return "No documentation available."
 
         for c in completions:
             if c.name == name:
-                sig = c.get_signatures()
-                sig_text = sig[0].to_string() if sig else ""
+                sig_text = ""
+                try:
+                    sig = c.get_signatures()
+                    sig_text = sig[0].to_string() if sig else ""
+                except Exception:
+                    sig_text = ""
 
                 return (
                     f"Name: {c.name}\n"

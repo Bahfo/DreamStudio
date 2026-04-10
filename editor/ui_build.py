@@ -60,7 +60,7 @@ class App:
             set_widget_scaling(scaling_factor)
             icon = PhotoImage(file="assets/logos/dreamStudio_icon.png")
             self.window.iconphoto(True, icon)
-            self.editor_initial_font = ("Liberation Mono", 10)
+            self.editor_initial_font = ("Jetbrains Mono", 10)
         elif system == "Darwin":
             # macOS Retina displays usually need 2.0 scaling
             scaling_factor = 2.0
