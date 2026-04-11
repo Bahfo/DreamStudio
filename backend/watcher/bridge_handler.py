@@ -91,12 +91,12 @@ class Debouncer:
         path,
         delay=0.2,
         output_queue=None,
-        persist_file=f"/dreamstudio_state.json",
+        persist_file=f"dreamstudio_state.json",
     ):
         self.delay = delay
         self.pending = {}  # path -> {"event":..., "time":...}
         self.output_queue = output_queue
-        self.persist_file = path + persist_file
+        self.persist_file = persist_file
         self.load_state()
         import atexit
 
