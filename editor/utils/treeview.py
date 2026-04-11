@@ -144,9 +144,12 @@ class FileTreeItem(ctk.CTkFrame):
 
     def _on_drop(self, event):
         self.configure(cursor="")
-        target = self.winfo_containing(event.x_root, event.y_root)
-        while target and not isinstance(target, FileTreeItem):
-            target = target.master
+        try:
+            target = self.winfo_containing(event.x_root, event.y_root)
+            while target and not isinstance(target, FileTreeItem):
+                target = target.master
+        except Exception:
+            target = None
 
         if target and target != self:
             dest_dir = target.path if target.is_folder else os.path.dirname(target.path)
