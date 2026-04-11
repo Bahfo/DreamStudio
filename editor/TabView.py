@@ -126,7 +126,7 @@ class TabView:
             master=self.solutionExplorerFrame,
             width=350,
             height=530,
-            root_path=path,
+            root_path="",
         )
         self.treeView.place(x=5, y=60)
 

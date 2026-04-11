@@ -4,7 +4,7 @@ import tkinter
 import customtkinter as ctk
 from editor.utils.ctk_scrollable_frame import CTkScrollableFrame
 from typing import Callable, Optional, List, Set, Dict, Tuple
-from editor.utils.icons_utils import *
+from editor.utils.icons_utils import get_icon, has_icon, preload_icons
 
 COLORS = {
     "light": {
@@ -78,11 +78,11 @@ class FileTreeItem(ctk.CTkFrame):
         icon_key = (
             "folder"
             if self.is_folder
-            else (self.ext if self.ext in ICONS else "default")
+            else (self.ext if has_icon(self.ext) else "default")
         )
         self.icon_label = ctk.CTkLabel(
             self,
-            image=ICONS.get(icon_key, ICONS.get("default")),
+            image=get_icon(icon_key) or get_icon("default"),
             text="",
             width=16,
             height=20,
@@ -177,9 +177,9 @@ class FileTreeItem(ctk.CTkFrame):
         icon_key = (
             "folder"
             if self.is_folder
-            else (self.ext if self.ext in ICONS else "default")
+            else (self.ext if has_icon(self.ext) else "default")
         )
-        self.icon_label.configure(image=ICONS.get(icon_key, ICONS.get("default")))
+        self.icon_label.configure(image=get_icon(icon_key) or get_icon("default"))
 
     def toggle(self):
         if not self.is_folder or not os.path.exists(self.path):
@@ -348,13 +348,12 @@ class FileTree(CTkScrollableFrame):
         self.selected_item = None
         self.items: Dict[str, FileTreeItem] = {}
         self.watchdog = None
+        self._tree_populated = False
+        self._watchdog_started = False
 
         self._scrollbar.configure(
             corner_radius=0, width=8, fg_color=["#F5F5F5", "#1E1E1E"]
         )
-
-        if self.root_path and os.path.exists(self.root_path):
-            self.populate_tree(self.root_path)
 
     def _should_ignore(self, name: str, is_dir: bool) -> bool:
         if name.startswith((".", "~$", ".~")):
@@ -363,25 +362,34 @@ class FileTree(CTkScrollableFrame):
         return any(pattern in name_lower for pattern in self.ignore_patterns)
 
     def populate_tree(self, root_path: str):
+        if self._tree_populated and self.root_path == root_path:
+            return
+        
         self.root_path = root_path
         for widget in self.winfo_children():
             if isinstance(widget, FileTreeItem):
                 widget.destroy()
 
         self.items = {}
-        if self.watchdog:
-            self.watchdog.stop_tracker()
+        self._stop_watcher()
 
         root_node = self._add_node(root_path, level=0)
         if root_node:
             root_node.pack(fill="x", padx=(0, 0), pady=(0, 0))
 
+        self._tree_populated = True
+
+    def _ensure_watcher_started(self):
+        if self._watchdog_started or not self._tree_populated:
+            return
+        
         from backend.watcher.core import WatchDog
 
         self.watchdog = WatchDog(
             path=self.root_path, gui_callback=self._on_fs_event_safe
         )
-        self.watchdog.start_tracker(root_path)
+        self.watchdog.start_tracker(self.root_path)
+        self._watchdog_started = True
 
     def _add_node(
         self, path: str, level: int, parent_node: Optional[FileTreeItem] = None
@@ -519,7 +527,10 @@ class FileTree(CTkScrollableFrame):
         if item and item.winfo_exists():
             item.configure_selected(True)
 
-    def destroy(self):
+    def _stop_watcher(self):
         if self.watchdog:
             self.watchdog.stop_tracker()
+
+    def destroy(self):
+        self._stop_watcher()
         super().destroy()

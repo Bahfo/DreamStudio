@@ -10,7 +10,7 @@ import os
 
 from pathlib import Path
 from .bridge_handler import *
-from threading import Thread
+from threading import Thread, Event
 from queue import Queue
 from .project_types import *
 from watchdog.observers import Observer
@@ -113,9 +113,11 @@ class WatchDog:
         self.gui_callback = gui_callback  # optional GUI hook
         self.worker_thread = None
         self.loop_thread = None
+        self._stop_event = Event()
 
     # Start background threads
     def start_tracker(self, project_path):
+        self._stop_event.clear()
         self.observer.schedule(self.handler, path=project_path, recursive=True)
         self.observer.start()
         print(f"Tracker started on: {project_path}")
@@ -129,13 +131,16 @@ class WatchDog:
         self.loop_thread.start()
 
     def debouncer_worker(self):
-        while True:
+        while not self._stop_event.is_set():
             self.debouncer.poll()
             time.sleep(0.05)
 
     def looping(self):
-        while True:
-            stable_event = self.event_queue.get()
+        while not self._stop_event.is_set():
+            try:
+                stable_event = self.event_queue.get(timeout=0.1)
+            except:
+                continue
             # Call C engine or GUI callback
             if self.gui_callback:
                 self.gui_callback(stable_event)
@@ -144,6 +149,11 @@ class WatchDog:
 
     # Stop observer and threads (call on GUI exit)
     def stop_tracker(self):
+        self._stop_event.set()
         self.observer.stop()
-        self.observer.join()
+        self.observer.join(timeout=1.0)
+        if self.worker_thread and self.worker_thread.is_alive():
+            self.worker_thread.join(timeout=1.0)
+        if self.loop_thread and self.loop_thread.is_alive():
+            self.loop_thread.join(timeout=1.0)
         print("Tracker stopped")

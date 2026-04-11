@@ -80,6 +80,9 @@ class App:
         # DEFINITIONS
         ##############################
 
+        # CLEANUP ON CLOSE
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
+
         self.workspace = dict[str, ctk.CTkButton]
         self.workspace_container = {
             "path": None,
@@ -477,7 +480,6 @@ class App:
         ##############################
         # SERVICES LEFTMOST BAR
         ##############################
-
         self.services_bar = ctk.CTkFrame(self.window, width=50, corner_radius=-1)
         self.services_bar.pack_propagate(False)
         self.services_bar.pack(side="left", fill="y")
@@ -760,5 +762,46 @@ class App:
 
     @lru_cache(maxsize=None)
     def run(self):
+        self.window.after(100, self._deferred_init)
         self.window.mainloop()
         self.window.update_idletasks()
+
+    def _deferred_init(self):
+        try:
+            self.sidebar.treeView.populate_tree(self.path)
+        except Exception as e:
+            print(f"Deferred init error: {e}")
+
+    def _on_tree_interaction(self):
+        self.sidebar.treeView._ensure_watcher_started()
+
+    #### CLEANUP LOGIC ####
+
+    def on_close(self):
+        self._cleanup()
+        import threading
+        import time
+        import os
+
+        def delayed_force_exit():
+            time.sleep(0.5)
+            os._exit(0)
+
+        t = threading.Thread(target=delayed_force_exit, daemon=True)
+        t.start()
+
+    def _cleanup(self):
+        if hasattr(self, "tabSwitch") and self.tabSwitch:
+            for tab_name in list(self.tabSwitch._tab_dict.keys()):
+                self.tabSwitch.delete(tab_name)
+
+        if hasattr(self, "shell_frame") and self.shell_frame:
+            try:
+                self.shell_frame.destroy()
+            except Exception:
+                pass
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "treeView"):
+            self.sidebar.treeView._stop_watcher()
+
+        self.window.quit()

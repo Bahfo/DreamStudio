@@ -52,8 +52,14 @@ class TextEditor(BaseEditor):
         self.text.bind("<<Change>>", self.on_change)
         self.text.bind("<<Scroll>>", self.on_scroll)
 
+        self._file_loaded = False
         if self.path and os.path.isfile(self.path):
+            self.after_idle(self._ensure_file_loaded)
+
+    def _ensure_file_loaded(self):
+        if not self._file_loaded and self.path and os.path.isfile(self.path):
             self.text.load_file()
+            self._file_loaded = True
 
     # -------------------------------------------------------------------------
     # Change / scroll callbacks
