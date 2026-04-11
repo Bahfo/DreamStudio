@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+
 class LinkLabel(ctk.CTkFrame):
     """
     A clickable link label that changes color on hover.
@@ -24,9 +25,9 @@ class LinkLabel(ctk.CTkFrame):
         self.link_color = link_color
         self.after_link_color = after_link_color
         self.corner_radius = corner_radius
-        self.font = font or ("Segoe UI", 12)
-        self.width=width
-        self.height=height
+        self.font = font or ("inter", 12)
+        self.width = width
+        self.height = height
 
         self.hoverframe = ctk.CTkFrame(
             self,
@@ -34,14 +35,14 @@ class LinkLabel(ctk.CTkFrame):
             height=self.height,
             fg_color=parent.cget("fg_color"),
             corner_radius=self.corner_radius,
-            border_width=0
+            border_width=0,
         )
         self.hoverframe.pack(fill="both")
         self.hoverframe.pack_propagate(False)
 
         self.label = ctk.CTkLabel(
             self.hoverframe,
-            text=text, 
+            text=text,
             font=self.font,
             text_color=self.link_color,
         )

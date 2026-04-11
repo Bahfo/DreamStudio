@@ -3,6 +3,7 @@ from typing import List, Dict
 from typing import List, Dict, Any
 from tkinter import messagebox as mb
 
+
 class LayoutsTab(ctk.CTkFrame):
     def __init__(
         self,
@@ -10,7 +11,7 @@ class LayoutsTab(ctk.CTkFrame):
         textbox: ctk.CTkTextbox,
         foreground_color,
         text_color,
-        placeholder_color = ["#CCCCCC","#1E1E1E"],
+        placeholder_color=["#CCCCCC", "#1E1E1E"],
         max_layouts: int = 16,
         initial_layouts: int = 1,
         *args,
@@ -89,7 +90,7 @@ class LayoutsTab(ctk.CTkFrame):
             width=90,
             fg_color=self.foreground_color,
             text_color=self.text_color,
-            font=("Segoe UI", 12, "normal"),
+            font=("inter", 12, "normal"),
             height=20,
         )
         title_btn.pack(side="left", padx=(2, 0))
@@ -101,7 +102,7 @@ class LayoutsTab(ctk.CTkFrame):
             height=20,
             fg_color=self.foreground_color,
             text_color=self.text_color,
-            font=("Segoe UI", 12, "bold"),
+            font=("inter", 12, "bold"),
             corner_radius=0,
         )
         close_btn.pack(side="right", padx=(0, 2))
@@ -153,10 +154,10 @@ class LayoutsTab(ctk.CTkFrame):
     def _highlight_active_tab(self):
         for i, tab in enumerate(self.tab_widgets):
             if i == self.active_index:
-                tab["title_btn"].configure(font=("Segoe UI Italic", 12))
+                tab["title_btn"].configure(font=("inter Italic", 12))
                 tab["title_btn"].configure(text_color=self.placeholder_color)
             else:
-                tab["title_btn"].configure(font=("Segoe UI", 12, "normal"))
+                tab["title_btn"].configure(font=("inter", 12, "normal"))
                 tab["title_btn"].configure(text_color=self.text_color)
 
     # ---------------- CLOSE / RENAME ----------------
@@ -202,4 +203,3 @@ class LayoutsTab(ctk.CTkFrame):
 
         btn = ctk.CTkButton(popup, text="Apply", command=apply_and_close)
         btn.pack(pady=8)
-

@@ -42,13 +42,14 @@ open_menu = {
 # MAIN WINDOW
 #######################################
 class App:
-    def __init__(self, workspace):
+    def __init__(self, workspace, path):
         self.window = ctk.CTk()
         screen_dpi = self.window.winfo_fpixels("1i")
         system = platform.system()
         scaling_factor = 1.0  # default
 
         self.window.attributes("-zoomed", True)
+        self.path = path
 
         if system == "Windows":
             # Tk already respects Windows scaling
@@ -95,7 +96,7 @@ class App:
             self.text_editor_mode_bool = True
 
         # Segmented Buttons Sepcific Font
-        self.seg_font = ctk.CTkFont(family="Segoe UI", size=12, weight="normal")
+        self.seg_font = ctk.CTkFont(family="inter", size=12, weight="normal")
 
         self.font_size_var = ctk.IntVar(value=14)
         self.code_font_var = ctk.StringVar(value="Consolas")
@@ -115,24 +116,31 @@ class App:
             master=self.window,
             darkmode=True if self.mode == "dark" else False,
             font=("Consolas", 11),
-            uifont=("Segoe UI", 11),
+            uifont=("inter", 11),
         )
         self.app_style = Style(self.window, self.config_obj)
 
         self.saveMenu = save_menu.SaveFile(self.window, self.workspace_container)
+
         ###############################
-        # MENUS LOOP ITERATION
+        # MENUS
         ###############################
         self.menubar = CTkMenuBar(
             self.window, bg_color="#004073", width=20, padx=6, pady=2
         )
 
+        main_icon = ctk.CTkLabel(self.menubar, text="", image=ide_icon)
+        main_icon.grid(padx=(5, 35))
+
         file_button = self.menubar.add_cascade(
-            "File", text_color="#FFFFFF", font=("Segoe UI", 12)
+            "File",
+            text_color="#FFFFFF",
+            font=("inter", 12),
+            padx=40,
         )
         # File dropdown menu and its options
         file_dropdown = CustomDropdownMenu(
-            widget=file_button, corner_radius=0, font=("Segoe UI", 12)
+            widget=file_button, corner_radius=0, font=("inter", 12)
         )
         file_dropdown.add_option("New File")
         file_dropdown.add_option("New Project")
@@ -152,10 +160,13 @@ class App:
         file_dropdown.add_option("Exit")
 
         edit_button = self.menubar.add_cascade(
-            "Edit", text_color="#FFFFFF", font=("Segoe UI", 12)
+            "Edit",
+            text_color="#FFFFFF",
+            font=("inter", 12),
+            padx=10,
         )
         edit_dropdown = CustomDropdownMenu(
-            widget=edit_button, corner_radius=0, font=("Segoe UI", 12)
+            widget=edit_button, corner_radius=0, font=("inter", 12)
         )
         edit_dropdown.add_option("Cut")
         edit_dropdown.add_option("Copy")
@@ -172,10 +183,16 @@ class App:
         edit_dropdown.add_option("Select All")
 
         view_button = self.menubar.add_cascade(
-            "View", text_color="#FFFFFF", font=("Segoe UI", 12)
+            "View",
+            text_color="#FFFFFF",
+            font=("inter", 12),
+            padx=10,
         )
         view_dropdown = CustomDropdownMenu(
-            widget=view_button, corner_radius=0, font=("Segoe UI", 12)
+            widget=view_button,
+            corner_radius=0,
+            font=("inter", 12),
+            padx=10,
         )
         view_dropdown.add_option("Command Palette")
         view_dropdown.add_option("PromptX Shell")
@@ -194,10 +211,13 @@ class App:
         view_dropdown.add_option("History Manager")
 
         code_button = self.menubar.add_cascade(
-            "Code", text_color="#FFFFFF", font=("Segoe UI", 12)
+            "Code",
+            text_color="#FFFFFF",
+            font=("inter", 12),
+            padx=10,
         )
         code_dropdown = CustomDropdownMenu(
-            widget=code_button, corner_radius=0, font=("Segoe UI", 12)
+            widget=code_button, corner_radius=0, font=("inter", 12)
         )
         code_dropdown.add_option("Refactor Current File")
         code_dropdown.add_option("Refactor Selected Content")
@@ -212,10 +232,13 @@ class App:
         code_dropdown.add_option("Previous Problem")
 
         run_button = self.menubar.add_cascade(
-            "Debug", text_color="#FFFFFF", font=("Segoe UI", 12)
+            "Debug",
+            text_color="#FFFFFF",
+            font=("inter", 12),
+            padx=10,
         )
         run_dropdown = CustomDropdownMenu(
-            widget=run_button, corner_radius=0, font=("Segoe UI", 12)
+            widget=run_button, corner_radius=0, font=("inter", 12)
         )
         run_dropdown.add_option("Start Debugging")
         run_dropdown.add_option("Run without Debugging")
@@ -237,10 +260,16 @@ class App:
         run_dropdown.add_option("Disable All Breakpoints")
 
         help_button = self.menubar.add_cascade(
-            "Help", text_color="#FFFFFF", font=("Segoe UI", 12)
+            "Help",
+            text_color="#FFFFFF",
+            font=("inter", 12),
+            padx=10,
         )
         help_dropdown = CustomDropdownMenu(
-            widget=help_button, corner_radius=0, font=("Segoe UI", 12)
+            widget=help_button,
+            corner_radius=0,
+            font=("inter", 12),
+            padx=10,
         )
         help_dropdown.add_option("Welcome", command=lambda: print("Hello"))
         help_dropdown.add_option("Documentation")
@@ -264,13 +293,13 @@ class App:
         self.menuFrame.pack_propagate(False)
 
         self.exploreBtnOptions = VerticalButton(
-            self.menuFrame, image_path=r"assets/system/newvar.png", text="File"
+            self.menuFrame, image_path=explr_btn, text="File"
         )
         self.exploreBtnOptions.place(x=8, y=3)
 
         findBtnOptions = VerticalButton(
             self.menuFrame,
-            image_path=r"assets/system/folder.png",
+            image_path=find_btn_img,
             text="Open",
             command=lambda: open_menu_popup(
                 None, self.window, findBtnOptions, open_menu, 66, 98
@@ -280,7 +309,7 @@ class App:
 
         saveBtn = VerticalButton(
             self.menuFrame,
-            image_path=r"assets/system/save_file.png",
+            image_path=save_btn_img,
             text="Save",
             size=(20, 20),
             command=lambda: save_current_opened_file(self.tabSwitch, self.saveMenu),
@@ -289,14 +318,14 @@ class App:
 
         trackChangesBtn = HorizontalButton(
             self.menuFrame,
-            image_path=r"assets/system/changes.png",
+            image_path=trk_chngs_img,
             text="Track Changes",
         )
         trackChangesBtn.place(x=170, y=5)
 
         compareBtn = HorizontalButton(
             self.menuFrame,
-            image_path=r"assets/system/compare.png",
+            image_path=cmpr_chngs_img,
             text="Compare Files",
         )
         compareBtn.place(x=170, y=38)
@@ -310,18 +339,16 @@ class App:
         )
         verticalSep1.place(x=288, y=3)
 
-        RunCode = VerticalButton(
-            self.menuFrame, image_path=r"assets/system/start.png", text="Run\nFile"
-        )
+        RunCode = VerticalButton(self.menuFrame, image_path=rn_img, text="Run\nFile")
         RunCode.place(x=296, y=5)
 
         debugBtn = HorizontalButton(
-            self.menuFrame, image_path=r"assets/system/bug.png", text="Debug Files"
+            self.menuFrame, image_path=dbg_img, text="Debug Files"
         )
         debugBtn.place(x=350, y=5)
 
         configBtn = HorizontalButton(
-            self.menuFrame, image_path=r"assets/system/manager.png", text="Configure"
+            self.menuFrame, image_path=cnfg_img, text="Configure"
         )
         configBtn.place(x=350, y=38)
 
@@ -336,7 +363,7 @@ class App:
 
         stylesBtn = VerticalButton(
             self.menuFrame,
-            image_path=r"assets/system/styles.png",
+            image_path=styles_img,
             text="Styles",
             size=(32, 32),
             command=lambda: open_menu_popup(
@@ -346,7 +373,7 @@ class App:
         stylesBtn.place(x=484, y=5)
 
         addonsBtn = VerticalButton(
-            self.menuFrame, image_path=r"assets/system/console.png", text="Add\nOns"
+            self.menuFrame, image_path=addons_img, text="Add\nOns"
         )
         addonsBtn.place(x=542, y=5)
 
@@ -369,7 +396,7 @@ class App:
             self.status_bar,
             text="0",
             text_color="#D5D5D5",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             width=8,
             height=8,
         )
@@ -384,7 +411,7 @@ class App:
             self.status_bar,
             text="0",
             text_color="#D5D5D5",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             width=8,
             height=8,
         )
@@ -394,7 +421,7 @@ class App:
             self.status_bar,
             text_color="#D5D5D5",
             text="Ln: 1, Col: 1",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
         )
         self.line_and_pos.pack(padx=(10, 0), side="left")
 
@@ -416,7 +443,7 @@ class App:
             self.status_bar,
             text_color="#D5D5D5",
             text="V0.0.1 BETA",
-            font=("Segoe UI", 11),
+            font=("inter", 11),
             corner_radius=0,
         )
         self.Version_button.pack(padx=(7, 15), side="right", pady=(2, 2))
@@ -425,7 +452,7 @@ class App:
             self.status_bar,
             text_color="#D5D5D5",
             text="PromptX-Shell",
-            font=("Segoe UI", 11),
+            font=("inter", 11),
             width=25,
             fg_color=self.status_bar.cget("fg_color"),
             height=8,
@@ -439,7 +466,7 @@ class App:
             self.status_bar,
             text_color="#D5D5D5",
             text="Ready",
-            font=("Segoe UI", 11),
+            font=("inter", 11),
             width=15,
             height=8,
             corner_radius=0,
@@ -514,7 +541,7 @@ class App:
         # LEFT SIDEBAR FRAME
         ##############################
         self.sidebar = TabView.TabView(
-            master=self.window, border_color=["#C8C8C8", "#444444"]
+            master=self.window, path=self.path, border_color=["#C8C8C8", "#444444"]
         )
         self.sidebar.mainFrame.pack(side="left", fill="y")
 
@@ -526,9 +553,11 @@ class App:
 
         # --- FRAMES ---
         self.upper_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0)
-        self.upper_frame.pack(fill="both", expand=True)
+        # FIX: Change from .pack() to .place() so it shares the same system as the animation
+        self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
         self.middle_frame = ctk.CTkFrame(self.editor_frame, corner_radius=0)
+        # Keep this as place_forget() for the initial hidden state
         self.middle_frame.place_forget()
 
         # --- Editor ---
@@ -541,7 +570,7 @@ class App:
             corner_radius=0,
             border_width=0,
             anchor="w",
-            text_color=["#1E1E1E", "#FFFFFF"],
+            text_color=["#191A1C", "#FFFFFF"],
             fg_color=["#F5F5F5", "#454545"],
             segmented_button_fg_color=["#F5F5F5", "#1F1F1F"],
             segmented_button_selected_color=["#FFFFFF", "#1F1F1F"],
@@ -676,24 +705,56 @@ class App:
     def open_shell(self, event=None):
         import shells.command_window as command_window
 
-        if self.shell_frame is None:
-            self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
-            self.middle_frame.place(relx=0, rely=0.70, relwidth=1, relheight=0.30)
-
+        # Initialize the shell inside middle_frame if it doesn't exist
+        if not hasattr(self, "shell_frame") or self.shell_frame is None:
             self.shell_frame = command_window.PromptXShell(
-                main_app=self.middle_frame, status_button=self.status_button
+                directory=self.path,
+                main_app=self.middle_frame,
+                status_button=self.status_button,
             )
+            # Fill the middle frame entirely
             self.shell_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
+        # Determine target state based on middle_frame visibility
+        is_opening = not self.middle_frame.winfo_ismapped()
+
+        if is_opening:
+            # Position middle_frame just off the bottom of the screen to prepare for slide-up
+            self.middle_frame.place(relx=0, rely=1.0, relwidth=1, relheight=0.30)
+            self.animate_shell(current_rely=1.0, target_rely=0.70, opening=True)
         else:
-            if self.shell_frame.winfo_ismapped():
-                self.shell_frame.place_forget()
-                self.middle_frame.place_forget()
-                self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+            # Start sliding down from current position
+            self.animate_shell(current_rely=0.70, target_rely=1.0, opening=False)
+
+    def animate_shell(self, current_rely, target_rely, opening):
+        step = 0.05  # Animation speed
+
+        if opening:
+            if current_rely > target_rely:
+                current_rely -= step
+                # Synchronize the split: upper frame shrinks as middle frame rises
+                self.upper_frame.place(relheight=current_rely)
+                self.middle_frame.place(rely=current_rely)
+                self.upper_frame.after(
+                    10, lambda: self.animate_shell(current_rely, target_rely, True)
+                )
             else:
-                self.upper_frame.place(relx=0, rely=0, relwidth=1, relheight=0.70)
-                self.middle_frame.place(relx=0, rely=0.70, relwidth=1, relheight=0.30)
-                self.shell_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+                # Snap to final grid lines to prevent pixel-gaps
+                self.upper_frame.place(relheight=0.70)
+                self.middle_frame.place(rely=0.70)
+                self.shell_frame.focus_set()  # Optional: Auto-focus the terminal
+        else:
+            if current_rely < target_rely:
+                current_rely += step
+                self.upper_frame.place(relheight=current_rely)
+                self.middle_frame.place(rely=current_rely)
+                self.upper_frame.after(
+                    10, lambda: self.animate_shell(current_rely, target_rely, False)
+                )
+            else:
+                # Animation complete: Hide the terminal and restore editor to full screen
+                self.middle_frame.place_forget()
+                self.upper_frame.place(relheight=1.0)
 
     #### RUN LOGIC ####
 

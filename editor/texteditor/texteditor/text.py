@@ -71,14 +71,13 @@ class Text(Text):
             bg=self.base.theme.background,
             fg=self.base.theme.foreground,
             insertbackground=self.base.theme.cursor,
+            highlightthickness=0,
         )
 
         self._schedule_word_rebuild()
         self.tag_config("error_line", background="#860000")
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Tag & binding setup
-    # ─────────────────────────────────────────────────────────────────────────
 
     def config_tags(self):
         self.tag_config(tk.SEL, background=self.base.theme.editor.selection)
@@ -106,10 +105,7 @@ class Text(Text):
         self.bind("<Up>", self.auto_completion.move_up)
         self.bind("<Down>", self.auto_completion.move_down)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Key-release handling
-    # ─────────────────────────────────────────────────────────────────────────
-
     def key_release_events(self, event):
         self._update_current_word()
         self.highlighter.schedule_highlight()
@@ -160,10 +156,7 @@ class Text(Text):
         except tk.TclError:
             self.current_word = ""
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Debounced helpers
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _schedule_word_highlight(self):
         """Debounce highlight_current_word so it doesn't run on every keypress."""
         if self._word_highlight_id:
@@ -194,10 +187,7 @@ class Text(Text):
         else:
             self.update_completions()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Enter / Tab
-    # ─────────────────────────────────────────────────────────────────────────
-
     def enter_key_events(self, *_):
         if not self.minimalist and self.auto_completion.active:
             self.auto_completion.choose()
@@ -211,10 +201,7 @@ class Text(Text):
         self.insert(tk.INSERT, " " * 4)
         return "break"
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Text helpers
-    # ─────────────────────────────────────────────────────────────────────────
-
     def get_all_text(self, *args):
         return self.get(1.0, tk.END)
 
@@ -224,10 +211,7 @@ class Text(Text):
     def get_current_word(self):
         return (self.current_word or "").strip()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Word-list rebuild — background thread (unchanged from v2)
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _schedule_word_rebuild(self):
         if self.minimalist:
             return
@@ -270,10 +254,7 @@ class Text(Text):
         """Public alias kept for backward compatibility."""
         self._dispatch_word_rebuild()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Autocomplete helpers
-    # ─────────────────────────────────────────────────────────────────────────
-
     def update_completions(self):
         if self.minimalist:
             return
@@ -334,10 +315,7 @@ class Text(Text):
             if self.auto_completion.active:
                 self.hide_autocomplete()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Bracket / surrounding helpers
-    # ─────────────────────────────────────────────────────────────────────────
-
     def complete_pair(self, char):
         self.insert(tk.INSERT, char)
         self.mark_set(tk.INSERT, "insert-1c")
@@ -355,10 +333,7 @@ class Text(Text):
         self.complete_pair(char)
         return "break"
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Cursor / movement helpers
-    # ─────────────────────────────────────────────────────────────────────────
-
     def move_to_next_word(self):
         self.mark_set(tk.INSERT, self.index("insert+1c wordend"))
 
@@ -399,10 +374,7 @@ class Text(Text):
     def open_find_replace(self, *_):
         self.base.findreplace.show(self)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # File I/O
-    # ─────────────────────────────────────────────────────────────────────────
-
     def detect_encoding(self, file_path):
         with open(file_path, "rb") as file:
             bom = file.read(4)
@@ -464,10 +436,7 @@ class Text(Text):
         except Exception:
             return
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Clipboard / widget state
-    # ─────────────────────────────────────────────────────────────────────────
-
     def copy(self, *_):
         self.event_generate("<<Copy>>")
 
@@ -547,10 +516,7 @@ class Text(Text):
     def clear_all_selection(self):
         self.tag_remove(tk.SEL, 1.0, tk.END)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Highlight helpers
-    # ─────────────────────────────────────────────────────────────────────────
-
     def highlight_current_line(self, *_):
         self.tag_remove("currentline", "1.0", tk.END)
 
@@ -636,10 +602,7 @@ class Text(Text):
         self.highlight_current_line()
         self._schedule_word_highlight()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Tcl proxy
-    # ─────────────────────────────────────────────────────────────────────────
-
     def create_proxy(self):
         self._orig = self._w + "_orig"
         self.tk.call("rename", self._w, self._orig)

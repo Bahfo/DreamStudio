@@ -25,6 +25,7 @@ allowed_extensions = {".py", ".txt", ".html", ".json", ".js"}
 
 ctk.set_appearance_mode("dark")
 
+
 def auto_indent(text_editor):
     line_index = text_editor.index("insert linestart")
     current_line = text_editor.get(line_index, "insert")
@@ -132,7 +133,7 @@ class CTkWorkspaceTree:
             row,
             width=18,
             height=18,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             text="▶" if path_obj.is_dir() else "",
             fg_color="transparent",
             hover_color="gray15",
@@ -147,7 +148,7 @@ class CTkWorkspaceTree:
         icon.pack(side="left")
 
         # Label
-        label = ctk.CTkLabel(row, text=name, font=("Segoe UI", 12))
+        label = ctk.CTkLabel(row, text=name, font=("inter", 12))
         label.pack(side="left", padx=5)
 
         # Child container (hidden initially)
@@ -278,7 +279,7 @@ For more info, download the full documentation.
         license_label = ctk.CTkLabel(
             license_window,
             text=license_text,
-            font=("Segoe UI", 13),
+            font=("inter", 13),
             wraplength=480,
             justify="left",
         )
@@ -302,7 +303,7 @@ For more info, download the full documentation.
             delay=400,
             bg="#2b2b2b",
             fg="white",
-            font=("Segoe UI", 10),
+            font=("inter", 10),
         ):
             self.widget = widget
             self.text = text
@@ -375,15 +376,13 @@ For more info, download the full documentation.
     def create_new_file():
         creating_new_file = ctk.CTkToplevel()
         creating_new_file.title("Create a New File")
-        creating_new_file.iconbitmap(
-            r"tests/assets/new.ico"
-        )
+        creating_new_file.iconbitmap(r"tests/assets/new.ico")
         creating_new_file.geometry("360x160")
         creating_new_file.resizable(False, False)
         creating_new_file.attributes("-topmost", True)
 
         label = ctk.CTkLabel(
-            creating_new_file, text="Enter file name:", font=("Segoe UI", 12)
+            creating_new_file, text="Enter file name:", font=("inter", 12)
         )
         label.pack(pady=(20, 5))
 
@@ -402,7 +401,7 @@ For more info, download the full documentation.
 
         confirm_button = ctk.CTkButton(
             creating_new_file,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             text="Create",
             width=100,
             corner_radius=6,
@@ -442,7 +441,7 @@ For more info, download the full documentation.
         search_bar_inside.protocol("WM_DELETE_WINDOW", on_close)
 
         label = ctk.CTkLabel(
-            search_bar_inside, text="Enter Keyword/Sentence/.etc", font=("Segoe UI", 12)
+            search_bar_inside, text="Enter Keyword/Sentence/.etc", font=("inter", 12)
         )
         label.pack(pady=(20, 5))
 
@@ -475,7 +474,7 @@ For more info, download the full documentation.
 
         confirm_button = ctk.CTkButton(
             search_bar_inside,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             text="Search",
             width=100,
             corner_radius=6,
@@ -496,14 +495,12 @@ For more info, download the full documentation.
 
         save_current_workspace = ctk.CTkToplevel()
         save_current_workspace.title("Save File")
-        save_current_workspace.iconbitmap(
-            r"tests/assets/save.ico"
-        )
+        save_current_workspace.iconbitmap(r"tests/assets/save.ico")
         save_current_workspace.geometry("360x160")
         save_current_workspace.resizable(False, False)
 
         label = ctk.CTkLabel(
-            save_current_workspace, text="Enter file name:", font=("Segoe UI", 12)
+            save_current_workspace, text="Enter file name:", font=("inter", 12)
         )
         label.pack(pady=(20, 5))
 
@@ -537,7 +534,7 @@ For more info, download the full documentation.
 
         confirm_button = ctk.CTkButton(
             save_current_workspace,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             text="Save",
             width=100,
             command=save_file,
@@ -663,11 +660,11 @@ For more info, download the full documentation.
                 height=25,
                 fg_color="transparent",
                 anchor="w",
-                font=("Segoe UI", 13),
+                font=("inter", 13),
                 border_color="#5E5E5E",
                 border_width=1,
                 command=func,
-                text_color=["#1E1E1E","#FFFFFF"]
+                text_color=["#1E1E1E", "#FFFFFF"],
             )
             btn.pack()
 
@@ -704,7 +701,7 @@ For more info, download the full documentation.
         height=26,
         text="File",
         fg_color=menubar.cget("fg_color"),
-        font=("Segoe UI", 12),
+        font=("inter", 12),
     )
     file_button_menu.place(x=3, y=2)
     file_button_menu.configure(command=file_menu)
@@ -716,7 +713,7 @@ For more info, download the full documentation.
         height=26,
         text="Edit",
         fg_color=menubar.cget("fg_color"),
-        font=("Segoe UI", 12),
+        font=("inter", 12),
     )
     edit_button_menu.place(x=55, y=2)
     edit_button_menu.configure(command=edit_menu)
@@ -728,7 +725,7 @@ For more info, download the full documentation.
         height=26,
         text="View",
         fg_color=menubar.cget("fg_color"),
-        font=("Segoe UI", 12),
+        font=("inter", 12),
     )
     view_button_menu.place(x=108, y=2)
     view_button_menu.configure(command=view_menu)
@@ -740,7 +737,7 @@ For more info, download the full documentation.
         height=26,
         text="Run",
         fg_color=menubar.cget("fg_color"),
-        font=("Segoe UI", 12),
+        font=("inter", 12),
     )
     run_button_menu.place(x=161, y=2)
     run_button_menu.configure(command=run_menu)
@@ -752,7 +749,7 @@ For more info, download the full documentation.
         height=26,
         text="Help",
         fg_color=menubar.cget("fg_color"),
-        font=("Segoe UI", 12),
+        font=("inter", 12),
     )
     help_button_menu.place(x=214, y=2)
     help_button_menu.configure(command=help_menu)
@@ -806,7 +803,7 @@ For more info, download the full documentation.
     Version_button = ctk.CTkLabel(
         status_bar,
         text="Version 0.0.1 BETA",
-        font=("Segoe UI", 11),
+        font=("inter", 11),
         text_color="#DCDCDC",
         width=15,
         height=8,
@@ -825,33 +822,23 @@ For more info, download the full documentation.
     services_bar.pack(side="left", fill="y")
 
     search_photo = ctk.CTkImage(
-        light_image=Image.open(
-            r"tests/assets/zoom.ico"
-        ),
+        light_image=Image.open(r"tests/assets/zoom.ico"),
         size=(24, 24),
     )
     open_photo = ctk.CTkImage(
-        light_image=Image.open(
-            r"tests/assets/open.ico"
-        ),
+        light_image=Image.open(r"tests/assets/open.ico"),
         size=(24, 24),
     )
     settings_photo = ctk.CTkImage(
-        light_image=Image.open(
-            r"tests/assets/settings.ico"
-        ),
+        light_image=Image.open(r"tests/assets/settings.ico"),
         size=(24, 24),
     )
     new_photo = ctk.CTkImage(
-        light_image=Image.open(
-            r"tests/assets/new.ico"
-        ),
+        light_image=Image.open(r"tests/assets/new.ico"),
         size=(24, 24),
     )
     save_photo = ctk.CTkImage(
-        light_image=Image.open(
-            r"tests/assets/save.ico"
-        ),
+        light_image=Image.open(r"tests/assets/save.ico"),
         size=(24, 24),
     )
 
@@ -954,7 +941,7 @@ For more info, download the full documentation.
         fg_color="#004C7E",
         width=320,
         height=25,
-        font=("Segoe UI", 13),
+        font=("inter", 13),
         corner_radius=5,
     )
     run_btn.pack(pady=(12, 2), padx=8)
@@ -966,7 +953,7 @@ For more info, download the full documentation.
         fg_color="#004C7E",
         width=320,
         height=25,
-        font=("Segoe UI", 13),
+        font=("inter", 13),
         corner_radius=5,
         command=on_open_workspace,
     )
@@ -980,7 +967,7 @@ For more info, download the full documentation.
         justify="left",
         width=320,
         height=20,
-        font=("Segoe UI", 12),
+        font=("inter", 12),
     )
     currentDirLabel.pack(pady=(20, 5), padx=8)
 
@@ -1105,7 +1092,7 @@ For more info, download the full documentation.
     Terminal_button = ctk.CTkButton(
         status_bar,
         text="Open Terminal",
-        font=("Segoe UI", 11),
+        font=("inter", 11),
         width=15,
         text_color="#2D2D2D" if mode == "Light" else "#DCDCDC",
         fg_color=status_bar.cget("fg_color"),
@@ -1123,7 +1110,7 @@ For more info, download the full documentation.
     line_and_pos = ctk.CTkLabel(
         status_bar,
         text="Ln: 1, Col: 1",
-        font=("Segoe UI", 11),
+        font=("inter", 11),
         text_color="#DCDCDC",
         width=15,
         height=8,
@@ -1144,7 +1131,7 @@ For more info, download the full documentation.
     text_editor.bind("<Return>", lambda e: auto_indent(text_editor))
 
     error_box = ctk.CTkLabel(
-        editor_frame, height=20, font=("Segoe UI", 12), justify="left", anchor="w"
+        editor_frame, height=20, font=("inter", 12), justify="left", anchor="w"
     )
     error_box.pack(fill="x", side="bottom", padx=5)
 
@@ -1208,12 +1195,8 @@ def loading_screen():
     splash.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     logo_image = ctk.CTkImage(
-        light_image=Image.open(
-            r"tests/assets/logo.png"
-        ),
-        dark_image=Image.open(
-            r"tests/assets/logo.png"
-        ),
+        light_image=Image.open(r"tests/assets/logo.png"),
+        dark_image=Image.open(r"tests/assets/logo.png"),
         size=(180, 180),
     )
 
@@ -1224,7 +1207,7 @@ def loading_screen():
     progress_bar.pack(pady=10)
     progress_bar.set(0)
 
-    loading_label = ctk.CTkLabel(splash, text="Loading ...", font=("Segoe UI", 12))
+    loading_label = ctk.CTkLabel(splash, text="Loading ...", font=("inter", 12))
     loading_label.pack(pady=10)
 
     for i in range(101):

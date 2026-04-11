@@ -55,14 +55,14 @@ def agreement_registeration():
         frame.place(relwidth=1, relheight=1)
 
     notice_label = ctk.CTkLabel(
-        frame_1, text="Welcome to Softdream Beta Program", font=("Segoe UI", 18)
+        frame_1, text="Welcome to Softdream Beta Program", font=("inter", 18)
     )
     notice_label.pack(padx=10, pady=10, side="top", anchor="w")
 
     explanation_label = ctk.CTkLabel(
         frame_1,
         text=explanation_text,
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         anchor="w",
         wraplength=528,
@@ -70,7 +70,7 @@ def agreement_registeration():
     explanation_label.pack(padx=10, pady=10, side="top", anchor="w")
 
     license_agreement = ctk.CTkTextbox(
-        frame_1, font=("Segoe UI", 12), width=530, height=190
+        frame_1, font=("inter", 12), width=530, height=190
     )
     license_agreement.insert("1.0", "License")
     license_agreement.pack(padx=10, pady=10, side="top", anchor="w")
@@ -87,7 +87,7 @@ def agreement_registeration():
     check_button = ctk.CTkRadioButton(
         frame_1,
         text="I agree to the terms of service",
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         variable=agree_var,
         value=1,
         radiobutton_height=15,
@@ -99,7 +99,7 @@ def agreement_registeration():
     discheck_button = ctk.CTkRadioButton(
         frame_1,
         text="I do not agree to the terms of service",
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         variable=agree_var,
         value=2,
         radiobutton_width=15,
@@ -111,7 +111,7 @@ def agreement_registeration():
     continue_button = ctk.CTkButton(
         frame_1,
         text="Proceed with Configuration",
-        font=("Segoe UI", 14),
+        font=("inter", 14),
         fg_color="#0063af",
         bg_color="#303030",
         width=45,
@@ -122,7 +122,7 @@ def agreement_registeration():
     )
     continue_button.pack(padx=10, pady=10, side="bottom", anchor="e")
 
-    setting_up = ctk.CTkLabel(frame_2, text="Let's Set You Up", font=("Segoe UI", 18))
+    setting_up = ctk.CTkLabel(frame_2, text="Let's Set You Up", font=("inter", 18))
     setting_up.pack(padx=10, pady=10, side="top", anchor="w")
 
     explanation_text_1 = """Let's start setting you up to the BETA program, enter the following information and proceed, please make sure you have an internet connection to save you information to the cloud"""
@@ -130,7 +130,7 @@ def agreement_registeration():
     explanation_label_1 = ctk.CTkLabel(
         frame_2,
         text=explanation_text_1,
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         anchor="w",
         wraplength=528,
@@ -138,14 +138,14 @@ def agreement_registeration():
     explanation_label_1.pack(padx=10, pady=(0, 5), side="top", anchor="w")
 
     name_label = ctk.CTkLabel(
-        frame_2, text="Name", font=("Segoe UI", 14), justify="left", anchor="w"
+        frame_2, text="Name", font=("inter", 14), justify="left", anchor="w"
     )
     name_label.pack(padx=10, pady=(10, 0), side="top", anchor="w")
 
     name_label_tip = ctk.CTkLabel(
         frame_2,
         text="Set up a name for your account, your BETA program will use this name, you cannot change it later",
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         anchor="w",
     )
@@ -154,7 +154,7 @@ def agreement_registeration():
     name_box = ctk.CTkEntry(
         frame_2,
         placeholder_text="example_name: mechangeleon",
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         width=400,
         height=40,
@@ -162,14 +162,14 @@ def agreement_registeration():
     name_box.pack(padx=10, pady=(0, 0), side="top", anchor="w")
 
     account_label = ctk.CTkLabel(
-        frame_2, text="Account", font=("Segoe UI", 14), justify="left", anchor="w"
+        frame_2, text="Account", font=("inter", 14), justify="left", anchor="w"
     )
     account_label.pack(padx=10, pady=(10, 0), side="top", anchor="w")
 
     account_label_tip = ctk.CTkLabel(
         frame_2,
         text="Enter a valid account to proceed, we will send you a confirmation email once validation completes",
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         anchor="w",
     )
@@ -178,7 +178,7 @@ def agreement_registeration():
     account_box = ctk.CTkEntry(
         frame_2,
         placeholder_text="example_email: example123@gmail.com",
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         width=400,
         height=40,
@@ -186,14 +186,14 @@ def agreement_registeration():
     account_box.pack(padx=10, pady=(0, 0), side="top", anchor="w")
 
     description_label = ctk.CTkLabel(
-        frame_2, text="Description", font=("Segoe UI", 14), justify="left", anchor="w"
+        frame_2, text="Description", font=("inter", 14), justify="left", anchor="w"
     )
     description_label.pack(padx=10, pady=(10, 0), side="top", anchor="w")
 
     description_label_tip = ctk.CTkLabel(
         frame_2,
         text="Please choose what describes you best in terms of experience",
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         anchor="w",
     )
@@ -211,7 +211,7 @@ def agreement_registeration():
     description_box = ctk.CTkComboBox(
         frame_2,
         values=options,
-        font=("Segoe UI", 12),
+        font=("inter", 12),
         justify="left",
         width=400,
         height=40,
@@ -239,12 +239,12 @@ def agreement_registeration():
 
         animate()
         label_2 = ctk.CTkLabel(
-            frame_3, text="Loading Configuration", font=("Segoe UI", 16)
+            frame_3, text="Loading Configuration", font=("inter", 16)
         )
         label_2.pack(pady=(10, 0))
 
         label_2 = ctk.CTkLabel(
-            frame_3, text="Rest assured, we got this", font=("Segoe UI", 12)
+            frame_3, text="Rest assured, we got this", font=("inter", 12)
         )
         label_2.pack(pady=(5, 0))
         frame_3.after(10000, lambda: frame_4.tkraise())
@@ -252,7 +252,7 @@ def agreement_registeration():
     button_next_1 = ctk.CTkButton(
         frame_2,
         text="\u279c",
-        font=("Segoe UI", 14, "bold"),
+        font=("inter", 14, "bold"),
         fg_color="#0063af",
         bg_color="#303030",
         width=35,
@@ -287,7 +287,7 @@ def agreement_registeration():
     button_next_2 = ctk.CTkButton(
         frame_4,
         text="Continue with Registration \nThis won't take long",
-        font=("Segoe UI", 14),
+        font=("inter", 14),
         fg_color="#0063af",
         bg_color="#303030",
         width=45,
@@ -297,7 +297,7 @@ def agreement_registeration():
     )
     button_next_2.pack(padx=10, pady=(0, 50), side="bottom")
 
-    label_2 = ctk.CTkLabel(frame_4, text="All Set to Go!", font=("Segoe UI", 16))
+    label_2 = ctk.CTkLabel(frame_4, text="All Set to Go!", font=("inter", 16))
     label_2.pack(pady=(10, 0))
 
     frame_1.tkraise()

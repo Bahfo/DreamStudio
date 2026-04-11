@@ -323,9 +323,9 @@ class CommandLine(cmd.Cmd):
     and leaves towards.
     """
 
-    def __init__(self, stdout=None):
+    def __init__(self, currentDir, stdout=None):
         super().__init__(stdout=stdout)
-        self.currentDir = os.getcwd()
+        self.currentDir = currentDir
         self.prompt = f"{self.currentDir}>>> "
         self._history = []
         self._history_index = None
@@ -1275,7 +1275,7 @@ class PromptXShell(ctk.CTkFrame):
     normal TUI tool that can be used inside DreamStudio's main terminal window.
     """
 
-    def __init__(self, main_app=None, status_button=None):
+    def __init__(self, directory, main_app=None, status_button=None):
         super().__init__(main_app)
 
         # Platform specific scaling:
@@ -1328,7 +1328,7 @@ class PromptXShell(ctk.CTkFrame):
         self.readonly_index = "1.0"
 
         # ---------------- Command shell ----------------
-        self.cmd_shell = CommandLine(stdout=GUIStdout(self.textbox))
+        self.cmd_shell = CommandLine(directory, stdout=GUIStdout(self.textbox))
 
         # ---------------- Event bindings ----------------
         self.textbox.bind("<Return>", self.onEnter)

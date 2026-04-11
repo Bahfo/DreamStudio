@@ -41,12 +41,12 @@ class App(ctk.CTk):
         left_area.grid(row=0, column=0, sticky="w", padx=10)
 
         self.app_icon = ctk.CTkLabel(
-            left_area, text="◆", text_color="#8ab4f8", font=("Segoe UI", 14, "bold")
+            left_area, text="◆", text_color="#8ab4f8", font=("inter", 14, "bold")
         )
         self.app_icon.pack(side="left", padx=(0, 8))
 
         self.title_label = ctk.CTkLabel(
-            left_area, text="Custom Studio", font=("Segoe UI", 12), text_color="#e8eaed"
+            left_area, text="Custom Studio", font=("inter", 12), text_color="#e8eaed"
         )
         self.title_label.pack(side="left")
 

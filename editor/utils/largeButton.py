@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from PIL import Image
 
+
 class LargeButton(ctk.CTkFrame):
     """
     A Large horizontal button with an icon and text.
@@ -13,11 +14,11 @@ class LargeButton(ctk.CTkFrame):
         text="",
         command=None,
         size=(48, 48),
-        hover_border=["#454545","#bebebe"],
-        click_border=["#737373","#808080"],
-        font=("Segoe UI", 15),
-        explainText = "",
-        explainfont = ("Segoe UI",12),
+        hover_border=["#454545", "#bebebe"],
+        click_border=["#737373", "#808080"],
+        font=("inter", 15),
+        explainText="",
+        explainfont=("inter", 12),
         **kwargs,
     ):
         super().__init__(parent, fg_color="transparent")
@@ -44,7 +45,7 @@ class LargeButton(ctk.CTkFrame):
         if image_path:
             self.image = ctk.CTkImage(light_image=Image.open(image_path), size=size)
             self.icon = ctk.CTkLabel(self.inner_frame, image=self.image, text="")
-            self.icon.place(x=0,y=5)
+            self.icon.place(x=0, y=5)
         else:
             self.icon = None
 
@@ -56,7 +57,7 @@ class LargeButton(ctk.CTkFrame):
             justify="left",
             text_color=["#1E1E1E", "#c8c8c8"],
         )
-        self.label.place(x=60,y=5)
+        self.label.place(x=60, y=5)
 
         self.label2 = ctk.CTkLabel(
             self.inner_frame,
@@ -64,9 +65,9 @@ class LargeButton(ctk.CTkFrame):
             font=explainfont,
             anchor="w",
             justify="left",
-            text_color=["#1E1E1E", "#c8c8c8"]
+            text_color=["#1E1E1E", "#c8c8c8"],
         )
-        self.label2.place(x=60,y=30)
+        self.label2.place(x=60, y=30)
 
         for widget in (
             self,

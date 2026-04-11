@@ -15,6 +15,7 @@ patch_notes = """For full patch notes, see the website's\nPatch Notes in Detail.
 ● Builds are project templates which\ncontains Python Virtual Environment,\nplus all the needs for full Python project.
 """
 
+
 class Initialize:
     def __init__(self):
         self.splash = ctk.CTk()
@@ -33,19 +34,21 @@ class Initialize:
         logo_image = ctk.CTkImage(
             light_image=Image.open(r"icons\logos\logo.png"),
             dark_image=Image.open(r"icons\logos\logo.png"),
-            size=(700, 400))
+            size=(700, 400),
+        )
 
         image_label = ctk.CTkLabel(self.splash, image=logo_image, text="")
         image_label.place(x=0, y=0)
 
     def start_loading_screen(self):
-        self.splash.after(7000,self.start_main_app)
+        self.splash.after(7000, self.start_main_app)
         self.splash.mainloop()
 
     def start_main_app(self):
         self.splash.destroy()
         welcome_window = WelcomeWindow()
         welcome_window.run()
+
 
 class WelcomeWindow(ctk.CTk):
     def __init__(self):
@@ -69,9 +72,16 @@ class WelcomeWindow(ctk.CTk):
         )
         self.titleBar.pack(fill="x", side="top")
 
-        self.icon = ctk.CTkLabel(self.titleBar, corner_radius=0, text="DS", width=14,
-                                 font=("Segoe UI Bold",13),text_color="#0062B1",justify="center")
-        self.icon.pack(side="left", padx=(10,0))
+        self.icon = ctk.CTkLabel(
+            self.titleBar,
+            corner_radius=0,
+            text="DS",
+            width=14,
+            font=("inter Bold", 13),
+            text_color="#0062B1",
+            justify="center",
+        )
+        self.icon.pack(side="left", padx=(10, 0))
 
         self.title_label = ctk.CTkLabel(
             self.titleBar,
@@ -88,8 +98,9 @@ class WelcomeWindow(ctk.CTk):
             corner_radius=0,
             width=20,
             command=self.close,
-            fg_color=["#EBEBEB","#1E1E1E"],
-            text_color=["#1E1E1E","#EBEBEB"])
+            fg_color=["#EBEBEB", "#1E1E1E"],
+            text_color=["#1E1E1E", "#EBEBEB"],
+        )
 
         self.exitBtn.pack(side="right", padx=1)
 
@@ -100,8 +111,9 @@ class WelcomeWindow(ctk.CTk):
             corner_radius=0,
             width=20,
             command=self.minimize_window,
-            fg_color=["#EBEBEB","#1E1E1E"],
-            text_color=["#1E1E1E","#EBEBEB"])
+            fg_color=["#EBEBEB", "#1E1E1E"],
+            text_color=["#1E1E1E", "#EBEBEB"],
+        )
 
         self.minBtn.pack(side="right", padx=1)
 
@@ -131,7 +143,9 @@ class WelcomeWindow(ctk.CTk):
         self.leftFrame.pack(side="left", fill="y")
         self.leftFrame.pack_propagate(False)
 
-        menubar = CTkMenuBar(self,)
+        menubar = CTkMenuBar(
+            self,
+        )
 
         file_menu = menubar.add_cascade("File")
         builds_menu = menubar.add_cascade("Builds")
@@ -148,33 +162,33 @@ class WelcomeWindow(ctk.CTk):
         self.newsTitle = ctk.CTkLabel(
             self.leftFrame,
             text="What's New?",
-            font=("Segoe UI",18),
+            font=("inter", 18),
             justify="left",
-            text_color="#0062B1"
+            text_color="#0062B1",
         )
-        self.newsTitle.pack(side="top",padx=10,pady=10,anchor="w")
+        self.newsTitle.pack(side="top", padx=10, pady=10, anchor="w")
 
         self.version = ctk.CTkLabel(
             self.leftFrame,
             text="Version 1.0.0",
-            font=("Segoe UI",11),
+            font=("inter", 11),
             justify="left",
-            anchor="nw"
+            anchor="nw",
         )
-        self.version.pack(side="top",anchor="w",padx=10)
+        self.version.pack(side="top", anchor="w", padx=10)
 
         self.newsLabel = ctk.CTkTextbox(
             self.leftFrame,
-            font=("Segoe UI",12),
+            font=("inter", 12),
             fg_color=self.leftFrame.cget("fg_color"),
             width=230,
-            height=300
+            height=300,
         )
         self.newsLabel.insert("0.0", f"{patch_notes}")
         self.newsLabel.configure(state="disabled")
 
         self.newsLabel.configure(spacing1=2, spacing2=4, spacing3=2)
-        self.newsLabel.pack(side="top",anchor="w",padx=10)
+        self.newsLabel.pack(side="top", anchor="w", padx=10)
 
         ###############################
         # RIGHT FRAME
@@ -189,46 +203,41 @@ class WelcomeWindow(ctk.CTk):
         self.rightFrame.pack(side="right", fill="y")
 
         self.welcomeLabel = ctk.CTkLabel(
-            self.rightFrame, 
+            self.rightFrame,
             text="Welcome to DreamStudio",
-            font=("Segoe UI",20),
+            font=("inter", 20),
             width=100,
-            justify="center"
+            justify="center",
         )
-        self.welcomeLabel.place(x=160,y=120)
+        self.welcomeLabel.place(x=160, y=120)
 
         self.explanationLabel = ctk.CTkLabel(
             self.rightFrame,
             text="""Click on 'New' to start a project from scratch,
 or use a generated template by clicking on 'Template Builds'""",
             width=200,
-            font=("Segoe UI",12),
-            justify="center"
+            font=("inter", 12),
+            justify="center",
         )
-        self.explanationLabel.place(x=115,y=160)
+        self.explanationLabel.place(x=115, y=160)
 
         self.newProjectBtn = VerticalButton(
             self.rightFrame,
             image_path=r"icons\system\newvar.png",
             text="New Build",
-            command=self.select_project
+            command=self.select_project,
         )
-        self.newProjectBtn.place(x=195,y=230)
+        self.newProjectBtn.place(x=195, y=230)
 
         self.newProjectBtn = VerticalButton(
-            self.rightFrame,
-            image_path=r"icons\system\folder.ico",
-            text=" Template "
+            self.rightFrame, image_path=r"icons\system\folder.ico", text=" Template "
         )
-        self.newProjectBtn.place(x=275,y=230)
+        self.newProjectBtn.place(x=275, y=230)
 
         self.feedbackLabel = ctk.CTkLabel(
-            self.rightFrame,
-            font=("Segoe UI",12),
-            text="Got any questions?",
-            width=50
+            self.rightFrame, font=("inter", 12), text="Got any questions?", width=50
         )
-        self.feedbackLabel.place(x=10,y=410)
+        self.feedbackLabel.place(x=10, y=410)
 
         self.feedbackLink = LinkLabel(
             self.rightFrame,
@@ -236,12 +245,12 @@ or use a generated template by clicking on 'Template Builds'""",
             height=25,
             link_color="#386CBF",
             after_link_color="#814972",
-            font=("Segoe UI",12),
+            font=("inter", 12),
             text="Visit our Website",
             border_width=0,
-            corner_radius=0
+            corner_radius=0,
         )
-        self.feedbackLink.place(x=115,y=410)
+        self.feedbackLink.place(x=115, y=410)
 
     def select_project(self):
         self.withdraw()
@@ -276,6 +285,7 @@ or use a generated template by clicking on 'Template Builds'""",
 
     def run(self, event=None):
         self.mainloop()
+
 
 class ChoosingBuild(ctk.CTkToplevel):
     def __init__(self, master):

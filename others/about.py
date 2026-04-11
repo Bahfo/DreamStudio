@@ -27,7 +27,7 @@ class AboutWindow(ctk.CTkToplevel):
             corner_radius=0,
             text="DreamStudio IDE",
             text_color="#004073",
-            font=("Segoe UI", 40),
+            font=("inter", 40),
         ).place(x=10, y=10)
 
         self.label2 = ctk.CTkLabel(
@@ -35,29 +35,29 @@ class AboutWindow(ctk.CTkToplevel):
             corner_radius=0,
             text="Copyright 2026 - DreamStudio Team",
             text_color=["#1E1E1E", "#FFFFFF"],
-            font=("Segoe UI", 12),
+            font=("inter", 12),
         ).place(x=10, y=60)
 
         self.versionLabel = ctk.CTkLabel(
-            self, corner_radius=0, text="Version: 1.0.0", font=("Segoe UI", 12)
+            self, corner_radius=0, text="Version: 1.0.0", font=("inter", 12)
         ).place(x=10, y=110)
         self.osLabel = ctk.CTkLabel(
             self,
             corner_radius=0,
             text=f"Operating System: {platform.system()}",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
         ).place(x=10, y=130)
         self.label3 = ctk.CTkLabel(
             self,
             corner_radius=0,
             text="Current Snapshot: Y26B01",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
         ).place(x=10, y=150)
         self.label3 = ctk.CTkLabel(
             self,
             corner_radius=0,
             text="All rights reserved - DreamStudio 2026",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
         ).place(x=370, y=430)
 
 
@@ -70,7 +70,7 @@ class CheckForUpdates(ctk.CTkToplevel):
         self.title("Updates Checker")
 
         self.label1 = ctk.CTkLabel(
-            self, font=("Segoe UI", 12), text="Click to Start Checking for Updates"
+            self, font=("inter", 12), text="Click to Start Checking for Updates"
         )
         self.label1.pack(anchor="center", pady=10)
 
@@ -117,7 +117,7 @@ For more info, download the full documentation.
         license_label = ctk.CTkLabel(
             self,
             text=license_text,
-            font=("Segoe UI", 13),
+            font=("inter", 13),
             wraplength=480,
             justify="left",
         )

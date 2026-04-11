@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from PIL import Image
 
+
 class VerticalButton(ctk.CTkFrame):
     """
     A vertical button with an icon above text.
@@ -11,12 +12,12 @@ class VerticalButton(ctk.CTkFrame):
         parent,
         image_path=None,
         text="",
-        width = 50, 
-        height = 75,
+        width=50,
+        height=75,
         command=None,
         size=(27, 27),
-        hover_border=["#454545","#bebebe"],
-        click_border=["#737373","#808080"],
+        hover_border=["#454545", "#bebebe"],
+        click_border=["#737373", "#808080"],
         **kwargs,
     ):
         super().__init__(parent, fg_color="transparent", width=width, height=height)
@@ -48,7 +49,7 @@ class VerticalButton(ctk.CTkFrame):
         self.label = ctk.CTkLabel(
             self.inner_frame,
             text=text,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             text_color=["#1E1E1E", "#c8c8c8"],
         )
         self.label.pack()

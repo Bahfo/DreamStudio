@@ -102,12 +102,12 @@ class Workspace:
 
 
 class WatchDog:
-    def __init__(self, gui_callback=None):
+    def __init__(self, path, gui_callback=None):
         """
         gui_callback: function that receives stable events (for GUI updates)
         """
         self.event_queue = Queue()
-        self.debouncer = Debouncer(delay=0.2, output_queue=self.event_queue)
+        self.debouncer = Debouncer(path=path, delay=0.2, output_queue=self.event_queue)
         self.handler = WatchdogBridgeHandler(self.debouncer)
         self.observer = Observer()
         self.gui_callback = gui_callback  # optional GUI hook

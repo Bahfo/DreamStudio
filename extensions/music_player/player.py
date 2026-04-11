@@ -45,7 +45,7 @@ class mainApp(tk.Toplevel):
             background=colors_scheme[0],
             justify="left",
             anchor="w",
-            font=("Segoe UI", 9),
+            font=("inter", 9),
             foreground=colors_scheme[3],
         )
         self.label1.pack(side="left", padx=5, pady=3)
@@ -58,7 +58,7 @@ class mainApp(tk.Toplevel):
             background=colors_scheme[0],
             justify="left",
             anchor="w",
-            font=("Segoe UI", 9),
+            font=("inter", 9),
             foreground=colors_scheme[3],
         )
         self.pathLabel.pack(side="left", padx=5, pady=3)
@@ -70,7 +70,7 @@ class mainApp(tk.Toplevel):
             text="▶",
             background=colors_scheme[1],
             foreground=colors_scheme[3],
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             command=self.toggle_play,
         )
         self.playStopBtn.pack(side="right", padx=2, pady=2)

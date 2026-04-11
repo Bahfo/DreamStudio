@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from PIL import Image
 
+
 class HorizontalButton(ctk.CTkFrame):
     """
     A horizontal button with an icon and text.
@@ -10,14 +11,14 @@ class HorizontalButton(ctk.CTkFrame):
         self,
         parent,
         image_path=None,
-        width = 110, 
-        height = 30,
+        width=110,
+        height=30,
         text="",
         command=None,
         size=(16, 16),
-        hover_border=["#454545","#bebebe"],
-        click_border=["#737373","#808080"],
-        font=("Segoe UI", 11),
+        hover_border=["#454545", "#bebebe"],
+        click_border=["#737373", "#808080"],
+        font=("inter", 11),
         **kwargs,
     ):
         super().__init__(parent, fg_color="transparent", width=width, height=height)

@@ -62,7 +62,7 @@ class OpenPopup(ctk.CTkFrame):
                 text=label,
                 width=196,
                 height=20,
-                font=("Segoe UI", 12),
+                font=("inter", 12),
                 command=command,
                 corner_radius=0,
                 border_width=0,
@@ -215,7 +215,7 @@ class GettingStartedTab:
             welcomeTabFrame,
             text="Start My Tour!",
             corner_radius=0,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             width=80,
             height=18,
         )
@@ -236,7 +236,7 @@ class GettingStartedTab:
             welcomeTabFrame,
             text="Read the Documentation",
             corner_radius=0,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             width=136,
             height=18,
         )
@@ -291,7 +291,7 @@ def add_new_text_tab(tabSwitch, editor_initial_font, mode):
         font=editor_initial_font,
         showpath=True,
         darkmode=mode,
-        uifont=("Segoe UI", 11),
+        uifont=("inter", 11),
     )
     new_editor.pack(fill="both", expand=True)
 

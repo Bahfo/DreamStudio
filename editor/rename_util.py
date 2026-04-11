@@ -20,11 +20,11 @@ class RenameDialog(ctk.CTkToplevel):
         container.pack(fill="both", expand=True, padx=20, pady=20)
 
         self.label = ctk.CTkLabel(
-            container, text="Enter new name", font=("Segoe UI", 14, "bold")
+            container, text="Enter new name", font=("inter", 14, "bold")
         )
         self.label.pack(anchor="w", pady=(0, 8))
 
-        self.entry = ctk.CTkEntry(container, height=34, font=("Segoe UI", 13))
+        self.entry = ctk.CTkEntry(container, height=34, font=("inter", 13))
         self.entry.insert(0, current_name)
         self.entry.pack(fill="x", pady=(0, 15))
 

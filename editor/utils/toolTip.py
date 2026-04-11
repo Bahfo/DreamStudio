@@ -1,13 +1,14 @@
 import customtkinter as ctk
 import tkinter as tk
 
+
 class ToolTip(ctk.CTkFrame):
     """
     A tooltip widget that displays informative text when hovering over a widget.
     """
 
     def __init__(
-        self, widget, text, delay=400, bg="#2b2b2b", fg="white", font=("Segoe UI", 10)
+        self, widget, text, delay=400, bg="#2b2b2b", fg="white", font=("inter", 10)
     ):
         self.widget = widget
         self.text = text

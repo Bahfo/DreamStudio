@@ -23,6 +23,7 @@ from DreamStudio's development environment.
 """
 
 import customtkinter as ctk
+from PIL import Image
 from editor.utils.colorDialog import ColorDialog
 from editor.utils.largeButton import LargeButton
 from editor.utils.layoutsTab import LayoutsTab
@@ -78,3 +79,24 @@ allowed_extensions = {
     ".py",
     ".h",
 }
+
+# _file = Image.open()
+# _folder =
+# _settings =
+# _save =
+# _print =
+
+# file_image = ctk.CTkImage()
+
+explr_btn = r"assets/system/newvar.png"
+find_btn_img = r"assets/system/folder.png"
+save_btn_img = r"assets/system/save_file.png"
+trk_chngs_img = r"assets/system/changes.png"
+cmpr_chngs_img = r"assets/system/compare.png"
+rn_img = r"assets/system/start.png"
+dbg_img = r"assets/system/bug.png"
+cnfg_img = r"assets/system/manager.png"
+styles_img = r"assets/system/styles.png"
+addons_img = r"assets/system/console.png"
+ide_ = Image.open(r"assets/logos/dreamStudio_icon.png")
+ide_icon = ctk.CTkImage(ide_, ide_, (20, 20))

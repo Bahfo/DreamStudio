@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+
 class ColorDialog(ctk.CTkToplevel):
     """
     A comprehensive color picker dialog with RGB sliders, hex input,
@@ -71,14 +72,14 @@ class ColorDialog(ctk.CTkToplevel):
             slider_frame, "B", self.current_rgb[2]
         )
 
-        self.hex_entry = ctk.CTkEntry(slider_frame, width=100, font=("Segoe UI", 13))
+        self.hex_entry = ctk.CTkEntry(slider_frame, width=100, font=("inter", 13))
         self.hex_entry.pack(pady=(5, 5), side="right")
         self.hex_label = ctk.CTkLabel(
-            slider_frame, width=40, text="Hex:", font=("Segoe UI", 13)
+            slider_frame, width=40, text="Hex:", font=("inter", 13)
         )
         self.hex_label.pack(pady=(5, 5), side="right")
         self.gradient_label = ctk.CTkLabel(
-            slider_frame, width=70, text="Gradients", font=("Segoe UI", 13)
+            slider_frame, width=70, text="Gradients", font=("inter", 13)
         )
         self.gradient_label.pack(pady=(5, 5), side="left", padx=(0, 10))
         self.hex_entry.insert(0, self.current_hex)
@@ -94,7 +95,7 @@ class ColorDialog(ctk.CTkToplevel):
             bottom_frame,
             text="Cancel",
             width=80,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             command=self._on_cancel,
         )
         cancel_button.pack(side="right", padx=5)
@@ -102,7 +103,7 @@ class ColorDialog(ctk.CTkToplevel):
             bottom_frame,
             text="OK",
             width=80,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             command=self._on_ok,
         )
         ok_button.pack(side="right", padx=5)
@@ -112,7 +113,7 @@ class ColorDialog(ctk.CTkToplevel):
     def _create_slider(self, parent, label_text, initial_value):
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.pack(fill="x", pady=(2, 5))
-        label = ctk.CTkLabel(frame, text=label_text, font=("Segoe UI", 14))
+        label = ctk.CTkLabel(frame, text=label_text, font=("inter", 14))
         label.pack(side="left")
         slider = ctk.CTkSlider(
             frame, from_=0, to=255, number_of_steps=255, command=self._slider_changed
@@ -120,7 +121,7 @@ class ColorDialog(ctk.CTkToplevel):
         slider.set(initial_value)
         slider.pack(side="left", fill="x", expand=True, padx=(5, 5))
         value_label = ctk.CTkLabel(
-            frame, text=str(initial_value), width=30, font=("Segoe UI", 13)
+            frame, text=str(initial_value), width=30, font=("inter", 13)
         )
         value_label.pack(side="right")
         return slider, value_label

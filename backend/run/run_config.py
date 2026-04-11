@@ -87,13 +87,13 @@ class ShellWindow(ctk.CTkToplevel):
 
         # Exit status
         self.exit_status = ctk.CTkLabel(
-            self, text="", text_color=["#1E1E1E", "#FFFFFF"], font=("Segoe UI", 12)
+            self, text="", text_color=["#1E1E1E", "#FFFFFF"], font=("inter", 12)
         )
         self.exit_status.pack(pady=(4, 8), side="right", anchor="e", padx=16)
 
         # Runtime evaluate
         self.runTimeEval = ctk.CTkLabel(
-            self, text="", text_color=["#1E1E1E", "#FFFFFF"], font=("Segoe UI", 12)
+            self, text="", text_color=["#1E1E1E", "#FFFFFF"], font=("inter", 12)
         )
         self.runTimeEval.pack(pady=(4, 8), side="right", anchor="e", padx=8)
 

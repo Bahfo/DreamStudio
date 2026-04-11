@@ -22,6 +22,7 @@ class TabView:
     def __init__(
         self,
         master,
+        path,
         width: int = 370,
         height: int = 500,
         corner_radius=0,
@@ -64,7 +65,7 @@ class TabView:
         self.explnLabel = ctk.CTkLabel(
             self.solutionExplorerFrame,
             text=f"  Solution: {number_of_files} files found",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             fg_color=["#F5F5F5", "#1E1E1E"],
             width=width - 30,
             image=project_image,
@@ -114,7 +115,7 @@ class TabView:
             border_color=["#C8C8C8", "#444444"],
             border_width=1,
             height=20,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             width=250,
             corner_radius=0,
             placeholder_text="🔍    Search Solution Explorer",
@@ -125,7 +126,7 @@ class TabView:
             master=self.solutionExplorerFrame,
             width=350,
             height=530,
-            root_path=rf"{pathlib.Path.home()}/Desktop",
+            root_path=path,
         )
         self.treeView.place(x=5, y=60)
 
@@ -167,7 +168,7 @@ class TabView:
             fg_color=self.runDebug.cget("fg_color"),
             text_color=["#1E1E1E", "#FFFFFF"],
             text="Run Options",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             anchor="w",
         )
         label1.place(x=15, y=10)
@@ -180,7 +181,7 @@ class TabView:
             fg_color=["#005BA5", "#004073"],
             text_color="#FFFFFF",
             text="Start Running Code",
-            font=("Segoe UI", 13),
+            font=("inter", 13),
             hover_color="#005398",
             border_width=0,
             command=self.run_script,
@@ -195,7 +196,7 @@ class TabView:
             fg_color=["#005BA5", "#004073"],
             text_color="#FFFFFF",
             text="Show Run Configurations",
-            font=("Segoe UI", 13),
+            font=("inter", 13),
             hover_color="#005398",
             border_width=0,
         )
@@ -209,7 +210,7 @@ class TabView:
             fg_color=self.runDebug.cget("fg_color"),
             text_color=["#1E1E1E", "#FFFFFF"],
             text="Debug Options",
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             anchor="w",
         )
         label2.place(x=15, y=110)
@@ -222,7 +223,7 @@ class TabView:
             fg_color=["#005BA5", "#004073"],
             text_color="#FFFFFF",
             text="Debug Current Code File",
-            font=("Segoe UI", 13),
+            font=("inter", 13),
             hover_color="#005398",
             border_width=0,
         )
@@ -252,7 +253,7 @@ class TabView:
             corner_radius=6,
             hover=False,
             border_width=0,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             fg_color=["#F5F5F5", "#1E1E1E"],
         )
         self.slnExplrBtn.place(x=8, y=-5)
@@ -266,7 +267,7 @@ class TabView:
             corner_radius=6,
             hover=False,
             border_width=0,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             fg_color=["#F5F5F5", "#1E1E1E"],
         )
         self.propertiesBtn.place(x=125, y=-5)
@@ -280,7 +281,7 @@ class TabView:
             corner_radius=6,
             hover=False,
             border_width=0,
-            font=("Segoe UI", 12),
+            font=("inter", 12),
             fg_color=["#F5F5F5", "#1E1E1E"],
         )
         self.runDebugBtn.place(x=229, y=-5)

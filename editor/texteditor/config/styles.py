@@ -73,7 +73,6 @@ class Style(ttk.Style):
             gripcount=0,
             background=bg,
             troughcolor=bg,
-            bordercolor=bg,
             lightcolor=bg,
             darkcolor=bg,
             arrowsize=14,
@@ -89,7 +88,6 @@ class Style(ttk.Style):
             gripcount=0,
             background=bg,
             troughcolor=bg,
-            bordercolor=bg,
             lightcolor=bg,
             darkcolor=bg,
         )

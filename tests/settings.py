@@ -22,7 +22,7 @@ def open_settings_window():
     accessibility_label = ctk.CTkLabel(
         scrollable_frame,
         text="Accessibility",
-        font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+        font=ctk.CTkFont(family="inter", size=20, weight="bold"),
     )
     accessibility_label.grid(row=0, column=0, padx=0, pady=(0, 15), sticky="w")
 
@@ -36,12 +36,12 @@ def open_settings_window():
     settings_font_label = ctk.CTkLabel(
         accessibility_frame,
         text="Font Size",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     settings_font_label.grid(row=0, column=0, padx=(20, 10), pady=(15, 10), sticky="w")
 
     font_number_changer = ctk.CTkLabel(
-        accessibility_frame, text="13", font=ctk.CTkFont(family="Segoe UI", size=14)
+        accessibility_frame, text="13", font=ctk.CTkFont(family="inter", size=14)
     )
     font_number_changer.grid(row=0, column=1, padx=(0, 30), pady=(15, 10), sticky="e")
 
@@ -67,7 +67,7 @@ def open_settings_window():
     high_contrast_label = ctk.CTkLabel(
         accessibility_frame,
         text="High Contrast Mode",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     high_contrast_label.grid(row=2, column=0, padx=(20, 10), pady=(0, 10), sticky="w")
 
@@ -78,7 +78,7 @@ def open_settings_window():
     appearance_label = ctk.CTkLabel(
         scrollable_frame,
         text="Appearance",
-        font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+        font=ctk.CTkFont(family="inter", size=20, weight="bold"),
     )
     appearance_label.grid(row=2, column=0, padx=0, pady=(0, 15), sticky="w")
 
@@ -91,7 +91,7 @@ def open_settings_window():
     theme_label = ctk.CTkLabel(
         appearance_frame,
         text="Theme Mode",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     theme_label.grid(row=0, column=0, padx=(20, 10), pady=(15, 10), sticky="w")
 
@@ -107,14 +107,14 @@ def open_settings_window():
     font_family_label = ctk.CTkLabel(
         appearance_frame,
         text="Font Family",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     font_family_label.grid(row=1, column=0, padx=(20, 10), pady=(0, 10), sticky="w")
 
-    font_family_var = ctk.StringVar(value="Segoe UI")
+    font_family_var = ctk.StringVar(value="inter")
     font_family_combo = ctk.CTkComboBox(
         appearance_frame,
-        values=["Segoe UI", "Consolas", "Courier", "Monaco"],
+        values=["inter", "Consolas", "Courier", "Monaco"],
         variable=font_family_var,
         width=150,
     )
@@ -123,7 +123,7 @@ def open_settings_window():
     accent_label = ctk.CTkLabel(
         appearance_frame,
         text="Accent Color",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     accent_label.grid(row=2, column=0, padx=(20, 10), pady=(0, 10), sticky="w")
 
@@ -142,7 +142,7 @@ def open_settings_window():
     editor_label = ctk.CTkLabel(
         scrollable_frame,
         text="Editor",
-        font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+        font=ctk.CTkFont(family="inter", size=20, weight="bold"),
     )
     editor_label.grid(row=4, column=0, padx=0, pady=(0, 15), sticky="w")
 
@@ -153,12 +153,12 @@ def open_settings_window():
 
     # Tab Size
     tab_size_label = ctk.CTkLabel(
-        editor_frame, text="Tab Size", font=ctk.CTkFont(family="Segoe UI", size=14)
+        editor_frame, text="Tab Size", font=ctk.CTkFont(family="inter", size=14)
     )
     tab_size_label.grid(row=1, column=0, padx=(20, 10), pady=(10, 10), sticky="w")
 
     tab_size_number = ctk.CTkLabel(
-        editor_frame, text="4", font=ctk.CTkFont(family="Segoe UI", size=14)
+        editor_frame, text="4", font=ctk.CTkFont(family="inter", size=14)
     )
     tab_size_number.grid(row=1, column=1, padx=(0, 30), pady=(10, 10), sticky="e")
 
@@ -184,7 +184,7 @@ def open_settings_window():
     spaces_label = ctk.CTkLabel(
         editor_frame,
         text="Use Spaces Instead of Tabs",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     spaces_label.grid(row=3, column=0, padx=(20, 10), pady=(0, 10), sticky="w")
 
@@ -195,7 +195,7 @@ def open_settings_window():
     auto_save_label = ctk.CTkLabel(
         editor_frame,
         text="Auto-Save (every 10s)",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     auto_save_label.grid(row=5, column=0, padx=(20, 10), pady=(0, 15), sticky="w")
 
@@ -206,7 +206,7 @@ def open_settings_window():
     files_label = ctk.CTkLabel(
         scrollable_frame,
         text="Files and Workspaces",
-        font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+        font=ctk.CTkFont(family="inter", size=20, weight="bold"),
     )
     files_label.grid(row=6, column=0, padx=0, pady=(0, 15), sticky="w")
 
@@ -219,7 +219,7 @@ def open_settings_window():
     trusted_workspaces_label = ctk.CTkLabel(
         files_frame,
         text="Allow Untrusted Workspaces",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     trusted_workspaces_label.grid(row=0, column=0, sticky="w", padx=(20, 10), pady=15)
 
@@ -232,7 +232,7 @@ def open_settings_window():
     workspace_path_label = ctk.CTkLabel(
         files_frame,
         text="Default Workspace Path",
-        font=ctk.CTkFont(family="Segoe UI", size=14),
+        font=ctk.CTkFont(family="inter", size=14),
     )
     workspace_path_label.grid(row=2, column=0, sticky="w", padx=(20, 10), pady=(0, 10))
 
