@@ -1,0 +1,11 @@
+###############################################################
+# COPYRIGHT 2026 EX-TECHNOLOGIES : UNDER THE PYTHON LICENSE
+# A GENERAL PURPOSE GUI FRAMEWORK WRAPPED AROUND TKINTER
+###############################################################
+
+Introduction: 
+IronKinter is a wrapped framework around the built-in tkinter 
+GUI framework that comes pre-installed with Python. IronKinter
+comes also pre-installed already when you install Python 
+packages for DreamStudio.
+
