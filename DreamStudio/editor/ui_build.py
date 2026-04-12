@@ -12,7 +12,7 @@ class DreamStudio(QMainWindow):
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
 
-        self.setStyleSheet("background-color: #2B2D30;")
+        self.setStyleSheet("background-color: #004488; font-family:inter, Arial;")
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -28,7 +28,7 @@ class DreamStudio(QMainWindow):
         self.workspace.setStyleSheet("background-color: #1E1F22;")
 
         workspace_layout = QVBoxLayout(self.workspace)
-        placeholder_label = QLabel("DreamStudio Main Workspace")
+        placeholder_label = QLabel("Main Workspace")
         placeholder_label.setStyleSheet("color: #777777; font-size: 24px;")
         placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         workspace_layout.addWidget(placeholder_label)
