@@ -26,12 +26,6 @@ class DreamStudioTitleBar(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         #################################
-        #
-        #################################
-        style = self.style()
-        file_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileIcon)
-
-        #################################
         # Title
         #################################
 
@@ -209,18 +203,19 @@ class DreamStudioTitleBar(QWidget):
         #################################
         self.accountBtn = QPushButton()
         self.accountBtn.setIcon(QIcon("assets/system/account.png"))
-        self.accountBtn.setIconSize(QSize(28, 28))
+        self.accountBtn.setIconSize(QSize(26, 26))
         self.accountBtn.setStyleSheet(
             """
             QPushButton{
             color: white;
             background-color: transparent;
             border: none;
-            border-radius: 4px;
-            font-size: 12px;}
+            border-radius: 13px;
+            font-size: 12px;
+            padding:0px;}
             QPushButton:hover{
             background-color:#444;}
-            
+
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 0.1);
             }"""

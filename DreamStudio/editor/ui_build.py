@@ -1,6 +1,8 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout
 from editor.utils.titleBar import DreamStudioTitleBar
+from editor.utils.statusBar import StatusBar
+from editor.utils.optionsBar import OptionsMenu
 
 
 class DreamStudio(QMainWindow):
@@ -8,7 +10,7 @@ class DreamStudio(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("DreamStudio")
-        self.resize(1000, 600)
+        self.resize(1000, 800)
 
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
 
@@ -21,16 +23,23 @@ class DreamStudio(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
+        # Title Bar
         self.title_bar = DreamStudioTitleBar(self)
         main_layout.addWidget(self.title_bar)
+
+        # Options Menu
+        self.options_menu = OptionsMenu(self)
+        main_layout.addWidget(self.options_menu)
 
         self.workspace = QWidget()
         self.workspace.setStyleSheet("background-color: #1E1F22;")
 
-        workspace_layout = QVBoxLayout(self.workspace)
-        placeholder_label = QLabel("Main Workspace")
-        placeholder_label.setStyleSheet("color: #777777; font-size: 24px;")
-        placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        workspace_layout.addWidget(placeholder_label)
+        workspace_layout = QHBoxLayout(self.workspace)
+        workspace_layout.setContentsMargins(0, 0, 0, 0)
+        workspace_layout.setSpacing(0)
 
         main_layout.addWidget(self.workspace)
+
+        # Status Bar
+        self.status_bar = StatusBar(self)
+        main_layout.addWidget(self.status_bar)
