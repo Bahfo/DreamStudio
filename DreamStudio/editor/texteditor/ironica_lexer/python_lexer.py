@@ -8,7 +8,7 @@ class CustomPythonLexer(QsciLexerCustom):
         super().__init__(parent)
         self.json_data = json_data
 
-        self.default_font = QFont("Cascadia Mono", 11)
+        self.default_font = QFont("JetBrains Mono", 11)
         self.setDefaultFont(self.default_font)
         self.setDefaultPaper(QColor("#1E1E1E"))
         self.setDefaultColor(QColor("#D4D4D4"))

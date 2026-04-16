@@ -126,7 +126,7 @@ class OptionsMenu(QFrame):
 
         self.config_run_options = self.create_menu_button(
             image="assets/system/config.png",
-            image_size=QSize(17, 17),
+            image_size=QSize(19, 19),
             text="   Run Configuration",
             btn_size=QSize(150, 28),
             custom_css=text_btn_css,

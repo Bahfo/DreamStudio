@@ -1,6 +1,5 @@
 from PyQt6.Qsci import (
     QsciScintilla,
-    QsciLexerCPP,
     QsciLexerCMake,
     QsciAPIs,
 )
@@ -13,8 +12,9 @@ import json
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
 from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
 
+
 CONFIG_CODE_EDITOR = {
-    "Set TextEditor Font": ("Cascadia Mono", 10),
+    "Set TextEditor Font": ("JetBrains Mono", 10),
     "Encoding": "UTF-8",
     "Identation_Spacing": 4,
     "Auto Ident": True,
@@ -35,7 +35,7 @@ class CodeEditor(QsciScintilla):
         # Texteditor Options
         ####################################
         self.font_size = 11
-        self._font = QFont("Cascadia Mono", self.font_size)
+        self._font = QFont("JetBrains Mono", self.font_size)
         self.setFont(self._font)
         self.setUtf8(True)
 
@@ -84,6 +84,7 @@ class CodeEditor(QsciScintilla):
         self.setEdgeMode(QsciScintilla.EdgeMode.EdgeLine)
         self.setEdgeColumn(80)
         self.setEdgeColor(QColor("#444444"))
+        self.zoomIn(0)
 
         ####################################
         # Main Implementation
@@ -94,7 +95,7 @@ class CodeEditor(QsciScintilla):
         self.setMarginWidth(0, "000000")
         self.setMarginLineNumbers(0, True)
         self.setMarginsBackgroundColor(self.fold_bg)
-        self.setMarginsForegroundColor(QColor("#858585"))
+        self.setMarginsForegroundColor(QColor("#5F5F5F"))
         self.setFoldMarginColors(self.fold_bg, self.fold_bg)
 
         # Caret
