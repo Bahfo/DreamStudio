@@ -1,5 +1,5 @@
 from PyQt6.Qsci import QsciScintilla
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
 
 
@@ -17,6 +17,7 @@ class MiniMap(QsciScintilla):
         self.setFont(self._font)
         self.setUtf8(True)
         self.setReadOnly(True)
+        self.setPaper(QColor("#1E1E1E"))
 
         self.setCaretWidth(0)
         self.setCaretLineVisible(False)
@@ -51,6 +52,3 @@ class MiniMap(QsciScintilla):
 
     def set_editor_text(self, text: str):
         self.setText(text)
-
-    def sync_from_editor(self, editor):
-        self.setText(editor.text())

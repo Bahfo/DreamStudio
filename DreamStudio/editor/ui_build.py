@@ -14,7 +14,7 @@ import platform
 import subprocess
 
 # GUI Imports
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt, QSize, QTimer, QPoint
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -33,6 +33,7 @@ from editor.utils.optionsBar import OptionsMenu
 from editor.texteditor.editor import CodeEditor
 from editor.animations.splash import SplashOverlay
 from editor.utils.titleBar import DreamStudioTitleBar
+from editor.widgets.QCustomLabels import CustomTooltip
 
 
 class DreamStudio(QMainWindow):
@@ -73,6 +74,8 @@ class DreamStudio(QMainWindow):
         overlay.show()
 
     def setup_layout(self):
+        tooltip = CustomTooltip()
+
         main_layout = QVBoxLayout(self.central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -161,7 +164,7 @@ class DreamStudio(QMainWindow):
         self.minimap = MiniMap(self)
 
         self.minimap.setMinimumWidth(100)
-        self.minimap.setMaximumWidth(200)
+        self.minimap.setMaximumWidth(100)
 
         self.workspace_splitter.setStretchFactor(2, 1)  # editor grows
         self.workspace_splitter.setStretchFactor(3, 0)  # minimap stays fixed

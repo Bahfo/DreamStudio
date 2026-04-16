@@ -34,31 +34,18 @@ class OptionsMenu(QFrame):
         #################################
         # Options
         #################################
-        self.options = QPushButton("☰")
-        self.options.setFixedSize(30, 28)
-        self.options.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 12px;
-        font-size: 14px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
-        optionsMenu_layout.addWidget(self.options)
-        optionsMenu_layout.addSpacing(15)
-
         # File & Folder
         self.fileMenu = self.create_menu_button(
-            text=None, image="assets/system/new.png", image_size=QSize(22, 22)
+            text=None,
+            image="assets/system/new.png",
+            image_size=QSize(22, 22),
+            tooltip="Create a new file",
         )
         self.folderMenu = self.create_menu_button(
-            text=None, image="assets/system/open.png", image_size=QSize(18, 18)
+            text=None,
+            image="assets/system/open.png",
+            image_size=QSize(18, 18),
+            tooltip="Create a new folder",
         )
 
         optionsMenu_layout.addWidget(self.fileMenu)
@@ -71,22 +58,40 @@ class OptionsMenu(QFrame):
 
         # Edit Operations
         self.cutBtn = self.create_menu_button(
-            text=None, image="assets/system/cut.png", image_size=QSize(21, 21)
+            text=None,
+            image="assets/system/cut.png",
+            image_size=QSize(21, 21),
+            tooltip="Cut selected text",
         )
         self.copyBtn = self.create_menu_button(
-            text=None, image="assets/system/copy.png", image_size=QSize(24, 24)
+            text=None,
+            image="assets/system/copy.png",
+            image_size=QSize(24, 24),
+            tooltip="Copy selected text",
         )
         self.pasteBtn = self.create_menu_button(
-            text=None, image="assets/system/paste.png", image_size=QSize(22, 22)
+            text=None,
+            image="assets/system/paste.png",
+            image_size=QSize(22, 22),
+            tooltip="Paste text from clipboard",
         )
         self.undoBtn = self.create_menu_button(
-            text=None, image="assets/system/undo.png", image_size=QSize(18, 18)
+            text=None,
+            image="assets/system/undo.png",
+            image_size=QSize(18, 18),
+            tooltip="Undo last editor action",
         )
         self.redoBtn = self.create_menu_button(
-            text=None, image="assets/system/redo.png", image_size=QSize(18, 18)
+            text=None,
+            image="assets/system/redo.png",
+            image_size=QSize(18, 18),
+            tooltip="Redo last editor action",
         )
         self.saveBtn = self.create_menu_button(
-            text=None, image="assets/system/save.png", image_size=QSize(24, 24)
+            text=None,
+            image="assets/system/save.png",
+            image_size=QSize(24, 24),
+            tooltip="Save file",
         )
 
         optionsMenu_layout.addWidget(self.cutBtn)
@@ -122,6 +127,7 @@ class OptionsMenu(QFrame):
             text="   Hardware Monitor",
             btn_size=QSize(150, 28),
             custom_css=text_btn_css,
+            tooltip="Monitor hardware behavior while running your solution",
         )
 
         self.config_run_options = self.create_menu_button(
@@ -130,13 +136,20 @@ class OptionsMenu(QFrame):
             text="   Run Configuration",
             btn_size=QSize(150, 28),
             custom_css=text_btn_css,
+            tooltip="Configure running options for custom run and debug support",
         )
 
         self.runBtn = self.create_menu_button(
-            text=None, image="assets/system/run.png", image_size=QSize(18, 18)
+            text=None,
+            image="assets/system/run.png",
+            image_size=QSize(18, 18),
+            tooltip="Run current file",
         )
         self.debugBtn = self.create_menu_button(
-            text=None, image="assets/system/bug.png", image_size=QSize(22, 22)
+            text=None,
+            image="assets/system/bug.png",
+            image_size=QSize(22, 22),
+            tooltip="Debug current file",
         )
 
         optionsMenu_layout.addWidget(self.monitor)
@@ -148,28 +161,40 @@ class OptionsMenu(QFrame):
 
         # Right-side Options
         self.readOnlyBtn = self.create_menu_button(
-            text=None, image="assets/system/lock.png", image_size=QSize(21, 21)
+            text=None,
+            image="assets/system/lock.png",
+            image_size=QSize(21, 21),
+            tooltip="Make current file read-only",
         )
         self.containerToolsBtn = self.create_menu_button(
-            text=None, image="assets/system/container.png", image_size=QSize(21, 21)
+            text=None,
+            image="assets/system/container.png",
+            image_size=QSize(21, 21),
+            tooltip="Show containers and virtual environments",
         )
 
         optionsMenu_layout.addWidget(self.readOnlyBtn)
         optionsMenu_layout.addWidget(self.containerToolsBtn)
 
         self.searchBtn = self.create_menu_button(
-            text=None, image="assets/system/search.png", image_size=QSize(21, 21)
+            text=None,
+            image="assets/system/search.png",
+            image_size=QSize(21, 21),
+            tooltip="Search inside the current file",
         )
         optionsMenu_layout.addWidget(self.searchBtn)
 
         self.settingsBtn = self.create_menu_button(
-            text=None, image="assets/system/settings.png"
+            text=None,
+            image="assets/system/settings.png",
+            tooltip="Show IDE Settings",
         )
         optionsMenu_layout.addWidget(self.settingsBtn)
 
     def create_menu_button(
         self,
         image,
+        tooltip,
         image_size=QSize(24, 24),
         text=None,
         btn_size=QSize(30, 28),
@@ -180,6 +205,7 @@ class OptionsMenu(QFrame):
         btn.setFixedSize(btn_size)
         btn.setIcon(QIcon(image))
         btn.setIconSize(image_size)
+        btn.setToolTip(tooltip)
 
         # Default stylesheet for icon buttons
         default_css = """
@@ -193,6 +219,14 @@ class OptionsMenu(QFrame):
             padding-right:2px;
         }
         QPushButton:hover{background-color:#333}
+
+        QToolTip{
+        color: #F5F5F5; 
+        font-family: inter;
+        padding: 6px 5px;
+        font-size: 12px;
+        background-color: #25272B; 
+        border: none;}
         """
 
         btn.setStyleSheet(custom_css if custom_css else default_css)
