@@ -34,42 +34,34 @@ class OptionsMenu(QFrame):
         #################################
         # Options
         #################################
-        self.fileMenu = QPushButton()
-        self.fileMenu.setFixedSize(30, 28)
-        self.fileMenu.setIcon(QIcon("assets/system/new.png"))
-        self.fileMenu.setIconSize(QSize(22, 22))
-        self.fileMenu.setStyleSheet(
+        self.options = QPushButton("☰")
+        self.options.setFixedSize(30, 28)
+        self.options.setStyleSheet(
             """
         QPushButton{
         background-color: transparent;
         border: none;
         color: white;
-        border-radius: 0px;
+        border-radius: 12px;
+        font-size: 14px;
         padding-top:4px;
         padding-left:2px;
         padding-right:2px;
         }
         QPushButton:hover{background-color:#333}"""
         )
-        optionsMenu_layout.addWidget(self.fileMenu)
+        optionsMenu_layout.addWidget(self.options)
+        optionsMenu_layout.addSpacing(15)
 
-        self.folderMenu = QPushButton()
-        self.folderMenu.setFixedSize(30, 28)
-        self.folderMenu.setIcon(QIcon("assets/system/open.png"))
-        self.folderMenu.setIconSize(QSize(18, 18))
-        self.folderMenu.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
+        # File & Folder
+        self.fileMenu = self.create_menu_button(
+            text=None, image="assets/system/new.png", image_size=QSize(22, 22)
         )
+        self.folderMenu = self.create_menu_button(
+            text=None, image="assets/system/open.png", image_size=QSize(18, 18)
+        )
+
+        optionsMenu_layout.addWidget(self.fileMenu)
         optionsMenu_layout.addWidget(self.folderMenu)
 
         optionsMenu_layout.addSpacing(3)
@@ -77,118 +69,31 @@ class OptionsMenu(QFrame):
             VSeparator(), alignment=Qt.AlignmentFlag.AlignVCenter
         )
 
-        self.cutBtn = QPushButton()
-        self.cutBtn.setFixedSize(30, 28)
-        self.cutBtn.setIcon(QIcon("assets/system/cut.png"))
-        self.cutBtn.setIconSize(QSize(21, 21))
-        self.cutBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
+        # Edit Operations
+        self.cutBtn = self.create_menu_button(
+            text=None, image="assets/system/cut.png", image_size=QSize(21, 21)
         )
+        self.copyBtn = self.create_menu_button(
+            text=None, image="assets/system/copy.png", image_size=QSize(24, 24)
+        )
+        self.pasteBtn = self.create_menu_button(
+            text=None, image="assets/system/paste.png", image_size=QSize(22, 22)
+        )
+        self.undoBtn = self.create_menu_button(
+            text=None, image="assets/system/undo.png", image_size=QSize(18, 18)
+        )
+        self.redoBtn = self.create_menu_button(
+            text=None, image="assets/system/redo.png", image_size=QSize(18, 18)
+        )
+        self.saveBtn = self.create_menu_button(
+            text=None, image="assets/system/save.png", image_size=QSize(24, 24)
+        )
+
         optionsMenu_layout.addWidget(self.cutBtn)
-
-        self.copyBtn = QPushButton()
-        self.copyBtn.setFixedSize(30, 28)
-        self.copyBtn.setIcon(QIcon("assets/system/copy.png"))
-        self.copyBtn.setIconSize(QSize(24, 24))
-        self.copyBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
         optionsMenu_layout.addWidget(self.copyBtn)
-
-        self.pasteBtn = QPushButton()
-        self.pasteBtn.setFixedSize(30, 28)
-        self.pasteBtn.setIcon(QIcon("assets/system/paste.png"))
-        self.pasteBtn.setIconSize(QSize(22, 22))
-        self.pasteBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
         optionsMenu_layout.addWidget(self.pasteBtn)
-
-        self.undoBtn = QPushButton()
-        self.undoBtn.setFixedSize(30, 28)
-        self.undoBtn.setIcon(QIcon("assets/system/undo.png"))
-        self.undoBtn.setIconSize(QSize(18, 18))
-        self.undoBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
         optionsMenu_layout.addWidget(self.undoBtn)
-
-        self.redoBtn = QPushButton()
-        self.redoBtn.setFixedSize(30, 28)
-        self.redoBtn.setIcon(QIcon("assets/system/redo.png"))
-        self.redoBtn.setIconSize(QSize(18, 18))
-        self.redoBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
         optionsMenu_layout.addWidget(self.redoBtn)
-
-        self.saveBtn = QPushButton()
-        self.saveBtn.setFixedSize(30, 28)
-        self.saveBtn.setIcon(QIcon("assets/system/save.png"))
-        self.saveBtn.setIconSize(QSize(24, 24))
-        self.saveBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
         optionsMenu_layout.addWidget(self.saveBtn)
 
         optionsMenu_layout.addSpacing(3)
@@ -196,163 +101,103 @@ class OptionsMenu(QFrame):
             VSeparator(), alignment=Qt.AlignmentFlag.AlignVCenter
         )
 
-        self.monitor = QPushButton("   Hardware Monitor")
-        self.monitor.setFixedSize(150, 28)
-        self.monitor.setIcon(QIcon("assets/system/monitor.png"))
-        self.monitor.setIconSize(QSize(17, 17))
-        self.monitor.setStyleSheet(
-            """
+        # Text Buttons CSS (Monitor & Config)
+        text_btn_css = """
         QPushButton{
-        background-color: #34373C;
-        font-size:12px;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-left: 5px;
-        padding-right: 10px;
+            background-color: #34373C;
+            font-size:12px;
+            border: none;
+            color: white;
+            border-radius: 0px;
+            padding-left: 5px;
+            padding-right: 10px;
         }
-        QPushButton:hover{
-        background-color: #333;
-        }"""
+        QPushButton:hover{background-color: #333;}
+        """
+
+        # Tools & Execution
+        self.monitor = self.create_menu_button(
+            image="assets/system/monitor.png",
+            image_size=QSize(17, 17),
+            text="   Hardware Monitor",
+            btn_size=QSize(150, 28),
+            custom_css=text_btn_css,
         )
+
+        self.config_run_options = self.create_menu_button(
+            image="assets/system/config.png",
+            image_size=QSize(17, 17),
+            text="   Run Configuration",
+            btn_size=QSize(150, 28),
+            custom_css=text_btn_css,
+        )
+
+        self.runBtn = self.create_menu_button(
+            text=None, image="assets/system/run.png", image_size=QSize(18, 18)
+        )
+        self.debugBtn = self.create_menu_button(
+            text=None, image="assets/system/bug.png", image_size=QSize(22, 22)
+        )
+
         optionsMenu_layout.addWidget(self.monitor)
-
-        self.config_run_options = QPushButton("   Run Configuration")
-        self.config_run_options.setFixedSize(150, 28)
-        self.config_run_options.setIcon(QIcon("assets/system/config.png"))
-        self.config_run_options.setIconSize(QSize(17, 17))
-        self.config_run_options.setStyleSheet(
-            """
-        QPushButton{
-        background-color: #34373C;
-        font-size:12px;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-left: 5px;
-        padding-right: 10px;
-        }
-        QPushButton:hover{
-        background-color: #333;
-        }"""
-        )
         optionsMenu_layout.addWidget(self.config_run_options)
-
-        self.runBtn = QPushButton()
-        self.runBtn.setFixedSize(30, 28)
-        self.runBtn.setIcon(QIcon("assets/system/run.png"))
-        self.runBtn.setIconSize(QSize(18, 18))
-        self.runBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 10px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
         optionsMenu_layout.addWidget(self.runBtn)
-
-        self.debugBtn = QPushButton()
-        self.debugBtn.setFixedSize(30, 28)
-        self.debugBtn.setIcon(QIcon("assets/system/bug.png"))
-        self.debugBtn.setIconSize(QSize(22, 22))
-        self.debugBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 10px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
         optionsMenu_layout.addWidget(self.debugBtn)
 
         optionsMenu_layout.addStretch()
 
-        #################################
         # Right-side Options
-        #################################
-        self.readOnlyBtn = QPushButton()
-        self.readOnlyBtn.setFixedSize(30, 28)
-        self.readOnlyBtn.setIcon(QIcon("assets/system/lock.png"))
-        self.readOnlyBtn.setIconSize(QSize(21, 21))
-        self.readOnlyBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 10px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
+        self.readOnlyBtn = self.create_menu_button(
+            text=None, image="assets/system/lock.png", image_size=QSize(21, 21)
         )
-        optionsMenu_layout.addWidget(self.readOnlyBtn)
+        self.containerToolsBtn = self.create_menu_button(
+            text=None, image="assets/system/container.png", image_size=QSize(21, 21)
+        )
 
-        self.containerToolsBtn = QPushButton()
-        self.containerToolsBtn.setFixedSize(30, 28)
-        self.containerToolsBtn.setIcon(QIcon("assets/system/container.png"))
-        self.containerToolsBtn.setIconSize(QSize(21, 21))
-        self.containerToolsBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 10px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
-        )
+        optionsMenu_layout.addWidget(self.readOnlyBtn)
         optionsMenu_layout.addWidget(self.containerToolsBtn)
 
-        self.searchBtn = QPushButton()
-        self.searchBtn.setFixedSize(30, 28)
-        self.searchBtn.setIcon(QIcon("assets/system/search.png"))
-        self.searchBtn.setIconSize(QSize(21, 21))
-        self.searchBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 10px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
+        self.searchBtn = self.create_menu_button(
+            text=None, image="assets/system/search.png", image_size=QSize(21, 21)
         )
         optionsMenu_layout.addWidget(self.searchBtn)
 
-        self.settingsBtn = QPushButton()
-        self.settingsBtn.setFixedSize(30, 28)
-        self.settingsBtn.setIcon(QIcon("assets/system/settings.png"))
-        self.settingsBtn.setIconSize(QSize(24, 24))
-        self.settingsBtn.setStyleSheet(
-            """
-        QPushButton{
-        background-color: transparent;
-        border: none;
-        color: white;
-        border-radius: 10px;
-        padding-top:4px;
-        padding-left:2px;
-        padding-right:2px;
-        }
-        QPushButton:hover{background-color:#333}"""
+        self.settingsBtn = self.create_menu_button(
+            text=None, image="assets/system/settings.png"
         )
         optionsMenu_layout.addWidget(self.settingsBtn)
+
+    def create_menu_button(
+        self,
+        image,
+        image_size=QSize(24, 24),
+        text=None,
+        btn_size=QSize(30, 28),
+        custom_css=None,
+        function=None,
+    ):
+        btn = QPushButton(text) if text else QPushButton()
+        btn.setFixedSize(btn_size)
+        btn.setIcon(QIcon(image))
+        btn.setIconSize(image_size)
+
+        # Default stylesheet for icon buttons
+        default_css = """
+        QPushButton{
+            background-color: transparent;
+            border: none;
+            color: white;
+            border-radius: 10px;
+            padding-top:4px;
+            padding-left:2px;
+            padding-right:2px;
+        }
+        QPushButton:hover{background-color:#333}
+        """
+
+        btn.setStyleSheet(custom_css if custom_css else default_css)
+
+        if function:
+            btn.clicked.connect(function)
+
+        return btn

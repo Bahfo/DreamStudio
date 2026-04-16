@@ -1,0 +1,166 @@
+{
+  "meta": 
+  {
+    "language": "Python",
+    "version_support": "3.12"
+  },
+
+  "words": 
+  {
+    "def": "definition",
+    "class": "definition",
+    "return": "definition",
+    "nonlocal": "definition",
+    "global": "definition",
+    "local": "definition",
+
+    "import": "import",
+    "from": "import",
+
+    "as": "keyword",
+    "if": "keyword",
+    "elif": "keyword",
+    "else": "keyword",
+    "for": "keyword",
+    "while": "keyword",
+    "try": "keyword",
+    "except": "keyword",
+    "with": "keyword",
+    "pass": "keyword",
+    "break": "keyword",
+    "continue": "keyword",
+    "yield": "keyword",
+    "finally": "keyword",
+    "match": "keyword",
+    "case": "keyword",
+
+    "assert": "execution_logic",
+    "del": "execution_logic",
+    "lambda": "execution_logic",
+    "raise": "execution_logic",
+    "async": "execution_logic",
+    "await": "execution_logic",
+
+    "False": "logic",
+    "True": "logic",
+    "None": "logic",
+    "in": "logic",
+    "and": "logic",
+    "not": "logic",
+    "or": "logic"
+  },
+
+  "types": 
+  {
+    "int": "constructor",
+    "float": "constructor",
+    "bool": "constructor",
+    "str": "constructor",
+    "bytes": "constructor",
+    "complex": "constructor",
+
+    "list": "collection",
+    "tuple": "collection",
+    "set": "collection",
+    "frozenset": "collection",
+    "dict": "collection",
+
+    "object": "meta",
+    "type": "meta"
+  },
+
+  "iterators": 
+  {
+    "range": "iterator",
+    "enumerate": "iterator",
+    "zip": "iterator",
+    "map": "iterator",
+    "filter": "iterator"
+  },
+
+  "exceptions":
+  {
+    "BaseException": "exception_class",
+    "Exception": "exception_class",
+
+    "SystemExit": "exception_class",
+    "KeyboardInterrupt": "exception_class",
+    "GeneratorExit": "exception_class",
+
+    "ValueError": "exception_class",
+    "TypeError": "exception_class",
+    "NameError": "exception_class",
+    "UnboundLocalError": "exception_class",
+    "AttributeError": "exception_class",
+    "RuntimeError": "exception_class",
+    "NotImplementedError": "exception_class",
+
+    "ZeroDivisionError": "exception_class",
+    "OverflowError": "exception_class",
+    "FloatingPointError": "exception_class",
+
+    "IndexError": "exception_class",
+    "KeyError": "exception_class",
+
+    "ImportError": "exception_class",
+    "ModuleNotFoundError": "exception_class",
+
+    "OSError": "exception_class",
+    "FileNotFoundError": "exception_class",
+    "PermissionError": "exception_class",
+    "IsADirectoryError": "exception_class",
+    "NotADirectoryError": "exception_class",
+    "TimeoutError": "exception_class",
+
+    "Warning": "warning_class",
+    "UserWarning": "warning_class",
+    "DeprecationWarning": "warning_class",
+    "SyntaxWarning": "warning_class",
+    "RuntimeWarning": "warning_class",
+    "FutureWarning": "warning_class"
+  },
+
+  "colors_schema":
+  {
+    "definition":"#569CD6",
+    "import":"#9C92EA",
+    "keyword":"#C792EA",
+    "execution_logic":"#FFE38E",
+    "logic":"#3682BD",
+    "constructor":"#77B5A0",
+    "collection":"#4EC9B0",
+    "meta":"#B15E74",
+    "iterator":"#4E92C9",
+    "exception_class":"#C94E5A",
+    "warning_class":"#C9964E"
+  },
+
+  "all_words": 
+  [
+    "def", "class", "return", "nonlocal", "global", "local",
+    "import", "from",
+    "as", "if", "elif", "else", "for", "while", "try", "except",
+    "with", "pass", "break", "continue", "yield", "finally",
+    "match", "case",
+    "assert", "del", "lambda", "raise", "async", "await",
+    "False", "True", "None", "in", "and", "not", "or",
+
+    "int", "float", "bool", "str", "bytes", "complex",
+    "list", "tuple", "set", "frozenset", "dict",
+    "object", "type",
+
+    "range", "enumerate", "zip", "map", "filter",
+
+    "BaseException", "Exception",
+    "SystemExit", "KeyboardInterrupt", "GeneratorExit",
+    "ValueError", "TypeError", "NameError", "UnboundLocalError",
+    "AttributeError", "RuntimeError", "NotImplementedError",
+    "ZeroDivisionError", "OverflowError", "FloatingPointError",
+    "IndexError", "KeyError",
+    "ImportError", "ModuleNotFoundError",
+    "OSError", "FileNotFoundError", "PermissionError",
+    "IsADirectoryError", "NotADirectoryError", "TimeoutError",
+    "Warning", "UserWarning", "DeprecationWarning",
+    "SyntaxWarning", "RuntimeWarning", "FutureWarning"
+  ]
+}

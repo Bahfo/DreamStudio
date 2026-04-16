@@ -6,6 +6,7 @@ from editor.ui_build import DreamStudio
 
 def main():
     app = QApplication(sys.argv)
+    app.setApplicationName("DreamStudio")
     window = DreamStudio()
     window.show()
     sys.exit(app.exec())
