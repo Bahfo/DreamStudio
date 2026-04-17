@@ -19,6 +19,7 @@ class DreamStudioTitleBar(QWidget):
         self.parent = parent
         self.setFixedHeight(40)
         self.offset = None
+        self.setStyleSheet("background: #004073")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 0, 10, 0)

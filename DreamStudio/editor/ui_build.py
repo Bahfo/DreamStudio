@@ -30,10 +30,11 @@ from PyQt6.QtGui import QIcon
 from editor.utils.statusBar import StatusBar
 from editor.texteditor.minimap import MiniMap
 from editor.utils.optionsBar import OptionsMenu
-from editor.texteditor.editor import CodeEditor
 from editor.animations.splash import SplashOverlay
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.widgets.QCustomLabels import CustomTooltip
+from editor.utils.file_explorer import DreamFileTreeWindow
+from editor.texteditor.editor import CodeEditor, DreamTabbedEditor
 
 
 class DreamStudio(QMainWindow):
@@ -49,7 +50,7 @@ class DreamStudio(QMainWindow):
         self.setWindowTitle("DreamStudio")
         self.resize(1000, 800)
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
-        self.setStyleSheet("background-color: #004073; font-family: inter, Arial;")
+        self.setStyleSheet("background-color: #1E1E1E; font-family: inter, Arial;")
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -74,8 +75,6 @@ class DreamStudio(QMainWindow):
         overlay.show()
 
     def setup_layout(self):
-        tooltip = CustomTooltip()
-
         main_layout = QVBoxLayout(self.central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -145,36 +144,37 @@ class DreamStudio(QMainWindow):
 
         # Sidebar
         self.sidebar_frame = QFrame()
-        self.sidebar_frame.setStyleSheet("background-color: #111111; border: none;")
+        self.sidebar_frame.setStyleSheet("background-color: #171717; border: none;")
         self.sidebar_frame.setMinimumWidth(150)
 
         sidebar_layout = QVBoxLayout(self.sidebar_frame)
-        sidebar_label = QLabel("PROJECT EXPLORER")
-        sidebar_label.setStyleSheet(
-            "color: #858585; font-weight: bold; font-size: 11px;"
-        )
-        sidebar_label.setAlignment(
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
-        )
-        sidebar_layout.addWidget(sidebar_label)
-        sidebar_layout.addStretch()
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
 
-        # Main Editor Placeholder
-        self.editor_widget = CodeEditor(self)
+        self.treeview = DreamFileTreeWindow(self.sidebar_frame)
+        sidebar_layout.addWidget(self.treeview)
+
+        # In your UI Builder __init__
+        self.tab_editors = DreamTabbedEditor(self)
         self.minimap = MiniMap(self)
+
+        # Connect the tab switch signal
+        self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
+
+        # Initial sync for the first tab
+        self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
 
         self.minimap.setMinimumWidth(100)
         self.minimap.setMaximumWidth(100)
 
-        self.workspace_splitter.setStretchFactor(2, 1)  # editor grows
-        self.workspace_splitter.setStretchFactor(3, 0)  # minimap stays fixed
-        self.editor_widget.textChanged.connect(  # Syncronization between editor and minimap
-            lambda: self.minimap.setText(self.editor_widget.text())
-        )
+        self.workspace_splitter.setStretchFactor(0, 0)  # leftmost bar (fixed)
+        self.workspace_splitter.setStretchFactor(1, 0)  # sidebar (mostly fixed)
+        self.workspace_splitter.setStretchFactor(2, 1)  # editor (takes all extra space)
+        self.workspace_splitter.setStretchFactor(3, 0)  # minimap (fixed)
 
         self.workspace_splitter.addWidget(self.leftmost_bar)
         self.workspace_splitter.addWidget(self.sidebar_frame)
-        self.workspace_splitter.addWidget(self.editor_widget)
+        self.workspace_splitter.addWidget(self.tab_editors)
         self.workspace_splitter.addWidget(self.minimap)
 
         self.workspace_splitter.setSizes([50, 350, 840, 110])
@@ -218,3 +218,23 @@ class DreamStudio(QMainWindow):
             btn.clicked.connect(function)
 
         return btn
+
+    def sync_minimap_on_tab_switch(self, index):
+        # 1. Get the editor instance from the tab widget
+        editor = self.tab_editors.widget(index)
+
+        if editor:
+            # 2. Update the minimap text immediately
+            self.minimap.setText(editor.text())
+
+            # 3. Handle live typing updates
+            # We try to disconnect to prevent the same function firing 10 times
+            # as you switch back and forth.
+            try:
+                editor.textChanged.disconnect()
+            except TypeError:
+                # This happens if it was never connected; we can ignore it
+                pass
+
+            # Connect the current editor's text change to the minimap
+            editor.textChanged.connect(lambda: self.minimap.setText(editor.text()))

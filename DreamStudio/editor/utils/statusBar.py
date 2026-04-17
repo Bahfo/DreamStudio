@@ -1,6 +1,13 @@
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QFont
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QFrame, QPushButton, QHBoxLayout, QComboBox, QLabel
+from PyQt6.QtWidgets import (
+    QFrame,
+    QPushButton,
+    QHBoxLayout,
+    QComboBox,
+    QLabel,
+    QApplication,
+)
 
 
 class StatusBar(QFrame):
@@ -36,6 +43,7 @@ class StatusBar(QFrame):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self.zoomBtn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.zoomBtn.currentTextChanged.connect(self.on_zoom_toggle)
 
         self.zoomBtn.setStyleSheet(
             """
@@ -210,3 +218,41 @@ class StatusBar(QFrame):
         QPushButton:hover{background-color: #333}"""
         )
         statusbar_layout.addWidget(self.warningBtn)
+
+    def on_zoom_toggle(self, zoomText: str):
+        if not zoomText:
+            return
+
+        try:
+            percent = int(zoomText.replace("%", "").strip())
+            new_size = int(10 * (percent / 100))
+
+            app = QApplication.instance()
+            font = app.font()
+            font.setPointSize(new_size)
+            app.setFont(font)
+            app.setStyleSheet(f"* {{ font-size: {new_size}pt; }}")
+            self.text_zoom_toggle(zoomText)
+
+            for widget in app.allWidgets():
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()
+
+        except Exception as e:
+            print(f"Zoom error: {e}")
+
+    def text_zoom_toggle(self, zoomText: str):
+        if not zoomText:
+            return
+
+        main_win = self.window()
+        tabs = getattr(main_win, "tab_editors", None)
+
+        if tabs:
+            current_editor = tabs.currentWidget()
+
+            if current_editor:
+                zoom_map = {"75%": -2, "100%": 0, "110%": 1, "125%": 3, "150%": 5}
+                level = zoom_map.get(zoomText, 0)
+                current_editor.zoomTo(level)
