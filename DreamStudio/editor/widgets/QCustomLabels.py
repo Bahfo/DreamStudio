@@ -16,17 +16,17 @@ class AnimatedGradientLabel(QLabel):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         self._gradient_offset = 0.0
+        self.setStyleSheet("background-color: transparent;")
 
-        self.setFont(QFont("inter", 28, QFont.Weight.Bold))
+        self.setFont(QFont("inter", 24, QFont.Weight.Normal))
         self.setFixedHeight(60)
 
         # Animation setup
         self.animation = QPropertyAnimation(self, b"gradient_offset")
-        self.animation.setDuration(3000)
+        self.animation.setDuration(2000)
         self.animation.setStartValue(0.0)
         self.animation.setEndValue(1.0)
-        self.animation.setLoopCount(-1)
-        self.animation.start()
+        self.animation.setLoopCount(4)
 
     @pyqtProperty(float)
     def gradient_offset(self):
@@ -37,25 +37,28 @@ class AnimatedGradientLabel(QLabel):
         self._gradient_offset = value
         self.update()
 
+    def start_animation(self):
+        if self.animation.state() != QPropertyAnimation.State.Running:
+            self.animation.start()
+
+    def stop_animation(self):
+        if self.animation.state() == QPropertyAnimation.State.Running:
+            self.animation.stop()
+
     def paintEvent(self, event):
         painter = QPainter(self)
-        # Essential for smooth color blending
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         gradient = QLinearGradient(-self.width(), 0, self.width() * 2, 0)
 
-        # Denser color map for smoother transitions
-        # Using more stops helps the 'middle' colors blend better
-        c1 = QColor("#4285F4")  # Google Blue
-        c2 = QColor("#9b59b6")  # Deep Purple
-        c3 = QColor("#e91e63")  # Vivid Pink
-        c4 = QColor("#34A853")  # Google Green (for extra spectrum)
+        c1 = QColor("#FDC830")
+        c2 = QColor("#F37335")
+        c3 = QColor("#FF5289")
+        c4 = QColor("#7367F0")
 
-        # Calculate offset
         o = self._gradient_offset
 
-        # Mapping colors so they "slide" across the text
         gradient.setColorAt((0.0 + o) % 1.0, c1)
         gradient.setColorAt((0.25 + o) % 1.0, c2)
         gradient.setColorAt((0.5 + o) % 1.0, c3)

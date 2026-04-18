@@ -14,7 +14,7 @@ import platform
 import subprocess
 
 # GUI Imports
-from PyQt6.QtCore import Qt, QSize, QTimer, QPoint
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -22,7 +22,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QSplitter,
     QPushButton,
-    QLabel,
 )
 from PyQt6.QtGui import QIcon
 
@@ -31,10 +30,10 @@ from editor.utils.statusBar import StatusBar
 from editor.texteditor.minimap import MiniMap
 from editor.utils.optionsBar import OptionsMenu
 from editor.animations.splash import SplashOverlay
+from editor.utils.etherAI import EtherAIMainScreen
 from editor.utils.titleBar import DreamStudioTitleBar
-from editor.widgets.QCustomLabels import CustomTooltip
+from editor.texteditor.editor import DreamTabbedEditor
 from editor.utils.file_explorer import DreamFileTreeWindow
-from editor.texteditor.editor import CodeEditor, DreamTabbedEditor
 
 
 class DreamStudio(QMainWindow):
@@ -46,6 +45,7 @@ class DreamStudio(QMainWindow):
         #################################
         self._frame_has_started = False
         self._frame_has_exited = False
+        self.etherAI_frame_visible = False
 
         self.setWindowTitle("DreamStudio")
         self.resize(1000, 800)
@@ -167,6 +167,11 @@ class DreamStudio(QMainWindow):
         self.minimap.setMinimumWidth(100)
         self.minimap.setMaximumWidth(100)
 
+        # Ether AI Screen PlaceHolder
+        self.etherAIScreen = EtherAIMainScreen()
+        self.etherAIScreen.setMaximumWidth(500)
+        self.etherAIScreen.setMinimumWidth(0)
+
         self.workspace_splitter.setStretchFactor(0, 0)  # leftmost bar (fixed)
         self.workspace_splitter.setStretchFactor(1, 0)  # sidebar (mostly fixed)
         self.workspace_splitter.setStretchFactor(2, 1)  # editor (takes all extra space)
@@ -176,8 +181,9 @@ class DreamStudio(QMainWindow):
         self.workspace_splitter.addWidget(self.sidebar_frame)
         self.workspace_splitter.addWidget(self.tab_editors)
         self.workspace_splitter.addWidget(self.minimap)
+        self.workspace_splitter.addWidget(self.etherAIScreen)
 
-        self.workspace_splitter.setSizes([50, 350, 840, 110])
+        self.workspace_splitter.setSizes([50, 350, 840, 110, 0])
 
         main_layout.addWidget(self.workspace_splitter, stretch=1)
 
@@ -220,21 +226,12 @@ class DreamStudio(QMainWindow):
         return btn
 
     def sync_minimap_on_tab_switch(self, index):
-        # 1. Get the editor instance from the tab widget
         editor = self.tab_editors.widget(index)
 
         if editor:
-            # 2. Update the minimap text immediately
             self.minimap.setText(editor.text())
-
-            # 3. Handle live typing updates
-            # We try to disconnect to prevent the same function firing 10 times
-            # as you switch back and forth.
             try:
                 editor.textChanged.disconnect()
             except TypeError:
-                # This happens if it was never connected; we can ignore it
                 pass
-
-            # Connect the current editor's text change to the minimap
             editor.textChanged.connect(lambda: self.minimap.setText(editor.text()))

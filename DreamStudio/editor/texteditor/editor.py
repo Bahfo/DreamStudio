@@ -13,7 +13,13 @@ from PyQt6.Qsci import (
     QsciAPIs,
 )
 from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent
-from PyQt6.QtWidgets import QTabWidget, QTabBar, QStyleOptionTab, QStyle
+from PyQt6.QtWidgets import (
+    QTabWidget,
+    QTabBar,
+    QStyleOptionTab,
+    QStyle,
+    QGraphicsOpacityEffect,
+)
 from PyQt6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen, QPalette
 
 import json
@@ -45,61 +51,86 @@ class DreamStudioIDETabBar(QTabBar):
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         self.setMouseTracking(True)
 
-        self._sync_pending = False
+        self._hover_index = -1
+        self._is_syncing = False
+        self.currentChanged.connect(self._on_current_changed)
 
-    def _schedule_sync_close_buttons(self):
-        if self._sync_pending:
-            return
-        self._sync_pending = True
-        QTimer.singleShot(0, self._sync_close_buttons)
+    def mouseMoveEvent(self, event):
+        super().mouseMoveEvent(event)
+        index = self.tabAt(event.position().toPoint())
+        if index != self._hover_index:
+            self._hover_index = index
+            self._sync_close_buttons()
+
+    def leaveEvent(self, event):
+        super().leaveEvent(event)
+        self._hover_index = -1
+        self._sync_close_buttons()
 
     def _sync_close_buttons(self):
-        self._sync_pending = False
-
-        if not self.tabsClosable():
+        if getattr(self, "_is_syncing", False) or not self.tabsClosable():
             return
+
+        self._is_syncing = True
+        current_idx = self.currentIndex()
 
         for i in range(self.count()):
             button = self.tabButton(i, QTabBar.ButtonPosition.RightSide)
             if not button:
                 continue
 
+            is_visible = i == current_idx or i == self._hover_index
+
+            effect = button.graphicsEffect()
+            if not isinstance(effect, QGraphicsOpacityEffect):
+                effect = QGraphicsOpacityEffect(button)
+                button.setGraphicsEffect(effect)
+
+            effect.setOpacity(1.0 if is_visible else 0.0)
+            button.setAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents, not is_visible
+            )
+
             rect = self.tabRect(i)
-            if rect.isNull():
-                continue
+            if not rect.isNull():
+                btn_w = 18
+                btn_h = 18
 
-            target_height = min(18, max(16, rect.height() - 4))
-            natural_width = button.sizeHint().width() + 12
-            max_width = max(18, rect.width() // 3)
-            final_width = min(natural_width, max_width)
+                margin_right = 8
+                x = rect.right() - btn_w - margin_right
+                y = rect.center().y() - (btn_h // 2)
 
-            x = rect.right() - final_width - 6
-            y = rect.center().y() - (target_height // 2)
+                new_geo = QRect(x, y, btn_w, btn_h)
 
-            button.setGeometry(QRect(x, y, final_width, target_height))
-            button.raise_()
+                if button.geometry() != new_geo:
+                    button.setGeometry(new_geo)
+
+                button.raise_()
+
+        self._is_syncing = False
+
+    def _on_current_changed(self):
+        QTimer.singleShot(0, self._sync_close_buttons)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._schedule_sync_close_buttons()
-        self.update()
-
-    def showEvent(self, event):
-        super().showEvent(event)
-        self._schedule_sync_close_buttons()
+        self._on_current_changed()
 
     def tabLayoutChange(self):
         super().tabLayoutChange()
-        self._schedule_sync_close_buttons()
-        self.update()
+        self._on_current_changed()
+
+    def on_currentChanged(self, index):
+        super().currentChanged(index)
+        self._on_current_changed()
 
     def tabInserted(self, index):
         super().tabInserted(index)
-        self._schedule_sync_close_buttons()
+        self._sync_close_buttons()
 
     def tabRemoved(self, index):
         super().tabRemoved(index)
-        self._schedule_sync_close_buttons()
+        self._sync_close_buttons()
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -108,8 +139,7 @@ class DreamStudioIDETabBar(QTabBar):
             QEvent.Type.StyleChange,
             QEvent.Type.PaletteChange,
         ):
-            self._schedule_sync_close_buttons()
-            self.update()
+            self._sync_close_buttons()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -220,33 +250,24 @@ class DreamTabbedEditor(QTabWidget):
 
         self.setStyleSheet(
             """
-        QTabWidget::pane {
-                border: none;
-                background: #1E1E1E;
-            }
-            QTabBar {
-                border: none;
-                qproperty-drawBase: 0; 
-            }
-            QTabBar::tab {
-                padding: 6px 12px;
-                margin-right: 2px;
-                margin-top: 2px;
-            }
-            QTabBar::tab:selected {
-                color: white; 
-            }
-            QTabBar::close-button {
-                image: url(assets/system/close.png);
-                background-color: transparent;
-                padding-left: 4px;
-                padding-right: 4px;
-            }"""
+        QTabBar::tab {
+            padding: 6px 12px;
+            margin-right: 2px;
+        }
+
+        QTabBar::tab:selected {
+            color: white; 
+        }
+
+        QTabBar::close-button {
+            image: url(assets/system/close.png);
+            background: transparent;
+        }"""
         )
 
         self.tabCloseRequested.connect(self.closeTab)
 
-        self.add_new_editor("Test-1")
+        self.add_new_editor("This is a very long name")
         self.add_new_editor("Test-2")
         self.add_new_editor("Test-3")
 
