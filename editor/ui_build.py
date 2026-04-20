@@ -49,7 +49,7 @@ class DreamStudio(QMainWindow):
 
         self.setWindowTitle("DreamStudio")
         self.resize(1000, 800)
-        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self.setStyleSheet("background-color: #1E1E1E; font-family: inter, Arial;")
 
         self.central_widget = QWidget()
@@ -172,19 +172,21 @@ class DreamStudio(QMainWindow):
         self.etherAIScreen.setMaximumWidth(500)
         self.etherAIScreen.setMinimumWidth(0)
 
-        self.workspace_splitter.setStretchFactor(0, 0)  # leftmost bar (fixed)
-        self.workspace_splitter.setStretchFactor(1, 0)  # sidebar (mostly fixed)
-        self.workspace_splitter.setStretchFactor(2, 1)  # editor (takes all extra space)
-        self.workspace_splitter.setStretchFactor(3, 0)  # minimap (fixed)
-
         self.workspace_splitter.addWidget(self.leftmost_bar)
         self.workspace_splitter.addWidget(self.sidebar_frame)
         self.workspace_splitter.addWidget(self.tab_editors)
         self.workspace_splitter.addWidget(self.minimap)
         self.workspace_splitter.addWidget(self.etherAIScreen)
 
-        self.workspace_splitter.setSizes([50, 350, 840, 110, 0])
+        self.workspace_splitter.setStretchFactor(0, 0)  # Left bar: Fixed
+        self.workspace_splitter.setStretchFactor(1, 1)  # Sidebar: Fixed
+        self.workspace_splitter.setStretchFactor(2, 1)  # Editor: EXPANDS
+        self.workspace_splitter.setStretchFactor(3, 0)  # Minimap: Fixed
+        self.workspace_splitter.setStretchFactor(4, 0)  # AI Screen: Fixed
 
+        self.set_splitter_percentages([5, 20, 65, 10, 0])
+
+        # 4. Add to main layout
         main_layout.addWidget(self.workspace_splitter, stretch=1)
 
         # Status Bar
@@ -235,3 +237,17 @@ class DreamStudio(QMainWindow):
             except TypeError:
                 pass
             editor.textChanged.connect(lambda: self.minimap.setText(editor.text()))
+
+    def set_splitter_percentages(self, percentages):
+        """
+        Sets splitter sizes based on a list of percentages (e.g., [5, 20, 65, 10, 0])
+        """
+        self.workspace_splitter.update()
+        total_width = self.workspace_splitter.width()
+
+        if total_width <= 0:
+            total_width = self.width()
+
+        pixel_sizes = [int(total_width * (p / 100)) for p in percentages]
+
+        self.workspace_splitter.setSizes(pixel_sizes)

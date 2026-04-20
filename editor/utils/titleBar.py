@@ -2,6 +2,7 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QPainter, QIcon
 from PyQt6.QtWidgets import (
     QWidget,
+    QApplication,
     QStyle,
     QHBoxLayout,
     QPushButton,
@@ -289,15 +290,15 @@ class DreamStudioTitleBar(QWidget):
         self.btn_close.clicked.connect(self.parent.close)
 
     def toggle_maximize(self):
-        """Toggles between maximized and normal window states."""
-        if self.parent.isMaximized():
-            self.parent.showNormal()
+        win = self.window()
+        if win.isMaximized():
+            win.setWindowState(Qt.WindowState.WindowNoState)  # Force reset
+            win.showNormal()
             self.btn_maximize.setText("◻")
-            print("maximized")
-        elif not self.parent.isMaximized():
-            self.parent.showMaximized()
+        else:
+            win.setWindowState(Qt.WindowState.WindowMaximized)  # Force set
+            win.showMaximized()
             self.btn_maximize.setText("❐")
-            print("normal")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
