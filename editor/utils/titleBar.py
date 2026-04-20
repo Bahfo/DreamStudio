@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt, QSize, QEvent
 from PyQt6.QtGui import QPainter, QIcon
 from PyQt6.QtWidgets import (
     QWidget,
@@ -26,6 +26,8 @@ class DreamStudioTitleBar(QWidget):
         layout.setContentsMargins(10, 0, 10, 0)
         layout.setSpacing(10)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+        self.window().installEventFilter(self)
 
         #################################
         # Title
@@ -289,30 +291,74 @@ class DreamStudioTitleBar(QWidget):
         self.btn_maximize.clicked.connect(self.toggle_maximize)
         self.btn_close.clicked.connect(self.parent.close)
 
+    def _state_str(self, win):
+        flags = []
+        if win._is_fake_max:
+            flags.append("Maximized")
+        if win.isFullScreen():
+            flags.append("FullScreen")
+        if win.isMinimized():
+            flags.append("Minimized")
+        if not flags:
+            flags.append("Normal")
+        return "|".join(flags)
+
     def toggle_maximize(self):
         win = self.window()
-        if win.isMaximized():
-            win.setWindowState(Qt.WindowState.WindowNoState)  # Force reset
-            win.showNormal()
+        self._dbg("toggle_maximize BEFORE")
+
+        self.offset = None
+
+        if getattr(self, "_is_fake_max", False):
+            print("[TITLEBAR] restoring from fake maximize")
+            if hasattr(self, "_normal_geometry"):
+                win.setGeometry(self._normal_geometry)
+            self._is_fake_max = False
             self.btn_maximize.setText("◻")
         else:
-            win.setWindowState(Qt.WindowState.WindowMaximized)  # Force set
-            win.showMaximized()
+            print("[TITLEBAR] entering fake maximize")
+            self._normal_geometry = win.geometry()
+            win.setGeometry(win.screen().availableGeometry())
+            self._is_fake_max = True
             self.btn_maximize.setText("❐")
 
+        self._dbg("toggle_maximize AFTER")
+
     def mousePressEvent(self, event):
+        win = self.window()
+        print(f"[TITLEBAR] mousePressEvent button={event.button()}")
+
         if event.button() == Qt.MouseButton.LeftButton:
-            self.offset = event.globalPosition().toPoint() - self.parent.pos()
+            if getattr(self, "_is_fake_max", False):
+                print("[TITLEBAR] press ignored because fake maximized")
+                self.offset = None
+                return
+
+            self.offset = event.globalPosition().toPoint() - win.pos()
+            print(f"[TITLEBAR] offset set -> {self.offset}")
             event.accept()
 
     def mouseMoveEvent(self, event):
-        if self.offset is not None and event.buttons() == Qt.MouseButton.LeftButton:
-            self.parent.move(event.globalPosition().toPoint() - self.offset)
+        win = self.window()
+        print(f"[TITLEBAR] mouseMoveEvent buttons={event.buttons()}")
+
+        if getattr(self, "_is_fake_max", False):
+            return
+
+        if self.offset is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            new_pos = event.globalPosition().toPoint() - self.offset
+            print(f"[TITLEBAR] moving window -> {new_pos}")
+            win.move(new_pos)
             event.accept()
 
     def mouseReleaseEvent(self, event):
+        print(f"[TITLEBAR] mouseReleaseEvent button={event.button()}")
         self.offset = None
         event.accept()
+
+    def resizeEvent(self, event):
+        print(f"[TITLEBAR] resizeEvent")
+        super().resizeEvent(event)
 
     def paintEvent(self, event):
         opt = QStyleOption()
@@ -321,3 +367,38 @@ class DreamStudioTitleBar(QWidget):
         self.style().drawPrimitive(
             QStyle.PrimitiveElement.PE_Widget, opt, painter, self
         )
+
+    def moveEvent(self, event):
+        if self.isMaximized():
+            return  # block invalid moves
+        super().moveEvent(event)
+
+    def _state_str(self, win):
+        flags = []
+        if win.isMaximized():
+            flags.append("Maximized")
+        if win.isMinimized():
+            flags.append("Minimized")
+        if win.isFullScreen():
+            flags.append("FullScreen")
+        if not flags:
+            flags.append("Normal")
+        return "|".join(flags)
+
+    def _geo_str(self, win):
+        g = win.geometry()
+        return f"{g.x()},{g.y()} {g.width()}x{g.height()}"
+
+    def _dbg(self, label):
+        win = self.window()
+        print(f"[TITLEBAR] {label} state={self._state_str(win)}")
+
+    def eventFilter(self, obj, event):
+        if obj == self.window():
+            if event.type() == QEvent.Type.WindowStateChange:
+                self._dbg("eventFilter WindowStateChange")
+            elif event.type() == QEvent.Type.Move:
+                self._dbg("eventFilter Move")
+            elif event.type() == QEvent.Type.Resize:
+                self._dbg("eventFilter Resize")
+        return super().eventFilter(obj, event)

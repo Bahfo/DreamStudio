@@ -47,7 +47,6 @@ class DreamStudioIDETabBar(QTabBar):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._schedule_sync_close_buttons()
-        self.update()
 
     def showEvent(self, event):
         super().showEvent(event)

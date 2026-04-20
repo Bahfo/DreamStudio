@@ -112,10 +112,6 @@ class DreamStudioIDETabBar(QTabBar):
     def _on_current_changed(self):
         QTimer.singleShot(0, self._sync_close_buttons)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._on_current_changed()
-
     def tabLayoutChange(self):
         super().tabLayoutChange()
         self._on_current_changed()

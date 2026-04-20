@@ -7,19 +7,27 @@ class SplashOverlay(QWidget):
     def __init__(self, parent, color=QColor(255, 255, 255, 150)):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
         self.color = color
         self.offset = -1.0
 
-        self.setGeometry(parent.rect())
+        self.resize(parent.size())
+        self.raise_()  # ensure it's above
 
-        # Animation Setup
+        parent.installEventFilter(self)
+
         self.anim = QVariantAnimation(self)
         self.anim.setStartValue(-1.0)
         self.anim.setEndValue(2.0)
-        self.anim.setDuration(800)  # 0.8 seconds
+        self.anim.setDuration(800)
         self.anim.valueChanged.connect(self._update_sweep)
         self.anim.finished.connect(self.deleteLater)
         self.anim.start()
+
+    def eventFilter(self, obj, event):
+        if obj is self.parent() and event.type() == event.Type.Resize:
+            self.resize(obj.size())
+        return super().eventFilter(obj, event)
 
     def _update_sweep(self, value):
         self.offset = value

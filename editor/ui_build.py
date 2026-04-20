@@ -14,7 +14,7 @@ import platform
 import subprocess
 
 # GUI Imports
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt, QSize, QTimer, QEvent
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -40,15 +40,14 @@ class DreamStudio(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        #################################
-        # Global Variables
-        #################################
         self._frame_has_started = False
         self._frame_has_exited = False
         self.etherAI_frame_visible = False
 
+        self._minimap_bound_editor = None
+        self._splitter_initialized = False
+
         self.setWindowTitle("DreamStudio")
-        self.resize(1000, 800)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self.setStyleSheet("background-color: #1E1E1E; font-family: inter, Arial;")
 
@@ -56,21 +55,13 @@ class DreamStudio(QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         self.setup_layout()
+        self.check_for_OS_compatability()
 
     def check_for_OS_compatability(self):
-        """
-        Check if the Operating System compatability options.
-        """
         if platform.system() == "Linux":
-            # Compatability Features for Linux
             pass
 
     def _widget_Focus(self, frame, color):
-        """
-        Generates Highlight when a leftsidebar frame is loaded, which sets
-        up a small animation for the window after formal initialization to
-        call the user's attention.
-        """
         overlay = SplashOverlay(frame, color)
         overlay.show()
 
@@ -79,30 +70,26 @@ class DreamStudio(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Top Elements
         self.title_bar = DreamStudioTitleBar(self)
         self.options_menu = OptionsMenu(self)
         main_layout.addWidget(self.title_bar)
         main_layout.addWidget(self.options_menu)
 
-        # WORKSPACE SPLITTER (Horizontal)
         self.workspace_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.workspace_splitter.setHandleWidth(1)
         self.workspace_splitter.setStyleSheet(
             "QSplitter::handle { background-color: #1a1a1a; }"
         )
 
-        # Leftmost Bar
         self.leftmost_bar = QFrame()
         self.leftmost_bar.setFixedWidth(50)
         self.leftmost_bar.setStyleSheet("background-color: #25272B; border: none;")
 
         self.leftmost_layout = QVBoxLayout(self.leftmost_bar)
-        self.leftmost_layout.setContentsMargins(5, 5, 5, 5)  # L, T, R, B padding
+        self.leftmost_layout.setContentsMargins(5, 5, 5, 5)
         self.leftmost_layout.setSpacing(10)
         self.leftmost_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # Leftmost Initial Widgets
         self.explorerBtn = self.create_bar_option(
             text=None, image="assets/system/folder.png", image_size=QSize(30, 30)
         )
@@ -142,7 +129,6 @@ class DreamStudio(QMainWindow):
         )
         self.leftmost_layout.addWidget(self.version_controlBtn)
 
-        # Sidebar
         self.sidebar_frame = QFrame()
         self.sidebar_frame.setStyleSheet("background-color: #171717; border: none;")
         self.sidebar_frame.setMinimumWidth(150)
@@ -154,23 +140,14 @@ class DreamStudio(QMainWindow):
         self.treeview = DreamFileTreeWindow(self.sidebar_frame)
         sidebar_layout.addWidget(self.treeview)
 
-        # In your UI Builder __init__
         self.tab_editors = DreamTabbedEditor(self)
         self.minimap = MiniMap(self)
-
-        # Connect the tab switch signal
-        self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
-
-        # Initial sync for the first tab
-        self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
-
         self.minimap.setMinimumWidth(100)
         self.minimap.setMaximumWidth(100)
 
-        # Ether AI Screen PlaceHolder
         self.etherAIScreen = EtherAIMainScreen()
-        self.etherAIScreen.setMaximumWidth(500)
         self.etherAIScreen.setMinimumWidth(0)
+        self.etherAIScreen.setMaximumWidth(500)
 
         self.workspace_splitter.addWidget(self.leftmost_bar)
         self.workspace_splitter.addWidget(self.sidebar_frame)
@@ -178,20 +155,50 @@ class DreamStudio(QMainWindow):
         self.workspace_splitter.addWidget(self.minimap)
         self.workspace_splitter.addWidget(self.etherAIScreen)
 
-        self.workspace_splitter.setStretchFactor(0, 0)  # Left bar: Fixed
-        self.workspace_splitter.setStretchFactor(1, 1)  # Sidebar: Fixed
-        self.workspace_splitter.setStretchFactor(2, 1)  # Editor: EXPANDS
-        self.workspace_splitter.setStretchFactor(3, 0)  # Minimap: Fixed
-        self.workspace_splitter.setStretchFactor(4, 0)  # AI Screen: Fixed
+        self.workspace_splitter.setStretchFactor(0, 0)
+        self.workspace_splitter.setStretchFactor(1, 0)
+        self.workspace_splitter.setStretchFactor(2, 1)
+        self.workspace_splitter.setStretchFactor(3, 0)
+        self.workspace_splitter.setStretchFactor(4, 0)
 
-        self.set_splitter_percentages([5, 20, 65, 10, 0])
+        self.workspace_splitter.setCollapsible(0, False)
+        self.workspace_splitter.setCollapsible(1, False)
+        self.workspace_splitter.setCollapsible(2, False)
+        self.workspace_splitter.setCollapsible(3, False)
+        self.workspace_splitter.setCollapsible(4, True)
 
-        # 4. Add to main layout
+        self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
+        self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
+
         main_layout.addWidget(self.workspace_splitter, stretch=1)
 
-        # Status Bar
         self.status_bar = StatusBar(self)
         main_layout.addWidget(self.status_bar)
+
+        self.installEventFilter(self)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+
+        if not self._splitter_initialized:
+            self._splitter_initialized = True
+            QTimer.singleShot(0, self._apply_initial_splitter_sizes)
+
+    def _apply_initial_splitter_sizes(self):
+        if not self.workspace_splitter:
+            return
+
+        total = self.workspace_splitter.width()
+        if total <= 0:
+            return
+
+        leftmost = 50
+        sidebar = 250
+        editor = max(total - (leftmost + sidebar + 100), 200)
+        minimap = 100
+        ether_ai = 0
+
+        self.workspace_splitter.setSizes([leftmost, sidebar, editor, minimap, ether_ai])
 
     def create_bar_option(
         self,
@@ -228,26 +235,68 @@ class DreamStudio(QMainWindow):
         return btn
 
     def sync_minimap_on_tab_switch(self, index):
-        editor = self.tab_editors.widget(index)
+        editor = self.tab_editors.widget(index) if index >= 0 else None
 
-        if editor:
-            self.minimap.setText(editor.text())
+        if self._minimap_bound_editor is not None:
             try:
-                editor.textChanged.disconnect()
-            except TypeError:
+                self._minimap_bound_editor.textChanged.disconnect(
+                    self._update_minimap_from_editor
+                )
+            except (TypeError, RuntimeError):
                 pass
-            editor.textChanged.connect(lambda: self.minimap.setText(editor.text()))
+            self._minimap_bound_editor = None
 
-    def set_splitter_percentages(self, percentages):
-        """
-        Sets splitter sizes based on a list of percentages (e.g., [5, 20, 65, 10, 0])
-        """
-        self.workspace_splitter.update()
-        total_width = self.workspace_splitter.width()
+        if editor is None:
+            self.minimap.setText("")
+            return
 
-        if total_width <= 0:
-            total_width = self.width()
+        self._minimap_bound_editor = editor
+        editor.textChanged.connect(self._update_minimap_from_editor)
+        self._update_minimap_from_editor()
 
-        pixel_sizes = [int(total_width * (p / 100)) for p in percentages]
+    def _update_minimap_from_editor(self):
+        editor = self._minimap_bound_editor
+        if editor is None:
+            self.minimap.setText("")
+            return
 
-        self.workspace_splitter.setSizes(pixel_sizes)
+        self.minimap.setText(editor.text())
+
+    def _state_str(self):
+        flags = []
+        if self.isMaximized():
+            flags.append("Maximized")
+        if self.isMinimized():
+            flags.append("Minimized")
+        if self.isFullScreen():
+            flags.append("FullScreen")
+        if not flags:
+            flags.append("Normal")
+        return "|".join(flags)
+
+    def _geo_str(self):
+        g = self.geometry()
+        return f"{g.x()},{g.y()} {g.width()}x{g.height()}"
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.WindowStateChange:
+            print(f"[MAIN] WindowStateChange state={self._state_str()}")
+        super().changeEvent(event)
+
+    def resizeEvent(self, event):
+        print(f"[MAIN] resizeEvent state={self._state_str()}")
+        super().resizeEvent(event)
+
+    def moveEvent(self, event):
+        print(f"[MAIN] moveEvent state={self._state_str()}")
+        super().moveEvent(event)
+
+    def eventFilter(self, obj, event):
+        if obj == self:
+            if event.type() == QEvent.Type.WindowStateChange:
+                print(f"[MAIN] eventFilter WindowStateChange state={self._state_str()}")
+            elif event.type() == QEvent.Type.Move:
+                print(f"[MAIN] eventFilter Move state={self._state_str()}")
+            elif event.type() == QEvent.Type.Resize:
+                print(f"[MAIN] eventFilter Resize state={self._state_str()}")
+        return super().eventFilter(obj, event)
