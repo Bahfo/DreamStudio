@@ -293,9 +293,11 @@ class DreamStudioTitleBar(QWidget):
         if self.parent.isMaximized():
             self.parent.showNormal()
             self.btn_maximize.setText("◻")
-        else:
+            print("maximized")
+        elif not self.parent.isMaximized():
             self.parent.showMaximized()
             self.btn_maximize.setText("❐")
+            print("normal")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
