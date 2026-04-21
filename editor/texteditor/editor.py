@@ -20,7 +20,17 @@ from PyQt6.QtWidgets import (
     QStyle,
     QGraphicsOpacityEffect,
 )
-from PyQt6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPainterPath, QPen, QPalette
+from PyQt6.QtGui import (
+    QColor,
+    QFont,
+    QKeyEvent,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPalette,
+    QShortcut,
+    QKeySequence,
+)
 
 import json
 
@@ -244,6 +254,8 @@ class DreamTabbedEditor(QTabWidget):
         self.setMovable(True)
         self.setDocumentMode(True)
 
+        self.tab_counter = self.count()
+
         self.setStyleSheet(
             """
         QTabBar::tab {
@@ -263,15 +275,13 @@ class DreamTabbedEditor(QTabWidget):
 
         self.tabCloseRequested.connect(self.closeTab)
 
-        self.add_new_editor("This is a very long name")
-        self.add_new_editor("Test-2")
-        self.add_new_editor("Test-3")
-
-    def add_new_editor(self, file_name, content=""):
+    def add_new_editor(self, file_name=None, content=""):
+        self.tab_counter = self.count()
         new_editor = CodeEditor(self)
         new_editor.setText(content)
 
-        # Add the editor as a new tab
+        if file_name is None:
+            file_name = f"untitled - {self.tab_counter}"
         index = self.addTab(new_editor, file_name)
         self.setCurrentIndex(index)
 
@@ -290,12 +300,17 @@ class DreamTabbedEditor(QTabWidget):
         if editor:
             editor.deleteLater()
 
+    def close_current_tab(self):
+        index = self.currentIndex()
+        self.closeTab(index)
+
 
 class CodeEditor(QsciScintilla):
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self._lexer = None
+        self.mainWindow = self.parent
 
         ####################################
         # Texteditor Options

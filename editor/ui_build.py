@@ -23,9 +23,11 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QPushButton,
 )
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QShortcut, QKeySequence
 
-
+"""
+LOCAL IDE IMPORTS:
+"""
 from editor.utils.statusBar import StatusBar
 from editor.texteditor.minimap import MiniMap
 from editor.utils.optionsBar import OptionsMenu
@@ -56,6 +58,21 @@ class DreamStudio(QMainWindow):
 
         self.setup_layout()
         self.check_for_OS_compatability()
+
+        # Keybindings and shortcutsof editor tabs management:
+        # Find them in keybindings_reference.md
+
+        self.new_tab_shortcut = QShortcut(
+            QKeySequence("Ctrl + Shift + T"), self
+        )  # Open a new tab
+        self.new_tab_shortcut.activated.connect(self.tab_editors.add_new_editor)
+        self.new_tab_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+        self.close_tab_shortcut = QShortcut(
+            QKeySequence("Ctrl + Shift + W"), self
+        )  # Close current tab
+        self.close_tab_shortcut.activated.connect(self.tab_editors.close_current_tab)
+        self.close_tab_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
     def check_for_OS_compatability(self):
         if platform.system() == "Linux":
@@ -162,8 +179,8 @@ class DreamStudio(QMainWindow):
         self.workspace_splitter.setStretchFactor(4, 0)
 
         self.workspace_splitter.setCollapsible(0, False)
-        self.workspace_splitter.setCollapsible(1, False)
-        self.workspace_splitter.setCollapsible(2, False)
+        self.workspace_splitter.setCollapsible(1, True)
+        self.workspace_splitter.setCollapsible(2, True)
         self.workspace_splitter.setCollapsible(3, False)
         self.workspace_splitter.setCollapsible(4, True)
 
@@ -193,7 +210,7 @@ class DreamStudio(QMainWindow):
             return
 
         leftmost = 50
-        sidebar = 250
+        sidebar = 400
         editor = max(total - (leftmost + sidebar + 100), 200)
         minimap = 100
         ether_ai = 0
@@ -292,11 +309,4 @@ class DreamStudio(QMainWindow):
         super().moveEvent(event)
 
     def eventFilter(self, obj, event):
-        if obj == self:
-            if event.type() == QEvent.Type.WindowStateChange:
-                print(f"[MAIN] eventFilter WindowStateChange state={self._state_str()}")
-            elif event.type() == QEvent.Type.Move:
-                print(f"[MAIN] eventFilter Move state={self._state_str()}")
-            elif event.type() == QEvent.Type.Resize:
-                print(f"[MAIN] eventFilter Resize state={self._state_str()}")
         return super().eventFilter(obj, event)
