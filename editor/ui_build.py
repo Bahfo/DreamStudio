@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QSplitter,
     QPushButton,
+    QStackedWidget,
 )
 from PyQt6.QtGui import QIcon, QShortcut, QKeySequence
 
@@ -35,6 +36,7 @@ from editor.animations.splash import SplashOverlay
 from editor.utils.etherAI import EtherAIMainScreen
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.texteditor.editor import DreamTabbedEditor
+from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
 
 
@@ -65,7 +67,9 @@ class DreamStudio(QMainWindow):
         self.new_tab_shortcut = QShortcut(
             QKeySequence("Ctrl + Shift + T"), self
         )  # Open a new tab
-        self.new_tab_shortcut.activated.connect(self.tab_editors.add_new_editor)
+        self.new_tab_shortcut.activated.connect(
+            lambda: self.tab_editors.add_new_editor()
+        )
         self.new_tab_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
         self.close_tab_shortcut = QShortcut(
@@ -157,10 +161,16 @@ class DreamStudio(QMainWindow):
         self.treeview = DreamFileTreeWindow(self.sidebar_frame)
         sidebar_layout.addWidget(self.treeview)
 
+        # Editor, Background screen, and other stacked layout widgets
+        self.main_editor_area = QStackedWidget()
+        self.tutorial_window = FastTutorialFrame(self)
         self.tab_editors = DreamTabbedEditor(self)
         self.minimap = MiniMap(self)
         self.minimap.setMinimumWidth(100)
         self.minimap.setMaximumWidth(100)
+        self.tab_editors.installEventFilter(self)
+        self.main_editor_area.addWidget(self.tutorial_window)
+        self.main_editor_area.addWidget(self.tab_editors)
 
         self.etherAIScreen = EtherAIMainScreen()
         self.etherAIScreen.setMinimumWidth(0)
@@ -168,7 +178,7 @@ class DreamStudio(QMainWindow):
 
         self.workspace_splitter.addWidget(self.leftmost_bar)
         self.workspace_splitter.addWidget(self.sidebar_frame)
-        self.workspace_splitter.addWidget(self.tab_editors)
+        self.workspace_splitter.addWidget(self.main_editor_area)
         self.workspace_splitter.addWidget(self.minimap)
         self.workspace_splitter.addWidget(self.etherAIScreen)
 
@@ -309,4 +319,19 @@ class DreamStudio(QMainWindow):
         super().moveEvent(event)
 
     def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_T and event.modifiers() == (
+                Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
+            ):
+                self.add_new_editor()
+                self.update_editor_visibility()
+                return True
         return super().eventFilter(obj, event)
+
+    def update_editor_visibility(self):
+        if self.tab_editors.count() == 0:
+            self.main_editor_area.setCurrentIndex(0)
+            self.minimap.hide()
+        else:
+            self.main_editor_area.setCurrentIndex(1)
+            self.minimap.show()

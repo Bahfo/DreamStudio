@@ -52,11 +52,12 @@ CONFIG_CODE_EDITOR = {
 
 
 class DreamStudioIDETabBar(QTabBar):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
         self.setDrawBase(False)
         self.setElideMode(Qt.TextElideMode.ElideRight)
         self.setUsesScrollButtons(True)
+        self._parent = _parent
 
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         self.setMouseTracking(True)
@@ -118,6 +119,7 @@ class DreamStudioIDETabBar(QTabBar):
                 button.raise_()
 
         self._is_syncing = False
+        self._parent._parent.update_editor_visibility()
 
     def _on_current_changed(self):
         QTimer.singleShot(0, self._sync_close_buttons)
@@ -246,13 +248,14 @@ class DreamStudioIDETabBar(QTabBar):
 
 
 class DreamTabbedEditor(QTabWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
+    def __init__(self, _parent):
+        super().__init__(_parent)
 
         self.setTabBar(DreamStudioIDETabBar(self))
         self.setTabsClosable(True)
         self.setMovable(True)
         self.setDocumentMode(True)
+        self._parent = _parent
 
         self.tab_counter = self.count()
 
@@ -285,6 +288,10 @@ class DreamTabbedEditor(QTabWidget):
         index = self.addTab(new_editor, file_name)
         self.setCurrentIndex(index)
 
+        self.setFocus()
+
+        self._parent.update_editor_visibility()
+
         return new_editor
 
     def closeTab(self, index):
@@ -303,14 +310,15 @@ class DreamTabbedEditor(QTabWidget):
     def close_current_tab(self):
         index = self.currentIndex()
         self.closeTab(index)
+        self._parent.update_editor_visibility()
 
 
 class CodeEditor(QsciScintilla):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
 
         self._lexer = None
-        self.mainWindow = self.parent
+        self._parent = _parent
 
         ####################################
         # Texteditor Options
@@ -426,9 +434,17 @@ class CodeEditor(QsciScintilla):
         self.setAutoCompletionCaseSensitivity(False)
         self.setAutoCompletionReplaceWord(True)
 
+        # KEYBINDINGS
+        self.new_tab_shortcut = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
+        self.new_tab_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
+        self.new_tab_shortcut.activated.connect(self.hello)
+
     def set_editor_font(self, font):
         self._font = QFont(font, 10)
         self.setFont(self._font)
+
+    def hello(self):
+        print("Hello")
 
     def set_editor_font_size(self, font_size):
         self.font_size = font_size
@@ -442,7 +458,14 @@ class CodeEditor(QsciScintilla):
             self.setWrapMode(QsciScintilla.WrapMode.WrapNone)
 
     def keyPressEvent(self, e: QKeyEvent):
-        if e.key() == Qt.Key.Key_Return or e.key() == Qt.Key.Key_Enter:
+        if (
+            e.modifiers()
+            == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
+            and e.key() == Qt.Key.Key_T
+        ):
+            self._parent.add_new_editor()
+
+        if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             line, index = self.getCursorPosition()
             current_line_text = self.text(line)
 
@@ -450,18 +473,12 @@ class CodeEditor(QsciScintilla):
 
             base_indent = ""
             for char in current_line_text:
-                if char == " ":
-                    base_indent += " "
-                elif char == "\t":
-                    base_indent += "\t"
+                if char in (" ", "\t"):
+                    base_indent += char
                 else:
                     break
 
-            if (
-                stripped.endswith(":")
-                or stripped.endswith("{")
-                or stripped.endswith("(")
-            ):
+            if stripped.endswith((":", "{", "(")):
                 indent = base_indent + (" " * self._indentation_spacing)
             else:
                 indent = base_indent
@@ -471,8 +488,9 @@ class CodeEditor(QsciScintilla):
             self.endUndoAction()
 
             self.setCursorPosition(line + 1, len(indent))
-        else:
-            super().keyPressEvent(e)
+
+            return
+        super().keyPressEvent(e)
 
     def setLanguage(self, lang: str):
         if lang == "Python":
@@ -556,3 +574,6 @@ class CodeEditor(QsciScintilla):
         self.api.prepare()
 
         return lexer
+
+    def _request_new_tab(self):
+        print("Shortcut")
