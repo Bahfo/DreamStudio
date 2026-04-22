@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QPushButton,
     QStackedWidget,
+    QHBoxLayout,
 )
 from PyQt6.QtGui import QIcon, QShortcut, QKeySequence
 
@@ -38,6 +39,8 @@ from editor.utils.titleBar import DreamStudioTitleBar
 from editor.texteditor.editor import DreamTabbedEditor
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
+
+from editor.terminal.terminal_ui import TerminalWidget
 
 
 class DreamStudio(QMainWindow):
@@ -168,6 +171,7 @@ class DreamStudio(QMainWindow):
         self.minimap = MiniMap(self)
         self.minimap.setMinimumWidth(100)
         self.minimap.setMaximumWidth(100)
+
         self.tab_editors.installEventFilter(self)
         self.main_editor_area.addWidget(self.tutorial_window)
         self.main_editor_area.addWidget(self.tab_editors)
