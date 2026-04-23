@@ -25,9 +25,8 @@ class TerminalWidget(QWidget):
         self.setMinimumHeight(0)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Maximum
+            QSizePolicy.Policy.Expanding,
         )
-
         self.setStyleSheet(
             """
             QWidget#terminalWidget {
@@ -62,7 +61,7 @@ class TerminalWidget(QWidget):
         self._setup_ui()
 
     def sizeHint(self):
-        return QSize(900, 240)
+        return QSize(900, 400)
 
     def minimumSizeHint(self):
         return QSize(0, 0)
@@ -81,7 +80,9 @@ class TerminalWidget(QWidget):
         toolbar_layout.addWidget(self.title_label)
 
         toolbar_layout.addItem(
-            QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+            QSpacerItem(
+                40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+            )
         )
 
         self.btn_new = QPushButton("+")
@@ -149,7 +150,6 @@ class TerminalWidget(QWidget):
         self.content_splitter.setSizes([1, 0])
 
         main_layout.addWidget(self.content_splitter, 1)
-
 
 
 if __name__ == "__main__":

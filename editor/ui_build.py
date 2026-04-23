@@ -68,7 +68,7 @@ class DreamStudio(QMainWindow):
         # Find them in keybindings_reference.md
 
         self.new_tab_shortcut = QShortcut(
-            QKeySequence("Ctrl + Shift + T"), self
+            QKeySequence("Ctrl + Alt + T"), self
         )  # Open a new tab
         self.new_tab_shortcut.activated.connect(
             lambda: self.tab_editors.add_new_editor()
@@ -76,7 +76,7 @@ class DreamStudio(QMainWindow):
         self.new_tab_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
         self.close_tab_shortcut = QShortcut(
-            QKeySequence("Ctrl + Shift + W"), self
+            QKeySequence("Ctrl + Alt + W"), self
         )  # Close current tab
         self.close_tab_shortcut.activated.connect(self.tab_editors.close_current_tab)
         self.close_tab_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
@@ -94,21 +94,22 @@ class DreamStudio(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
+        # Title Bar
         self.title_bar = DreamStudioTitleBar(self)
         self.options_menu = OptionsMenu(self)
         main_layout.addWidget(self.title_bar)
         main_layout.addWidget(self.options_menu)
 
-        self.workspace_splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.workspace_splitter.setHandleWidth(1)
-        self.workspace_splitter.setStyleSheet(
-            "QSplitter::handle { background-color: #1a1a1a; }"
-        )
+        self.body_layout = QHBoxLayout()
+        self.body_layout.setContentsMargins(0, 0, 0, 0)
+        self.body_layout.setSpacing(0)
+        main_layout.addLayout(self.body_layout, stretch=1)
 
         self.leftmost_bar = QFrame()
         self.leftmost_bar.setFixedWidth(50)
         self.leftmost_bar.setStyleSheet("background-color: #25272B; border: none;")
 
+        # Leftmost bar
         self.leftmost_layout = QVBoxLayout(self.leftmost_bar)
         self.leftmost_layout.setContentsMargins(5, 5, 5, 5)
         self.leftmost_layout.setSpacing(10)
@@ -153,6 +154,23 @@ class DreamStudio(QMainWindow):
         )
         self.leftmost_layout.addWidget(self.version_controlBtn)
 
+        self.body_layout.addWidget(self.leftmost_bar)
+
+        ##### THE HERO SECTION
+        self.hero_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.hero_splitter.setHandleWidth(1)
+        self.hero_splitter.setStyleSheet(
+            "QSplitter::handle { background-color: #1a1a1a; }"
+        )
+        self.body_layout.addWidget(self.hero_splitter)
+
+        self.workspace_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.workspace_splitter.setHandleWidth(1)
+        self.workspace_splitter.setStyleSheet(
+            "QSplitter::handle { background-color: #1a1a1a; }"
+        )
+
+        # Services Sidebar
         self.sidebar_frame = QFrame()
         self.sidebar_frame.setStyleSheet("background-color: #171717; border: none;")
         self.sidebar_frame.setMinimumWidth(150)
@@ -168,6 +186,8 @@ class DreamStudio(QMainWindow):
         self.main_editor_area = QStackedWidget()
         self.tutorial_window = FastTutorialFrame(self)
         self.tab_editors = DreamTabbedEditor(self)
+
+        # Minimap
         self.minimap = MiniMap(self)
         self.minimap.setMinimumWidth(100)
         self.minimap.setMaximumWidth(100)
@@ -176,37 +196,46 @@ class DreamStudio(QMainWindow):
         self.main_editor_area.addWidget(self.tutorial_window)
         self.main_editor_area.addWidget(self.tab_editors)
 
+        # Ether AI Main Screen
         self.etherAIScreen = EtherAIMainScreen()
         self.etherAIScreen.setMinimumWidth(0)
         self.etherAIScreen.setMaximumWidth(500)
 
-        self.workspace_splitter.addWidget(self.leftmost_bar)
         self.workspace_splitter.addWidget(self.sidebar_frame)
         self.workspace_splitter.addWidget(self.main_editor_area)
         self.workspace_splitter.addWidget(self.minimap)
         self.workspace_splitter.addWidget(self.etherAIScreen)
 
         self.workspace_splitter.setStretchFactor(0, 0)
-        self.workspace_splitter.setStretchFactor(1, 0)
-        self.workspace_splitter.setStretchFactor(2, 1)
+        self.workspace_splitter.setStretchFactor(1, 1)
+        self.workspace_splitter.setStretchFactor(2, 0)
         self.workspace_splitter.setStretchFactor(3, 0)
-        self.workspace_splitter.setStretchFactor(4, 0)
 
-        self.workspace_splitter.setCollapsible(0, False)
+        self.workspace_splitter.setCollapsible(0, True)
         self.workspace_splitter.setCollapsible(1, True)
-        self.workspace_splitter.setCollapsible(2, True)
-        self.workspace_splitter.setCollapsible(3, False)
-        self.workspace_splitter.setCollapsible(4, True)
+        self.workspace_splitter.setCollapsible(2, False)
+        self.workspace_splitter.setCollapsible(3, True)
 
-        self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
-        self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
+        self.hero_splitter.addWidget(self.workspace_splitter)
 
-        main_layout.addWidget(self.workspace_splitter, stretch=1)
+        # Terminal, Console, Debugger, and Output Services
+        self.terminalWidget = TerminalWidget(self)
+        self.hero_splitter.addWidget(self.terminalWidget)
+
+        self.hero_splitter.setOpaqueResize(True)
+
+        self.hero_splitter.setStretchFactor(0, 3)  # Workspace gets main focus
+        self.hero_splitter.setStretchFactor(1, 1)  # Terminal
+        self.hero_splitter.setCollapsible(1, True)
+
+        self.terminalWidget.setMaximumHeight(16777215)
 
         self.status_bar = StatusBar(self)
         main_layout.addWidget(self.status_bar)
 
         self.installEventFilter(self)
+        self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
+        self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -216,20 +245,22 @@ class DreamStudio(QMainWindow):
             QTimer.singleShot(0, self._apply_initial_splitter_sizes)
 
     def _apply_initial_splitter_sizes(self):
-        if not self.workspace_splitter:
-            return
+        ws_total = self.workspace_splitter.width()
+        if ws_total > 0:
+            self.workspace_splitter.setSizes([450, ws_total - 350, 100, 0])
 
-        total = self.workspace_splitter.width()
-        if total <= 0:
-            return
+        hero_total = self.hero_splitter.height()
+        if hero_total > 50:
+            workspace_h = int(hero_total * 0.75)
+            terminal_h = hero_total - workspace_h
+            self.hero_splitter.setSizes([workspace_h, terminal_h])
 
-        leftmost = 50
-        sidebar = 400
-        editor = max(total - (leftmost + sidebar + 100), 200)
-        minimap = 100
-        ether_ai = 0
-
-        self.workspace_splitter.setSizes([leftmost, sidebar, editor, minimap, ether_ai])
+    def changeEvent(self, event):
+        """Handle window state changes like Maximize."""
+        if event.type() == QEvent.Type.WindowStateChange:
+            print(event.type())
+            QTimer.singleShot(50, self._apply_initial_splitter_sizes)
+        super().changeEvent(event)
 
     def create_bar_option(
         self,
@@ -309,13 +340,7 @@ class DreamStudio(QMainWindow):
         g = self.geometry()
         return f"{g.x()},{g.y()} {g.width()}x{g.height()}"
 
-    def changeEvent(self, event):
-        if event.type() == QEvent.Type.WindowStateChange:
-            print(f"[MAIN] WindowStateChange state={self._state_str()}")
-        super().changeEvent(event)
-
     def resizeEvent(self, event):
-        print(f"[MAIN] resizeEvent state={self._state_str()}")
         super().resizeEvent(event)
 
     def moveEvent(self, event):
