@@ -23,6 +23,7 @@ class TerminalWidget(QWidget):
         self.setWindowTitle("Native Terminal Emulator Structure")
 
         self.setMinimumHeight(0)
+        self.setMaximumHeight(16777215)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
@@ -61,10 +62,16 @@ class TerminalWidget(QWidget):
         self._setup_ui()
 
     def sizeHint(self):
-        return QSize(900, 400)
+        return QSize(900, 200)
 
     def minimumSizeHint(self):
         return QSize(0, 0)
+
+    def minimumSize(self):
+        return QSize(0, 0)
+
+    def maximumSize(self):
+        return QSize(16777215, 16777215)
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -120,6 +127,7 @@ class TerminalWidget(QWidget):
         self.terminal_display.setReadOnly(True)
         self.terminal_display.setFont(QFont("Consolas", 10))
         self.terminal_display.setMinimumHeight(0)
+        self.terminal_display.setMaximumHeight(16777215)
         self.terminal_display.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,

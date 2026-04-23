@@ -145,6 +145,7 @@ class DreamStudio(QMainWindow):
         self.terminalBtn = self.create_bar_option(
             text=None, image="assets/system/terminal.png", image_size=QSize(26, 26)
         )
+        self.terminalBtn.clicked.connect(self.toggle_terminal)
         self.leftmost_layout.addWidget(self.terminalBtn)
 
         self.version_controlBtn = self.create_bar_option(
@@ -158,9 +159,11 @@ class DreamStudio(QMainWindow):
 
         ##### THE HERO SECTION
         self.hero_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.hero_splitter.setHandleWidth(1)
+        self.hero_splitter.setHandleWidth(4)
+        self.hero_splitter.setOpaqueResize(True)
         self.hero_splitter.setStyleSheet(
-            "QSplitter::handle { background-color: #1a1a1a; }"
+            "QSplitter::handle { background-color: #2a2a2a; }"
+            "QSplitter::handle:pressed { background-color: #3a7bd5; }"
         )
         self.body_layout.addWidget(self.hero_splitter)
 
@@ -228,7 +231,7 @@ class DreamStudio(QMainWindow):
         self.hero_splitter.setStretchFactor(1, 1)  # Terminal
         self.hero_splitter.setCollapsible(1, True)
 
-        self.terminalWidget.setMaximumHeight(16777215)
+        self.terminal_collapsed = True
 
         self.status_bar = StatusBar(self)
         main_layout.addWidget(self.status_bar)
@@ -252,7 +255,7 @@ class DreamStudio(QMainWindow):
         hero_total = self.hero_splitter.height()
         if hero_total > 50:
             workspace_h = int(hero_total * 0.75)
-            terminal_h = hero_total - workspace_h
+            terminal_h = 0  # Start collapsed
             self.hero_splitter.setSizes([workspace_h, terminal_h])
 
     def changeEvent(self, event):
@@ -364,3 +367,17 @@ class DreamStudio(QMainWindow):
         else:
             self.main_editor_area.setCurrentIndex(1)
             self.minimap.show()
+
+    def toggle_terminal(self):
+        hero_total = self.hero_splitter.height()
+        current_sizes = self.hero_splitter.sizes()
+        
+        if self.terminal_collapsed:
+            terminal_h = max(150, int(hero_total * 0.25))
+            workspace_h = hero_total - terminal_h
+            self.hero_splitter.setSizes([workspace_h, terminal_h])
+            self.terminal_collapsed = False
+        else:
+            workspace_h = hero_total
+            self.hero_splitter.setSizes([workspace_h, 0])
+            self.terminal_collapsed = True
