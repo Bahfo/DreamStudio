@@ -47,7 +47,7 @@ class WelcomeWindow(QWidget):
         top_row_layout.setContentsMargins(20, 0, 0, 0)
         top_row_layout.setSpacing(8)
 
-        self.versionName = QLabel("Amber Valley")
+        self.versionName = QLabel("Quiet Valley")
         self.versionName.setStyleSheet(
             "font-family: montserrat; font-size: 20px; color: #F5F5F5"
         )
