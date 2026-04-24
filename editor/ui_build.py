@@ -219,17 +219,20 @@ class DreamStudio(QMainWindow):
         self.workspace_splitter.setCollapsible(2, False)
         self.workspace_splitter.setCollapsible(3, True)
 
+        self.workspace_splitter.setSizes(
+            [450, self.workspace_splitter.width() - 450, 100, 0]
+        )
+
         self.hero_splitter.addWidget(self.workspace_splitter)
 
         # Terminal, Console, Debugger, and Output Services
         self.terminalWidget = TerminalWidget(self)
         self.hero_splitter.addWidget(self.terminalWidget)
-
         self.hero_splitter.setOpaqueResize(True)
+        self.terminalWidget.close_requested.connect(self.toggle_terminal)
 
-        self.hero_splitter.setStretchFactor(0, 3)  # Workspace gets main focus
-        self.hero_splitter.setStretchFactor(1, 1)  # Terminal
         self.hero_splitter.setCollapsible(1, True)
+        self.hero_splitter.setSizes([800, 0])
 
         self.terminal_collapsed = True
 
@@ -239,31 +242,6 @@ class DreamStudio(QMainWindow):
         self.installEventFilter(self)
         self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
         self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
-
-    def showEvent(self, event):
-        super().showEvent(event)
-
-        if not self._splitter_initialized:
-            self._splitter_initialized = True
-            QTimer.singleShot(0, self._apply_initial_splitter_sizes)
-
-    def _apply_initial_splitter_sizes(self):
-        ws_total = self.workspace_splitter.width()
-        if ws_total > 0:
-            self.workspace_splitter.setSizes([450, ws_total - 350, 100, 0])
-
-        hero_total = self.hero_splitter.height()
-        if hero_total > 50:
-            workspace_h = int(hero_total * 0.75)
-            terminal_h = 0  # Start collapsed
-            self.hero_splitter.setSizes([workspace_h, terminal_h])
-
-    def changeEvent(self, event):
-        """Handle window state changes like Maximize."""
-        if event.type() == QEvent.Type.WindowStateChange:
-            print(event.type())
-            QTimer.singleShot(50, self._apply_initial_splitter_sizes)
-        super().changeEvent(event)
 
     def create_bar_option(
         self,
@@ -369,13 +347,12 @@ class DreamStudio(QMainWindow):
             self.minimap.show()
 
     def toggle_terminal(self):
+        if self.hero_splitter.sizes()[1] > 1:
+            self.terminal_collapsed = False
         hero_total = self.hero_splitter.height()
-        current_sizes = self.hero_splitter.sizes()
-        
+
         if self.terminal_collapsed:
-            terminal_h = max(150, int(hero_total * 0.25))
-            workspace_h = hero_total - terminal_h
-            self.hero_splitter.setSizes([workspace_h, terminal_h])
+            self.hero_splitter.setSizes([800, 400])
             self.terminal_collapsed = False
         else:
             workspace_h = hero_total

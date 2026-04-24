@@ -1,3 +1,4 @@
+import os
 import sys
 from PyQt6.QtWidgets import (
     QApplication,
@@ -5,25 +6,26 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QSplitter,
-    QListWidget,
     QPlainTextEdit,
     QPushButton,
     QLabel,
     QSpacerItem,
     QSizePolicy,
 )
-from PyQt6.QtGui import QFont, QColor, QTextCharFormat, QPalette
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtCore import Qt, QSize, pyqtSignal
 
 
 class TerminalWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    close_requested = pyqtSignal()
+
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
+        self._parent = _parent
         self.setObjectName("terminalWidget")
         self.setWindowTitle("Native Terminal Emulator Structure")
 
         self.setMinimumHeight(0)
-        self.setMaximumHeight(16777215)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
@@ -70,9 +72,6 @@ class TerminalWidget(QWidget):
     def minimumSize(self):
         return QSize(0, 0)
 
-    def maximumSize(self):
-        return QSize(16777215, 16777215)
-
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -82,8 +81,20 @@ class TerminalWidget(QWidget):
         toolbar_layout.setContentsMargins(10, 5, 10, 5)
         toolbar_layout.setSpacing(4)
 
-        self.title_label = QLabel("TERMINAL")
-        self.title_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        self.title_label = QPushButton("PROBLEMS")
+        self.title_label.setFont(QFont("inter", 9, QFont.Weight.Bold))
+        toolbar_layout.addWidget(self.title_label)
+
+        self.title_label = QPushButton("TERMINAL")
+        self.title_label.setFont(QFont("inter", 9, QFont.Weight.Bold))
+        toolbar_layout.addWidget(self.title_label)
+
+        self.title_label = QPushButton("DEBUG")
+        self.title_label.setFont(QFont("inter", 9, QFont.Weight.Bold))
+        toolbar_layout.addWidget(self.title_label)
+
+        self.title_label = QPushButton("OUTPUT")
+        self.title_label.setFont(QFont("inter", 9, QFont.Weight.Bold))
         toolbar_layout.addWidget(self.title_label)
 
         toolbar_layout.addItem(
@@ -92,17 +103,25 @@ class TerminalWidget(QWidget):
             )
         )
 
-        self.btn_new = QPushButton("+")
+        self.btn_new = QPushButton()
+        self.btn_new.setFixedSize(26, 26)
+        self.btn_new.setIconSize(QSize(17, 17))
+        self.btn_new.setIcon(QIcon("assets/system/add.png"))
         self.btn_new.setToolTip("New Terminal")
-        self.btn_split = QPushButton("◫")
-        self.btn_split.setToolTip("Split Terminal")
-        self.btn_kill = QPushButton("🗑")
+
+        self.btn_kill = QPushButton()
+        self.btn_kill.setFixedSize(26, 26)
+        self.btn_kill.setIconSize(QSize(17, 17))
+        self.btn_kill.setIcon(QIcon("assets/system/trash.png"))
         self.btn_kill.setToolTip("Kill Terminal")
+
         self.btn_close = QPushButton("✕")
+        self.btn_close.setFixedSize(26, 26)
         self.btn_close.setToolTip("Close Panel")
+        self.btn_close.setStyleSheet("font-size: 15px;")
+        self.btn_close.clicked.connect(self.close_requested.emit)
 
         toolbar_layout.addWidget(self.btn_new)
-        toolbar_layout.addWidget(self.btn_split)
         toolbar_layout.addWidget(self.btn_kill)
         toolbar_layout.addWidget(self.btn_close)
 
@@ -125,37 +144,22 @@ class TerminalWidget(QWidget):
         self.terminal_display = QPlainTextEdit()
         self.terminal_display.setObjectName("terminalDisplay")
         self.terminal_display.setReadOnly(True)
-        self.terminal_display.setFont(QFont("Consolas", 10))
         self.terminal_display.setMinimumHeight(0)
-        self.terminal_display.setMaximumHeight(16777215)
         self.terminal_display.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
         self.terminal_display.setPlainText(
-            "Windows PowerShell\n"
-            "Copyright (C) Microsoft Corporation. All rights reserved.\n\n"
-            "PS C:\\Users\\Developer\\Project> "
+            "EXcellent Technologies DreamStudio.\n"
+            "Copyright (C) Excellent Technologies. All rights reserved.\n\n"
+            f"{os.getcwd()} >>> "
         )
-
-        self.session_list = QListWidget()
-        self.session_list.setObjectName("terminalSessionList")
-        self.session_list.setMinimumWidth(150)
-        self.session_list.setMaximumWidth(150)
-        self.session_list.setSizePolicy(
-            QSizePolicy.Policy.Fixed,
-            QSizePolicy.Policy.Expanding,
+        self.terminal_display.setStyleSheet(
+            "font-family: JetBrains Mono; font-size: 15px;"
         )
-        self.session_list.addItem("1: pwsh")
-        self.session_list.addItem("2: bash")
-        self.session_list.addItem("3: node")
-        self.session_list.setCurrentRow(0)
 
         self.content_splitter.addWidget(self.terminal_display)
-        self.content_splitter.addWidget(self.session_list)
         self.content_splitter.setCollapsible(0, True)
-        self.content_splitter.setCollapsible(1, True)
-        self.content_splitter.setSizes([1, 0])
 
         main_layout.addWidget(self.content_splitter, 1)
 

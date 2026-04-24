@@ -15,14 +15,8 @@ from editor.widgets.QCustomLabels import AnimatedGradientLabel
 class EtherAIMainScreen(QFrame):
     def __init__(self, master=None):
         super().__init__(master)
-
-        send_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowRight)
-
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setStyleSheet("background-color: #1E1E1E;")
-        self.background_img = QPixmap("assets/themes/bubble.png")
-
-        self.gradient_start = (self.width(), self.height())
 
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(40, 40, 40, 40)
@@ -41,7 +35,9 @@ class EtherAIMainScreen(QFrame):
         )
         self._layout.addWidget(sub_text)
 
-        self._layout.addSpacing(int(self.height() / 2))
+        # FIX 1: Use a stretch instead of a hardcoded mathematical spacing.
+        # This pushes the prompt box down without creating a rigid height barrier.
+        self._layout.addStretch(1)
 
         self.prompt_box = QLineEdit()
         self.prompt_box.setStyleSheet(
@@ -55,7 +51,6 @@ class EtherAIMainScreen(QFrame):
         self._layout.addSpacing(10)
 
         self.send_prompt = QPushButton("Send")
-        self.send_prompt.setIcon(send_icon)
         self.send_prompt.setFixedSize(90, 35)
         self.send_prompt.setStyleSheet(
             """QPushButton{
@@ -67,6 +62,7 @@ class EtherAIMainScreen(QFrame):
         )
         self._layout.addWidget(self.send_prompt)
 
+        # You can keep smaller fixed spacings like 40px, they won't break the layout
         self._layout.addSpacing(40)
 
         self.features_label = QLabel()
@@ -82,7 +78,8 @@ class EtherAIMainScreen(QFrame):
         self._layout.addSpacing(10)
 
         self.fix_issues_prompt = QPushButton("Review my code in the current file")
-        self.fix_issues_prompt.setFixedSize(230, 35)
+        # FIX 2: Replaced setFixedSize with setFixedHeight to allow width to shrink if the panel gets squished
+        self.fix_issues_prompt.setFixedHeight(35)
         self.fix_issues_prompt.setStyleSheet(
             """QPushButton{
             border-radius: 8px; 
@@ -96,7 +93,7 @@ class EtherAIMainScreen(QFrame):
         self.add_documentation_prompt = QPushButton(
             "Add documentation to this file's methods and classes"
         )
-        self.add_documentation_prompt.setFixedSize(350, 35)
+        self.add_documentation_prompt.setFixedHeight(35)
         self.add_documentation_prompt.setStyleSheet(
             """QPushButton{
             border-radius: 8px; 
@@ -107,7 +104,8 @@ class EtherAIMainScreen(QFrame):
         )
         self._layout.addWidget(self.add_documentation_prompt)
 
-        self._layout.addSpacing(40)
+        # Another stretch at the bottom to balance the layout if you want it vertically centered
+        self._layout.addStretch(1)
 
         self.warningsLabelAI = QLabel()
         self.warningsLabelAI.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -138,9 +136,6 @@ class EtherAIMainScreen(QFrame):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-
-        if not self.background_img.isNull():
-            painter.drawPixmap(self.rect(), self.background_img)
 
         gradient = QLinearGradient(
             self.width(), self.height(), self.width() / 2, self.height() / 2

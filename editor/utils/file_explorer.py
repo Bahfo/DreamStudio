@@ -9,14 +9,11 @@ A Custom Treeview hierarchy for DreamStudio.
 
 import sys
 from PyQt6.QtWidgets import (
-    QApplication,
-    QMainWindow,
     QTreeView,
     QLineEdit,
     QVBoxLayout,
     QFrame,
     QMenu,
-    QWidget,
     QSizePolicy,
 )
 from PyQt6.QtGui import QFileSystemModel
@@ -54,7 +51,6 @@ class DreamFileTreeWindow(QFrame):
 
         # Model Treeview
         self.tree = QTreeView()
-        self.tree.setModel(self.model)
         self.tree.setModel(self.proxy_model)
         self.tree.setStyleSheet(
             """
@@ -100,6 +96,11 @@ class DreamFileTreeWindow(QFrame):
                 background: #4A4A4A;
             }"""
         )
+
+        self.tree.setUniformRowHeights(True)
+        self.tree.header().setStretchLastSection(True)
+        self.tree.setEditTriggers(QTreeView.EditTrigger.NoEditTriggers)
+
         # Right-clicking opens a menu
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self.show_context_menu)

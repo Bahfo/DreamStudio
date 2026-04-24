@@ -50,7 +50,7 @@ class WalkthroughCard(QFrame):
                 background-color: transparent;
                 border: 1px solid transparent;
                 border-radius: 4px;
-                padding: 8px;
+                padding: 6px;
             }
 
             QFrame:hover {
@@ -117,14 +117,6 @@ class FastTutorialFrame(QFrame):
         main_layout.addWidget(title)
         main_layout.addSpacing(20)
 
-        columns = QHBoxLayout()
-        columns.setSpacing(40)
-        columns.setContentsMargins(0, 0, 0, 0)
-
-        left = QVBoxLayout()
-        left.setSpacing(4)
-        left.setContentsMargins(0, 0, 0, 0)
-
         start_label = QLabel("Start")
         start_label.setStyleSheet(
             """
@@ -136,54 +128,14 @@ class FastTutorialFrame(QFrame):
         """
         )
 
-        left.addWidget(start_label)
-        left.addSpacing(6)
-        left.addWidget(WelcomeAction("New File..."))
-        left.addWidget(WelcomeAction("Open File..."))
-        left.addWidget(WelcomeAction("Open Folder..."))
-        left.addWidget(WelcomeAction("Clone Git Repository..."))
-        left.addSpacing(12)
-        left.addStretch()
-
-        columns.addLayout(left)
-
-        right = QVBoxLayout()
-        right.setSpacing(8)
-        right.setContentsMargins(0, 0, 0, 0)
-
-        walk_label = QLabel("Learn The Fundamentals")
-        walk_label.setStyleSheet(
-            """
-            color: #ffffff;
-            font-size: 18px; 
-            font-weight: bold;"""
-        )
-
-        right.addWidget(walk_label)
-        right.addSpacing(6)
-
-        right.addWidget(
-            WalkthroughCard(
-                "Start with a Simple Tutorial",
-                "Learn the basics, how to set up projects, and start coding.",
-            )
-        )
-        right.addWidget(
-            WalkthroughCard(
-                "Explore the Full Capabilities of DreamStudio",
-                "See how professionals utilize DreamStudio up to the maximum point.",
-            )
-        )
-        right.addWidget(
-            WalkthroughCard(
-                "Contact Us",
-                "See next updates cycle, chat with the devs, contribute to the project, and more.",
-            )
-        )
-        right.addStretch()
-
-        columns.addLayout(right)
-        main_layout.addLayout(columns)
+        main_layout.addWidget(start_label)
+        main_layout.addSpacing(6)
+        main_layout.addWidget(WelcomeAction("New File..."))
+        main_layout.addWidget(WelcomeAction("Open File..."))
+        main_layout.addWidget(WelcomeAction("Open Folder..."))
+        main_layout.addWidget(WelcomeAction("Clone Git Repository..."))
+        main_layout.addSpacing(12)
+        main_layout.addStretch()
 
         main_layout.addStretch()
 
@@ -205,25 +157,6 @@ class FastTutorialFrame(QFrame):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-
-        gradient = QLinearGradient(
-            0, self.height() / 2, self.width() / 3, self.height() / 3
-        )
-
-        gradient.setColorAt(0.0, QColor(81, 43, 214, 180))
-        gradient.setColorAt(1.0, QColor(30, 30, 30, 100))
-
-        painter.setBrush(QBrush(gradient))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRect(self.rect())
-
-        rect = self.rect()
-        target_rect = QRectF(
-            -5, self.height() * 0.3, rect.width() + 5, rect.height() * 0.7
-        )
-
-        if self.bg_svg.isValid():
-            self.bg_svg.render(painter, target_rect)
 
         if not self.background_img.isNull():
             x = 10

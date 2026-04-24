@@ -160,10 +160,16 @@ class OptionsMenu(QFrame):
         optionsMenu_layout.addStretch()
 
         # Right-side Options
+        self.etherAIBtn = self.create_menu_button(
+            text=None,
+            image="assets/system/ai.png",
+            image_size=QSize(21, 21),
+            tooltip="Open EtherAI",
+        )
         self.readOnlyBtn = self.create_menu_button(
             text=None,
             image="assets/system/lock.png",
-            image_size=QSize(21, 21),
+            image_size=QSize(19, 19),
             tooltip="Make current file read-only",
         )
         self.containerToolsBtn = self.create_menu_button(
@@ -173,6 +179,7 @@ class OptionsMenu(QFrame):
             tooltip="Show containers and virtual environments",
         )
 
+        optionsMenu_layout.addWidget(self.etherAIBtn)
         optionsMenu_layout.addWidget(self.readOnlyBtn)
         optionsMenu_layout.addWidget(self.containerToolsBtn)
 
