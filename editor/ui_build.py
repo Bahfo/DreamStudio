@@ -8,6 +8,15 @@ Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
 Supervised by Excellent Technologies Co.
 """
 
+# TODO:
+# Texteditor open, save, search, find, replace, cut, copy, paste, etc...
+# Texteditor highlight
+# Textedtior better autocompletion
+# Treeview search, open, seek, new, delete, cut, copy, paste
+# Implement the four options in welcome screen: new file, open file, etc...
+
+# ONCE DOING THESE ABOVE WE CAN THINK OF OTHER STUFF LATER
+
 # Main Imports
 import os
 import sys
