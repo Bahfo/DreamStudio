@@ -1,8 +1,7 @@
-from PyQt6.QtCore import Qt, QSize, QEvent
+from PyQt6.QtCore import Qt, QSize, QEvent, pyqtSignal
 from PyQt6.QtGui import QPainter, QIcon
 from PyQt6.QtWidgets import (
     QWidget,
-    QApplication,
     QStyle,
     QHBoxLayout,
     QPushButton,
@@ -15,6 +14,8 @@ from PyQt6.QtWidgets import (
 
 
 class DreamStudioTitleBar(QWidget):
+    maximize_requested = pyqtSignal()
+
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent

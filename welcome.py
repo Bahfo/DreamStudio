@@ -166,8 +166,9 @@ class AppController:
 
     def transition_to_main(self):
         """Main Screen Transition from Welcome Window."""
+        self.main_window.show()
+        self.main_window.title_bar.toggle_maximize()
         self.welcome_window.close()
-        self.main_window.showMaximized()
 
 
 if __name__ == "__main__":
