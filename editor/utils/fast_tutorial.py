@@ -17,6 +17,8 @@ class WelcomeAction(QPushButton):
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
+        self.setFixedWidth(200)
+
         self.setStyleSheet(
             """
             QPushButton {

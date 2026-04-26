@@ -356,7 +356,7 @@ class CodeEditor(QsciScintilla):
             """
         QTabWidget::pane {
             border: none;
-            background: #1E1E1E;
+            background-color: #1E1E1E;
         }
         QTabBar {
             border: none;

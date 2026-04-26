@@ -1,14 +1,11 @@
 from PyQt6.QtCore import Qt, QSize, QEvent, pyqtSignal
-from PyQt6.QtGui import QPainter, QIcon
+from PyQt6.QtGui import QIcon, QLinearGradient, QPainter, QColor
 from PyQt6.QtWidgets import (
     QWidget,
-    QStyle,
     QHBoxLayout,
     QPushButton,
     QSizePolicy,
     QLineEdit,
-    QStyleOption,
-    QStyle,
     QMenuBar,
 )
 
@@ -21,7 +18,6 @@ class DreamStudioTitleBar(QWidget):
         self.parent = parent
         self.setFixedHeight(40)
         self.offset = None
-        self.setStyleSheet("background: #004073")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 0, 10, 0)
@@ -352,114 +348,75 @@ class DreamStudioTitleBar(QWidget):
         self.btn_maximize.clicked.connect(self.toggle_maximize)
         self.btn_close.clicked.connect(self.parent.close)
 
-    def _state_str(self, win):
-        flags = []
-        if win._is_fake_max:
-            flags.append("Maximized")
-        if win.isFullScreen():
-            flags.append("FullScreen")
-        if win.isMinimized():
-            flags.append("Minimized")
-        if not flags:
-            flags.append("Normal")
-        return "|".join(flags)
-
     def toggle_maximize(self):
         win = self.window()
-        self._dbg("toggle_maximize BEFORE")
 
-        self.offset = None
-
-        if getattr(self, "_is_fake_max", False):
-            print("[TITLEBAR] restoring from fake maximize")
-            if hasattr(self, "_normal_geometry"):
-                win.setGeometry(self._normal_geometry)
-            self._is_fake_max = False
+        if win.isMaximized():
+            win.showNormal()
             self.btn_maximize.setText("◻")
-        else:
-            print("[TITLEBAR] entering fake maximize")
-            self._normal_geometry = win.geometry()
-            win.setGeometry(win.screen().availableGeometry())
-            self._is_fake_max = True
-            self.btn_maximize.setText("❐")
+            return
 
-        self._dbg("toggle_maximize AFTER")
+        self._restore_geometry = win.normalGeometry()
+        if not self._restore_geometry.isValid():
+            self._restore_geometry = win.geometry()
+
+        win.showMaximized()
+        self.btn_maximize.setText("❐")
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.toggle_maximize()
+            event.accept()
+
+    def sync_titlebar_state(self):
+        win = self.window()
+        self.btn_maximize.setText("❐" if win.isMaximized() else "◻")
 
     def mousePressEvent(self, event):
         win = self.window()
-        print(f"[TITLEBAR] mousePressEvent button={event.button()}")
-
         if event.button() == Qt.MouseButton.LeftButton:
-            if getattr(self, "_is_fake_max", False):
-                print("[TITLEBAR] press ignored because fake maximized")
-                self.offset = None
-                return
-
             self.offset = event.globalPosition().toPoint() - win.pos()
-            print(f"[TITLEBAR] offset set -> {self.offset}")
             event.accept()
 
     def mouseMoveEvent(self, event):
         win = self.window()
-        print(f"[TITLEBAR] mouseMoveEvent buttons={event.buttons()}")
-
-        if getattr(self, "_is_fake_max", False):
-            return
-
         if self.offset is not None and event.buttons() & Qt.MouseButton.LeftButton:
-            new_pos = event.globalPosition().toPoint() - self.offset
-            print(f"[TITLEBAR] moving window -> {new_pos}")
-            win.move(new_pos)
+            if win.isMaximized():
+                cursor_x = event.globalPosition().toPoint().x()
+                max_width = win.width()
+                width_ratio = cursor_x / max_width
+
+                win.showNormal()
+                normal_width = win.width()
+                new_x = int(cursor_x - (normal_width * width_ratio))
+                new_y = event.globalPosition().toPoint().y() - self.offset.y()
+
+                win.move(new_x, new_y)
+
+                self.offset = event.globalPosition().toPoint() - win.pos()
+                return
+
+            win.move(event.globalPosition().toPoint() - self.offset)
             event.accept()
 
     def mouseReleaseEvent(self, event):
-        print(f"[TITLEBAR] mouseReleaseEvent button={event.button()}")
         self.offset = None
-        event.accept()
-
-    def resizeEvent(self, event):
-        print(f"[TITLEBAR] resizeEvent")
-        super().resizeEvent(event)
-
-    def paintEvent(self, event):
-        opt = QStyleOption()
-        opt.initFrom(self)
-        painter = QPainter(self)
-        self.style().drawPrimitive(
-            QStyle.PrimitiveElement.PE_Widget, opt, painter, self
-        )
+        super().mouseReleaseEvent(event)
 
     def moveEvent(self, event):
-        if self.isMaximized():
-            return  # block invalid moves
         super().moveEvent(event)
-
-    def _state_str(self, win):
-        flags = []
-        if win.isMaximized():
-            flags.append("Maximized")
-        if win.isMinimized():
-            flags.append("Minimized")
-        if win.isFullScreen():
-            flags.append("FullScreen")
-        if not flags:
-            flags.append("Normal")
-        return "|".join(flags)
-
-    def _geo_str(self, win):
-        g = win.geometry()
-        return f"{g.x()},{g.y()} {g.width()}x{g.height()}"
-
-    def _dbg(self, label):
-        win = self.window()
-        print(f"[TITLEBAR] {label} state={self._state_str(win)}")
 
     def eventFilter(self, obj, event):
         if obj == self.window():
             if event.type() == QEvent.Type.WindowStateChange:
-                self._dbg("eventFilter WindowStateChange")
-            elif event.type() == QEvent.Type.Move:
-                self._dbg("eventFilter Move")
-            elif event.type() == QEvent.Type.Resize:
-                self._dbg("eventFilter Resize")
+                self.sync_titlebar_state()
         return super().eventFilter(obj, event)
+
+    def paintEvent(self, a0):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        gradient = QLinearGradient(0, 0, self.width(), 0)
+        gradient.setColorAt(1.0, QColor("#004073"))
+
+        painter.fillRect(self.rect(), gradient)
+        return super().paintEvent(a0)

@@ -202,7 +202,7 @@ class DreamStudio(QMainWindow):
         self.main_editor_area.addWidget(self.tab_editors)
 
         # Ether AI Main Screen
-        self.etherAIScreen = EtherAIMainScreen()
+        self.etherAIScreen = QFrame()
         self.etherAIScreen.setMinimumWidth(0)
         self.etherAIScreen.setMaximumWidth(500)
 
@@ -244,6 +244,7 @@ class DreamStudio(QMainWindow):
         self.installEventFilter(self)
         self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
         self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
+        self.title_bar.setStyleSheet("background-color: #00438A;")
 
     def create_bar_option(
         self,

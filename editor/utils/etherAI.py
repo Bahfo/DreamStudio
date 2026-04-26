@@ -1,3 +1,7 @@
+#################### Currently under heavy construction ####################
+#################### May not behave the same way it is written in right now.
+################### Future reconstruction and rework will occur.
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QPushButton,
@@ -5,11 +9,14 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QFrame,
     QLabel,
-    QStyle,
 )
-from PyQt6.QtGui import QColor, QPainter, QLinearGradient, QBrush, QPixmap
+from PyQt6.QtGui import QColor, QPainter, QLinearGradient, QBrush
 
 from editor.widgets.QCustomLabels import AnimatedGradientLabel
+
+
+warning_text = """DreamStudio Ether AI is designed to help you debug your code faster,
+\nnot write your code, and it can make mistakes, so please double check it."""
 
 
 class EtherAIMainScreen(QFrame):
@@ -109,7 +116,7 @@ class EtherAIMainScreen(QFrame):
 
         self.warningsLabelAI = QLabel()
         self.warningsLabelAI.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        self.warningsLabelAI.setText("AI can make mistakes, so please check your codes")
+        self.warningsLabelAI.setText(warning_text)
         self.warningsLabelAI.setStyleSheet(
             """
             color: #A5A5A5; 
