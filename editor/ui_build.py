@@ -1,11 +1,11 @@
 """
 DreamStudio: Application Integrated Development Environment.
-'The interpreted programming languages master builder'.
 
 DreamStudio: Quiet Valley Edition: Version 1.0.1
 
-(C) COPYRIGHT 2026 The DreamStudio Project Contributors.
-Developed and Maintained Mainly by Excellent Technologies.
+(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
+Supervised by Excellent Technologies Co.
 """
 
 # Main Imports

@@ -1,6 +1,7 @@
 """
-(C) COPYRIGHT 2026 The DreamStudio Project Contributors.
-Developed and Maintained Mainly by Excellent Technologies.
+(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
+Supervised by Excellent Technologies Co.
 
 A Custom editor tab changer and code editor for DreamStudio.
 """
@@ -65,6 +66,9 @@ class DreamStudioIDETabBar(QTabBar):
         self._hover_index = -1
         self._is_syncing = False
         self.currentChanged.connect(self._on_current_changed)
+        self.tabBarDoubleClicked.connect(
+            self.on_double_click, Qt.ConnectionType.UniqueConnection
+        )
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
@@ -245,6 +249,11 @@ class DreamStudioIDETabBar(QTabBar):
         # +25px width compensates for the custom close button space
         # +12px height creates extra "breathing room" above and below the tabs
         return QSize(size.width() + 25, size.height() + 12)
+
+    def on_double_click(self, index):
+        print("double click triggered")
+        if index == -1:
+            self._parent.add_new_editor()
 
 
 class DreamTabbedEditor(QTabWidget):

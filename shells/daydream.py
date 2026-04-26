@@ -6,7 +6,8 @@ import subprocess
 import psutil
 
 help_tool = """
-COPYRIGHT 2026 EX Technologies
+(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+
 DayDream Terminal
 A special terminal designed for file management and code files execution
 Topmost commands:
@@ -434,5 +435,6 @@ def main_terminal():
 
     window.mainloop()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main_terminal()

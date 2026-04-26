@@ -1,3 +1,23 @@
+"""
+(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
+Supervised by Excellent Technologies Co.
+
+DreamStudio is an Integrated Development Environment Developed Mainly for C++,
+Python, and B#. It supports Wide Language Integration (WLI) and Interpreted
+Langauges Configurations.
+
+The main purpose of DreamStudio is mainly to maintain and develop Excellent
+Technologies Applications and Software. It is mainly established as a software
+to complete the BlueSea Operating System EcoSystem.
+
+DreamStudio is a software written by its original author Bahaa Nofal. His idea is
+to establish a personal EcoSystem for usage separated from tracking and stay in
+a comfort zone for daily users.
+"""
+
+# Written By Bahaa Nofal - 4/2026
+
 import sys
 from PyQt6.QtWidgets import (
     QApplication,
@@ -96,12 +116,19 @@ class WelcomeWindow(QWidget):
         self.move(window_geometry.topLeft())
 
     def simulate_loading(self):
+        """Originally a simulator for loading the software.
+        It configures software bootloader so it initializes correctly.
+        Once finished, it recieves a signal to start the application,
+        otherwise, it fails and shows screen message error."""
         self.counter += 1
         if self.counter >= 400:
             self.timer.stop()
             self.initialization_complete.emit()
 
     def paintEvent(self, event):
+        """Painter event for screen's gradient color. NOTE: This is not something
+        that is (write and forget) because software welcome image changes from
+        update to update."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
@@ -134,9 +161,11 @@ class AppController:
         self.welcome_window.initialization_complete.connect(self.transition_to_main)
 
     def start_app(self):
+        """Welcome Screen Initializer"""
         self.welcome_window.show()
 
     def transition_to_main(self):
+        """Main Screen Transition from Welcome Window."""
         self.welcome_window.close()
         self.main_window.showMaximized()
 

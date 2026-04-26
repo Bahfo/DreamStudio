@@ -1,5 +1,7 @@
 """
-(C) COPYRIGHT 2026 EXCELLENT TECHNOLGOIES
+(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
+Supervised by Excellent Technologies Co.
 
 Custom Widgets for DreamStudio: Animated Label with Gradient Colors.
 - Used primarily for Welcoming the Developer when he enters EtherAI.
