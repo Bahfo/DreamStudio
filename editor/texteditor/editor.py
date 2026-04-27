@@ -575,21 +575,27 @@ class CodeEditor(QsciScintilla):
         else:
             self._lexer = None
             self.setLexer(None)
+            self.apply_theme()
             return
 
     def apply_theme(self):
-        if not self._lexer:
-            return
-
         self.setPaper(QColor("#1E1E1E"))
         self.setColor(QColor("#D4D4D4"))
 
-        for style in range(128):
-            self._lexer.setPaper(QColor("#1E1E1E"), style)
-
-        self._lexer.setDefaultColor(QColor("#D4D4D4"))
         self.setSelectionBackgroundColor(QColor("#264F78"))
         self.setSelectionForegroundColor(QColor("#FFFFFF"))
+        self.setCaretForegroundColor(QColor("#FFFFFF"))
+
+        self.setMarginsBackgroundColor(QColor("#1E1E1E"))
+        self.setMarginsForegroundColor(QColor("#D4D4D4"))
+
+        if not self._lexer:
+            return
+
+        self._lexer.setDefaultColor(QColor("#D4D4D4"))
+
+        for style in range(128):
+            self._lexer.setPaper(QColor("#1E1E1E"), style)
 
     def load_language_keywords(self, lang: str):
         if lang == "Python":

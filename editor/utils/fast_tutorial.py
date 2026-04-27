@@ -135,7 +135,7 @@ class FastTutorialFrame(QFrame):
         main_layout.addWidget(start_label)
         main_layout.addSpacing(6)
         main_layout.addWidget(
-            WelcomeAction("New File...", _event=self._parent.ui_build_add_new_editor),
+            WelcomeAction("New File...", _event=self._parent.ui_build_add_new_editor)
         )
         main_layout.addWidget(
             WelcomeAction("Open File...", _event=self._parent.ui_build_open_file)

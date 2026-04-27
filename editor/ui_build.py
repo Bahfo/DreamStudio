@@ -342,7 +342,7 @@ class DreamStudio(QMainWindow):
             if event.key() == Qt.Key.Key_T and event.modifiers() == (
                 Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
             ):
-                self.ui_build_add_new_editor()
+                self.tab_editors.add_new_editor()
                 self.update_editor_visibility()
                 return True
         return super().eventFilter(obj, event)
@@ -368,10 +368,10 @@ class DreamStudio(QMainWindow):
             self.hero_splitter.setSizes([workspace_h, 0])
             self.terminal_collapsed = True
 
-    def ui_build_add_new_editor(self, content="", language=None):
+    def ui_build_add_new_editor(self):
         """A higher heirarchy call for adding a new editor tab instead
         of implementing PyQt signals."""
-        self.tab_editors.add_new_editor(content=content, language=language)
+        self.tab_editors.add_new_editor()
 
     def ui_build_open_file(self):
         """A higher heirarchy call for opening an existing file instead
