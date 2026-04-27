@@ -12,13 +12,12 @@ from PyQt6.QtGui import QPainter, QPixmap, QLinearGradient, QColor, QBrush
 
 
 class WelcomeAction(QPushButton):
-    def __init__(self, text, parent=None):
+    def __init__(self, text, parent=None, _event=None):
         super().__init__(text, parent)
+        self._event = _event
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-
         self.setFixedWidth(200)
-
         self.setStyleSheet(
             """
             QPushButton {
@@ -36,6 +35,8 @@ class WelcomeAction(QPushButton):
             }
         """
         )
+        if self._event is not None:
+            self.clicked.connect(self._event)
 
 
 class WalkthroughCard(QFrame):
@@ -80,8 +81,8 @@ class WalkthroughCard(QFrame):
 
 
 class FastTutorialFrame(QFrame):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
 
         self.background_img = QPixmap("assets/logos/welcome_icon.png").scaled(
             150,
@@ -89,6 +90,7 @@ class FastTutorialFrame(QFrame):
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
+        self._parent = _parent
 
         self.bg_svg = QSvgRenderer("assets/logos/welcome_mountains.svg")
 
@@ -132,8 +134,12 @@ class FastTutorialFrame(QFrame):
 
         main_layout.addWidget(start_label)
         main_layout.addSpacing(6)
-        main_layout.addWidget(WelcomeAction("New File..."))
-        main_layout.addWidget(WelcomeAction("Open File..."))
+        main_layout.addWidget(
+            WelcomeAction("New File...", _event=self._parent.ui_build_add_new_editor),
+        )
+        main_layout.addWidget(
+            WelcomeAction("Open File...", _event=self._parent.ui_build_open_file)
+        )
         main_layout.addWidget(WelcomeAction("Open Folder..."))
         main_layout.addWidget(WelcomeAction("Clone Git Repository..."))
         main_layout.addSpacing(12)

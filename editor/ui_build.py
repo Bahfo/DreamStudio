@@ -38,32 +38,29 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QIcon, QShortcut, QKeySequence
 
-"""
-LOCAL IDE IMPORTS:
-"""
+# Local IDE Imports
 from editor.utils.statusBar import StatusBar
 from editor.texteditor.minimap import MiniMap
 from editor.utils.optionsBar import OptionsMenu
 from editor.animations.splash import SplashOverlay
 from editor.utils.etherAI import EtherAIMainScreen
 from editor.utils.titleBar import DreamStudioTitleBar
+from editor.terminal.terminal_ui import TerminalWidget
 from editor.texteditor.editor import DreamTabbedEditor
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
-
-from editor.terminal.terminal_ui import TerminalWidget
 
 
 class DreamStudio(QMainWindow):
     def __init__(self):
         super().__init__()
-
+        self.resize(1300, 750)
         self._frame_has_started = False
         self._frame_has_exited = False
         self.etherAI_frame_visible = False
-
         self._minimap_bound_editor = None
         self._splitter_initialized = False
+        self.currentDirectory = "/home/bahaa"
 
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
@@ -345,7 +342,7 @@ class DreamStudio(QMainWindow):
             if event.key() == Qt.Key.Key_T and event.modifiers() == (
                 Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
             ):
-                self.add_new_editor()
+                self.ui_build_add_new_editor()
                 self.update_editor_visibility()
                 return True
         return super().eventFilter(obj, event)
@@ -370,3 +367,13 @@ class DreamStudio(QMainWindow):
             workspace_h = hero_total
             self.hero_splitter.setSizes([workspace_h, 0])
             self.terminal_collapsed = True
+
+    def ui_build_add_new_editor(self, content="", language=None):
+        """A higher heirarchy call for adding a new editor tab instead
+        of implementing PyQt signals."""
+        self.tab_editors.add_new_editor(content=content, language=language)
+
+    def ui_build_open_file(self):
+        """A higher heirarchy call for opening an existing file instead
+        of implementing PyQt signals."""
+        self.tab_editors.open_file()

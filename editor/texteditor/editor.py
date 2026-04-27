@@ -13,27 +13,29 @@ from PyQt6.Qsci import (
     QsciLexerCMake,
     QsciAPIs,
 )
-from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent
+from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent, QFileInfo
 from PyQt6.QtWidgets import (
-    QTabWidget,
-    QTabBar,
-    QStyleOptionTab,
     QStyle,
+    QTabBar,
+    QTabWidget,
+    QFileDialog,
+    QStyleOptionTab,
     QGraphicsOpacityEffect,
 )
 from PyQt6.QtGui import (
-    QColor,
-    QFont,
-    QKeyEvent,
-    QPainter,
-    QPainterPath,
     QPen,
+    QFont,
+    QColor,
+    QPainter,
     QPalette,
+    QKeyEvent,
     QShortcut,
+    QPainterPath,
     QKeySequence,
 )
 
 import json
+import pathlib
 
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
@@ -265,6 +267,8 @@ class DreamTabbedEditor(QTabWidget):
         self.setMovable(True)
         self.setDocumentMode(True)
         self._parent = _parent
+        self.currentDirectory = self._parent.currentDirectory
+        self.opened_files = {}
 
         self.tab_counter = self.count()
 
@@ -287,9 +291,9 @@ class DreamTabbedEditor(QTabWidget):
 
         self.tabCloseRequested.connect(self.closeTab)
 
-    def add_new_editor(self, file_name=None, content=""):
+    def add_new_editor(self, file_name=None, content="", language=None):
         self.tab_counter = self.count()
-        new_editor = CodeEditor(self)
+        new_editor = CodeEditor(self, language=language)
         new_editor.setText(content)
 
         if file_name is None:
@@ -321,13 +325,59 @@ class DreamTabbedEditor(QTabWidget):
         self.closeTab(index)
         self._parent.update_editor_visibility()
 
+    def open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open File",
+            self.currentDirectory,
+            "All Supported Files (*.py *.pyw *.pyi *.c *.h *.cpp *.cc *.cxx *.hpp *.hh *.hxx);;"
+            "Python Files (*.py *.pyw *.pyi);;"
+            "C Files (*.c *.h);;"
+            "C++ Files (*.cpp *.cc *.cxx *.hpp *.hh *.hxx);;"
+            "Text/Config Files (*.txt *.json *.xml *.yaml *.yml);;"
+            "All Files (*)",
+        )
+        canonical_path = QFileInfo(file_path).canonicalFilePath()
+        if canonical_path in self.opened_files:
+            widget = self.opened_files[canonical_path]
+            index = self.indexOf(widget)
+            self.setCurrentIndex(index)
+            return
+
+        with open(file_path, "r") as file:
+            content = file.read()
+            file_name = pathlib.Path(file_path).name
+            file_extn = pathlib.Path(file_path).suffix
+
+            _editor = self.add_new_editor(
+                file_name=file_name,
+                content=content,
+                language=self.set_language(file_extn),
+            )
+
+        index = self.addTab(_editor, file_name)
+        self.setCurrentIndex(index)
+        self.opened_files[canonical_path] = _editor
+
+    def set_language(self, lang):
+        match lang:
+            case ".py" | ".pyi" | ".pyw":
+                return "Python"
+            case ".c" | ".h" | ".hpp" | ".cpp" | ".cxx" | ".cc" | ".hh" | ".hxx":
+                return "CPP"
+            case ".txt":
+                return None
+            case _:
+                return None
+
 
 class CodeEditor(QsciScintilla):
-    def __init__(self, _parent=None):
+    def __init__(self, _parent=None, language=None):
         super().__init__(_parent)
 
         self._lexer = None
         self._parent = _parent
+        self.language = language
 
         ####################################
         # Texteditor Options
@@ -435,7 +485,7 @@ class CodeEditor(QsciScintilla):
         self.set_wrap_mode()
 
         # TODO: ADDING SUPPORT ONCE THE FILE IS OPENED IMMEDIATELY
-        self.setLanguage("Python")
+        self.setLanguage(self.language)
 
         ### Enable AutoCompletion:
         self.setAutoCompletionSource(QsciScintilla.AutoCompletionSource.AcsAll)
