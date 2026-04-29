@@ -309,11 +309,15 @@ class DreamStudio(QMainWindow):
                 self._minimap_bound_editor.textChanged.disconnect(
                     self._update_minimap_from_editor
                 )
-            except (TypeError, RuntimeError):
+            except (TypeError, RuntimeError, AttributeError):
                 pass
             self._minimap_bound_editor = None
 
         if editor is None:
+            self.minimap.setText("")
+            return
+
+        if not hasattr(editor, "textChanged"):
             self.minimap.setText("")
             return
 
@@ -411,28 +415,26 @@ class DreamStudio(QMainWindow):
 
     def open_file_from_treeview(self, proxy_index):
         """
-        Opens a file from the treeview if double clicked. Responds for
-        files and images. Implemented here to reduce variables caching
-        and PyQt signals calling.
+        Opens a file from the treeview if double clicked.
+        Supports all file types via central editor routing.
         """
+
         if not proxy_index.isValid():
             return
 
         source_index = self.treeview.proxy_model.mapToSource(proxy_index)
         file_path = self.treeview.model.filePath(source_index)
+        file_extn = pathlib.Path(file_path).suffix
 
         if not os.path.isfile(file_path):
             return
 
-        with open(file_path, "r") as file:
-            content = file.read()
-
-        file_name = pathlib.Path(file_path).name
-        file_extn = pathlib.Path(file_path).suffix
-
-        _editor = self.tab_editors.add_new_editor(
-            file_name=file_name,
-            content=content,
-            file_path=file_path,
-            language=self.tab_editors.set_language(file_extn),
-        )
+        try:
+            _editor = self.tab_editors.add_new_editor(
+                file_name=pathlib.Path(file_path).name,
+                file_path=file_path,
+                language=self.tab_editors.set_language(file_extn),
+            )
+        except Exception as e:
+            print("Open file failed:", e)
+            return

@@ -13,7 +13,7 @@ from PyQt6.Qsci import (
     QsciLexerCMake,
     QsciAPIs,
 )
-from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent, QFileInfo
+from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent
 from PyQt6.QtWidgets import (
     QStyle,
     QTabBar,
@@ -21,27 +21,34 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QStyleOptionTab,
     QGraphicsOpacityEffect,
+    QLabel,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QToolBar,
 )
 from PyQt6.QtGui import (
     QPen,
     QFont,
     QColor,
+    QAction,
     QPainter,
     QPalette,
     QKeyEvent,
-    QShortcut,
     QPainterPath,
-    QKeySequence,
+    QPixmap,
+    QImage,
 )
 
 import os
 import json
+import fitz
 import pathlib
 
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
 from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
-
 
 CONFIG_CODE_EDITOR = {
     "Set TextEditor Font": ("JetBrains Mono", 10),
@@ -273,8 +280,7 @@ class DreamTabbedEditor(QTabWidget):
 
         self.tab_counter = self.count()
 
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
         QTabBar::tab {
             padding: 6px 12px;
             margin-right: 2px;
@@ -287,13 +293,13 @@ class DreamTabbedEditor(QTabWidget):
         QTabBar::close-button {
             image: url(assets/system/close.png);
             background: transparent;
-        }"""
-        )
+        }""")
 
         self.tabCloseRequested.connect(self.close_editor)
 
     def add_new_editor(self, file_name=None, content="", language=None, file_path=None):
         key = self.resolve_key(file_path) if file_path else None
+        viewer_type = self.resolve_viewer_type(file_path) if file_path else "code"
 
         if key and key in self.opened_files:
             index = self.opened_files[key]
@@ -303,8 +309,33 @@ class DreamTabbedEditor(QTabWidget):
             else:
                 del self.opened_files[key]
 
-        new_editor = CodeEditor(self, language=language)
-        new_editor.setText(content)
+        if viewer_type == "code":
+            new_editor = CodeEditor(self, language=language)
+            if file_path:
+                new_editor.load_from_file(file_path)
+            else:
+                new_editor.setText(content)
+
+        elif viewer_type == "image":
+            new_editor = ImageViewer(self)
+            new_editor.load_image(file_path)
+
+        elif viewer_type == "pdf":
+            new_editor = PDFViewer(self)
+            new_editor.load_pdf(file_path)
+
+        else:
+            new_editor = CodeEditor(self, language=language)
+            if file_path:
+                try:
+                    new_editor.load_from_file(file_path)
+                except UnicodeDecodeError:
+                    new_editor.setText(
+                        f"Cannot display '{file_name}': Unsupported binary format."
+                    )
+                    new_editor.setReadOnly(True)
+            else:
+                new_editor.setText(content)
 
         if not key:
             key = f"__untitled_{id(new_editor)}"
@@ -317,25 +348,27 @@ class DreamTabbedEditor(QTabWidget):
 
         new_editor.file_path = file_path
         new_editor.file_key = key
+        new_editor.viewer_type = viewer_type
+
         self.opened_files[key] = index
 
         self.setFocus()
         self._parent.update_editor_visibility()
         print(self.opened_files)
+
         return new_editor
 
     def close_editor(self, index):
         editor = self.widget(index)
         if not editor:
             return
-
-        try:
-            editor.textChanged.disconnect()
-        except (TypeError, RuntimeError):
-            pass
+        if hasattr(editor, "textChanged"):
+            try:
+                editor.textChanged.disconnect()
+            except (TypeError, RuntimeError):
+                pass
 
         key = getattr(editor, "file_key", None)
-
         if key and key in self.opened_files:
             del self.opened_files[key]
 
@@ -372,18 +405,45 @@ class DreamTabbedEditor(QTabWidget):
         if not file_path:
             return
 
-        with open(file_path, "r") as file:
-            content = file.read()
-
         file_name = pathlib.Path(file_path).name
         file_extn = pathlib.Path(file_path).suffix
 
-        self.add_new_editor(
-            file_name=file_name,
-            content=content,
-            file_path=file_path,
-            language=self.set_language(file_extn),
-        )
+        try:
+            self.add_new_editor(
+                file_name=file_name,
+                file_path=file_path,
+                language=self.set_language(file_extn),
+            )
+        except Exception as e:
+            print("Open file failed:", e)
+
+    def resolve_viewer_type(self, file_path):
+        ext = pathlib.Path(file_path).suffix.lower()
+
+        if ext in [".png", ".jpg", ".jpeg", ".bmp", ".gif"]:
+            return "image"
+
+        if ext in [".pdf"]:
+            return "pdf"
+
+        if ext in [
+            ".txt",
+            ".py",
+            ".pyi",
+            ".pyw",
+            ".cpp",
+            ".c",
+            ".h",
+            ".hpp",
+            ".cxx",
+            ".hh",
+            ".cc",
+            ".hxx",
+            ".json",
+        ]:
+            return "code"
+
+        return "default"
 
     def set_language(self, lang):
         match lang:
@@ -436,8 +496,7 @@ class CodeEditor(QsciScintilla):
 
         self.setObjectName("CodeEditor")
 
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
         QTabWidget::pane {
             border: none;
             background-color: #1E1E1E;
@@ -462,8 +521,7 @@ class CodeEditor(QsciScintilla):
         QTabBar::close-button:hover {
             background-color: rgba(255, 255, 255, 0.1);
         }
-        """
-        )
+        """)
 
         ##### EDGES FOR TEXTEDITOR
 
@@ -531,6 +589,10 @@ class CodeEditor(QsciScintilla):
         # self.new_tab_shortcut = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
         # self.new_tab_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
         # self.new_tab_shortcut.activated.connect(self.hello)
+
+    def load_from_file(self, file_path):
+        with open(file_path, "r") as f:
+            self.setText(f.read())
 
     def set_editor_font(self, font):
         self._font = QFont(font, 10)
@@ -629,7 +691,6 @@ class CodeEditor(QsciScintilla):
             self._lexer.setPaper(QColor("#1E1E1E"), style)
 
     def load_language_keywords(self, lang: str):
-        # 1. Map configurations
         configs = {
             "Python": ("editor/texteditor/keywords/python.json", CustomPythonLexer),
             "CPP": ("editor/texteditor/keywords/cpp.json", CustomCppLexer),
@@ -640,7 +701,6 @@ class CodeEditor(QsciScintilla):
 
         path, lexer_class = configs[lang]
 
-        # 2. Safe File Loading
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -648,17 +708,13 @@ class CodeEditor(QsciScintilla):
             print(f"Error loading language file {path}: {e}")
             return None
 
-        # 3. Consolidate Classifications (Local variable to prevent state pollution)
         classification_map = {}
         # Using .get() with empty dict handles missing keys in JSON gracefully
         for category in ["words", "types", "iterators", "exceptions"]:
             items = data.get(category, {})
             classification_map.update(items)
 
-        # 4. Initialize Lexer
         lexer = lexer_class(self, data)
-
-        # 5. Efficient API Handling
         # Clear existing API if it exists to prevent memory bloat
         if hasattr(self, "api") and self.api:
             self.api.clear()
@@ -669,3 +725,153 @@ class CodeEditor(QsciScintilla):
         self.api.prepare()
 
         return lexer
+
+
+class ImageViewer(QWidget):
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
+
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+
+        self.toolbar = QToolBar()
+        self.toolbar.setIconSize(QSize(16, 16))
+
+        self.action_zoom_in = QAction(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp), "", self
+        )
+        self.action_zoom_out = QAction(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown), "", self
+        )
+        self.action_reset_zoom = QAction(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload), "", self
+        )
+
+        self.toolbar.addAction(self.action_zoom_in)
+        self.toolbar.addAction(self.action_zoom_out)
+        self.toolbar.addAction(self.action_reset_zoom)
+
+        self.image_label = QLabel("No image loaded")
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setMinimumSize(200, 200)
+
+        self._layout.addWidget(self.toolbar)
+        self._layout.addWidget(self.image_label)
+
+        self._original_pixmap = None
+
+    def load_image(self, file_path):
+        pixmap = QPixmap(file_path)
+
+        if not pixmap.isNull():
+            self._original_pixmap = pixmap
+            self._update_image()
+        else:
+            self._original_pixmap = None
+            self.image_label.setText("Failed to load image format.")
+
+    def _update_image(self):
+        if not self._original_pixmap:
+            return
+
+        label_size = self.image_label.size()
+        pixmap_size = self._original_pixmap.size()
+
+        if (
+            pixmap_size.width() > label_size.width()
+            or pixmap_size.height() > label_size.height()
+        ):
+            scaled = self._original_pixmap.scaled(
+                label_size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.image_label.setPixmap(scaled)
+        else:
+            self.image_label.setPixmap(self._original_pixmap)
+
+    def resizeEvent(self, event):
+        self._update_image()
+        super().resizeEvent(event)
+
+
+class PDFViewer(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.doc = None
+        self.current_page = 0
+
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+
+        self.page_label = QLabel("No PDF loaded")
+        self.page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.page_label.setMinimumSize(400, 500)
+        self._layout.addWidget(self.page_label, stretch=1)
+
+        # Navigation Controls
+        self.controls_layout = QHBoxLayout()
+        self.controls_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.btn_prev = QPushButton("Previous")
+        self.btn_prev.setFixedSize(80, 30)
+
+        self.lbl_page_info = QLabel("Page: 0 / 0")
+
+        self.btn_next = QPushButton("Next")
+        self.btn_next.setFixedSize(80, 30)
+
+        self.btn_prev.clicked.connect(self.prev_page)
+        self.btn_next.clicked.connect(self.next_page)
+
+        self.controls_layout.addSpacing(10)
+        self.controls_layout.addWidget(self.btn_prev)
+        self.controls_layout.addWidget(self.lbl_page_info)
+        self.controls_layout.addWidget(self.btn_next)
+        self.controls_layout.addSpacing(10)
+
+        self._layout.addLayout(self.controls_layout)
+
+    def load_pdf(self, file_path):
+        """Opens the PDF and initializes the first page."""
+        try:
+            self.doc = fitz.open(file_path)
+            self.current_page = 0
+            self.render_page()
+        except Exception as e:
+            self.page_label.setText(f"Error loading PDF: {e}")
+
+    def render_page(self):
+        """Converts the current PyMuPDF page to a QPixmap."""
+        if not self.doc:
+            return
+
+        page = self.doc.load_page(self.current_page)
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+
+        fmt = (
+            QImage.Format.Format_RGBA8888 if pix.alpha else QImage.Format.Format_RGB888
+        )
+
+        qimg = QImage(pix.samples, pix.width, pix.height, pix.stride, fmt)
+        pixmap = QPixmap.fromImage(qimg)
+
+        scaled_pixmap = pixmap.scaled(
+            self.page_label.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self.page_label.setPixmap(scaled_pixmap)
+
+        self.lbl_page_info.setText(f"Page: {self.current_page + 1} / {len(self.doc)}")
+
+    def prev_page(self):
+        if self.doc and self.current_page > 0:
+            self.current_page -= 1
+            self.render_page()
+
+    def next_page(self):
+        if self.doc and self.current_page < len(self.doc) - 1:
+            self.current_page += 1
+            self.render_page()
