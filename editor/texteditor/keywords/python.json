@@ -123,14 +123,14 @@
   "colors_schema":
   {
     "definition":"#569CD6",
-    "import":"#9C92EA",
-    "keyword":"#C792EA",
+    "import":"#A99EFF",
+    "keyword":"#A678C4",
     "execution_logic":"#FFE38E",
-    "logic":"#3682BD",
-    "constructor":"#77B5A0",
+    "logic":"#4B72FF",
+    "constructor":"#77B584",
     "collection":"#4EC9B0",
     "meta":"#B15E74",
-    "iterator":"#4E92C9",
+    "iterator":"#A8C94E",
     "exception_class":"#C94E5A",
     "warning_class":"#C9964E"
   },

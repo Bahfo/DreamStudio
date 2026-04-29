@@ -598,40 +598,39 @@ class CodeEditor(QsciScintilla):
             self._lexer.setPaper(QColor("#1E1E1E"), style)
 
     def load_language_keywords(self, lang: str):
-        if lang == "Python":
-            path = "editor/texteditor/keywords/python.json"
-            lexer_class = CustomPythonLexer
+        # 1. Map configurations
+        configs = {
+            "Python": ("editor/texteditor/keywords/python.json", CustomPythonLexer),
+            "CPP": ("editor/texteditor/keywords/cpp.json", CustomCppLexer),
+        }
 
-        elif lang == "CPP":
-            path = "editor/texteditor/keywords/cpp.json"
-            lexer_class = CustomCppLexer
-
-        else:
+        if lang not in configs:
             return None
 
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        path, lexer_class = configs[lang]
 
-        self.words = data.get("words", {})
-        self.types = data.get("types", {})
-        self.iters = data.get("iterators", {})
-        self.exceptions = data.get("exceptions", {})
-        self.colors = data.get("colors_schema", {})
+        # 2. Safe File Loading
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error loading language file {path}: {e}")
+            return None
 
+        # 3. Consolidate Classifications (Local variable to prevent state pollution)
         classification_map = {}
+        # Using .get() with empty dict handles missing keys in JSON gracefully
+        for category in ["words", "types", "iterators", "exceptions"]:
+            items = data.get(category, {})
+            classification_map.update(items)
 
-        for word, category in self.words.items():
-            classification_map[word] = category
-        for word, category in self.types.items():
-            classification_map[word] = category
-        for word, category in self.iters.items():
-            classification_map[word] = category
-        for word, category in self.exceptions.items():
-            classification_map[word] = category
-
-        self.classification_map = classification_map
-
+        # 4. Initialize Lexer
         lexer = lexer_class(self, data)
+
+        # 5. Efficient API Handling
+        # Clear existing API if it exists to prevent memory bloat
+        if hasattr(self, "api") and self.api:
+            self.api.clear()
 
         self.api = QsciAPIs(lexer)
         for word in classification_map.keys():
@@ -639,6 +638,3 @@ class CodeEditor(QsciScintilla):
         self.api.prepare()
 
         return lexer
-
-    def _request_new_tab(self):
-        print("Shortcut")
