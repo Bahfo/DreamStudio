@@ -140,7 +140,9 @@ class FastTutorialFrame(QFrame):
         main_layout.addWidget(
             WelcomeAction("Open File...", _event=self._parent.ui_build_open_file)
         )
-        main_layout.addWidget(WelcomeAction("Open Folder..."))
+        main_layout.addWidget(
+            WelcomeAction("Open Folder...", _event=self._parent.open_directory)
+        )
         main_layout.addWidget(WelcomeAction("Clone Git Repository..."))
         main_layout.addSpacing(12)
         main_layout.addStretch()

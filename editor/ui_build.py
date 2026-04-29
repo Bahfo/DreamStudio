@@ -21,11 +21,12 @@ Supervised by Excellent Technologies Co.
 import os
 import sys
 import json
+import pathlib
 import platform
 import subprocess
 
 # GUI Imports
-from PyQt6.QtCore import Qt, QSize, QTimer, QEvent
+from PyQt6.QtCore import Qt, QSize, QEvent, QDir
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -35,6 +36,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QStackedWidget,
     QHBoxLayout,
+    QFileDialog,
 )
 from PyQt6.QtGui import QIcon, QShortcut, QKeySequence
 
@@ -60,7 +62,7 @@ class DreamStudio(QMainWindow):
         self.etherAI_frame_visible = False
         self._minimap_bound_editor = None
         self._splitter_initialized = False
-        self.currentDirectory = "/home/bahaa"
+        self.currentDirectory = QDir.currentPath()
 
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
@@ -86,8 +88,18 @@ class DreamStudio(QMainWindow):
         self.close_tab_shortcut = QShortcut(
             QKeySequence("Ctrl + Alt + W"), self
         )  # Close current tab
-        self.close_tab_shortcut.activated.connect(self.tab_editors.close_current_tab)
+        self.close_tab_shortcut.activated.connect(self.tab_editors.close_tab)
         self.close_tab_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+        self.open_file_shortcut = QShortcut(QKeySequence("Ctrl + O"), self)  # Open File
+        self.open_file_shortcut.activated.connect(self.ui_build_open_file)
+        self.open_file_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+        self.open_directory_shortcut = QShortcut(
+            QKeySequence("Ctrl + Alt + O"), self
+        )  # Open Directory in Treeview
+        self.open_directory_shortcut.activated.connect(self.open_directory)
+        self.open_directory_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
     def check_for_OS_compatability(self):
         if platform.system() == "Linux":
@@ -190,8 +202,11 @@ class DreamStudio(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
 
-        self.treeview = DreamFileTreeWindow(self.sidebar_frame)
+        self.treeview = DreamFileTreeWindow(self)
         sidebar_layout.addWidget(self.treeview)
+        self.treeview.tree.doubleClicked.connect(
+            lambda idx: self.open_file_from_treeview(idx)
+        )
 
         # Editor, Background screen, and other stacked layout widgets
         self.main_editor_area = QStackedWidget()
@@ -377,3 +392,47 @@ class DreamStudio(QMainWindow):
         """A higher heirarchy call for opening an existing file instead
         of implementing PyQt signals."""
         self.tab_editors.open_file()
+
+    def open_directory(self):
+        """
+        Opens a directory based on QFileDialog and updates the treeview
+        class, implemented here to reduce variables caching and PyQt
+        signals.
+        """
+        path = QFileDialog.getExistingDirectory(
+            parent=None,
+            caption="Select Directory",
+            directory="",
+            options=QFileDialog.Option.ShowDirsOnly,
+        )
+        self.tab_editors.open_new_workspace(path)
+        print(self.currentDirectory)
+        self.treeview.set_treeview_directory(path)
+
+    def open_file_from_treeview(self, proxy_index):
+        """
+        Opens a file from the treeview if double clicked. Responds for
+        files and images. Implemented here to reduce variables caching
+        and PyQt signals calling.
+        """
+        if not proxy_index.isValid():
+            return
+
+        source_index = self.treeview.proxy_model.mapToSource(proxy_index)
+        file_path = self.treeview.model.filePath(source_index)
+
+        if not os.path.isfile(file_path):
+            return
+
+        with open(file_path, "r") as file:
+            content = file.read()
+
+        file_name = pathlib.Path(file_path).name
+        file_extn = pathlib.Path(file_path).suffix
+
+        _editor = self.tab_editors.add_new_editor(
+            file_name=file_name,
+            content=content,
+            file_path=file_path,
+            language=self.tab_editors.set_language(file_extn),
+        )

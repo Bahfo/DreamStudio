@@ -8,7 +8,6 @@ A Custom Treeview hierarchy for DreamStudio.
 
 # Written by Bahaa Nofal - April/2026
 
-import sys
 from PyQt6.QtWidgets import (
     QTreeView,
     QLineEdit,
@@ -18,14 +17,16 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 from PyQt6.QtGui import QFileSystemModel
-from PyQt6.QtCore import QDir, QSortFilterProxyModel, Qt
+from PyQt6.QtCore import QSortFilterProxyModel, Qt
 
 from editor.widgets.QIconsProvider import DreamStudioIconProvider
 
 
 class DreamFileTreeWindow(QFrame):
-    def __init__(self, parent):
-        super().__init__(parent)
+    def __init__(self, _parent):
+        super().__init__(_parent)
+        self._parent = _parent
+        path = self._parent.currentDirectory
         self.setFrameShape(QFrame.Shape.Panel)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -105,7 +106,6 @@ class DreamFileTreeWindow(QFrame):
         # Right-clicking opens a menu
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self.show_context_menu)
-        self.tree.customContextMenuRequested.connect(self.show_context_menu)
         self.tree.header().setVisible(False)  # First row
 
         self.tree.setColumnHidden(1, True)  # Size
@@ -116,10 +116,7 @@ class DreamFileTreeWindow(QFrame):
         # Filtering based on search results
         self.searchBar.textChanged.connect(self.proxy_model.setFilterFixedString)
 
-        path = QDir.currentPath()
-        self.model.setRootPath(path)
-        self.source_index = self.model.index(path)
-        self.tree.setRootIndex(self.proxy_model.mapFromSource(self.source_index))
+        self.set_treeview_directory(path)
 
         self.tree.setAnimated(True)
         self.tree.setIndentation(18)
@@ -177,3 +174,8 @@ class DreamFileTreeWindow(QFrame):
 
         if show:
             self.tree.resizeColumnToContents(0)
+
+    def set_treeview_directory(self, path):
+        self.model.setRootPath(path)
+        self.source_index = self.model.index(path)
+        self.tree.setRootIndex(self.proxy_model.mapFromSource(self.source_index))

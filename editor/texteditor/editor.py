@@ -34,6 +34,7 @@ from PyQt6.QtGui import (
     QKeySequence,
 )
 
+import os
 import json
 import pathlib
 
@@ -289,40 +290,70 @@ class DreamTabbedEditor(QTabWidget):
         }"""
         )
 
-        self.tabCloseRequested.connect(self.closeTab)
+        self.tabCloseRequested.connect(self.close_editor)
 
-    def add_new_editor(self, file_name=None, content="", language=None):
-        self.tab_counter = self.count()
+    def add_new_editor(self, file_name=None, content="", language=None, file_path=None):
+        key = self.resolve_key(file_path) if file_path else None
+
+        if key and key in self.opened_files:
+            index = self.opened_files[key]
+            if index != -1:
+                self.setCurrentIndex(index)
+                return self.widget(index)
+            else:
+                del self.opened_files[key]
+
         new_editor = CodeEditor(self, language=language)
         new_editor.setText(content)
 
+        if not key:
+            key = f"__untitled_{id(new_editor)}"
+
         if file_name is None:
-            file_name = f"untitled - {self.tab_counter}"
+            file_name = f"untitled - {self.count()}"
+
         index = self.addTab(new_editor, file_name)
         self.setCurrentIndex(index)
 
+        new_editor.file_path = file_path
+        new_editor.file_key = key
+        self.opened_files[key] = index
+
         self.setFocus()
-
         self._parent.update_editor_visibility()
-
+        print(self.opened_files)
         return new_editor
 
-    def closeTab(self, index):
+    def close_editor(self, index):
         editor = self.widget(index)
-        if editor:
-            try:
-                editor.textChanged.disconnect()
-            except (TypeError, RuntimeError):
-                pass
+        if not editor:
+            return
+
+        try:
+            editor.textChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+
+        key = getattr(editor, "file_key", None)
+
+        if key and key in self.opened_files:
+            del self.opened_files[key]
 
         self.removeTab(index)
+        editor.deleteLater()
 
-        if editor:
-            editor.deleteLater()
+        for k in list(self.opened_files.keys()):
+            if self.opened_files[k] > index:
+                self.opened_files[k] -= 1
 
-    def close_current_tab(self):
+        print(self.opened_files)
+
+    def close_tab(self):
         index = self.currentIndex()
-        self.closeTab(index)
+        if index == -1:
+            return
+
+        self.close_editor(index)
         self._parent.update_editor_visibility()
 
     def open_file(self):
@@ -337,27 +368,22 @@ class DreamTabbedEditor(QTabWidget):
             "Text/Config Files (*.txt *.json *.xml *.yaml *.yml);;"
             "All Files (*)",
         )
-        canonical_path = QFileInfo(file_path).canonicalFilePath()
-        if canonical_path in self.opened_files:
-            widget = self.opened_files[canonical_path]
-            index = self.indexOf(widget)
-            self.setCurrentIndex(index)
+
+        if not file_path:
             return
 
         with open(file_path, "r") as file:
             content = file.read()
-            file_name = pathlib.Path(file_path).name
-            file_extn = pathlib.Path(file_path).suffix
 
-            _editor = self.add_new_editor(
-                file_name=file_name,
-                content=content,
-                language=self.set_language(file_extn),
-            )
+        file_name = pathlib.Path(file_path).name
+        file_extn = pathlib.Path(file_path).suffix
 
-        index = self.addTab(_editor, file_name)
-        self.setCurrentIndex(index)
-        self.opened_files[canonical_path] = _editor
+        self.add_new_editor(
+            file_name=file_name,
+            content=content,
+            file_path=file_path,
+            language=self.set_language(file_extn),
+        )
 
     def set_language(self, lang):
         match lang:
@@ -369,6 +395,14 @@ class DreamTabbedEditor(QTabWidget):
                 return None
             case _:
                 return None
+
+    def open_new_workspace(self, path):
+        self._parent.currentDirectory = path
+
+    def resolve_key(self, file_path):
+        if not file_path:
+            return None
+        return os.path.normcase(os.path.normpath(file_path))
 
 
 class CodeEditor(QsciScintilla):
@@ -493,17 +527,14 @@ class CodeEditor(QsciScintilla):
         self.setAutoCompletionCaseSensitivity(False)
         self.setAutoCompletionReplaceWord(True)
 
-        # KEYBINDINGS
-        self.new_tab_shortcut = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
-        self.new_tab_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
-        self.new_tab_shortcut.activated.connect(self.hello)
+        # # KEYBINDINGS
+        # self.new_tab_shortcut = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
+        # self.new_tab_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
+        # self.new_tab_shortcut.activated.connect(self.hello)
 
     def set_editor_font(self, font):
         self._font = QFont(font, 10)
         self.setFont(self._font)
-
-    def hello(self):
-        print("Hello")
 
     def set_editor_font_size(self, font_size):
         self.font_size = font_size
