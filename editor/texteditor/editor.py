@@ -16,29 +16,24 @@ from PyQt6.Qsci import (
 from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent
 from PyQt6.QtWidgets import (
     QStyle,
+    QLabel,
     QTabBar,
+    QWidget,
     QTabWidget,
     QFileDialog,
+    QPushButton,
+    QVBoxLayout,
     QStyleOptionTab,
     QGraphicsOpacityEffect,
-    QLabel,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QToolBar,
 )
 from PyQt6.QtGui import (
     QPen,
     QFont,
     QColor,
-    QAction,
     QPainter,
     QPalette,
     QKeyEvent,
     QPainterPath,
-    QPixmap,
-    QImage,
 )
 
 import os
@@ -317,12 +312,22 @@ class DreamTabbedEditor(QTabWidget):
                 new_editor.setText(content)
 
         elif viewer_type == "image":
-            new_editor = ImageViewer(self)
-            new_editor.load_image(file_path)
+            try:
+                from ComposerStudio.AssetsEditor.ImageViewer import ImageViewer
+
+                new_editor = ImageViewer(self)
+                new_editor.load_image(file_path)
+            except ImportError:
+                new_editor = FallBack(self)
 
         elif viewer_type == "pdf":
-            new_editor = PDFViewer(self)
-            new_editor.load_pdf(file_path)
+            try:
+                from ComposerStudio.PDFViewer.PDFViewer import PDFViewer
+
+                new_editor = PDFViewer(self)
+                new_editor.load_pdf(file_path)
+            except ImportError:
+                new_editor = FallBack(self)
 
         else:
             new_editor = CodeEditor(self, language=language)
@@ -727,151 +732,38 @@ class CodeEditor(QsciScintilla):
         return lexer
 
 
-class ImageViewer(QWidget):
+class FallBack(QWidget):
+    """A fallback frame widget if the file to open is not supported."""
+
     def __init__(self, _parent=None):
         super().__init__(_parent)
 
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(0)
+        self._layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._layout.setSpacing(12)
 
-        self.toolbar = QToolBar()
-        self.toolbar.setIconSize(QSize(16, 16))
+        # --- Warning Icon ---
+        self.icon_label = QLabel()
+        icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
+        self.icon_label.setPixmap(icon.pixmap(64, 64))
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.action_zoom_in = QAction(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp), "", self
+        # --- Message ---
+        self.page_label = QLabel(
+            "This file cannot be opened because it uses unsupported data types."
         )
-        self.action_zoom_out = QAction(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown), "", self
-        )
-        self.action_reset_zoom = QAction(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload), "", self
-        )
-
-        self.toolbar.addAction(self.action_zoom_in)
-        self.toolbar.addAction(self.action_zoom_out)
-        self.toolbar.addAction(self.action_reset_zoom)
-
-        self.image_label = QLabel("No image loaded")
-        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setMinimumSize(200, 200)
-
-        self._layout.addWidget(self.toolbar)
-        self._layout.addWidget(self.image_label)
-
-        self._original_pixmap = None
-
-    def load_image(self, file_path):
-        pixmap = QPixmap(file_path)
-
-        if not pixmap.isNull():
-            self._original_pixmap = pixmap
-            self._update_image()
-        else:
-            self._original_pixmap = None
-            self.image_label.setText("Failed to load image format.")
-
-    def _update_image(self):
-        if not self._original_pixmap:
-            return
-
-        label_size = self.image_label.size()
-        pixmap_size = self._original_pixmap.size()
-
-        if (
-            pixmap_size.width() > label_size.width()
-            or pixmap_size.height() > label_size.height()
-        ):
-            scaled = self._original_pixmap.scaled(
-                label_size,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.image_label.setPixmap(scaled)
-        else:
-            self.image_label.setPixmap(self._original_pixmap)
-
-    def resizeEvent(self, event):
-        self._update_image()
-        super().resizeEvent(event)
-
-
-class PDFViewer(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.doc = None
-        self.current_page = 0
-
-        self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-
-        self.page_label = QLabel("No PDF loaded")
         self.page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.page_label.setMinimumSize(400, 500)
-        self._layout.addWidget(self.page_label, stretch=1)
+        self.page_label.setWordWrap(True)
+        self.page_label.setMinimumSize(400, 100)
 
-        # Navigation Controls
-        self.controls_layout = QHBoxLayout()
-        self.controls_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # --- Action Button ---
+        self.action_button = QPushButton("Open Anyway")
+        self.action_button.setFixedWidth(160)
 
-        self.btn_prev = QPushButton("Previous")
-        self.btn_prev.setFixedSize(80, 30)
-
-        self.lbl_page_info = QLabel("Page: 0 / 0")
-
-        self.btn_next = QPushButton("Next")
-        self.btn_next.setFixedSize(80, 30)
-
-        self.btn_prev.clicked.connect(self.prev_page)
-        self.btn_next.clicked.connect(self.next_page)
-
-        self.controls_layout.addSpacing(10)
-        self.controls_layout.addWidget(self.btn_prev)
-        self.controls_layout.addWidget(self.lbl_page_info)
-        self.controls_layout.addWidget(self.btn_next)
-        self.controls_layout.addSpacing(10)
-
-        self._layout.addLayout(self.controls_layout)
-
-    def load_pdf(self, file_path):
-        """Opens the PDF and initializes the first page."""
-        try:
-            self.doc = fitz.open(file_path)
-            self.current_page = 0
-            self.render_page()
-        except Exception as e:
-            self.page_label.setText(f"Error loading PDF: {e}")
-
-    def render_page(self):
-        """Converts the current PyMuPDF page to a QPixmap."""
-        if not self.doc:
-            return
-
-        page = self.doc.load_page(self.current_page)
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-
-        fmt = (
-            QImage.Format.Format_RGBA8888 if pix.alpha else QImage.Format.Format_RGB888
+        # --- Layout Assembly ---
+        self._layout.addWidget(self.icon_label)
+        self._layout.addWidget(self.page_label)
+        self._layout.addWidget(
+            self.action_button, alignment=Qt.AlignmentFlag.AlignCenter
         )
-
-        qimg = QImage(pix.samples, pix.width, pix.height, pix.stride, fmt)
-        pixmap = QPixmap.fromImage(qimg)
-
-        scaled_pixmap = pixmap.scaled(
-            self.page_label.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self.page_label.setPixmap(scaled_pixmap)
-
-        self.lbl_page_info.setText(f"Page: {self.current_page + 1} / {len(self.doc)}")
-
-    def prev_page(self):
-        if self.doc and self.current_page > 0:
-            self.current_page -= 1
-            self.render_page()
-
-    def next_page(self):
-        if self.doc and self.current_page < len(self.doc) - 1:
-            self.current_page += 1
-            self.render_page()
