@@ -297,13 +297,10 @@ class BridgeInterpreter:
     """
 
     def __init__(self, engine):
-        self.engine = engine  # Your CommandLine instance
+        self.engine = engine  # CommandLine instance
 
     def __call__(self, source):
-        # We pass the typed 'source' from the UI to your engine
         result = self.engine.onecmd(source)
-
-        # If your engine returns a string, we pass it back to the console
         return str(result) if result is not None else ""
 
 
