@@ -272,7 +272,6 @@ pacman_real_commands = {
     },
 }
 
-import re
 import os
 import cmd
 import sys
@@ -284,13 +283,11 @@ import zipfile
 import datetime
 import platform
 import subprocess
-import tkinter as tk
 from itertools import islice
 from collections import deque
 
 
-# ---------------- Redirect stdout to GUI ----------------
-class GUIStdout:
+class BridgeInterpreter:
     """
     Redirects the standard output of the command line interface into
     custom-tkinter's textbox. Works by writing the text into the
@@ -299,16 +296,15 @@ class GUIStdout:
     the textbox.
     """
 
-    def __init__(self, textbox):
-        self.textbox = textbox
+    def __init__(self, engine):
+        self.engine = engine  # Your CommandLine instance
 
-    def write(self, text):
-        if text.strip():
-            self.textbox.insert("end", "\n" + text, "output")
-            self.textbox.see("end")
+    def __call__(self, source):
+        # We pass the typed 'source' from the UI to your engine
+        result = self.engine.onecmd(source)
 
-    def flush(self):
-        pass
+        # If your engine returns a string, we pass it back to the console
+        return str(result) if result is not None else ""
 
 
 # ---------------- Command Line Logic ----------------

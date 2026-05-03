@@ -382,10 +382,12 @@ class DreamStudio(QMainWindow):
         if self.terminal_collapsed:
             self.hero_splitter.setSizes([800, 400])
             self.terminal_collapsed = False
+            self.terminalWidget._switch_tab(1)
         else:
             workspace_h = hero_total
             self.hero_splitter.setSizes([workspace_h, 0])
             self.terminal_collapsed = True
+            self.terminalWidget._switch_tab(0)
 
     def ui_build_add_new_editor(self):
         """A higher heirarchy call for adding a new editor tab instead
