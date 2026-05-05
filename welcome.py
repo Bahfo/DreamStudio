@@ -4,8 +4,7 @@ Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
 Supervised by Excellent Technologies Co.
 
 DreamStudio is an Integrated Development Environment Developed Mainly for C++,
-Python, and B#. It supports Wide Language Integration (WLI) and Interpreted
-Langauges Configurations.
+and Python.
 
 The main purpose of DreamStudio is mainly to maintain and develop Excellent
 Technologies Applications and Software. It is mainly established as a software
@@ -52,14 +51,12 @@ class WelcomeWindow(QWidget):
             alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
         )
         self.info_label.setContentsMargins(17, 20, 0, 0)
-        self.info_label.setStyleSheet(
-            """
+        self.info_label.setStyleSheet("""
             QLabel {
             font-family: montserrat, Arial;
             font-size: 44px;
             color: #F5F5F5;
-            }"""
-        )
+            }""")
         layout.addWidget(self.info_label)
         layout.addSpacing(5)
 
@@ -89,14 +86,12 @@ class WelcomeWindow(QWidget):
             alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
         )
         self.copyright.setContentsMargins(17, 20, 17, 0)
-        self.copyright.setStyleSheet(
-            """
+        self.copyright.setStyleSheet("""
             QLabel {
             font-family: montserrat, Arial;
             font-size: 12px;
             color: #1E1E1E;
-            }"""
-        )
+            }""")
         layout.addWidget(self.copyright)
 
         layout.addStretch()
