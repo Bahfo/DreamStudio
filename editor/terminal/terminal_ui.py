@@ -14,7 +14,7 @@ from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 
 #### Terminal Emulator First GUI Class from PyQt
-from editor.terminal.PromptXShellGUIClass import PromptXShell
+# from editor.terminal.PromptXShellGUIClass import PromptXShell
 
 TAB_PROBLEMS = 0
 TAB_TERMINAL = 1
@@ -106,7 +106,7 @@ class TerminalWidget(QWidget):
 
         # ------------------ TABS ------------------
         self.problems_tab = QWidget()
-        self.prompt_x_shell_terminal = PromptXShell()
+        self.prompt_x_shell_terminal = QWidget()
         self.debug_tab = QWidget()
         self.output_tab = QWidget()
 

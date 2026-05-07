@@ -1,34 +1,47 @@
-from PyQt6.QtWidgets import QApplication, QSplitter, QTextEdit, QWidget, QVBoxLayout
+import sys
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QScrollBar
 from PyQt6.QtCore import Qt
 
+from termqt import Terminal, TerminalPOSIXExecIO
 
-class SmoothSplitterDemo(QWidget):
+
+class TerminalWindow(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.setWindowTitle("termqt example")
+        self.resize(800, 500)
+
         layout = QVBoxLayout(self)
 
-        # 1. Initialize Splitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Terminal widget
+        self.terminal = Terminal(800, 500)
+        self.terminal.set_font()
+        self.terminal.maximum_line_history = 1000
 
-        # 2. Add widgets
-        splitter.addWidget(QTextEdit("Left Pane"))
-        splitter.addWidget(QTextEdit("Right Pane"))
+        # Scrollbar (optional but recommended)
+        self.scrollbar = QScrollBar(Qt.Orientation.Vertical)
+        self.terminal.connect_scroll_bar(self.scrollbar)
 
-        # 3. Ensure smooth (opaque) resizing is on
-        splitter.setOpaqueResize(True)
+        layout.addWidget(self.terminal)
+        layout.addWidget(self.scrollbar)
 
-        # 4. Set stretch factors so they resize proportionally (1:1)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
+        # Backend (Linux/macOS)
+        self.io = TerminalPOSIXExecIO(
+            self.terminal.row_len, self.terminal.col_len, "/bin/bash"
+        )
 
-        # 5. Optional: Set initial distribution
-        splitter.setSizes([300, 300])
+        # Required connections
+        self.io.stdout_callback = self.terminal.stdout
+        self.terminal.stdin_callback = self.io.write
+        self.terminal.resize_callback = self.io.resize
 
-        layout.addWidget(splitter)
-        self.resize(700, 400)
+        # Start shell
+        self.io.spawn()
 
 
-app = QApplication([])
-demo = SmoothSplitterDemo()
-demo.show()
-app.exec()
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = TerminalWindow()
+    window.show()
+    sys.exit(app.exec())
