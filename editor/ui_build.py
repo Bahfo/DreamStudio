@@ -47,7 +47,7 @@ from editor.utils.optionsBar import OptionsMenu
 from editor.animations.splash import SplashOverlay
 from editor.utils.etherAI import EtherAIMainScreen
 from editor.utils.titleBar import DreamStudioTitleBar
-from editor.terminal.terminal_ui import TerminalWidget
+from editor.terminal.terminal_ui import TerminalPanel
 from editor.texteditor.editor import DreamTabbedEditor
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
@@ -249,7 +249,7 @@ class DreamStudio(QMainWindow):
         self.hero_splitter.addWidget(self.workspace_splitter)
 
         # Terminal, Console, Debugger, and Output Services
-        self.terminalWidget = TerminalWidget(self)
+        self.terminalWidget = TerminalPanel(self)
         self.hero_splitter.addWidget(self.terminalWidget)
         self.hero_splitter.setOpaqueResize(True)
         self.terminalWidget.close_requested.connect(self.toggle_terminal)
@@ -382,12 +382,12 @@ class DreamStudio(QMainWindow):
         if self.terminal_collapsed:
             self.hero_splitter.setSizes([800, 400])
             self.terminal_collapsed = False
-            self.terminalWidget._switch_tab(1)
+            self.terminalWidget.switch_tab(1)
         else:
             workspace_h = hero_total
             self.hero_splitter.setSizes([workspace_h, 0])
             self.terminal_collapsed = True
-            self.terminalWidget._switch_tab(0)
+            self.terminalWidget.switch_tab(0)
 
     def ui_build_add_new_editor(self):
         """A higher heirarchy call for adding a new editor tab instead
