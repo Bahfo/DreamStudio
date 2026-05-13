@@ -13,7 +13,7 @@ from PyQt6.Qsci import (
     QsciLexerCMake,
     QsciAPIs,
 )
-from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent
+from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent, QPoint
 from PyQt6.QtWidgets import (
     QStyle,
     QLabel,
@@ -22,10 +22,12 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QTabWidget,
     QFileDialog,
+    QListWidget,
     QPushButton,
     QVBoxLayout,
     QPlainTextEdit,
     QStyleOptionTab,
+    QListWidgetItem,
     QGraphicsOpacityEffect,
 )
 from PyQt6.QtGui import (
@@ -41,11 +43,13 @@ from PyQt6.QtGui import (
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 import os
+import re
 import sys
 import json
-import fitz
 import pathlib
 import markdown
+
+from rapidfuzz import fuzz
 
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
@@ -505,16 +509,27 @@ class CodeEditor(QsciScintilla):
         super().__init__(_parent)
 
         self._lexer = None
+        self.keyword_map = {}
         self._parent = _parent
         self.language = language
+        self.current_completion_context = None
+        self.api = None
 
-        ####################################
-        # Texteditor Options
-        ####################################
+        self.document_symbols = {
+            "variables": set(),
+            "functions": set(),
+            "classes": set(),
+        }
+        self.imported_modules = set()
+        self.imported_symbols = set()
+
         self.font_size = 11
         self._font = QFont("JetBrains Mono", self.font_size)
         self.setFont(self._font)
-        self.setUtf8(True)
+        try:
+            self.setUtf8(True)
+        except Exception:
+            pass
 
         self._indentation_spacing = 4
         self._vertical_spacing = 1
@@ -566,6 +581,53 @@ class CodeEditor(QsciScintilla):
         self.zoomIn(0)
 
         ####################################
+        # AutoCompletion
+        ####################################
+
+        self.completion_popup = QListWidget(self)
+        self.completion_popup.setFixedWidth(600)
+        self.completion_popup.setWindowFlags(
+            Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
+        )
+        self.completion_popup.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.completion_popup.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.completion_popup.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, False
+        )
+        self.completion_popup.hide()
+        self.completion_popup.setStyleSheet("""
+            QListWidget {
+                background-color: #252526;
+                color: #D4D4D4;
+                border: 1px solid #3C3C3C;
+                padding: 4px;
+                font-family: "JetBrains Mono";
+                font-size: 11pt;
+            }
+
+            QListWidget::item {
+                padding: 4px 8px;
+            }
+
+            QListWidget::item:selected {
+                background-color: #094771;
+                color: white;
+            }
+            """)
+
+        self.completion_popup.itemClicked.connect(self._complete_current_item)
+
+        self._symbol_update_timer = QTimer(self)
+        self._symbol_update_timer.setSingleShot(True)
+        self._symbol_update_timer.timeout.connect(self.update_document_symbols)
+
+        self._completion_timer = QTimer(self)
+        self._completion_timer.setSingleShot(True)
+        self._completion_timer.timeout.connect(self.request_completion)
+
+        self.textChanged.connect(self._schedule_document_symbol_update)
+
+        ####################################
         # Main Implementation
         ####################################
         self.setMarginType(0, QsciScintilla.MarginType.NumberMargin)
@@ -582,7 +644,6 @@ class CodeEditor(QsciScintilla):
         self.setCaretLineVisible(True)
         self.setCaretLineBackgroundColor(QColor("#323232"))
         self.setCaretWidth(2)
-        self.setCaretLineVisible(True)
 
         # Brace Matching
         self.setBraceMatching(QsciScintilla.BraceMatch.StrictBraceMatch)
@@ -615,15 +676,290 @@ class CodeEditor(QsciScintilla):
         self.setLanguage(self.language)
 
         ### Enable AutoCompletion:
-        self.setAutoCompletionSource(QsciScintilla.AutoCompletionSource.AcsAll)
-        self.setAutoCompletionThreshold(1)
+        self.setAutoCompletionSource(QsciScintilla.AutoCompletionSource.AcsNone)
+        self.setAutoCompletionThreshold(0)
         self.setAutoCompletionCaseSensitivity(False)
         self.setAutoCompletionReplaceWord(True)
+
+        self.SCN_CHARADDED.connect(self._on_char_added)
 
         # # KEYBINDINGS
         # self.new_tab_shortcut = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
         # self.new_tab_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
         # self.new_tab_shortcut.activated.connect(self.hello)
+
+    def _schedule_document_symbol_update(self):
+        self._symbol_update_timer.start(150)
+
+    def _schedule_completion(self):
+        self._completion_timer.start(25)
+
+    def _get_line_text(self, line):
+        lines = self.text().splitlines()
+        if 0 <= line < len(lines):
+            return lines[line]
+        return ""
+
+    def update_document_symbols(self):
+        self.imported_modules.clear()
+        self.imported_symbols.clear()
+
+        text = self.text()
+        class_body_pattern = r"class\s+([A-Za-z_]\w*).*?:((?:\n[ \t]+.*)+)"
+
+        variables = set()
+        functions = set()
+        classes = set()
+
+        for m in re.finditer(r"\bdef\s+([A-Za-z_]\w*)", text):
+            functions.add(m.group(1))
+
+        for m in re.finditer(r"\bclass\s+([A-Za-z_]\w*)", text):
+            classes.add(m.group(1))
+
+        for m in re.finditer(r"\b([A-Za-z_]\w*)\s*=", text):
+            name = m.group(1)
+            if name not in self.keyword_map:
+                variables.add(name)
+
+        for m in re.finditer(r"import\s+([A-Za-z_]\w*)", text):
+            self.imported_modules.add(m.group(1))
+
+        for m in re.finditer(r"from\s+([A-Za-z_]\w+)\s+import\s+([A-Za-z_,\s]+)", text):
+            module = m.group(1)
+            symbols = [s.strip() for s in m.group(2).split(",")]
+            self.imported_modules.add(module)
+            self.imported_symbols.update(symbols)
+
+        for match in re.finditer(class_body_pattern, text):
+            class_block = match.group(2)
+
+            for m in re.finditer(r"def\s+([A-Za-z_]\w*)", class_block):
+                functions.add(m.group(1))
+
+            for m in re.finditer(r"self\.([A-Za-z_]\w*)", class_block):
+                variables.add(m.group(1))
+
+        self.document_symbols["variables"] = variables
+        self.document_symbols["functions"] = functions
+        self.document_symbols["classes"] = classes
+
+    def show_completion_popup(self, items):
+        self.completion_popup.clear()
+
+        if not items:
+            self.completion_popup.hide()
+            return
+
+        for item in items:
+            list_item = QListWidgetItem(f'{item["label"]}    [{item["type"]}]')
+            list_item.setData(Qt.ItemDataRole.UserRole, item)
+            self.completion_popup.addItem(list_item)
+
+        self.position_completion_popup()
+        self.completion_popup.setCurrentRow(0)
+        self.completion_popup.show()
+
+    def _complete_current_item(self, item):
+        data = item.data(Qt.ItemDataRole.UserRole)
+        self.insert_completion(data["label"])
+
+    def position_completion_popup(self):
+        pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+        x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, pos)
+        y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, pos)
+
+        global_pos = self.mapToGlobal(QPoint(x, y + 24))
+        self.completion_popup.move(global_pos)
+
+    def _on_char_added(self, char_number):
+        ch = chr(char_number)
+
+        if ch.isalnum() or ch in "._":
+            self._schedule_completion()
+        else:
+            self.current_completion_context = None
+            self.completion_popup.hide()
+
+    def get_completion_context(self):
+        line, index = self.getCursorPosition()
+        current_line = self._get_line_text(line)
+        text_before_cursor = current_line[:index]
+
+        object_match = re.search(
+            r"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z0-9_]*)$", text_before_cursor
+        )
+
+        if object_match:
+            obj, prefix = object_match.groups()
+            return {
+                "type": "attribute",
+                "object": obj,
+                "prefix": prefix,
+                "line": line,
+                "index": index,
+            }
+
+        global_match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)$", text_before_cursor)
+        if global_match:
+            return {
+                "type": "global",
+                "prefix": global_match.group(1),
+                "line": line,
+                "index": index,
+            }
+
+        m = re.search(r"self\.([A-Za-z_]\w*)$", text_before_cursor)
+        if m:
+            return {
+                "type": "attribute",
+                "scope": "class",
+                "prefix": m.group(1),
+                "object": "self",
+                "line": line,
+                "index": index,
+            }
+
+        return None
+
+    def request_completion(self):
+        context = self.get_completion_context()
+
+        if not context:
+            self.current_completion_context = None
+            self.completion_popup.hide()
+            return
+
+        self.current_completion_context = context
+        items = self.get_completion_items(context)
+        self.show_completion_popup(items)
+
+    def score_item(self, item, context):
+        base = item.get("score", 0)
+
+        if item["source"] == "local":
+            base += 20
+
+        if item["source"] == "imported":
+            base += 15
+
+        if item["source"] == "keywords":
+            base += 5
+
+        if context.get("scope") == "class" and item["type"] == "function":
+            base += 10
+
+        if item["type"] == "variable":
+            base += 5
+
+        return base
+
+    def get_completion_items(self, context):
+        prefix = context["prefix"]
+        items_by_label = {}
+
+        def consider(item):
+            label = item["label"]
+            existing = items_by_label.get(label)
+            if existing is None:
+                items_by_label[label] = item
+                return
+
+            if self.score_item(item, context) > self.score_item(existing, context):
+                items_by_label[label] = item
+
+        for word, word_type in self.keyword_map.items():
+            if word.lower().startswith(prefix.lower()):
+                consider(
+                    {
+                        "label": word,
+                        "type": word_type,
+                        "source": "keywords",
+                        "score": 50,
+                    }
+                )
+
+        for f in self.document_symbols["functions"]:
+            if f.lower().startswith(prefix.lower()):
+                consider(
+                    {
+                        "label": f,
+                        "type": "function",
+                        "source": "local",
+                        "score": 80,
+                    }
+                )
+
+        for c in self.document_symbols["classes"]:
+            if c.lower().startswith(prefix.lower()):
+                consider(
+                    {
+                        "label": c,
+                        "type": "class",
+                        "source": "local",
+                        "score": 75,
+                    }
+                )
+
+        for v in self.document_symbols["variables"]:
+            if v.lower().startswith(prefix.lower()):
+                consider(
+                    {
+                        "label": v,
+                        "type": "variable",
+                        "source": "local",
+                        "score": 70,
+                    }
+                )
+
+        for mod in self.imported_modules:
+            if mod.lower().startswith(prefix.lower()):
+                consider(
+                    {
+                        "label": mod,
+                        "type": "module",
+                        "source": "imported",
+                        "score": 72,
+                    }
+                )
+
+        for sym in self.imported_symbols:
+            if sym.lower().startswith(prefix.lower()):
+                consider(
+                    {
+                        "label": sym,
+                        "type": "imported_symbol",
+                        "source": "imported",
+                        "score": 74,
+                    }
+                )
+
+        items = list(items_by_label.values())
+        items.sort(
+            key=lambda x: (self.score_item(x, context), x.get("score", 0)),
+            reverse=True,
+        )
+
+        return items
+
+    def insert_completion(self, completion_text):
+        context = self.current_completion_context
+
+        if not context:
+            return
+
+        line = context["line"]
+        index = context["index"]
+        prefix = context["prefix"]
+
+        start_index = max(0, index - len(prefix))
+
+        self.setSelection(line, start_index, line, index)
+        self.replaceSelectedText(completion_text)
+
+        self.current_completion_context = None
+        self.completion_popup.hide()
+        self.setFocus()
 
     def load_from_file(self, file_path):
         with open(file_path, "r") as f:
@@ -646,16 +982,42 @@ class CodeEditor(QsciScintilla):
 
     def keyPressEvent(self, e: QKeyEvent):
         if (
-            e.modifiers()
-            == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
+            e.modifiers() & Qt.KeyboardModifier.ControlModifier
+            and e.modifiers() & Qt.KeyboardModifier.ShiftModifier
             and e.key() == Qt.Key.Key_T
         ):
             self._parent.add_new_editor()
+            return
+
+        if self.completion_popup.isVisible():
+
+            if e.key() == Qt.Key.Key_Down:
+                row = self.completion_popup.currentRow()
+                if row < self.completion_popup.count() - 1:
+                    self.completion_popup.setCurrentRow(row + 1)
+                return
+
+            elif e.key() == Qt.Key.Key_Up:
+                row = self.completion_popup.currentRow()
+                if row > 0:
+                    self.completion_popup.setCurrentRow(row - 1)
+                return
+
+            elif e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Tab):
+                item = self.completion_popup.currentItem()
+                if item:
+                    data = item.data(Qt.ItemDataRole.UserRole)
+                    self.insert_completion(data["label"])
+                return
+
+            elif e.key() == Qt.Key.Key_Escape:
+                self.current_completion_context = None
+                self.completion_popup.hide()
+                return
 
         if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             line, index = self.getCursorPosition()
-            current_line_text = self.text(line)
-
+            current_line_text = self._get_line_text(line)
             stripped = current_line_text.rstrip()
 
             base_indent = ""
@@ -675,9 +1037,12 @@ class CodeEditor(QsciScintilla):
             self.endUndoAction()
 
             self.setCursorPosition(line + 1, len(indent))
-
             return
+
         super().keyPressEvent(e)
+
+        if e.key() in (Qt.Key.Key_Backspace, Qt.Key.Key_Delete):
+            self._schedule_completion()
 
     def setLanguage(self, lang: str):
         if lang == "Python":
@@ -750,8 +1115,8 @@ class CodeEditor(QsciScintilla):
             classification_map.update(items)
 
         lexer = lexer_class(self, data)
-        # Clear existing API if it exists to prevent memory bloat
-        if hasattr(self, "api") and self.api:
+
+        if hasattr(self, "api") and self.api is not None and hasattr(self.api, "clear"):
             self.api.clear()
 
         self.api = QsciAPIs(lexer)
@@ -759,6 +1124,7 @@ class CodeEditor(QsciScintilla):
             self.api.add(word)
         self.api.prepare()
 
+        self.keyword_map = classification_map
         return lexer
 
 
