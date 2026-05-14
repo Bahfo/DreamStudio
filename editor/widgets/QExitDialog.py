@@ -7,14 +7,17 @@ class ExitDialog(QDialog):
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
         self.setFixedWidth(300)
+
+        # 1. Update the StyleSheet with the #exitButton selector
         self.setStyleSheet("""
             QDialog {
-                background-color: #1B1B1B;
+                background-color: #2B2B2B;
+                border: 1px solid #444444; /* Added a subtle border for frameless look */
             }
             QLabel {
                 color: #BBBBBB;
                 font-size: 14px;
-                background-color: #1B1B1B;
+                background-color: transparent;
                 padding: 10px 5px;
             }
             QPushButton {
@@ -27,11 +30,19 @@ class ExitDialog(QDialog):
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #4285F4;
+                background-color: #555555;
                 color: white;
             }
-            QPushButton:pressed {
-                background-color: #555555;
+            
+            QPushButton#exitButton {
+                color: #FF5555; /* Red Text */
+            }
+            QPushButton#exitButton:hover {
+                background-color: #CC0000; /* Solid Red background on hover */
+                color: white;
+            }
+            QPushButton#exitButton:pressed {
+                background-color: #990000;
             }
         """)
 
@@ -43,9 +54,12 @@ class ExitDialog(QDialog):
         layout.addWidget(self.label)
 
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(5)
+        button_layout.setSpacing(10)
 
         self.yes_button = QPushButton("EXIT DREAMSTUDIO")
+        # 3. Assign the object name to match the CSS selector
+        self.yes_button.setObjectName("exitButton")
+
         self.no_button = QPushButton("CANCEL")
 
         self.yes_button.clicked.connect(self.accept)

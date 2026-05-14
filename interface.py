@@ -17,7 +17,7 @@ a comfort zone for daily users.
 
 # Written by Bahaa Nofal 2-2026
 
-import sys
+import os, sys
 from PyQt6.QtWidgets import (
     QStackedWidget,
     QApplication,
@@ -30,7 +30,8 @@ from PyQt6.QtWidgets import (
     QFrame,
     QLabel,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 ### Local Imports
 from editor.widgets.QTitleBar import TitleBar
@@ -79,7 +80,7 @@ class WelcomeInterface(QMainWindow):
         self.welcome_layout = WelcomeFrame()
         self.new_proj_layout = QWidget()
         self.marketplace_layout = QWidget()
-        self.learn_layout = QWidget()
+        self.news_and_articles = NewsAndArticles()
 
         #### Leftmost Layout
 
@@ -128,7 +129,7 @@ class WelcomeInterface(QMainWindow):
             }""")
         self.leftmost_layout.addWidget(marketplace_btn)
 
-        community_btn = QPushButton("Learn")
+        community_btn = QPushButton("Community")
         community_btn.setFixedSize(280, 40)
         community_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         community_btn.setStyleSheet("""
@@ -205,12 +206,14 @@ class WelcomeInterface(QMainWindow):
         self.new_proj_layout.setLayout(self.new_proj_v_layout)
         self.stacked_layout.addWidget(self.welcome_layout)
         self.stacked_layout.addWidget(self.new_proj_layout)
+        self.stacked_layout.addWidget(self.news_and_articles)
 
         self.body_layout.addWidget(self.leftmost_bar)
         self.body_layout.addWidget(self.stacked_layout)
 
         ### Actions
         new_project_btn.clicked.connect(lambda: self.stacked_layout.setCurrentIndex(1))
+        community_btn.clicked.connect(lambda: self.stacked_layout.setCurrentIndex(2))
 
     def center_on_screen(self):
         """Calculates the screen center and moves the window there."""
@@ -305,6 +308,69 @@ class WelcomeFrame(QFrame):
         footer.addStretch()
 
         main_layout.addLayout(footer)
+
+
+class NewsAndArticles(QFrame):
+    def __init__(self):
+        super().__init__()
+        self.resize(1000, 700)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setSpacing(10)
+
+        self.view = QWebEngineView()
+        self.view.setStyleSheet("""
+            QScrollBar:vertical {
+                border: none;
+                background: #1e1e2e;
+                width: 10px;
+                margin: 0px 0px 0px 0px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #45475a;
+                min-height: 30px;
+                border-radius: 5px;
+                margin: 2px;
+            }
+
+            QScrollBar::handle:vertical:hover {
+                background: #38bdf8;
+            }
+
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+                border: none;
+                background: none;
+            }
+
+            QScrollBar::add-line:vertical {
+                height: 0px;
+                border: none;
+                background: none;
+            }
+        """)
+
+        file_path = os.path.abspath(
+            "/home/bahaa/Desktop/apps/DreamJetPack/internet/techNews/news.html"
+        )
+        self.view.setUrl(QUrl.fromLocalFile(file_path))
+
+        self.view.loadFinished.connect(self.inject_data_and_ui)
+        main_layout.addWidget(self.view)
+
+    def inject_data_and_ui(self):
+        json_path = "/home/bahaa/Desktop/apps/DreamJetPack/internet/techNews/news.json"
+        with open(json_path, "r") as f:
+            news_json = f.read()
+
+        self.view.page().runJavaScript(f"window.INJECTED_NEWS = {news_json};")
+        js_path = "/home/bahaa/Desktop/apps/DreamJetPack/internet/techNews/news.js"
+        with open(js_path, "r") as f:
+            app_js = f.read()
+
+        self.view.page().runJavaScript(app_js)
 
 
 def main():
