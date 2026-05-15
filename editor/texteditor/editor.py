@@ -45,17 +45,15 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 import os
 import re
-import sys
 import json
 import jedi
 import pathlib
 import markdown
 
-from rapidfuzz import fuzz
-
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
 from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
+from editor.texteditor.clangd import ClangdClient
 
 CONFIG_CODE_EDITOR = {
     "Set TextEditor Font": ("JetBrains Mono", 10),
@@ -552,6 +550,11 @@ class CodeEditor(QsciScintilla):
         self.jedi_enabled = True
         self.current_file_path = None
 
+        #####################################
+        # ClangD
+        #####################################
+        self.clangd = ClangdClient()
+
         self.setObjectName("CodeEditor")
 
         self.setStyleSheet("""
@@ -725,47 +728,206 @@ class CodeEditor(QsciScintilla):
             return lines[line]
         return ""
 
-    def update_document_symbols(self):
-        if len(self.text()) < 5:
-            return
+    def _update_cpp_symbols(self, text, variables, functions, classes):
+        # classes
+        for m in re.finditer(r"\bclass\s+([A-Za-z_]\w*)", text):
+            classes.add(m.group(1))
+
+        # functions (C/C++ robust heuristic)
+        for m in re.finditer(
+            r"([A-Za-z_]\w*(?:::\w+)*)\s+([A-Za-z_]\w*)\s*\([^;]*\)\s*(?:const)?\s*(?:\{|;)",
+            text,
+        ):
+            functions.add(m.group(2))
+
+        # variables (basic declarations)
+        for m in re.finditer(
+            r"\b(int|float|double|char|bool|auto|void|long|short)\s+([A-Za-z_]\w*)",
+            text,
+        ):
+            variables.add(m.group(2))
+
+        # pointer/reference declarations
+        for m in re.finditer(
+            r"\b(int|float|double|char|bool|auto|void|long|short)\s*[\*\&]\s*([A-Za-z_]\w*)",
+            text,
+        ):
+            variables.add(m.group(2))
+
+        # simple declarations like: Type name;
+        for m in re.finditer(r"\b([A-Za-z_]\w*(?:::\w+)*)\s+([A-Za-z_]\w*)\s*;", text):
+            variables.add(m.group(2))
+
+        for m in re.finditer(r'#include\s+[<"]([A-Za-z0-9_/\.]+)[>"]', text):
+            self.imported_modules.add(m.group(1))
+
+        for m in re.finditer(r"\bnamespace\s+([A-Za-z_]\w*)", text):
+            self.imported_modules.add(m.group(1))
+
+    def get_cpp_completions(self, context):
+        prefix = context.get("prefix", "")
+        items = []
+        p = prefix.lower()
+
+        # keywords
+        for word, word_type in self.keyword_map.items():
+            if not word.lower().startswith(p):
+                continue
+            items.append(
+                {
+                    "label": word,
+                    "type": word_type,
+                    "source": "keywords",
+                    "score": 20,
+                }
+            )
+
+        # functions
+        for f in self.document_symbols["functions"]:
+            if not f.lower().startswith(p):
+                continue
+            items.append(
+                {
+                    "label": f,
+                    "type": "function",
+                    "source": "local",
+                    "score": 80,
+                }
+            )
+
+        # classes
+        for c in self.document_symbols["classes"]:
+            if not c.lower().startswith(p):
+                continue
+            items.append(
+                {
+                    "label": c,
+                    "type": "class",
+                    "source": "local",
+                    "score": 75,
+                }
+            )
+
+        # variables
+        for v in self.document_symbols["variables"]:
+            if not v.lower().startswith(p):
+                continue
+            items.append(
+                {
+                    "label": v,
+                    "type": "variable",
+                    "source": "local",
+                    "score": 70,
+                }
+            )
+
+        return items
+
+    def get_cpp_lsp_completions(self, context):
+        if not hasattr(self, "clangd") or not self.current_file_path:
+            return []
+
+        line, col = self.getCursorPosition()
+        source = self.text()
+
+        response = self.clangd.completion(self.current_file_path, source, line, col)
+
+        if not response or "result" not in response:
+            return []
+
+        result = response["result"]
+
+        # clangd may return list or dict with "items"
+        items_raw = result.get("items", result if isinstance(result, list) else [])
+
+        items = []
+
+        for item in items_raw:
+            label = item.get("label", "")
+            if not label:
+                continue
+
+            kind = item.get("kind", 0)
+
+            items.append(
+                {
+                    "label": label,
+                    "type": self._map_clangd_kind(kind),
+                    "source": "lsp",
+                    "score": 500,
+                    "signature": item.get("detail", ""),
+                    "doc": item.get("documentation", ""),
+                }
+            )
+
+        return items
+
+    def _update_python_symbols(self, text, variables, functions, classes):
         self.imported_modules.clear()
         self.imported_symbols.clear()
 
-        text = self.text()
+        # functions
+        for m in re.finditer(r"\bdef\s+([A-Za-z_]\w*)", text):
+            functions.add(m.group(1))
+
+        # classes
+        for m in re.finditer(r"\bclass\s+([A-Za-z_]\w*)", text):
+            classes.add(m.group(1))
+
+        # global variables (very naive, but consistent)
+        for m in re.finditer(r"^\s*([A-Za-z_]\w*)\s*=", text, re.MULTILINE):
+            name = m.group(1)
+            if name not in self.keyword_map:
+                variables.add(name)
+
+        # imports
+        for m in re.finditer(r"^\s*import\s+([A-Za-z_]\w*)", text, re.MULTILINE):
+            self.imported_modules.add(m.group(1))
+
+        for m in re.finditer(
+            r"^\s*from\s+([A-Za-z_]\w+)\s+import\s+([A-Za-z0-9_,\s]+)",
+            text,
+            re.MULTILINE,
+        ):
+            module = m.group(1)
+            symbols = [s.strip() for s in m.group(2).split(",") if s.strip()]
+            self.imported_modules.add(module)
+            self.imported_symbols.update(symbols)
+
+        # class body parsing
         class_body_pattern = r"class\s+([A-Za-z_]\w*).*?:((?:\n[ \t]+.*)+)"
+
+        for match in re.finditer(class_body_pattern, text):
+            block = match.group(2)
+
+            for m in re.finditer(r"\bdef\s+([A-Za-z_]\w*)", block):
+                functions.add(m.group(1))
+
+            for m in re.finditer(r"self\.([A-Za-z_]\w*)", block):
+                variables.add(m.group(1))
+
+    def update_document_symbols(self):
+        text = self.text()
+
+        self.imported_modules.clear()
+        self.imported_symbols.clear()
 
         variables = set()
         functions = set()
         classes = set()
 
-        for m in re.finditer(r"\bdef\s+([A-Za-z_]\w*)", text):
-            functions.add(m.group(1))
+        if len(text) < 10:
+            self.document_symbols["variables"] = variables
+            self.document_symbols["functions"] = functions
+            self.document_symbols["classes"] = classes
+            return
 
-        for m in re.finditer(r"\bclass\s+([A-Za-z_]\w*)", text):
-            classes.add(m.group(1))
+        if self.language == "Python":
+            self._update_python_symbols(text, variables, functions, classes)
 
-        for m in re.finditer(r"\b([A-Za-z_]\w*)\s*=", text):
-            name = m.group(1)
-            if name not in self.keyword_map:
-                variables.add(name)
-
-        for m in re.finditer(r"import\s+([A-Za-z_]\w*)", text):
-            self.imported_modules.add(m.group(1))
-
-        for m in re.finditer(r"from\s+([A-Za-z_]\w+)\s+import\s+([A-Za-z_,\s]+)", text):
-            module = m.group(1)
-            symbols = [s.strip() for s in m.group(2).split(",")]
-            self.imported_modules.add(module)
-            self.imported_symbols.update(symbols)
-
-        for match in re.finditer(class_body_pattern, text):
-            class_block = match.group(2)
-
-            for m in re.finditer(r"def\s+([A-Za-z_]\w*)", class_block):
-                functions.add(m.group(1))
-
-            for m in re.finditer(r"self\.([A-Za-z_]\w*)", class_block):
-                variables.add(m.group(1))
+        elif self.language in ("CPP", "C", "C++"):
+            if self.current_file_path:
+                self.clangd.initialize(os.path.dirname(self.current_file_path))
 
         self.document_symbols["variables"] = variables
         self.document_symbols["functions"] = functions
@@ -796,6 +958,8 @@ class CodeEditor(QsciScintilla):
 
     def _complete_current_item(self, item):
         data = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(data, dict) or "label" not in data:
+            return
         self.insert_completion(data["label"])
 
     def position_completion_popup(self):
@@ -807,9 +971,12 @@ class CodeEditor(QsciScintilla):
         self.completion_popup.move(global_pos)
 
     def _on_char_added(self, char_number):
-        ch = chr(char_number)
+        try:
+            ch = chr(char_number)
+        except (ValueError, TypeError):
+            return
 
-        if ch.isalnum() or ch in "._":
+        if ch.isalnum() or ch in "._:":
             self._schedule_completion()
         else:
             self.current_completion_context = None
@@ -854,6 +1021,20 @@ class CodeEditor(QsciScintilla):
                 "index": index,
             }
 
+        cpp_scope_match = re.search(
+            r"([A-Za-z_]\w*(?:::\w+)*)::([A-Za-z0-9_]*)$", text_before_cursor
+        )
+
+        if cpp_scope_match:
+            obj, prefix = cpp_scope_match.groups()
+            return {
+                "type": "attribute",
+                "object": obj,
+                "prefix": prefix,
+                "line": line,
+                "index": index,
+            }
+
         return None
 
     def request_completion(self):
@@ -881,21 +1062,23 @@ class CodeEditor(QsciScintilla):
 
     def score_item(self, item, context):
         base = item.get("score", 0)
+        source = item.get("source", "")
+        item_type = item.get("type", "")
 
-        if item["source"] == "jedi":
+        if source == "jedi":
             if context.get("type") == "attribute":
                 base += 500
             else:
                 base += 150
-        if item["source"] == "local":
+        if source == "local":
             base += 20
-        if item["source"] == "imported":
+        if source == "imported":
             base += 15
-        if item["source"] == "keywords":
+        if source == "keywords":
             base += 5
-        if context.get("scope") == "class" and item["type"] == "function":
+        if context.get("scope") == "class" and item_type == "function":
             base += 10
-        if item["type"] == "variable":
+        if item_type == "variable":
             base += 5
 
         return base
@@ -921,7 +1104,7 @@ class CodeEditor(QsciScintilla):
 
     def get_completion_items(self, context):
         prefix = context["prefix"]
-        context_type = context.get("type")
+        context_type = context.get("type", "global")
         items_by_label = {}
 
         def add_item(item):
@@ -942,9 +1125,17 @@ class CodeEditor(QsciScintilla):
         ############################################################
         # JEDI COMPLETIONS
         ############################################################
-        jedi_items = self.get_jedi_completions(context)
-        for item in jedi_items:
-            add_item(item)
+        if self.language == "Python":
+            for item in self.get_jedi_completions(context):
+                add_item(item)
+
+        elif self.language in ("CPP", "C"):
+            for item in self.get_cpp_lsp_completions(context):
+                add_item(item)
+
+            # fallback
+            for item in self.get_cpp_completions(context):
+                add_item(item)
 
         if context_type == "attribute":
             items = list(items_by_label.values())
@@ -1180,16 +1371,32 @@ class CodeEditor(QsciScintilla):
         self.current_file_path = file_path
 
         with open(file_path, "r", encoding="utf-8") as f:
-            self.setText(f.read())
+            content = f.read()
+
+        self.setText(content)
+
+        if self.language in ("CPP", "C", "C++"):
+            self.clangd.did_open(file_path, content)
 
     def set_editor_font(self, font):
-        self._font = QFont(font, 10)
+        if isinstance(font, QFont):
+            self._font = QFont(font)
+        else:
+            self._font = QFont(str(font), self.font_size)
+
+        self._font.setPointSize(self.font_size)
         self.setFont(self._font)
 
+        if self._lexer is not None:
+            self._lexer.setDefaultFont(self._font)
+
     def set_editor_font_size(self, font_size):
-        self.font_size = font_size
+        self.font_size = int(font_size)
+        self._font.setPointSize(self.font_size)
+        self.setFont(self._font)
+
         if self._lexer:
-            self._lexer.setFont(self._font)
+            self._lexer.setDefaultFont(self._font)
 
     def set_wrap_mode(self, enabled=True):
         if enabled:
@@ -1220,11 +1427,16 @@ class CodeEditor(QsciScintilla):
                     self.completion_popup.setCurrentRow(row - 1)
                 return
 
-            elif e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Tab):
+            elif e.key() in (
+                Qt.Key.Key_Return,
+                Qt.Key.Key_Enter,
+                Qt.Key.Key_Tab,
+            ):
                 item = self.completion_popup.currentItem()
                 if item:
                     data = item.data(Qt.ItemDataRole.UserRole)
-                    self.insert_completion(data["label"])
+                    if isinstance(data, dict) and "label" in data:
+                        self.insert_completion(data["label"])
                 return
 
             elif e.key() == Qt.Key.Key_Escape:
@@ -1260,31 +1472,49 @@ class CodeEditor(QsciScintilla):
 
         if e.key() in (Qt.Key.Key_Backspace, Qt.Key.Key_Delete):
             self._schedule_completion()
+            self._schedule_document_symbol_update()
 
     def setLanguage(self, lang: str):
+        if not lang:
+            self._lexer = None
+            self.setLexer(None)
+            self.keyword_map = {}
+            if self.api is not None and hasattr(self.api, "clear"):
+                self.api.clear()
+            self.api = None
+            self.apply_theme()
+            return
+
         if lang == "Python":
             self._lexer = self.load_language_keywords("Python")
             if self._lexer:
                 self._lexer.setDefaultFont(self._font)
                 self.setLexer(self._lexer)
                 self.apply_theme()
+                self._schedule_document_symbol_update()
 
-        elif lang == "CPP":
+        elif lang in ("CPP", "C", "C++"):
             self._lexer = self.load_language_keywords("CPP")
             if self._lexer:
                 self._lexer.setDefaultFont(self._font)
                 self.setLexer(self._lexer)
                 self.apply_theme()
+                self._schedule_document_symbol_update()
 
         elif lang == "CMAKE":
             self._lexer = QsciLexerCMake()
             self._lexer.setDefaultFont(self._font)
             self.setLexer(self._lexer)
             self.apply_theme()
+            self._schedule_document_symbol_update()
 
         else:
             self._lexer = None
             self.setLexer(None)
+            self.keyword_map = {}
+            if self.api is not None and hasattr(self.api, "clear"):
+                self.api.clear()
+            self.api = None
             self.apply_theme()
             return
 
@@ -1308,28 +1538,37 @@ class CodeEditor(QsciScintilla):
             self._lexer.setPaper(QColor("#1E1E1E"), style)
 
     def load_language_keywords(self, lang: str):
+        lang_key = lang
+        if lang_key in ("C", "CPP", "C++"):
+            lang_key = "CPP"
+
         configs = {
             "Python": ("editor/texteditor/keywords/python.json", CustomPythonLexer),
             "CPP": ("editor/texteditor/keywords/cpp.json", CustomCppLexer),
         }
 
-        if lang not in configs:
+        if lang_key not in configs:
             return None
 
-        path, lexer_class = configs[lang]
+        path, lexer_class = configs[lang_key]
 
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error loading language file {path}: {e}")
+            if self.api is not None and hasattr(self.api, "clear"):
+                self.api.clear()
+            self.api = None
+            self.keyword_map = {}
             return None
 
         classification_map = {}
         # Using .get() with empty dict handles missing keys in JSON gracefully
         for category in ["words", "types", "iterators", "exceptions"]:
             items = data.get(category, {})
-            classification_map.update(items)
+            if isinstance(items, dict):
+                classification_map.update(items)
 
         lexer = lexer_class(self, data)
 
