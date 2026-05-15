@@ -40,7 +40,8 @@ from PyQt6.QtGui import (
     QPalette,
     QKeyEvent,
     QPainterPath,
-    QCursor,
+    QShortcut,
+    QKeySequence,
 )
 
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -49,8 +50,11 @@ import os
 import re
 import json
 import jedi
+import logging
 import pathlib
 import markdown
+
+logger = logging.getLogger(__name__)
 
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
@@ -268,7 +272,7 @@ class DreamStudioIDETabBar(QTabBar):
         return QSize(size.width() + 25, size.height() + 12)
 
     def on_double_click(self, index):
-        print("double click triggered")
+        logger.debug("double click triggered")
         if index == -1:
             self._parent.add_new_editor()
 
@@ -303,6 +307,12 @@ class DreamTabbedEditor(QTabWidget):
         }""")
 
         self.tabCloseRequested.connect(self.close_editor)
+        self._save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
+        self._save_shortcut.activated.connect(self.save_current_file)
+        self._save_as_shortcut = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+        self._save_as_shortcut.activated.connect(self.save_current_file_as)
+        self._save_all_shortcut = QShortcut(QKeySequence("Ctrl+Alt+S"), self)
+        self._save_all_shortcut.activated.connect(self.save_all_files)
 
     def add_new_editor(self, file_name=None, content="", language=None, file_path=None):
         key = self.resolve_key(file_path) if file_path else None
@@ -390,7 +400,7 @@ class DreamTabbedEditor(QTabWidget):
         self.setFocus()
         self._parent.update_editor_visibility()
 
-        print(self.opened_files)
+        logger.debug(f"Opened files: {self.opened_files}")
 
         return new_editor
 
@@ -415,7 +425,7 @@ class DreamTabbedEditor(QTabWidget):
             if self.opened_files[k] > index:
                 self.opened_files[k] -= 1
 
-        print(self.opened_files)
+        logger.debug(f"Opened files after close: {self.opened_files}")
 
     def close_tab(self):
         index = self.currentIndex()
@@ -451,7 +461,7 @@ class DreamTabbedEditor(QTabWidget):
                 language=self.set_language(file_extn),
             )
         except Exception as e:
-            print("Open file failed:", e)
+            logger.error(f"Open file failed: {e}")
 
     def open_file_at_line(self, file_path, line):
         file_name = pathlib.Path(file_path).name
@@ -468,7 +478,7 @@ class DreamTabbedEditor(QTabWidget):
                 editor.ensureLineVisible(line)
                 QTimer.singleShot(0, lambda: self._focus_and_flash(editor, line))
         except Exception as e:
-            print("Open file at line failed:", e)
+            logger.error(f"Open file at line failed: {e}")
 
     def _focus_and_flash(self, editor, line):
         if hasattr(editor, "setFocus"):
@@ -528,6 +538,22 @@ class DreamTabbedEditor(QTabWidget):
             return None
         return os.path.normcase(os.path.normpath(file_path))
 
+    def save_current_file(self):
+        editor = self.currentWidget()
+        if editor and hasattr(editor, "save"):
+            editor.save()
+
+    def save_current_file_as(self):
+        editor = self.currentWidget()
+        if editor and hasattr(editor, "save_as"):
+            editor.save_as()
+
+    def save_all_files(self):
+        for i in range(self.count()):
+            editor = self.widget(i)
+            if editor and hasattr(editor, "save") and editor.current_file_path:
+                editor.save()
+
 
 class CodeEditor(QsciScintilla):
     def __init__(self, _parent=None, language=None):
@@ -574,6 +600,8 @@ class CodeEditor(QsciScintilla):
         #####################################
         self.jedi_enabled = True
         self.current_file_path = None
+        self._is_dirty = False
+        self.textChanged.connect(self._mark_dirty)
 
         #####################################
         # ClangD
@@ -740,11 +768,38 @@ class CodeEditor(QsciScintilla):
         self._pending_hyperline_update = False
         self._setup_hyperlink_indicator()
 
+        ###############################
+        # Find and Replace Indicators
+        ###############################
+        self.setup_find_indicators()
+
+    def setup_find_indicators(self):
+        FIND_ALL = 11
+        CURRENT = 12
+        NO_MATCH = 13
+
+        # all matches
+        self.indicatorDefine(QsciScintilla.IndicatorStyle.RoundBoxIndicator, FIND_ALL)
+        self.setIndicatorForegroundColor(QColor("#D18616"), FIND_ALL)
+        self.setIndicatorDrawUnder(True, FIND_ALL)
+
+        # current active match
+        self.indicatorDefine(
+            QsciScintilla.IndicatorStyle.ThinCompositionIndicator, CURRENT
+        )
+        self.setIndicatorForegroundColor(QColor("#FF8C00"), CURRENT)
+        self.setIndicatorDrawUnder(False, CURRENT)
+
+        # invalid regex / no match
+        self.indicatorDefine(QsciScintilla.IndicatorStyle.SquiggleIndicator, NO_MATCH)
+        self.setIndicatorForegroundColor(QColor("#FF5555"), NO_MATCH)
+        self.setIndicatorDrawUnder(False, NO_MATCH)
+
     def _setup_hyperlink_indicator(self):
         self.indicatorDefine(
             QsciScintilla.IndicatorStyle.TextColorIndicator, self._hyperlink_indicator
         )
-        self.setIndicatorForegroundColor(QColor("#4FC3F7"), self._hyperlink_indicator)
+        self.setIndicatorForegroundColor(QColor("#00558A"), self._hyperlink_indicator)
         self.indicatorDefine(
             QsciScintilla.IndicatorStyle.RoundBoxIndicator, self._highlight_indicator
         )
@@ -1677,6 +1732,42 @@ class CodeEditor(QsciScintilla):
 
         self.keyword_map = classification_map
         return lexer
+
+    def _mark_dirty(self):
+        self._is_dirty = True
+
+    def clear_dirty(self):
+        self._is_dirty = False
+
+    def is_dirty(self):
+        return self._is_dirty
+
+    def save(self):
+        if self.current_file_path:
+            return self.save_to_file(self.current_file_path)
+        return self.save_as()
+
+    def save_as(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save File As",
+            self.current_file_path or "",
+            "All Files (*)",
+        )
+        if not file_path:
+            return False
+        return self.save_to_file(file_path)
+
+    def save_to_file(self, file_path):
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(self.text())
+            self.current_file_path = file_path
+            self.clear_dirty()
+            return True
+        except Exception as e:
+            logger.error(f"Save failed: {e}")
+            return False
 
 
 class MarkdownViewer(QWidget):

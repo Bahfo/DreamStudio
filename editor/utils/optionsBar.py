@@ -14,17 +14,16 @@ class VSeparator(QFrame):
 class OptionsMenu(QFrame):
     def __init__(self, master):
         super().__init__(master)
+        self.master = master
 
         self.setFrameShape(QFrame.Shape.Panel)
         self.setFixedHeight(35)
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
         QFrame{
         border: 0px;
         border-radius: 0px;
         background-color: #25272B;
-        }"""
-        )
+        }""")
         optionsMenu_layout = QHBoxLayout(self)
         optionsMenu_layout.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
@@ -40,12 +39,14 @@ class OptionsMenu(QFrame):
             image="assets/system/new.png",
             image_size=QSize(22, 22),
             tooltip="Create a new file",
+            function=self._on_new_file,
         )
         self.folderMenu = self.create_menu_button(
             text=None,
             image="assets/system/open.png",
             image_size=QSize(18, 18),
-            tooltip="Create a new folder",
+            tooltip="Open a file",
+            function=self._on_open_file,
         )
 
         optionsMenu_layout.addWidget(self.fileMenu)
@@ -62,36 +63,42 @@ class OptionsMenu(QFrame):
             image="assets/system/cut.png",
             image_size=QSize(21, 21),
             tooltip="Cut selected text",
+            function=self._on_cut,
         )
         self.copyBtn = self.create_menu_button(
             text=None,
             image="assets/system/copy.png",
             image_size=QSize(24, 24),
             tooltip="Copy selected text",
+            function=self._on_copy,
         )
         self.pasteBtn = self.create_menu_button(
             text=None,
             image="assets/system/paste.png",
             image_size=QSize(22, 22),
             tooltip="Paste text from clipboard",
+            function=self._on_paste,
         )
         self.undoBtn = self.create_menu_button(
             text=None,
             image="assets/system/undo.png",
             image_size=QSize(18, 18),
             tooltip="Undo last editor action",
+            function=self._on_undo,
         )
         self.redoBtn = self.create_menu_button(
             text=None,
             image="assets/system/redo.png",
             image_size=QSize(18, 18),
             tooltip="Redo last editor action",
+            function=self._on_redo,
         )
         self.saveBtn = self.create_menu_button(
             text=None,
             image="assets/system/save.png",
             image_size=QSize(24, 24),
             tooltip="Save file",
+            function=self._on_save,
         )
 
         optionsMenu_layout.addWidget(self.cutBtn)
@@ -188,6 +195,7 @@ class OptionsMenu(QFrame):
             image="assets/system/search.png",
             image_size=QSize(21, 21),
             tooltip="Search inside the current file",
+            function=self._on_search,
         )
         optionsMenu_layout.addWidget(self.searchBtn)
 
@@ -242,3 +250,51 @@ class OptionsMenu(QFrame):
             btn.clicked.connect(function)
 
         return btn
+
+    def _get_current_editor(self):
+        tabs = getattr(self.master, "tab_editors", None)
+        if tabs:
+            return tabs.currentWidget()
+        return None
+
+    def _on_new_file(self):
+        if hasattr(self.master, "ui_build_add_new_editor"):
+            self.master.ui_build_add_new_editor()
+
+    def _on_open_file(self):
+        if hasattr(self.master, "ui_build_open_file"):
+            self.master.ui_build_open_file()
+
+    def _on_cut(self):
+        editor = self._get_current_editor()
+        if editor and hasattr(editor, "cut"):
+            editor.cut()
+
+    def _on_copy(self):
+        editor = self._get_current_editor()
+        if editor and hasattr(editor, "copy"):
+            editor.copy()
+
+    def _on_paste(self):
+        editor = self._get_current_editor()
+        if editor and hasattr(editor, "paste"):
+            editor.paste()
+
+    def _on_undo(self):
+        editor = self._get_current_editor()
+        if editor and hasattr(editor, "undo"):
+            editor.undo()
+
+    def _on_redo(self):
+        editor = self._get_current_editor()
+        if editor and hasattr(editor, "redo"):
+            editor.redo()
+
+    def _on_save(self):
+        tabs = getattr(self.master, "tab_editors", None)
+        if tabs and hasattr(tabs, "save_current_file"):
+            tabs.save_current_file()
+
+    def _on_search(self):
+        if hasattr(self.master, "toggle_find_replace"):
+            self.master.toggle_find_replace()

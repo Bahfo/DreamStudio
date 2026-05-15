@@ -34,3 +34,14 @@ tools.txt
 redundant
 
 debounce_state.json
+
+# Config files
+config.json
+
+# Compiled Python
+*.cpython-*.pyc
+*.cpython-*.pyo
+
+# OS-specific
+Thumbs.db
+.DS_Store

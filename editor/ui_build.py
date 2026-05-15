@@ -24,6 +24,9 @@ import json
 import pathlib
 import platform
 import subprocess
+import logging
+
+logger = logging.getLogger(__name__)
 
 # GUI Imports
 from PyQt6.QtCore import Qt, QSize, QEvent, QDir
@@ -51,6 +54,7 @@ from editor.terminal.terminal_ui import TerminalPanel
 from editor.texteditor.editor import DreamTabbedEditor
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
+from editor.utils.find_replace import FindReplaceWidget
 
 
 class DreamStudio(QMainWindow):
@@ -101,6 +105,21 @@ class DreamStudio(QMainWindow):
         )  # Open Directory in Treeview
         self.open_directory_shortcut.activated.connect(self.open_directory)
         self.open_directory_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+        self.find_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.find_shortcut.activated.connect(self.toggle_find_replace)
+        self.find_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+        self.replace_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
+        self.replace_shortcut.activated.connect(self.toggle_find_replace)
+        self.replace_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+    def toggle_find_replace(self):
+        if self.find_replace_widget.isVisible():
+            self.find_replace_widget.hide()
+        else:
+            self.find_replace_widget.show()
+            self.find_replace_widget.find_input.setFocus()
 
     def check_for_OS_compatability(self):
         if platform.system() == "Linux":
@@ -211,8 +230,26 @@ class DreamStudio(QMainWindow):
 
         # Editor, Background screen, and other stacked layout widgets
         self.main_editor_area = QStackedWidget()
+
         self.tutorial_window = FastTutorialFrame(self)
+
+        # main editor area
+        editor_container = QWidget()
+
+        editor_layout = QVBoxLayout(editor_container)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setSpacing(0)
+
         self.tab_editors = DreamTabbedEditor(self)
+
+        editor_layout.addWidget(self.tab_editors)
+
+        self.find_replace_widget = FindReplaceWidget(editor_container, self.tab_editors)
+
+        self.find_replace_widget.hide()
+
+        self.main_editor_area.addWidget(self.tutorial_window)
+        self.main_editor_area.addWidget(editor_container)
 
         # Minimap
         self.minimap = MiniMap(self)
@@ -221,7 +258,7 @@ class DreamStudio(QMainWindow):
 
         self.tab_editors.installEventFilter(self)
         self.main_editor_area.addWidget(self.tutorial_window)
-        self.main_editor_area.addWidget(self.tab_editors)
+        self.main_editor_area.addWidget(editor_container)
 
         # Ether AI Main Screen
         self.etherAIScreen = QFrame()
@@ -354,7 +391,7 @@ class DreamStudio(QMainWindow):
         super().resizeEvent(event)
 
     def moveEvent(self, event):
-        print(f"[MAIN] moveEvent state={self._state_str()}")
+        logger.debug(f"[MAIN] moveEvent state={self._state_str()}")
         super().moveEvent(event)
 
     def eventFilter(self, obj, event):
@@ -368,6 +405,8 @@ class DreamStudio(QMainWindow):
         return super().eventFilter(obj, event)
 
     def update_editor_visibility(self):
+        if not hasattr(self, "minimap") or not hasattr(self, "main_editor_area"):
+            return
         if self.tab_editors.count() == 0:
             self.main_editor_area.setCurrentIndex(0)
             self.minimap.hide()
@@ -413,7 +452,7 @@ class DreamStudio(QMainWindow):
             options=QFileDialog.Option.ShowDirsOnly,
         )
         self.tab_editors.open_new_workspace(path)
-        print(self.currentDirectory)
+        logger.debug(f"Current directory: {self.currentDirectory}")
         self.treeview.set_treeview_directory(path)
 
     def open_file_from_treeview(self, proxy_index):
@@ -439,5 +478,5 @@ class DreamStudio(QMainWindow):
                 language=self.tab_editors.set_language(file_extn),
             )
         except Exception as e:
-            print("Open file failed:", e)
+            logger.error(f"Open file failed: {e}")
             return

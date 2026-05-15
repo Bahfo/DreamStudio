@@ -18,6 +18,9 @@ a comfort zone for daily users.
 # Written by Bahaa Nofal 2-2026
 
 import os, sys
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 from PyQt6.QtWidgets import (
     QStackedWidget,
     QApplication,
@@ -353,7 +356,7 @@ class NewsAndArticles(QFrame):
         """)
 
         file_path = os.path.abspath(
-            "/home/bahaa/Desktop/apps/DreamJetPack/internet/techNews/news.html"
+            os.path.join(BASE_DIR, "internet", "techNews", "news.html")
         )
         self.view.setUrl(QUrl.fromLocalFile(file_path))
 
@@ -361,12 +364,12 @@ class NewsAndArticles(QFrame):
         main_layout.addWidget(self.view)
 
     def inject_data_and_ui(self):
-        json_path = "/home/bahaa/Desktop/apps/DreamJetPack/internet/techNews/news.json"
+        json_path = os.path.join(BASE_DIR, "internet", "techNews", "news.json")
         with open(json_path, "r") as f:
             news_json = f.read()
 
         self.view.page().runJavaScript(f"window.INJECTED_NEWS = {news_json};")
-        js_path = "/home/bahaa/Desktop/apps/DreamJetPack/internet/techNews/news.js"
+        js_path = os.path.join(BASE_DIR, "internet", "techNews", "news.js")
         with open(js_path, "r") as f:
             app_js = f.read()
 
