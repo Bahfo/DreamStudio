@@ -2,21 +2,13 @@
 
 ![Static Badge](https://img.shields.io/badge/Company-Excellent_Technologies-006FCD?style=for-the-badge)
 ![Static Badge](https://img.shields.io/badge/Author-Bahaa_Nofal-CBA317?style=for-the-badge)
+![](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
 ![DreamStudio](assets/logos/dreamStudio_icon2.png)
 
 DreamStudio is an open-source Integrated Development Environment developed by *Excellent Technologies* (known as _EX Technologies_) to develop, ship, and manage solutions of various programming languages.
 
 ![DreamStudio in Action](assets/logos/dreamstudio_in_action.png)
-
-## Programming Languages Hosted
-![](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![](https://img.shields.io/badge/Ruby-CC342D?style=for-the-badge&logo=ruby&logoColor=white)
-![](https://img.shields.io/badge/Lua-2C2D72?style=for-the-badge&logo=lua&logoColor=white)
-![](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
-![](https://img.shields.io/badge/Perl-39457E?style=for-the-badge&logo=perl&logoColor=white)
-
-DreamStudio is configured for local-interpreted programming languages, it is mostly used with *Python* to build various projects types. It comes, for each language, with a set of pre-configured project types and templates to help developers get-started quickly.
 
 ## Installation Guide
 DreamStudio comes with DS-Installer. The tool required to set-up DreamStudio and install it. It is also the place to update the studio, install addons, and look at community-latest updates.

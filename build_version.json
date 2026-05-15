@@ -1,0 +1,34 @@
+{
+  "application": {
+    "name": "DreamStudioIDE",
+    "display_name": "DreamStudio",
+    "description": "EXcellent TechStacks Integrated Development Environment",
+    "identifier": "com.company.myapplication",
+    "author": {
+      "name": "EXcellent TechStacks",
+      "author": "Bahaa Nofal"
+    }
+  },
+
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 1,
+    "build": 1,
+    "pre_release": "alpha",
+    "full_version": "1.0.0-alpha+1",
+    "version_code": 202605015
+  },
+
+  "runtime": {
+    "python_version": "3.12.0",
+    "environment_name": "venv"
+  },
+
+  "compatibility": {
+    "linux": "linux-5.10",
+    "windows": "windows_10_11",
+    "max_os": null,
+    "supported_architectures": ["x86_64", "arm64"]
+  }
+}

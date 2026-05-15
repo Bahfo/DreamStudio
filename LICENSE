@@ -1,0 +1,45 @@
+Copyright (c) 2026 EXcellent TechStacks - All Rights Reserved
+
+This program (the "IDE") is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 3 as published by
+the Free Software Foundation.
+
+This IDE is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+------------------------------------------------------------
+
+ADDITIONAL ATTRIBUTION REQUIREMENTS (IDE-SPECIFIC NOTICE)
+
+When distributing this IDE or any modified version:
+
+1. You must retain all original copyright notices in source files.
+2. You must preserve this LICENSE file in all distributions.
+3. You must clearly indicate any modified versions of the IDE.
+4. You must retain attribution to the original author in:
+   - source code headers
+   - ABOUT / INFO sections (if present)
+   - documentation shipped with the software
+
+------------------------------------------------------------
+
+SCOPE OF LICENSE
+
+This license applies to:
+- The IDE source code
+- Core editor engine
+- Plugin system (if included in this repository)
+- Build scripts and tooling within this repository
+
+This license does NOT override separate terms that may apply to:
+- Third-party plugins
+- External libraries
+- UI/UX themes distributed separately under different licenses
+
+------------------------------------------------------------
+
+END OF TERMS AND CONDITIONS
