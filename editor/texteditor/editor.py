@@ -584,8 +584,6 @@ class CodeEditor(QsciScintilla):
         }
         """)
 
-        ##### EDGES FOR TEXTEDITOR
-
         self.setEdgeMode(QsciScintilla.EdgeMode.EdgeLine)
         self.setEdgeColumn(80)
         self.setEdgeColor(QColor("#444444"))
@@ -615,16 +613,12 @@ class CodeEditor(QsciScintilla):
                 font-family: "JetBrains Mono";
                 font-size: 11pt;
             }
-
-            QListWidget::item {
-                padding: 4px 8px;
-            }
-
+            QListWidget::item { padding: 4px 8px; }
             QListWidget::item:selected {
                 background-color: #094771;
                 color: white;
             }
-            """)
+        """)
 
         self.completion_popup.itemClicked.connect(self._complete_current_item)
 
@@ -667,20 +661,18 @@ class CodeEditor(QsciScintilla):
         self.setMarginsForegroundColor(QColor("#5F5F5F"))
         self.setFoldMarginColors(self.fold_bg, self.fold_bg)
 
-        # Caret
         self.setCaretForegroundColor(QColor("white"))
         self.setCaretLineVisible(True)
         self.setCaretLineBackgroundColor(QColor("#323232"))
         self.setCaretWidth(2)
 
-        # Brace Matching
         self.setBraceMatching(QsciScintilla.BraceMatch.StrictBraceMatch)
 
-        # Code Folding
         self.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle)
         self.setMarginType(1, QsciScintilla.MarginType.SymbolMargin)
         self.setMarginWidth(1, 12)
         self.setMarginSensitivity(1, True)
+
         self.setMarkerForegroundColor(
             QColor("#B0B0B0"), QsciScintilla.SC_MARKNUM_FOLDER
         )
@@ -699,22 +691,14 @@ class CodeEditor(QsciScintilla):
         )
 
         self.set_wrap_mode()
-
-        # TODO: ADDING SUPPORT ONCE THE FILE IS OPENED IMMEDIATELY
         self.setLanguage(self.language)
 
-        ### Enable AutoCompletion:
         self.setAutoCompletionSource(QsciScintilla.AutoCompletionSource.AcsNone)
         self.setAutoCompletionThreshold(0)
         self.setAutoCompletionCaseSensitivity(False)
         self.setAutoCompletionReplaceWord(True)
 
         self.SCN_CHARADDED.connect(self._on_char_added)
-
-        # # KEYBINDINGS
-        # self.new_tab_shortcut = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
-        # self.new_tab_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
-        # self.new_tab_shortcut.activated.connect(self.hello)
 
     def _schedule_document_symbol_update(self):
         self._symbol_update_timer.start(150)
@@ -728,210 +712,16 @@ class CodeEditor(QsciScintilla):
             return lines[line]
         return ""
 
-    def _update_cpp_symbols(self, text, variables, functions, classes):
-        # classes
-        for m in re.finditer(r"\bclass\s+([A-Za-z_]\w*)", text):
-            classes.add(m.group(1))
-
-        # functions (C/C++ robust heuristic)
-        for m in re.finditer(
-            r"([A-Za-z_]\w*(?:::\w+)*)\s+([A-Za-z_]\w*)\s*\([^;]*\)\s*(?:const)?\s*(?:\{|;)",
-            text,
-        ):
-            functions.add(m.group(2))
-
-        # variables (basic declarations)
-        for m in re.finditer(
-            r"\b(int|float|double|char|bool|auto|void|long|short)\s+([A-Za-z_]\w*)",
-            text,
-        ):
-            variables.add(m.group(2))
-
-        # pointer/reference declarations
-        for m in re.finditer(
-            r"\b(int|float|double|char|bool|auto|void|long|short)\s*[\*\&]\s*([A-Za-z_]\w*)",
-            text,
-        ):
-            variables.add(m.group(2))
-
-        # simple declarations like: Type name;
-        for m in re.finditer(r"\b([A-Za-z_]\w*(?:::\w+)*)\s+([A-Za-z_]\w*)\s*;", text):
-            variables.add(m.group(2))
-
-        for m in re.finditer(r'#include\s+[<"]([A-Za-z0-9_/\.]+)[>"]', text):
-            self.imported_modules.add(m.group(1))
-
-        for m in re.finditer(r"\bnamespace\s+([A-Za-z_]\w*)", text):
-            self.imported_modules.add(m.group(1))
-
-    def get_cpp_completions(self, context):
-        prefix = context.get("prefix", "")
-        items = []
-        p = prefix.lower()
-
-        # keywords
-        for word, word_type in self.keyword_map.items():
-            if not word.lower().startswith(p):
-                continue
-            items.append(
-                {
-                    "label": word,
-                    "type": word_type,
-                    "source": "keywords",
-                    "score": 20,
-                }
-            )
-
-        # functions
-        for f in self.document_symbols["functions"]:
-            if not f.lower().startswith(p):
-                continue
-            items.append(
-                {
-                    "label": f,
-                    "type": "function",
-                    "source": "local",
-                    "score": 80,
-                }
-            )
-
-        # classes
-        for c in self.document_symbols["classes"]:
-            if not c.lower().startswith(p):
-                continue
-            items.append(
-                {
-                    "label": c,
-                    "type": "class",
-                    "source": "local",
-                    "score": 75,
-                }
-            )
-
-        # variables
-        for v in self.document_symbols["variables"]:
-            if not v.lower().startswith(p):
-                continue
-            items.append(
-                {
-                    "label": v,
-                    "type": "variable",
-                    "source": "local",
-                    "score": 70,
-                }
-            )
-
-        return items
-
-    def get_cpp_lsp_completions(self, context):
-        if not hasattr(self, "clangd") or not self.current_file_path:
-            return []
-
-        line, col = self.getCursorPosition()
-        source = self.text()
-
-        response = self.clangd.completion(self.current_file_path, source, line, col)
-
-        if not response or "result" not in response:
-            return []
-
-        result = response["result"]
-
-        # clangd may return list or dict with "items"
-        items_raw = result.get("items", result if isinstance(result, list) else [])
-
-        items = []
-
-        for item in items_raw:
-            label = item.get("label", "")
-            if not label:
-                continue
-
-            kind = item.get("kind", 0)
-
-            items.append(
-                {
-                    "label": label,
-                    "type": self._map_clangd_kind(kind),
-                    "source": "lsp",
-                    "score": 500,
-                    "signature": item.get("detail", ""),
-                    "doc": item.get("documentation", ""),
-                }
-            )
-
-        return items
-
     def _update_python_symbols(self, text, variables, functions, classes):
-        self.imported_modules.clear()
-        self.imported_symbols.clear()
-
-        # functions
-        for m in re.finditer(r"\bdef\s+([A-Za-z_]\w*)", text):
-            functions.add(m.group(1))
-
-        # classes
-        for m in re.finditer(r"\bclass\s+([A-Za-z_]\w*)", text):
-            classes.add(m.group(1))
-
-        # global variables (very naive, but consistent)
-        for m in re.finditer(r"^\s*([A-Za-z_]\w*)\s*=", text, re.MULTILINE):
-            name = m.group(1)
-            if name not in self.keyword_map:
-                variables.add(name)
-
-        # imports
-        for m in re.finditer(r"^\s*import\s+([A-Za-z_]\w*)", text, re.MULTILINE):
-            self.imported_modules.add(m.group(1))
-
-        for m in re.finditer(
-            r"^\s*from\s+([A-Za-z_]\w+)\s+import\s+([A-Za-z0-9_,\s]+)",
-            text,
-            re.MULTILINE,
-        ):
-            module = m.group(1)
-            symbols = [s.strip() for s in m.group(2).split(",") if s.strip()]
-            self.imported_modules.add(module)
-            self.imported_symbols.update(symbols)
-
-        # class body parsing
-        class_body_pattern = r"class\s+([A-Za-z_]\w*).*?:((?:\n[ \t]+.*)+)"
-
-        for match in re.finditer(class_body_pattern, text):
-            block = match.group(2)
-
-            for m in re.finditer(r"\bdef\s+([A-Za-z_]\w*)", block):
-                functions.add(m.group(1))
-
-            for m in re.finditer(r"self\.([A-Za-z_]\w*)", block):
-                variables.add(m.group(1))
+        return
 
     def update_document_symbols(self):
-        text = self.text()
-
         self.imported_modules.clear()
         self.imported_symbols.clear()
 
-        variables = set()
-        functions = set()
-        classes = set()
-
-        if len(text) < 10:
-            self.document_symbols["variables"] = variables
-            self.document_symbols["functions"] = functions
-            self.document_symbols["classes"] = classes
-            return
-
-        if self.language == "Python":
-            self._update_python_symbols(text, variables, functions, classes)
-
-        elif self.language in ("CPP", "C", "C++"):
-            if self.current_file_path:
-                self.clangd.initialize(os.path.dirname(self.current_file_path))
-
-        self.document_symbols["variables"] = variables
-        self.document_symbols["functions"] = functions
-        self.document_symbols["classes"] = classes
+        self.document_symbols["variables"] = set()
+        self.document_symbols["functions"] = set()
+        self.document_symbols["classes"] = set()
 
     def show_completion_popup(self, items):
         self.completion_popup.clear()
@@ -941,16 +731,27 @@ class CodeEditor(QsciScintilla):
             return
 
         for item in items:
-            item_type = item.get("type", "")
+            item_type = self.normalize_type(item.get("type", "variable"))
+
+            # enforce consistent structure so UI never degrades unexpectedly
+            item.setdefault("label", "")
+            item.setdefault("signature", "")
+            item.setdefault("doc", "")
+            item.setdefault("source", "")
+            item["type"] = item_type
+
             display_text = self.build_completion_display(item)
+
             list_item = QListWidgetItem("   " + display_text)
             list_item.setData(Qt.ItemDataRole.UserRole, item)
+
+            # guaranteed fallback icon (prevents empty icon cases)
+            icon = self.completion_icons.get(
+                item_type, self.completion_icons.get("variable")
+            )
+            list_item.setIcon(icon)
+
             self.completion_popup.addItem(list_item)
-
-            icon = self.completion_icons.get(item_type)
-
-            if icon:
-                list_item.setIcon(icon)
 
         self.position_completion_popup()
         self.completion_popup.setCurrentRow(0)
@@ -990,7 +791,6 @@ class CodeEditor(QsciScintilla):
         object_match = re.search(
             r"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z0-9_]*)$", text_before_cursor
         )
-
         if object_match:
             obj, prefix = object_match.groups()
             return {
@@ -1024,7 +824,6 @@ class CodeEditor(QsciScintilla):
         cpp_scope_match = re.search(
             r"([A-Za-z_]\w*(?:::\w+)*)::([A-Za-z0-9_]*)$", text_before_cursor
         )
-
         if cpp_scope_match:
             obj, prefix = cpp_scope_match.groups()
             return {
@@ -1066,18 +865,13 @@ class CodeEditor(QsciScintilla):
         item_type = item.get("type", "")
 
         if source == "jedi":
-            if context.get("type") == "attribute":
-                base += 500
-            else:
-                base += 150
+            base += 150
         if source == "local":
             base += 20
         if source == "imported":
             base += 15
         if source == "keywords":
             base += 5
-        if context.get("scope") == "class" and item_type == "function":
-            base += 10
         if item_type == "variable":
             base += 5
 
@@ -1088,161 +882,120 @@ class CodeEditor(QsciScintilla):
         result = []
 
         for item in items:
-            key = (
-                item.get("label"),
-                item.get("type"),
-                item.get("module"),
-            )
-
+            key = (item.get("label"), item.get("type"), item.get("module"))
             if key in seen:
                 continue
-
             seen.add(key)
             result.append(item)
 
         return result
+
+    def add_item(self, items_by_label, item, context):
+        # normalize item immediately so all pipelines behave identically
+        item.setdefault("label", "")
+        item.setdefault("signature", "")
+        item.setdefault("doc", "")
+        item.setdefault("source", "")
+        item["type"] = self.normalize_type(item.get("type", "variable"))
+
+        label = item["label"]
+        existing = items_by_label.get(label)
+
+        if existing is None:
+            items_by_label[label] = item
+            return
+
+        old_score = self.score_item(existing, context)
+        new_score = self.score_item(item, context)
+
+        if new_score > old_score:
+            items_by_label[label] = item
 
     def get_completion_items(self, context):
         prefix = context["prefix"]
         context_type = context.get("type", "global")
         items_by_label = {}
 
-        def add_item(item):
-            label = item["label"]
+        # unified insertion function (prevents inconsistent metadata)
+        def add(item):
+            self.add_item(items_by_label, item, context)
 
-            existing = items_by_label.get(label)
-
-            if existing is None:
-                items_by_label[label] = item
-                return
-
-            old_score = self.score_item(existing, context)
-            new_score = self.score_item(item, context)
-
-            if new_score > old_score:
-                items_by_label[label] = item
-
-        ############################################################
-        # JEDI COMPLETIONS
-        ############################################################
         if self.language == "Python":
             for item in self.get_jedi_completions(context):
-                add_item(item)
+                add(item)
 
         elif self.language in ("CPP", "C"):
-            for item in self.get_cpp_lsp_completions(context):
-                add_item(item)
+            return
 
-            # fallback
-            for item in self.get_cpp_completions(context):
-                add_item(item)
-
-        if context_type == "attribute":
-            items = list(items_by_label.values())
-            items.sort(
-                key=lambda x: (
-                    self.score_item(x, context),
-                    x.get("score", 0),
-                    x["label"].lower(),
-                ),
-                reverse=True,
-            )
-            return items
-
-        ############################################################
-        # GLOBAL CONTEXT
-        ############################################################
         if context_type != "attribute":
             for word, word_type in self.keyword_map.items():
-                if not word.lower().startswith(prefix.lower()):
-                    continue
-                add_item(
+                if word.lower().startswith(prefix.lower()):
+                    add(
+                        {
+                            "label": word,
+                            "type": word_type,
+                            "source": "keywords",
+                            "score": 20,
+                        }
+                    )
+
+        for func_name in self.document_symbols["functions"]:
+            if func_name.lower().startswith(prefix.lower()):
+                add(
                     {
-                        "label": word,
-                        "type": word_type,
-                        "source": "keywords",
-                        "score": 20,
+                        "label": func_name,
+                        "type": "function",
+                        "source": "local",
+                        "score": 80,
                     }
                 )
 
-        ############################################################
-        # FUNCTIONS
-        ############################################################
-        for func_name in self.document_symbols["functions"]:
-            if not func_name.lower().startswith(prefix.lower()):
-                continue
-            add_item(
-                {
-                    "label": func_name,
-                    "type": "function",
-                    "source": "local",
-                    "score": 80,
-                }
-            )
-
-        ############################################################
-        # CLASSES
-        ############################################################
         for class_name in self.document_symbols["classes"]:
-            if not class_name.lower().startswith(prefix.lower()):
-                continue
-            add_item(
-                {
-                    "label": class_name,
-                    "type": "class",
-                    "source": "local",
-                    "score": 75,
-                }
-            )
+            if class_name.lower().startswith(prefix.lower()):
+                add(
+                    {
+                        "label": class_name,
+                        "type": "class",
+                        "source": "local",
+                        "score": 75,
+                    }
+                )
 
-        ############################################################
-        # VARIABLES
-        ############################################################
         for variable_name in self.document_symbols["variables"]:
-            if not variable_name.lower().startswith(prefix.lower()):
-                continue
-            add_item(
-                {
-                    "label": variable_name,
-                    "type": "variable",
-                    "source": "local",
-                    "score": 70,
-                }
-            )
+            if variable_name.lower().startswith(prefix.lower()):
+                add(
+                    {
+                        "label": variable_name,
+                        "type": "variable",
+                        "source": "local",
+                        "score": 70,
+                    }
+                )
 
-        ############################################################
-        # IMPORTED MODULES
-        ############################################################
         for module_name in self.imported_modules:
-            if not module_name.lower().startswith(prefix.lower()):
-                continue
-            add_item(
-                {
-                    "label": module_name,
-                    "type": "module",
-                    "source": "imported",
-                    "score": 72,
-                }
-            )
+            if module_name.lower().startswith(prefix.lower()):
+                add(
+                    {
+                        "label": module_name,
+                        "type": "module",
+                        "source": "imported",
+                        "score": 72,
+                        "signature": f"module {module_name}",
+                        "doc": "",
+                    }
+                )
 
-        ############################################################
-        # IMPORTED SYMBOLS
-        ############################################################
         for symbol_name in self.imported_symbols:
-            if not symbol_name.lower().startswith(prefix.lower()):
-                continue
-            add_item(
-                {
-                    "label": symbol_name,
-                    "type": "imported_symbol",
-                    "source": "imported",
-                    "score": 74,
-                }
-            )
+            if symbol_name.lower().startswith(prefix.lower()):
+                add(
+                    {
+                        "label": symbol_name,
+                        "type": "imported_symbol",
+                        "source": "imported",
+                        "score": 74,
+                    }
+                )
 
-        ############################################################
-        # FINAL SORT
-        ############################################################
         items = list(items_by_label.values())
         items.sort(
             key=lambda x: (
@@ -1256,7 +1009,6 @@ class CodeEditor(QsciScintilla):
 
     def insert_completion(self, completion_text):
         context = self.current_completion_context
-
         if not context:
             return
 
@@ -1287,10 +1039,8 @@ class CodeEditor(QsciScintilla):
             signature = ""
 
         parts = [label]
-
         if signature:
             parts.append(signature)
-
         if item_type:
             parts.append(f"[{item_type}]")
 
@@ -1313,7 +1063,6 @@ class CodeEditor(QsciScintilla):
 
             for completion in completions:
                 name = completion.name or ""
-
                 if prefix and not name.lower().startswith(prefix.lower()):
                     continue
 
@@ -1322,61 +1071,30 @@ class CodeEditor(QsciScintilla):
                     continue
                 seen.add(key)
 
-                try:
-                    ctype = self.normalize_type(completion.type)
-                except Exception:
-                    ctype = "variable"
-
-                try:
-                    description = completion.description
-                except Exception:
-                    description = ""
-
-                try:
-                    module_name = completion.module_name
-                except Exception:
-                    module_name = ""
-
-                try:
-                    signatures = completion.get_signatures()
-                    signature_text = signatures[0].to_string() if signatures else name
-                except Exception:
-                    signature_text = name
-
-                try:
-                    doc = completion.docstring()
-                except Exception:
-                    doc = ""
-
                 items.append(
                     {
                         "label": name,
-                        "type": ctype,
+                        "type": self.normalize_type(completion.type),
                         "source": "jedi",
                         "score": 200,
-                        "description": description,
-                        "signature": signature_text,
-                        "module": module_name,
-                        "doc": doc,
+                        "signature": name,
+                        "module": completion.module_name,
                     }
                 )
 
             return items
 
-        except Exception as e:
-            print("Jedi completion error:", e)
+        except Exception:
             return []
 
     def load_from_file(self, file_path):
         self.current_file_path = file_path
 
         with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        self.setText(content)
+            self.setText(f.read())
 
         if self.language in ("CPP", "C", "C++"):
-            self.clangd.did_open(file_path, content)
+            self.clangd.did_open(file_path, self.text())
 
     def set_editor_font(self, font):
         if isinstance(font, QFont):
@@ -1387,7 +1105,7 @@ class CodeEditor(QsciScintilla):
         self._font.setPointSize(self.font_size)
         self.setFont(self._font)
 
-        if self._lexer is not None:
+        if self._lexer:
             self._lexer.setDefaultFont(self._font)
 
     def set_editor_font_size(self, font_size):
@@ -1399,10 +1117,11 @@ class CodeEditor(QsciScintilla):
             self._lexer.setDefaultFont(self._font)
 
     def set_wrap_mode(self, enabled=True):
-        if enabled:
-            self.setWrapMode(QsciScintilla.WrapMode.WrapWord)
-        else:
-            self.setWrapMode(QsciScintilla.WrapMode.WrapNone)
+        self.setWrapMode(
+            QsciScintilla.WrapMode.WrapWord
+            if enabled
+            else QsciScintilla.WrapMode.WrapNone
+        )
 
     def keyPressEvent(self, e: QKeyEvent):
         if (
@@ -1414,24 +1133,19 @@ class CodeEditor(QsciScintilla):
             return
 
         if self.completion_popup.isVisible():
-
             if e.key() == Qt.Key.Key_Down:
                 row = self.completion_popup.currentRow()
                 if row < self.completion_popup.count() - 1:
                     self.completion_popup.setCurrentRow(row + 1)
                 return
 
-            elif e.key() == Qt.Key.Key_Up:
+            if e.key() == Qt.Key.Key_Up:
                 row = self.completion_popup.currentRow()
                 if row > 0:
                     self.completion_popup.setCurrentRow(row - 1)
                 return
 
-            elif e.key() in (
-                Qt.Key.Key_Return,
-                Qt.Key.Key_Enter,
-                Qt.Key.Key_Tab,
-            ):
+            if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Tab):
                 item = self.completion_popup.currentItem()
                 if item:
                     data = item.data(Qt.ItemDataRole.UserRole)
@@ -1439,7 +1153,7 @@ class CodeEditor(QsciScintilla):
                         self.insert_completion(data["label"])
                 return
 
-            elif e.key() == Qt.Key.Key_Escape:
+            if e.key() == Qt.Key.Key_Escape:
                 self.current_completion_context = None
                 self.completion_popup.hide()
                 return
@@ -1447,16 +1161,15 @@ class CodeEditor(QsciScintilla):
         if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             line, index = self.getCursorPosition()
             current_line_text = self._get_line_text(line)
-            stripped = current_line_text.rstrip()
 
             base_indent = ""
-            for char in current_line_text:
-                if char in (" ", "\t"):
-                    base_indent += char
+            for ch in current_line_text:
+                if ch in (" ", "\t"):
+                    base_indent += ch
                 else:
                     break
 
-            if stripped.endswith((":", "{", "(")):
+            if current_line_text.rstrip().endswith((":", "{", "(")):
                 indent = base_indent + (" " * self._indentation_spacing)
             else:
                 indent = base_indent
@@ -1521,7 +1234,6 @@ class CodeEditor(QsciScintilla):
     def apply_theme(self):
         self.setPaper(QColor("#1E1E1E"))
         self.setColor(QColor("#D4D4D4"))
-
         self.setSelectionBackgroundColor(QColor("#264F78"))
         self.setSelectionForegroundColor(QColor("#FFFFFF"))
         self.setCaretForegroundColor(QColor("#FFFFFF"))
@@ -1529,18 +1241,13 @@ class CodeEditor(QsciScintilla):
         self.setMarginsBackgroundColor(QColor("#1E1E1E"))
         self.setMarginsForegroundColor(QColor("#D4D4D4"))
 
-        if not self._lexer:
-            return
-
-        self._lexer.setDefaultColor(QColor("#D4D4D4"))
-
-        for style in range(128):
-            self._lexer.setPaper(QColor("#1E1E1E"), style)
+        if self._lexer:
+            self._lexer.setDefaultColor(QColor("#D4D4D4"))
+            for style in range(128):
+                self._lexer.setPaper(QColor("#1E1E1E"), style)
 
     def load_language_keywords(self, lang: str):
-        lang_key = lang
-        if lang_key in ("C", "CPP", "C++"):
-            lang_key = "CPP"
+        lang_key = "CPP" if lang in ("C", "CPP", "C++") else lang
 
         configs = {
             "Python": ("editor/texteditor/keywords/python.json", CustomPythonLexer),
@@ -1555,16 +1262,11 @@ class CodeEditor(QsciScintilla):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Error loading language file {path}: {e}")
-            if self.api is not None and hasattr(self.api, "clear"):
-                self.api.clear()
-            self.api = None
+        except Exception:
             self.keyword_map = {}
             return None
 
         classification_map = {}
-        # Using .get() with empty dict handles missing keys in JSON gracefully
         for category in ["words", "types", "iterators", "exceptions"]:
             items = data.get(category, {})
             if isinstance(items, dict):
@@ -1572,7 +1274,7 @@ class CodeEditor(QsciScintilla):
 
         lexer = lexer_class(self, data)
 
-        if hasattr(self, "api") and self.api is not None and hasattr(self.api, "clear"):
+        if self.api is not None and hasattr(self.api, "clear"):
             self.api.clear()
 
         self.api = QsciAPIs(lexer)
