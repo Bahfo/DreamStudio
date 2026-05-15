@@ -23,7 +23,7 @@ cd DreamJetPack-Official_Repository
 > [!TIP]
 > To download only the latest version, add `--depth 1` option after `clone`. 
 
-> [!OPTIONAL]
+> [!NOTE]
 > The IDE is written in Python and thus expects certain required libraries to build and run successfully. Run the following commands in a terminal to do that:
 
 ### Windows Specific:
