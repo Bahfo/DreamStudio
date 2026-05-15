@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
     QStyleOptionTab,
     QListWidgetItem,
     QGraphicsOpacityEffect,
+    QApplication,
 )
 from PyQt6.QtGui import (
     QPen,
@@ -39,6 +40,7 @@ from PyQt6.QtGui import (
     QPalette,
     QKeyEvent,
     QPainterPath,
+    QCursor,
 )
 
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -464,8 +466,15 @@ class DreamTabbedEditor(QTabWidget):
             if editor and hasattr(editor, "setCursorPosition"):
                 editor.setCursorPosition(line, 0)
                 editor.ensureLineVisible(line)
+                QTimer.singleShot(0, lambda: self._focus_and_flash(editor, line))
         except Exception as e:
             print("Open file at line failed:", e)
+
+    def _focus_and_flash(self, editor, line):
+        if hasattr(editor, "setFocus"):
+            editor.setFocus()
+        if hasattr(editor, "_flash_definition_line"):
+            editor._flash_definition_line(line)
 
     def resolve_viewer_type(self, file_path):
         ext = pathlib.Path(file_path).suffix.lower()
@@ -716,98 +725,221 @@ class CodeEditor(QsciScintilla):
 
         self.SCN_CHARADDED.connect(self._on_char_added)
 
-        self._ctrl_held = False
         self._hyperlink_indicator = 8
+        self._highlight_indicator = 9
         self._hyperlink_target = None
+        self._last_word = None
+        self._last_line = -1
+        self._last_index = -1
+        self._hyperlink_debounce_timer = QTimer(self)
+        self._hyperlink_debounce_timer.setSingleShot(True)
+        self._hyperlink_debounce_timer.setInterval(100)
+        self._hyperlink_debounce_timer.timeout.connect(
+            self._on_hyperlink_debounce_timeout
+        )
+        self._pending_hyperline_update = False
         self._setup_hyperlink_indicator()
 
     def _setup_hyperlink_indicator(self):
-        self._hyperlink_indicator = 8
         self.indicatorDefine(
-            QsciScintilla.IndicatorStyle.SquiggleIndicator, self._hyperlink_indicator
+            QsciScintilla.IndicatorStyle.TextColorIndicator, self._hyperlink_indicator
         )
         self.setIndicatorForegroundColor(QColor("#4FC3F7"), self._hyperlink_indicator)
-        self.setIndicatorDrawUnder(True, self._hyperlink_indicator)
+        self.indicatorDefine(
+            QsciScintilla.IndicatorStyle.RoundBoxIndicator, self._highlight_indicator
+        )
+        self.setIndicatorForegroundColor(QColor("#2D5F2D"), self._highlight_indicator)
+        self.setIndicatorDrawUnder(True, self._highlight_indicator)
 
-    def event(self, event):
-        if event.type() == QEvent.Type.KeyPress:
-            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                self._ctrl_held = True
-                self._update_hyperlink_highlight()
-            elif event.modifiers() & Qt.KeyboardModifier.MetaModifier:
-                self._ctrl_held = True
-                self._update_hyperlink_highlight()
-        elif event.type() == QEvent.Type.KeyRelease:
-            if not (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and not (
-                event.modifiers() & Qt.KeyboardModifier.MetaModifier
-            ):
-                self._ctrl_held = False
-                self._clear_hyperlink_highlight()
-        elif event.type() == QEvent.Type.MouseMove:
-            if self._ctrl_held:
-                self._update_hyperlink_highlight()
-        elif event.type() == QEvent.Type.MouseButtonPress:
-            pos = event.position()
-            if self._ctrl_held and self._hyperlink_target:
-                line = self.lineFromPoint(int(pos.x()), int(pos.y()))
-                index = self.xToColumn(int(pos.x()))
-                if self._is_hyperlink_at(line, index):
+    def focusInEvent(self, event):
+        self._force_clear_hyperlink_state()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event):
+        self._force_clear_hyperlink_state()
+        super().focusOutEvent(event)
+
+    def hideEvent(self, event):
+        self._force_clear_hyperlink_state()
+        super().hideEvent(event)
+
+    def _force_clear_hyperlink_state(self):
+        self._hyperlink_debounce_timer.stop()
+        self._pending_hyperline_update = False
+        self._last_word = None
+        self._last_line = -1
+        self._last_index = -1
+        if self._hyperlink_target:
+            try:
+                line = self._hyperlink_target["line"]
+                start = self._hyperlink_target["start"]
+                end = self._hyperlink_target["end"]
+                self.clearIndicatorRange(
+                    line, start, line, end, self._hyperlink_indicator
+                )
+            except RuntimeError:
+                pass
+            self._hyperlink_target = None
+
+    def mouseMoveEvent(self, event):
+        super().mouseMoveEvent(event)
+        mods = QApplication.keyboardModifiers()
+        has_ctrl = bool(
+            mods
+            & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
+        )
+        if has_ctrl:
+            self._schedule_hyperlink_update()
+        else:
+            self._force_clear_hyperlink_state()
+
+        mods = QApplication.keyboardModifiers()
+        has_ctrl = bool(
+            mods
+            & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
+        )
+
+        if has_ctrl:
+            self._last_mouse_pos = (
+                event.pos()
+            )  # Cache mouse coordinate point safely once
+            self._schedule_hyperlink_update()
+        else:
+            self._force_clear_hyperlink_state()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            mods = QApplication.keyboardModifiers()
+            has_ctrl = bool(
+                mods
+                & (
+                    Qt.KeyboardModifier.ControlModifier
+                    | Qt.KeyboardModifier.MetaModifier
+                )
+            )
+
+            if has_ctrl and self._hyperlink_target:
+                # Convert mouse coordinates into Scintilla position
+                pos = self.SendScintilla(
+                    QsciScintilla.SCI_POSITIONFROMPOINT,
+                    event.pos().x(),
+                    event.pos().y(),
+                )
+                line, index = self.lineIndexFromPosition(pos)
+
+                if line >= 0 and self._is_hyperlink_at(line, index):
+                    self._hyperlink_debounce_timer.stop()
+                    self._pending_hyperline_update = False
                     self._navigate_to_definition()
-        return super().event(event)
+                    event.accept()
+                    return
 
-    def _get_word_at_cursor(self):
-        line, index = self.getCursorPosition()
+            # Clear state only if we didn't execute a valid navigation click
+            self._force_clear_hyperlink_state()
+
+        super().mousePressEvent(event)
+
+    def _schedule_hyperlink_update(self):
+        self._hyperlink_debounce_timer.stop()
+        self._pending_hyperline_update = True
+        self._hyperlink_debounce_timer.start()
+
+    def _on_hyperlink_debounce_timeout(self):
+        self._pending_hyperline_update = False
+        self._update_hyperlink_from_cursor()
+
+    def _update_hyperlink_from_cursor(self):
+        if (
+            self.language != "Python"
+            or not self.jedi_enabled
+            or not self.current_file_path
+        ):
+            return
+
+        if not hasattr(self, "_last_mouse_pos") or self._last_mouse_pos is None:
+            return
+
+        pos = self.SendScintilla(
+            QsciScintilla.SCI_POSITIONFROMPOINT,
+            self._last_mouse_pos.x(),
+            self._last_mouse_pos.y(),
+        )
+        line, index = self.lineIndexFromPosition(pos)
+
+        if line < 0 or index < 0:
+            self._force_clear_hyperlink_state()
+            return
+
+        if line == self._last_line and index == self._last_index:
+            return
+
         text = self.text(line)
-
         if not text:
-            return None
+            self._force_clear_hyperlink_state()
+            # Save coordinates to avoid re-evaluating this empty line on next move
+            self._last_line, self._last_index = line, index
+            return
 
         word_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+        word = None
+        start = 0
+        end = 0
 
         for match in word_pattern.finditer(text):
-            start, end = match.span()
-            if start <= index <= end:
-                return match.group(), line, (start, end)
+            s, e = match.span()
+            if s <= index <= e:
+                word = match.group()
+                start = s
+                end = e
+                break
 
-        return None
+        # Save coordinates to minimize thread lookup workloads
+        self._last_line = line
+        self._last_index = index
 
-    def _get_definition_location(self, word, line, index):
-        if self.language != "Python" or not self.jedi_enabled:
-            return None
-        if not self.current_file_path:
-            return None
-
-        try:
-            source = self.text()
-            script = jedi.Script(code=source, path=self.current_file_path)
-            definitions = script.goto(line + 1, index)
-            if definitions:
-                for defn in definitions:
-                    if defn.line and defn.column:
-                        return {
-                            "file": defn.module_path,
-                            "line": defn.line - 1,
-                            "column": defn.column,
-                        }
-            return None
-        except Exception:
-            return None
-
-    def _update_hyperlink_highlight(self):
-        self._clear_hyperlink_highlight()
-        if self.language != "Python":
+        if not word or self._is_python_keyword(word):
+            # Clear target indicator without destroying our coordinate cache tracking
+            if self._hyperlink_target:
+                try:
+                    old_line = self._hyperlink_target["line"]
+                    old_start = self._hyperlink_target["start"]
+                    old_end = self._hyperlink_target["end"]
+                    self.clearIndicatorRange(
+                        old_line,
+                        old_start,
+                        old_line,
+                        old_end,
+                        self._hyperlink_indicator,
+                    )
+                except RuntimeError:
+                    pass
+                self._hyperlink_target = None
+            self._last_word = None
             return
 
-        result = self._get_word_at_cursor()
-        if not result or result[0] is None:
+        if word == self._last_word and start == self._last_index:
             return
 
-        word, line, (start, end) = result
-        if not word:
-            return
+        self._last_word = word
 
+        # Only ask Jedi for tracking data if we moved over a distinct new token string
         definition = self._get_definition_location(word, line, start)
         if definition:
+            if self._hyperlink_target:
+                try:
+                    old_line = self._hyperlink_target["line"]
+                    old_start = self._hyperlink_target["start"]
+                    old_end = self._hyperlink_target["end"]
+                    self.clearIndicatorRange(
+                        old_line,
+                        old_start,
+                        old_line,
+                        old_end,
+                        self._hyperlink_indicator,
+                    )
+                except RuntimeError:
+                    pass
+
             self._hyperlink_target = {
                 "word": word,
                 "line": line,
@@ -815,15 +947,109 @@ class CodeEditor(QsciScintilla):
                 "end": end,
                 "definition": definition,
             }
-            self.fillIndicatorRange(line, start, line, end, self._hyperlink_indicator)
+            try:
+                self.fillIndicatorRange(
+                    line, start, line, end, self._hyperlink_indicator
+                )
+            except RuntimeError:
+                pass
+        else:
+            if self._hyperlink_target:
+                try:
+                    old_line = self._hyperlink_target["line"]
+                    old_start = self._hyperlink_target["start"]
+                    old_end = self._hyperlink_target["end"]
+                    self.clearIndicatorRange(
+                        old_line,
+                        old_start,
+                        old_line,
+                        old_end,
+                        self._hyperlink_indicator,
+                    )
+                except RuntimeError:
+                    pass
+                self._hyperlink_target = None
+
+    def _is_python_keyword(self, word):
+        keywords = {
+            "False",
+            "None",
+            "True",
+            "and",
+            "as",
+            "assert",
+            "async",
+            "await",
+            "break",
+            "class",
+            "continue",
+            "def",
+            "del",
+            "elif",
+            "else",
+            "except",
+            "finally",
+            "for",
+            "from",
+            "global",
+            "if",
+            "import",
+            "in",
+            "is",
+            "lambda",
+            "nonlocal",
+            "not",
+            "or",
+            "pass",
+            "raise",
+            "return",
+            "try",
+            "while",
+            "with",
+            "yield",
+        }
+        return word in keywords
+
+    def _get_definition_location(self, word, line, index):
+        if self.language != "Python" or not self.jedi_enabled:
+            return None
+        if not self.current_file_path:
+            return None
+        if self._is_python_keyword(word):
+            return None
+
+        try:
+            source = self.text()
+            script = jedi.Script(code=source, path=self.current_file_path)
+            definitions = script.goto(line + 1, index)
+            if not definitions:
+                return None
+
+            for defn in definitions:
+                if defn.line is None:
+                    continue
+
+                module_path = defn.module_path
+                file_path = None
+
+                if module_path is not None:
+                    file_path = str(module_path)
+                elif hasattr(defn, "line") and defn.line:
+                    file_path = self.current_file_path
+
+                if file_path:
+                    return {
+                        "file": file_path,
+                        "line": defn.line - 1,
+                        "column": defn.column or 0,
+                        "same_file": file_path == self.current_file_path,
+                    }
+            return None
+        except Exception:
+            return None
 
     def _clear_hyperlink_highlight(self):
-        if self._hyperlink_target:
-            line = self._hyperlink_target["line"]
-            start = self._hyperlink_target["start"]
-            end = self._hyperlink_target["end"]
-            self.clearIndicatorRange(line, start, line, end, self._hyperlink_indicator)
-            self._hyperlink_target = None
+        self._force_clear_hyperlink_state()
 
     def _is_hyperlink_at(self, line, index):
         if not self._hyperlink_target:
@@ -842,12 +1068,32 @@ class CodeEditor(QsciScintilla):
         file_path = definition.get("file")
         line = definition.get("line", 0)
 
-        if file_path:
-            self._parent.open_file_at_line(str(file_path), line)
+        if not file_path:
+            return
+
+        same_file = definition.get("same_file", False)
+
+        self._force_clear_hyperlink_state()
+
+        if same_file:
+            self.setCursorPosition(line, 0)
+            self.ensureLineVisible(line)
+            self.setFocus()
+            self._flash_definition_line(line)
         else:
-            current_file = self.current_file_path
-            if current_file:
-                self._parent.open_file_at_line(current_file, line)
+            self._parent.open_file_at_line(file_path, line)
+
+    def _flash_definition_line(self, line):
+        line_len = len(self.text(line))
+        self.fillIndicatorRange(line, 0, line, line_len, self._highlight_indicator)
+        QTimer.singleShot(2000, lambda: self._clear_flash_highlight(line))
+
+    def _clear_flash_highlight(self, line):
+        try:
+            line_len = len(self.text(line))
+            self.clearIndicatorRange(line, 0, line, line_len, self._highlight_indicator)
+        except RuntimeError:
+            pass
 
     def _schedule_document_symbol_update(self):
         self._symbol_update_timer.start(150)
@@ -860,9 +1106,6 @@ class CodeEditor(QsciScintilla):
         if 0 <= line < len(lines):
             return lines[line]
         return ""
-
-    def _update_python_symbols(self, text, variables, functions, classes):
-        return
 
     def update_document_symbols(self):
         self.imported_modules.clear()
@@ -1273,6 +1516,7 @@ class CodeEditor(QsciScintilla):
         )
 
     def keyPressEvent(self, e: QKeyEvent):
+
         if (
             e.modifiers() & Qt.KeyboardModifier.ControlModifier
             and e.modifiers() & Qt.KeyboardModifier.ShiftModifier
