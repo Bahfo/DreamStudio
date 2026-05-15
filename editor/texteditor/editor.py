@@ -451,6 +451,22 @@ class DreamTabbedEditor(QTabWidget):
         except Exception as e:
             print("Open file failed:", e)
 
+    def open_file_at_line(self, file_path, line):
+        file_name = pathlib.Path(file_path).name
+        file_extn = pathlib.Path(file_path).suffix
+
+        try:
+            editor = self.add_new_editor(
+                file_name=file_name,
+                file_path=file_path,
+                language=self.set_language(file_extn),
+            )
+            if editor and hasattr(editor, "setCursorPosition"):
+                editor.setCursorPosition(line, 0)
+                editor.ensureLineVisible(line)
+        except Exception as e:
+            print("Open file at line failed:", e)
+
     def resolve_viewer_type(self, file_path):
         ext = pathlib.Path(file_path).suffix.lower()
 
@@ -699,6 +715,139 @@ class CodeEditor(QsciScintilla):
         self.setAutoCompletionReplaceWord(True)
 
         self.SCN_CHARADDED.connect(self._on_char_added)
+
+        self._ctrl_held = False
+        self._hyperlink_indicator = 8
+        self._hyperlink_target = None
+        self._setup_hyperlink_indicator()
+
+    def _setup_hyperlink_indicator(self):
+        self._hyperlink_indicator = 8
+        self.indicatorDefine(
+            QsciScintilla.IndicatorStyle.SquiggleIndicator, self._hyperlink_indicator
+        )
+        self.setIndicatorForegroundColor(QColor("#4FC3F7"), self._hyperlink_indicator)
+        self.setIndicatorDrawUnder(True, self._hyperlink_indicator)
+
+    def event(self, event):
+        if event.type() == QEvent.Type.KeyPress:
+            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                self._ctrl_held = True
+                self._update_hyperlink_highlight()
+            elif event.modifiers() & Qt.KeyboardModifier.MetaModifier:
+                self._ctrl_held = True
+                self._update_hyperlink_highlight()
+        elif event.type() == QEvent.Type.KeyRelease:
+            if not (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and not (
+                event.modifiers() & Qt.KeyboardModifier.MetaModifier
+            ):
+                self._ctrl_held = False
+                self._clear_hyperlink_highlight()
+        elif event.type() == QEvent.Type.MouseMove:
+            if self._ctrl_held:
+                self._update_hyperlink_highlight()
+        elif event.type() == QEvent.Type.MouseButtonPress:
+            pos = event.position()
+            if self._ctrl_held and self._hyperlink_target:
+                line = self.lineFromPoint(int(pos.x()), int(pos.y()))
+                index = self.xToColumn(int(pos.x()))
+                if self._is_hyperlink_at(line, index):
+                    self._navigate_to_definition()
+        return super().event(event)
+
+    def _get_word_at_cursor(self):
+        line, index = self.getCursorPosition()
+        text = self.text(line)
+
+        if not text:
+            return None
+
+        word_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+        for match in word_pattern.finditer(text):
+            start, end = match.span()
+            if start <= index <= end:
+                return match.group(), line, (start, end)
+
+        return None
+
+    def _get_definition_location(self, word, line, index):
+        if self.language != "Python" or not self.jedi_enabled:
+            return None
+        if not self.current_file_path:
+            return None
+
+        try:
+            source = self.text()
+            script = jedi.Script(code=source, path=self.current_file_path)
+            definitions = script.goto(line + 1, index)
+            if definitions:
+                for defn in definitions:
+                    if defn.line and defn.column:
+                        return {
+                            "file": defn.module_path,
+                            "line": defn.line - 1,
+                            "column": defn.column,
+                        }
+            return None
+        except Exception:
+            return None
+
+    def _update_hyperlink_highlight(self):
+        self._clear_hyperlink_highlight()
+        if self.language != "Python":
+            return
+
+        result = self._get_word_at_cursor()
+        if not result or result[0] is None:
+            return
+
+        word, line, (start, end) = result
+        if not word:
+            return
+
+        definition = self._get_definition_location(word, line, start)
+        if definition:
+            self._hyperlink_target = {
+                "word": word,
+                "line": line,
+                "start": start,
+                "end": end,
+                "definition": definition,
+            }
+            self.fillIndicatorRange(line, start, line, end, self._hyperlink_indicator)
+
+    def _clear_hyperlink_highlight(self):
+        if self._hyperlink_target:
+            line = self._hyperlink_target["line"]
+            start = self._hyperlink_target["start"]
+            end = self._hyperlink_target["end"]
+            self.clearIndicatorRange(line, start, line, end, self._hyperlink_indicator)
+            self._hyperlink_target = None
+
+    def _is_hyperlink_at(self, line, index):
+        if not self._hyperlink_target:
+            return False
+        target = self._hyperlink_target
+        return target["line"] == line and target["start"] <= index <= target["end"]
+
+    def _navigate_to_definition(self):
+        if not self._hyperlink_target:
+            return
+
+        definition = self._hyperlink_target.get("definition")
+        if not definition:
+            return
+
+        file_path = definition.get("file")
+        line = definition.get("line", 0)
+
+        if file_path:
+            self._parent.open_file_at_line(str(file_path), line)
+        else:
+            current_file = self.current_file_path
+            if current_file:
+                self._parent.open_file_at_line(current_file, line)
 
     def _schedule_document_symbol_update(self):
         self._symbol_update_timer.start(150)
