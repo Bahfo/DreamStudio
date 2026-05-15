@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QPainter, QPixmap, QColor, QLinearGradient, QBrush
+from PyQt6.QtGui import QPainter, QPixmap, QColor, QLinearGradient, QBrush, QIcon
 
 # Local Import
 from run import DreamStudio
@@ -168,6 +168,7 @@ class AppController:
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon("assets/logos/dreamStudio_icon.png"))
 
     controller = AppController()
     controller.start_app()

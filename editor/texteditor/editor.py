@@ -33,6 +33,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import (
     QPen,
     QFont,
+    QIcon,
     QColor,
     QPainter,
     QPalette,
@@ -46,6 +47,7 @@ import os
 import re
 import sys
 import json
+import jedi
 import pathlib
 import markdown
 
@@ -544,6 +546,12 @@ class CodeEditor(QsciScintilla):
         self.fold_bg = QColor("#1C1C1C")
         self.fold_color = QColor("#A0A0A0")
 
+        #####################################
+        # JEDI
+        #####################################
+        self.jedi_enabled = True
+        self.current_file_path = None
+
         self.setObjectName("CodeEditor")
 
         self.setStyleSheet("""
@@ -625,7 +633,24 @@ class CodeEditor(QsciScintilla):
         self._completion_timer.setSingleShot(True)
         self._completion_timer.timeout.connect(self.request_completion)
 
-        self.textChanged.connect(self._schedule_document_symbol_update)
+        self._symbol_update_timer.setInterval(400)
+
+        self.completion_icons = {
+            "function": QIcon("assets/editor/function.png"),
+            "class": QIcon("assets/editor/class.png"),
+            "module": QIcon("assets/editor/module.png"),
+            "instance": QIcon("assets/editor/variable.png"),
+            "statement": QIcon("assets/editor/keyword.png"),
+            "param": QIcon("assets/editor/parameter.png"),
+            "path": QIcon("assets/editor/path.png"),
+            "variable": QIcon("assets/editor/variable.png"),
+            "imported_symbol": QIcon("assets/editor/import.png"),
+            "keyword": QIcon("assets/editor/keyword.png"),
+            "keywords": QIcon("assets/editor/keyword.png"),
+            "property": QIcon("assets/editor/property.png"),
+            "method": QIcon("assets/editor/method.png"),
+            "namespace": QIcon("assets/editor/module.png"),
+        }
 
         ####################################
         # Main Implementation
@@ -701,6 +726,8 @@ class CodeEditor(QsciScintilla):
         return ""
 
     def update_document_symbols(self):
+        if len(self.text()) < 5:
+            return
         self.imported_modules.clear()
         self.imported_symbols.clear()
 
@@ -752,9 +779,16 @@ class CodeEditor(QsciScintilla):
             return
 
         for item in items:
-            list_item = QListWidgetItem(f'{item["label"]}    [{item["type"]}]')
+            item_type = item.get("type", "")
+            display_text = self.build_completion_display(item)
+            list_item = QListWidgetItem("   " + display_text)
             list_item.setData(Qt.ItemDataRole.UserRole, item)
             self.completion_popup.addItem(list_item)
+
+            icon = self.completion_icons.get(item_type)
+
+            if icon:
+                list_item.setIcon(icon)
 
         self.position_completion_popup()
         self.completion_popup.setCurrentRow(0)
@@ -834,112 +868,199 @@ class CodeEditor(QsciScintilla):
         items = self.get_completion_items(context)
         self.show_completion_popup(items)
 
+    def normalize_type(self, t):
+        return {
+            "function": "function",
+            "method": "method",
+            "module": "module",
+            "class": "class",
+            "instance": "variable",
+            "param": "param",
+            "keyword": "keyword",
+        }.get(t, "variable")
+
     def score_item(self, item, context):
         base = item.get("score", 0)
 
+        if item["source"] == "jedi":
+            if context.get("type") == "attribute":
+                base += 500
+            else:
+                base += 150
         if item["source"] == "local":
             base += 20
-
         if item["source"] == "imported":
             base += 15
-
         if item["source"] == "keywords":
             base += 5
-
         if context.get("scope") == "class" and item["type"] == "function":
             base += 10
-
         if item["type"] == "variable":
             base += 5
 
         return base
 
+    def normalize_jedi_items(self, items):
+        seen = set()
+        result = []
+
+        for item in items:
+            key = (
+                item.get("label"),
+                item.get("type"),
+                item.get("module"),
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            result.append(item)
+
+        return result
+
     def get_completion_items(self, context):
         prefix = context["prefix"]
+        context_type = context.get("type")
         items_by_label = {}
 
-        def consider(item):
+        def add_item(item):
             label = item["label"]
+
             existing = items_by_label.get(label)
+
             if existing is None:
                 items_by_label[label] = item
                 return
 
-            if self.score_item(item, context) > self.score_item(existing, context):
+            old_score = self.score_item(existing, context)
+            new_score = self.score_item(item, context)
+
+            if new_score > old_score:
                 items_by_label[label] = item
 
-        for word, word_type in self.keyword_map.items():
-            if word.lower().startswith(prefix.lower()):
-                consider(
+        ############################################################
+        # JEDI COMPLETIONS
+        ############################################################
+        jedi_items = self.get_jedi_completions(context)
+        for item in jedi_items:
+            add_item(item)
+
+        if context_type == "attribute":
+            items = list(items_by_label.values())
+            items.sort(
+                key=lambda x: (
+                    self.score_item(x, context),
+                    x.get("score", 0),
+                    x["label"].lower(),
+                ),
+                reverse=True,
+            )
+            return items
+
+        ############################################################
+        # GLOBAL CONTEXT
+        ############################################################
+        if context_type != "attribute":
+            for word, word_type in self.keyword_map.items():
+                if not word.lower().startswith(prefix.lower()):
+                    continue
+                add_item(
                     {
                         "label": word,
                         "type": word_type,
                         "source": "keywords",
-                        "score": 50,
+                        "score": 20,
                     }
                 )
 
-        for f in self.document_symbols["functions"]:
-            if f.lower().startswith(prefix.lower()):
-                consider(
-                    {
-                        "label": f,
-                        "type": "function",
-                        "source": "local",
-                        "score": 80,
-                    }
-                )
+        ############################################################
+        # FUNCTIONS
+        ############################################################
+        for func_name in self.document_symbols["functions"]:
+            if not func_name.lower().startswith(prefix.lower()):
+                continue
+            add_item(
+                {
+                    "label": func_name,
+                    "type": "function",
+                    "source": "local",
+                    "score": 80,
+                }
+            )
 
-        for c in self.document_symbols["classes"]:
-            if c.lower().startswith(prefix.lower()):
-                consider(
-                    {
-                        "label": c,
-                        "type": "class",
-                        "source": "local",
-                        "score": 75,
-                    }
-                )
+        ############################################################
+        # CLASSES
+        ############################################################
+        for class_name in self.document_symbols["classes"]:
+            if not class_name.lower().startswith(prefix.lower()):
+                continue
+            add_item(
+                {
+                    "label": class_name,
+                    "type": "class",
+                    "source": "local",
+                    "score": 75,
+                }
+            )
 
-        for v in self.document_symbols["variables"]:
-            if v.lower().startswith(prefix.lower()):
-                consider(
-                    {
-                        "label": v,
-                        "type": "variable",
-                        "source": "local",
-                        "score": 70,
-                    }
-                )
+        ############################################################
+        # VARIABLES
+        ############################################################
+        for variable_name in self.document_symbols["variables"]:
+            if not variable_name.lower().startswith(prefix.lower()):
+                continue
+            add_item(
+                {
+                    "label": variable_name,
+                    "type": "variable",
+                    "source": "local",
+                    "score": 70,
+                }
+            )
 
-        for mod in self.imported_modules:
-            if mod.lower().startswith(prefix.lower()):
-                consider(
-                    {
-                        "label": mod,
-                        "type": "module",
-                        "source": "imported",
-                        "score": 72,
-                    }
-                )
+        ############################################################
+        # IMPORTED MODULES
+        ############################################################
+        for module_name in self.imported_modules:
+            if not module_name.lower().startswith(prefix.lower()):
+                continue
+            add_item(
+                {
+                    "label": module_name,
+                    "type": "module",
+                    "source": "imported",
+                    "score": 72,
+                }
+            )
 
-        for sym in self.imported_symbols:
-            if sym.lower().startswith(prefix.lower()):
-                consider(
-                    {
-                        "label": sym,
-                        "type": "imported_symbol",
-                        "source": "imported",
-                        "score": 74,
-                    }
-                )
+        ############################################################
+        # IMPORTED SYMBOLS
+        ############################################################
+        for symbol_name in self.imported_symbols:
+            if not symbol_name.lower().startswith(prefix.lower()):
+                continue
+            add_item(
+                {
+                    "label": symbol_name,
+                    "type": "imported_symbol",
+                    "source": "imported",
+                    "score": 74,
+                }
+            )
 
+        ############################################################
+        # FINAL SORT
+        ############################################################
         items = list(items_by_label.values())
         items.sort(
-            key=lambda x: (self.score_item(x, context), x.get("score", 0)),
+            key=lambda x: (
+                self.score_item(x, context),
+                x.get("score", 0),
+                x["label"].lower(),
+            ),
             reverse=True,
         )
-
         return items
 
     def insert_completion(self, completion_text):
@@ -961,8 +1082,104 @@ class CodeEditor(QsciScintilla):
         self.completion_popup.hide()
         self.setFocus()
 
+    def clean_signature(self, signature):
+        if not signature:
+            return ""
+        return " ".join(signature.split())
+
+    def build_completion_display(self, item):
+        label = item.get("label") or ""
+        item_type = item.get("type") or ""
+        signature = self.clean_signature(item.get("signature", ""))
+
+        if signature.strip() == label.strip():
+            signature = ""
+
+        parts = [label]
+
+        if signature:
+            parts.append(signature)
+
+        if item_type:
+            parts.append(f"[{item_type}]")
+
+        return "    ".join(parts)
+
+    def get_jedi_completions(self, context):
+        if self.language != "Python" or not self.jedi_enabled:
+            return []
+
+        try:
+            prefix = context.get("prefix", "")
+            source = self.text()
+            line, index = self.getCursorPosition()
+
+            script = jedi.Script(code=source, path=self.current_file_path)
+            completions = script.complete(line + 1, index)
+
+            items = []
+            seen = set()
+
+            for completion in completions:
+                name = completion.name or ""
+
+                if prefix and not name.lower().startswith(prefix.lower()):
+                    continue
+
+                key = (name, completion.type)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                try:
+                    ctype = self.normalize_type(completion.type)
+                except Exception:
+                    ctype = "variable"
+
+                try:
+                    description = completion.description
+                except Exception:
+                    description = ""
+
+                try:
+                    module_name = completion.module_name
+                except Exception:
+                    module_name = ""
+
+                try:
+                    signatures = completion.get_signatures()
+                    signature_text = signatures[0].to_string() if signatures else name
+                except Exception:
+                    signature_text = name
+
+                try:
+                    doc = completion.docstring()
+                except Exception:
+                    doc = ""
+
+                items.append(
+                    {
+                        "label": name,
+                        "type": ctype,
+                        "source": "jedi",
+                        "score": 200,
+                        "description": description,
+                        "signature": signature_text,
+                        "module": module_name,
+                        "doc": doc,
+                    }
+                )
+
+            return items
+
+        except Exception as e:
+            print("Jedi completion error:", e)
+            return []
+
     def load_from_file(self, file_path):
-        with open(file_path, "r") as f:
+        self.current_file_path = file_path
+
+        with open(file_path, "r", encoding="utf-8") as f:
             self.setText(f.read())
 
     def set_editor_font(self, font):

@@ -63,6 +63,7 @@ class DreamStudio(QMainWindow):
         self._minimap_bound_editor = None
         self._splitter_initialized = False
         self.currentDirectory = QDir.currentPath()
+        self.setWindowIcon(QIcon("assets/logos/dreamStudio_icon.png"))
 
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)

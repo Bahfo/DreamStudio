@@ -120,19 +120,18 @@
     "FutureWarning": "warning_class"
   },
 
-  "colors_schema":
-  {
-    "definition":"#569CD6",
-    "import":"#A99EFF",
-    "keyword":"#A678C4",
-    "execution_logic":"#FFE38E",
-    "logic":"#4B72FF",
-    "constructor":"#77B584",
-    "collection":"#4EC9B0",
-    "meta":"#B15E74",
-    "iterator":"#A8C94E",
-    "exception_class":"#C94E5A",
-    "warning_class":"#C9964E"
+  "colors_schema": {
+    "definition": "#4FC1FF",
+    "import": "#C586C0",
+    "keyword": "#C586C0",
+    "execution_logic": "#DCDCAA",
+    "logic": "#569CD6",
+    "constructor": "#4EC9B0",
+    "collection": "#9CDCFE",
+    "meta": "#808080",
+    "iterator": "#B5CEA8",
+    "exception_class": "#F44747",
+    "warning_class": "#FFCC66"
   },
 
   "all_words": 
