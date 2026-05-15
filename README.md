@@ -1,33 +1,53 @@
 <h1 align="left" style="font-size: 40px;">DreamStudio IDE</h1>
 
-![Static Badge](https://img.shields.io/badge/Company-Excellent_Technologies-006FCD?style=for-the-badge)
+![Static Badge](https://img.shields.io/badge/Company-Excellent_TechStacks-006FCD?style=for-the-badge)
 ![Static Badge](https://img.shields.io/badge/Author-Bahaa_Nofal-CBA317?style=for-the-badge)
 ![](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
-![DreamStudio](assets/logos/dreamStudio_icon2.png)
+DreamStudio is an open-source Integrated Development Environment developed by *Excellent TechStacks* (known as _EX Techs_). It is the basis for Excellent TechStacks Integrated Platform Development Environment (IPDE).
 
-DreamStudio is an open-source Integrated Development Environment developed by *Excellent Technologies* (known as _EX Technologies_) to develop, ship, and manage solutions of various programming languages.
+If you are new to the project and would like to get started quickly, please read the documentaiton provided in either notebook forms (`.ipynb` format) or in plain ddocs format (`.dsman` format).
 
 ![DreamStudio in Action](assets/logos/dreamstudio_in_action.png)
 
-## Installation Guide
-DreamStudio comes with DS-Installer. The tool required to set-up DreamStudio and install it. It is also the place to update the studio, install addons, and look at community-latest updates.
+## Getting the Source Code
+The repository is available from the [GitHub Repository][https://github.com/Bahfo/DreamJetPack-Official_Repository], which can be cloned or downloaded as a zip file. The *main* (default) branch contains the source code of the repository. 
 
-Once installed, open DreamStudio, you will be welcomed with a window that has two main options: *New Solution*, and *Open Template*. From here you can choose what you want and what helps you the most.
+Alternatively, follow the steps shown below in a terminal:
 
-# Features
-DreamStudio has some various built-in tools that powers its engine for interpreted programming languages. Here are some of the most impactful:
+```
+git clone https://github.com/Bahfo/DreamJetPack-Official_Repository
+cd DreamJetPack-Official_Repository
+```
 
-1. Custom and Powerful syntax highlighting and code-completion tools that work out-of-the-box for developers to manage large code-bases easier, with code formatting and pre-built-in code snippets.
+> [!TIP]
+> To download only the latest version, add `--depth 1` option after `clone`. 
 
-2. Fast and Powerful debugging tools that work with the help of a trained specialized A.I "*Ether AI*" that is locally trained and hosted inside DreamStudio, it shows code suggestions, better syntaxing, suggestions, and detects errors and warnings fast. It can also refactor some changes for developers faster.
+> [!OPTIONAL]
+> The IDE is written in Python and thus expects certain required libraries to build and run successfully. Run the following commands in a terminal to do that:
 
-3. Building tools and Tools for verifying code safety and resources management for optimized experience.
+### Windows Specific:
+```
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-DreamStudio is not only about these tools, it also comes with *extensions and addons* engine to allow developers to add their extensions they make.
+### Linux/MacOS
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
-# Contribution
-If you want to contribute to DreamStudio, please read the provided documentation. Each DreamStudio version comes with a set of documentation tools to help developers and contributors find their way into the product.
+## Running DreamStudio using Contained Environment and Python
+To run DreamStudio directly using Python. One of several files can do the job depending on what is your primary need:
+1. To skip the welcome and build window and enter the IDE directly, run `python run.py` on Windows or `python3 run.py` on Linux/MacOS.
+2. To show the welcome interface then the IDE directly, run `python welcome.py` on Windows or `python3 welcome.py` on Linux/MacOS.
+3. To run all features and start the IDE as it must start, run `python interface.py` on Windows or `python3 interface.py` on Linux/MacOS.
 
-# Additional Notes
-DreamStudio is always under constant development and updating. Please, if you find any bugs, crashes, unexpected behaviors, features you want to add, or any other questions, feel free to get-in contact with us. Read the provided documentation for further details.
+## Documentation
+If you want to read the documentaiton, get started, or find the full capabilities of DreamStudio, please head to (/ddocs) directory, which contains all required files to get you started.
+
+## Contributing
+Are you a contributor? head to (/contribution) directory and read the terms and conditions to get started.
