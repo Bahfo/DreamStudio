@@ -42,6 +42,7 @@ from PyQt6.QtGui import (
     QPainterPath,
     QShortcut,
     QKeySequence,
+    QFontInfo,
 )
 
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -58,6 +59,7 @@ logger = logging.getLogger(__name__)
 
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
+from editor.texteditor.ironica_lexer.json_lexer import CustomJSONLexer
 from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
 from editor.texteditor.clangd import ClangdClient
 
@@ -313,6 +315,25 @@ class DreamTabbedEditor(QTabWidget):
         self._save_as_shortcut.activated.connect(self.save_current_file_as)
         self._save_all_shortcut = QShortcut(QKeySequence("Ctrl+Alt+S"), self)
         self._save_all_shortcut.activated.connect(self.save_all_files)
+
+    def open_configurations_json(self):
+        key = "json_user_configs"
+        new_editor = EditConfigurationsTab()
+        new_editor.run_text()
+
+        index = self.addTab(new_editor, "configurations")
+        self.setCurrentIndex(index)
+
+        new_editor.file_path = ""
+        new_editor.file_key = None
+        new_editor.viewer_type = "json_metadata_configs_editor"
+        self.opened_files[key] = index
+
+        self.setFocus()
+        self._parent.update_editor_visibility()
+
+        logger.debug(f"Opened files: {self.opened_files}")
+        return new_editor
 
     def add_new_editor(self, file_name=None, content="", language=None, file_path=None):
         key = self.resolve_key(file_path) if file_path else None
@@ -608,8 +629,10 @@ class CodeEditor(QsciScintilla):
         #####################################
         self.clangd = ClangdClient()
 
+        #####################################
+        # Configuration
+        #####################################
         self.setObjectName("CodeEditor")
-
         self.setStyleSheet("""
         QTabWidget::pane {
             border: none;
@@ -1898,16 +1921,13 @@ class MarkdownViewer(QWidget):
                 h2 { font-size: 20px; }
                 h3 { font-size: 17px; }
 
-                p {
-                    color: var(--text);
-                }
+                p { color: var(--text); }
 
                 code {
                     background: #2b2d30;
                     color: #dcdcaa;
                     padding: 2px 6px;
-                    border-radius: 4px;
-                }
+                    border-radius: 4px;}
 
                 pre {
                     background: var(--panel);
@@ -1917,9 +1937,7 @@ class MarkdownViewer(QWidget):
                     overflow-x: auto;
                 }
 
-                pre code {
-                    background: none;
-                }
+                pre code { background: none; }
 
                 blockquote {
                     border-left: 4px solid var(--accent);
@@ -1929,33 +1947,20 @@ class MarkdownViewer(QWidget):
                     background: #222427;
                 }
 
-                a {
-                    color: var(--accent);
-                    text-decoration: none;
-                }
+                a {color: var(--accent);
+                   text-decoration: none;}
 
                 a:hover {
                     text-decoration: underline;
                 }
-
-                /* Scrollbar */
                 ::-webkit-scrollbar {
                     width: 10px;
-                    height: 10px;
-                }
-
-                ::-webkit-scrollbar-track {
-                    background: var(--bg);
-                }
-
+                    height: 10px;}
+                ::-webkit-scrollbar-track {background: var(--bg);}
                 ::-webkit-scrollbar-thumb {
                     background: #4a4d52;
-                    border-radius: 6px;
-                }
-
-                ::-webkit-scrollbar-thumb:hover {
-                    background: #5a5d62;
-                }
+                    border-radius: 6px;}
+                ::-webkit-scrollbar-thumb:hover { background: #5a5d62; }
             </style>
         </head>
         <body>
@@ -1994,6 +1999,95 @@ class MarkdownViewer(QWidget):
         """
 
         self.preview.page().runJavaScript(js)
+
+
+class EditConfigurationsTab(QsciScintilla):
+    """JSON User Configurations file: Imported from IDE directory into the editor."""
+
+    def __init__(self, _parent=None, language=None):
+        super().__init__(_parent)
+
+        try:
+            self.setUtf8(True)
+        except Exception:
+            pass
+
+        self.font_size = 11
+        self._font = QFont("JetBrains Mono", self.font_size)
+        if not QFontInfo(self._font).exactMatch():
+            self._font = QFont("Consolas", self.font_size)
+        self.setFont(self._font)
+
+        self.setAutoIndent(True)
+        self.setBackspaceUnindents(True)
+        self.setTabIndents(True)
+        self.setIndentationWidth(4)
+        self.setIndentationsUseTabs(False)
+        self.setTabWidth(4)
+        self.setIndentationGuides(True)
+
+        self.setMarginType(0, QsciScintilla.MarginType.NumberMargin)
+        self.setMarginLineNumbers(0, True)
+        self.setMarginWidth(0, "4444")
+
+        self.setMarginType(1, QsciScintilla.MarginType.SymbolMargin)
+        self.setMarginWidth(1, 14)
+        self.setMarginSensitivity(1, True)
+        self.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle)
+
+        self.setCaretLineVisible(True)
+        self.setCaretWidth(2)
+        self.setBraceMatching(QsciScintilla.BraceMatch.StrictBraceMatch)
+
+        self.setStyleSheet("""
+            QTabWidget::pane {
+                border: none;
+                background-color: #1E1E1E;
+            }
+            QTabBar {
+                border: none;
+                qproperty-drawBase: 0; 
+            }
+            QTabBar::tab {
+                color: #AFB1B3; 
+                background: #2D2D2D;
+                padding: 6px 12px;
+            }
+            QTabBar::tab:selected {
+                color: white; 
+                background: #1E1E1E;
+            }
+            QTabBar::close-button {
+                image: url(assets/system/close.png);
+                background-color: transparent;
+            }
+            QTabBar::close-button:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                border-radius: 2px;
+            }
+        """)
+
+        self.apply_theme()
+
+    def run_text(self):
+        self.setText('{\n    "configurations": true\n}')
+
+    def apply_theme(self):
+        self._lexer = CustomJSONLexer(self)
+        self.setLexer(self._lexer)
+
+        self.setPaper(QColor("#1E1E1E"))
+        self.setColor(QColor("#D4D4D4"))
+
+        self.setCaretForegroundColor(QColor("#FFFFFF"))
+        self.setCaretLineBackgroundColor(QColor("#282828"))
+        self.setSelectionBackgroundColor(QColor("#264F78"))
+        self.setSelectionForegroundColor(QColor("#FFFFFF"))
+
+        margin_bg = QColor("#1E1E1E")
+        self.setMarginsBackgroundColor(margin_bg)
+        self.setMarginsForegroundColor(QColor("#858585"))
+        self.setFoldMarginColors(margin_bg, margin_bg)
 
 
 class FallBack(QWidget):

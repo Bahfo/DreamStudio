@@ -22,6 +22,26 @@ from PyQt6.QtCore import QSortFilterProxyModel, Qt
 from editor.widgets.QIconsProvider import DreamStudioIconProvider
 
 
+class DreamTreeViewProxy(QSortFilterProxyModel):
+    def lessThan(self, source_left, source_right):
+        left_data = self.sourceModel().data(source_left)
+        right_data = self.sourceModel().data(source_right)
+
+        # Get file info to check if it is a directory
+        left_is_dir = self.sourceModel().isDir(source_left)
+        right_is_dir = self.sourceModel().isDir(source_right)
+
+        # If one is a directory and the other is not
+        if left_is_dir != right_is_dir:
+            if self.sortOrder() == Qt.SortOrder.AscendingOrder:
+                return left_is_dir
+            else:
+                return not left_is_dir
+
+        # If both are same type, fall back to default sorting (e.g., by name)
+        return super().lessThan(source_left, source_right)
+
+
 class DreamFileTreeWindow(QFrame):
     def __init__(self, _parent):
         super().__init__(_parent)
@@ -34,7 +54,7 @@ class DreamFileTreeWindow(QFrame):
 
         # System Architecture
         self.treeview_layout = QVBoxLayout(self)
-        self.treeview_layout.setContentsMargins(5, 5, 5, 5)
+        self.treeview_layout.setContentsMargins(10, 10, 10, 10)
 
         # Treeview System
         self.model = QFileSystemModel()
@@ -45,7 +65,7 @@ class DreamFileTreeWindow(QFrame):
         self.searchBar = QLineEdit()
         self.searchBar.setPlaceholderText("Search for a file or directory")
 
-        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model = DreamTreeViewProxy()
         self.proxy_model.setSourceModel(self.model)
 
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
@@ -54,8 +74,7 @@ class DreamFileTreeWindow(QFrame):
         # Model Treeview
         self.tree = QTreeView()
         self.tree.setModel(self.proxy_model)
-        self.tree.setStyleSheet(
-            """
+        self.tree.setStyleSheet("""
             QTreeView {
                 background-color: #171717;
                 color: #afb1b3;
@@ -96,8 +115,7 @@ class DreamFileTreeWindow(QFrame):
 
             QScrollBar::handle:vertical:hover {
                 background: #4A4A4A;
-            }"""
-        )
+            }""")
 
         self.tree.setUniformRowHeights(True)
         self.tree.header().setStretchLastSection(True)
@@ -123,21 +141,20 @@ class DreamFileTreeWindow(QFrame):
         self.tree.setSortingEnabled(True)
 
         self.treeview_layout.addWidget(self.searchBar)
+        self.treeview_layout.setSpacing(10)
         self.treeview_layout.addWidget(self.tree)
 
     def show_context_menu(self, position):
         proxy_index = self.tree.indexAt(position)
         proxy_menu = QMenu(self)
         proxy_menu.setFixedWidth(240)
-        proxy_menu.setStyleSheet(
-            """
+        proxy_menu.setStyleSheet("""
             background-color: #1E1E1E; 
             color: #afb1b3;
             width: 150px;
             border-radius: 10px;
             font-family: inter, Arial;
-            font-size: 12px;"""
-        )
+            font-size: 12px;""")
 
         if proxy_index.isValid():
             # Actions for specific files/folders

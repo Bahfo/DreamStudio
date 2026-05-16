@@ -52,9 +52,9 @@ from editor.utils.etherAI import EtherAIMainScreen
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.terminal.terminal_ui import TerminalPanel
 from editor.texteditor.editor import DreamTabbedEditor
+from editor.utils.find_replace import FindReplaceWidget
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
-from editor.utils.find_replace import FindReplaceWidget
 
 
 class DreamStudio(QMainWindow):
@@ -137,6 +137,9 @@ class DreamStudio(QMainWindow):
         # Title Bar
         self.title_bar = DreamStudioTitleBar(self)
         self.options_menu = OptionsMenu(self)
+        self.options_menu.config_run_options.clicked.connect(
+            lambda: self.tab_editors.open_configurations_json()
+        )
         main_layout.addWidget(self.title_bar)
         main_layout.addWidget(self.options_menu)
 
@@ -148,53 +151,6 @@ class DreamStudio(QMainWindow):
         self.leftmost_bar = QFrame()
         self.leftmost_bar.setFixedWidth(50)
         self.leftmost_bar.setStyleSheet("background-color: #25272B; border: none;")
-
-        # Leftmost bar
-        self.leftmost_layout = QVBoxLayout(self.leftmost_bar)
-        self.leftmost_layout.setContentsMargins(5, 5, 5, 5)
-        self.leftmost_layout.setSpacing(10)
-        self.leftmost_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        self.explorerBtn = self.create_bar_option(
-            text=None, image="assets/system/folder.png", image_size=QSize(30, 30)
-        )
-        self.leftmost_layout.addWidget(self.explorerBtn)
-
-        self.searchBtn = self.create_bar_option(
-            text=None, image="assets/system/find.png", image_size=QSize(30, 30)
-        )
-        self.leftmost_layout.addWidget(self.searchBtn)
-
-        self.gitChangesBtn = self.create_bar_option(
-            text=None, image="assets/system/git.png", image_size=QSize(30, 30)
-        )
-        self.leftmost_layout.addWidget(self.gitChangesBtn)
-
-        self.extensionsBtn = self.create_bar_option(
-            text=None, image="assets/system/extensions.png", image_size=QSize(26, 26)
-        )
-        self.leftmost_layout.addWidget(self.extensionsBtn)
-
-        self.leftmost_layout.addStretch()
-
-        self.infoBtn = self.create_bar_option(
-            text=None, image="assets/system/info.png", image_size=QSize(26, 26)
-        )
-        self.leftmost_layout.addWidget(self.infoBtn)
-
-        self.terminalBtn = self.create_bar_option(
-            text=None, image="assets/system/terminal.png", image_size=QSize(26, 26)
-        )
-        self.terminalBtn.clicked.connect(self.toggle_terminal)
-        self.leftmost_layout.addWidget(self.terminalBtn)
-
-        self.version_controlBtn = self.create_bar_option(
-            text=None,
-            image="assets/system/version_control.png",
-            image_size=QSize(26, 26),
-        )
-        self.leftmost_layout.addWidget(self.version_controlBtn)
-
         self.body_layout.addWidget(self.leftmost_bar)
 
         ##### THE HERO SECTION
@@ -213,21 +169,95 @@ class DreamStudio(QMainWindow):
             "QSplitter::handle { background-color: #1a1a1a; }"
         )
 
+        ####################################################
+        # Left Panel Stacked Widgets
+        ####################################################
         # Services Sidebar
-        self.sidebar_frame = QFrame()
+        self.sidebar_frame = QStackedWidget()
         self.sidebar_frame.setStyleSheet("background-color: #171717; border: none;")
         self.sidebar_frame.setMinimumWidth(150)
 
-        sidebar_layout = QVBoxLayout(self.sidebar_frame)
-        sidebar_layout.setContentsMargins(0, 0, 0, 0)
-        sidebar_layout.setSpacing(0)
-
         self.treeview = DreamFileTreeWindow(self)
-        sidebar_layout.addWidget(self.treeview)
         self.treeview.tree.doubleClicked.connect(
             lambda idx: self.open_file_from_treeview(idx)
         )
 
+        #### Some PlaceHolders
+        self.search_menu = QWidget()
+        self.git_menu = QWidget()
+        self.extns_menu = QWidget()
+
+        self.sidebar_frame.addWidget(self.treeview)
+        self.sidebar_frame.addWidget(self.search_menu)
+        self.sidebar_frame.addWidget(self.git_menu)
+        self.sidebar_frame.addWidget(self.extns_menu)
+
+        self.sidebar_frame.setCurrentIndex(0)
+
+        #### Leftmost Layout Buttons
+        # Leftmost bar
+        self.leftmost_layout = QVBoxLayout(self.leftmost_bar)
+        self.leftmost_layout.setContentsMargins(5, 5, 5, 5)
+        self.leftmost_layout.setSpacing(10)
+        self.leftmost_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        self.explorerBtn = self.create_bar_option(
+            text=None,
+            image="assets/system/folder.png",
+            image_size=QSize(30, 30),
+            function=lambda: self.sidebar_frame.setCurrentIndex(0),
+        )
+        self.leftmost_layout.addWidget(self.explorerBtn)
+
+        self.searchBtn = self.create_bar_option(
+            text=None,
+            image="assets/system/find.png",
+            image_size=QSize(30, 30),
+            function=lambda: self.sidebar_frame.setCurrentIndex(1),
+        )
+        self.leftmost_layout.addWidget(self.searchBtn)
+
+        self.gitChangesBtn = self.create_bar_option(
+            text=None,
+            image="assets/system/git.png",
+            image_size=QSize(30, 30),
+            function=lambda: self.sidebar_frame.setCurrentIndex(2),
+        )
+        self.leftmost_layout.addWidget(self.gitChangesBtn)
+
+        self.extensionsBtn = self.create_bar_option(
+            text=None,
+            image="assets/system/extensions.png",
+            image_size=QSize(26, 26),
+            function=lambda: self.sidebar_frame.setCurrentIndex(3),
+        )
+        self.leftmost_layout.addWidget(self.extensionsBtn)
+
+        self.leftmost_layout.addStretch()
+
+        self.infoBtn = self.create_bar_option(
+            text=None, image="assets/system/info.png", image_size=QSize(26, 26)
+        )
+        self.leftmost_layout.addWidget(self.infoBtn)
+
+        self.terminalBtn = self.create_bar_option(
+            text=None,
+            image="assets/system/terminal.png",
+            image_size=QSize(26, 26),
+            function=lambda: self.toggle_terminal(),
+        )
+        self.leftmost_layout.addWidget(self.terminalBtn)
+
+        self.version_controlBtn = self.create_bar_option(
+            text=None,
+            image="assets/system/version_control.png",
+            image_size=QSize(26, 26),
+        )
+        self.leftmost_layout.addWidget(self.version_controlBtn)
+
+        ####################################################
+        # Main Editor
+        ####################################################
         # Editor, Background screen, and other stacked layout widgets
         self.main_editor_area = QStackedWidget()
 
