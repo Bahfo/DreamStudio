@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMenuBar,
 )
-from PyQt6.Qsci import QsciScintilla
 
 
 class DreamStudioTitleBar(QWidget):
@@ -54,37 +53,53 @@ class DreamStudioTitleBar(QWidget):
         self.menubar.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         self.menubar.setStyleSheet("""
-            QMenuBar {
-                background-color: transparent;
-                color: #D1D1D1;
-                font-size: 13px;
-                border: none;
-            }
-            QMenuBar::item {
-                background: transparent;
-                padding: 7px 5px;
-                margin: 0px 2px;
-                border-radius: 4px;
-            }
-            QMenuBar::item:selected {
-                background-color: rgba(63, 65, 69, 0.2);
-                color: white;
-            }
-            QMenu {
+        QMenuBar {
+            background-color: transparent;
+            color: #D1D1D1;
+            font-size: 13px;
+            border: none;
+        }
+        QMenuBar::item {
+            background: transparent;
+            padding: 7px 5px;
+            margin: 0px 2px;
+            border-radius: 4px;
+        }
+        QMenuBar::item:selected {
+            background-color: rgba(63, 65, 69, 0.2);
+            color: white;
+        }
+
+        QMenu {
             background-color: #2B2D30;
             color: #D1D1D1;
             border: 1px solid #3F4145;
-            min-width: 350px;
-            padding: 2px; 
-            }
+            padding: 4px 6px;
+        }
 
-            QMenu::item {
-            padding: 8px 12px 8px 8px; /*top left down right*/
+        QMenu::item {
+            min-width: 300px; 
+            padding: 8px 15px 8px 32px;
             background-color: transparent;
-            }
+            margin: 0px;
+        }
 
-            QMenu::icon {padding-right: 20px;}
-            QMenu::item:selected {background-color:#2E436E}""")
+        QMenu::item:selected {
+            background-color: #2E436E; 
+            color: white;
+        }
+
+        QMenu::icon {
+            position: absolute;
+            left: 7px;
+        }
+
+        QMenu::separator {
+            height: 1px;
+            background-color: #3F4145;
+            margin: 4px 0px;
+        }
+        """)
 
         layout.addWidget(self.menubar, alignment=Qt.AlignmentFlag.AlignVCenter)
         layout.addSpacing(40)
@@ -199,241 +214,209 @@ class DreamStudioTitleBar(QWidget):
     def setup_menus(self):
         menus_config = {
             "File": [
-                ("New File", "icons/new_file.png", self.set_new_file),
-                ("New Project", "icons/new_project.png", self.set_new_project),
-                ("New Window", "icons/new_window.png", self.set_new_window),
+                ("New File", "assets/menus/new_file.png", self.set_new_file),
+                ("New Project", "assets/menus/new_project.png", self.set_new_project),
+                ("New Window", None, self.set_new_window),
                 None,
-                ("Open...", "icons/open.png", self.set_open_file),
+                ("Open...", "assets/menus/open.png", self.set_open_file),
+                ("Open Recent Project", None, self.set_open_recent_project),
+                None,
                 (
-                    "Open Recent Project",
-                    "icons/open_recent.png",
-                    self.set_open_recent_project,
+                    "Save Current File",
+                    "assets/menus/save.png",
+                    self.set_save_current_file,
                 ),
-                None,
-                ("Save Current File", "icons/save.png", self.set_save_current_file),
-                ("Save File As...", "icons/save_as.png", self.set_save_file_as),
-                ("Save All Files", "icons/save_all.png", self.set_save_all_files),
+                ("Save File As...", None, self.set_save_file_as),
+                ("Save All Files", None, self.set_save_all_files),
                 (
                     "Save All and Close Window",
-                    "icons/save_close.png",
+                    None,
                     self.set_save_all_and_close,
                 ),
                 None,
-                ("Close Editor", "icons/close_editor.png", self.set_close_editor),
+                (
+                    "Close Editor",
+                    "assets/menus/close_editor.png",
+                    self.set_close_editor,
+                ),
                 (
                     "Close DreamStudio",
-                    "icons/close_app.png",
+                    None,
                     self.set_close_dreamstudio,
                 ),
                 None,
-                ("Import...", "icons/import.png", self.set_import_configurations),
-                ("Export...", "icons/export.png", self.set_export_configurations),
-                None,
+                (
+                    "Import...",
+                    "assets/menus/import.png",
+                    self.set_import_configurations,
+                ),
+                (
+                    "Export...",
+                    "assets/menus/export.png",
+                    self.set_export_configurations,
+                ),
                 (
                     "Settings and Preferences",
-                    "icons/settings.png",
+                    "assets/menus/settings.png",
                     self.set_open_settings,
                 ),
-                (
-                    "Exit",
-                    "icons/exit.png",
-                    self.parent.close,
-                ),
+                ("Exit", None, self.parent.close),
             ],
             "Edit": [
-                ("Undo", "icons/undo.png", self.set_undo),
-                ("Redo", "icons/redo.png", self.set_redo),
+                ("Undo", "assets/menus/undo.png", self.set_undo),
+                ("Redo", "assets/menus/redo.png", self.set_redo),
                 None,
-                ("Cut Selection", "icons/cut.png", self.set_cut),
-                ("Copy Selection", "icons/copy.png", self.set_copy),
+                ("Cut Selection", "assets/menus/cut.png", self.set_cut),
+                ("Copy Selection", "assets/menus/copy.png", self.set_copy),
                 (
                     "Copy Selection as Plain Text",
-                    "icons/copy_text.png",
+                    "assets/menus/copy_text.png",
                     self.set_copy_as_plain_text,
                 ),
-                ("Paste Clipboard", "icons/paste.png", self.set_paste),
-                ("Delete Selection", "icons/delete.png", self.set_delete_selection),
+                ("Paste Clipboard", "assets/menus/paste.png", self.set_paste),
+                ("Delete Selection", None, self.set_delete_selection),
                 None,
-                ("Find and Replace", "icons/find.png", self.set_find_replace),
+                ("Find and Replace", "assets/menus/find.png", self.set_find_replace),
                 (
                     "Search in Selected Text",
-                    "icons/search_sel.png",
+                    "assets/menus/search_sel.png",
                     self.set_search_in_selected,
                 ),
-                (
-                    "Find and Replace in Files",
-                    "icons/find_files.png",
-                    self.set_find_replace_in_files,
-                ),
+                ("Find and Replace in Files", None, self.set_find_replace_in_files),
                 None,
-                ("Select All", "icons/select_all.png", self.set_select_all),
-                ("Unselect All", "icons/unselect_all.png", self.set_unselect_all),
-                None,
-                ("Indent Selection", "icons/indent.png", self.set_indent_selection),
-                (
-                    "Unindent Selection",
-                    "icons/unindent.png",
-                    self.set_unindent_selection,
-                ),
-                (
-                    "Manage Indentation",
-                    "icons/manage_indent.png",
-                    self.set_manage_indentation,
-                ),
+                ("Select All", None, self.set_select_all),
+                ("Unselect All", None, self.set_unselect_all),
+                ("Indent Selection", None, self.set_indent_selection),
+                ("Unindent Selection", None, self.set_unindent_selection),
+                ("Manage Indentation", None, self.set_manage_indentation),
             ],
             "View": [
-                ("Change Editor Layout", "icons/layout.png", self.generic_callback),
-                ("Appearance", "icons/appearance.png", self.generic_callback),
+                ("Change Editor Layout", None, self.generic_callback),
+                ("Appearance", "assets/menus/appearance.png", self.generic_callback),
                 None,
-                ("File Explorer", "icons/explorer.png", self.generic_callback),
-                ("Search Explorer", "icons/search_exp.png", self.generic_callback),
-                ("Unit Testing Window", "icons/testing.png", self.generic_callback),
-                ("Ether AI Chat Window", "icons/ai_chat.png", self.generic_callback),
-                None,
+                ("File Explorer", "assets/menus/explorer.png", self.generic_callback),
+                ("Search Explorer", None, self.generic_callback),
                 (
-                    "Change Visibility Settings",
-                    "icons/visibility.png",
+                    "Unit Testing Window",
+                    "assets/menus/testing.png",
                     self.generic_callback,
                 ),
                 (
-                    "Reset Font Size in all Editors",
-                    "icons/reset_font.png",
+                    "Ether AI Chat Window",
+                    "assets/menus/ai_chat.png",
                     self.generic_callback,
                 ),
-                (
-                    "Reset Appearance Settings in all Editors",
-                    "icons/reset_app.png",
-                    self.generic_callback,
-                ),
+                ("Change Visibility Settings", None, self.generic_callback),
+                ("Reset Font Size", None, self.generic_callback),
             ],
             "Tools": [
-                ("Command Window", "icons/command.png", self.generic_callback),
-                ("Ether AI Chat Window", "icons/ai_chat.png", self.generic_callback),
-                ("Server Explorer", "icons/server.png", self.generic_callback),
-                ("Web Browser", "icons/browser.png", self.generic_callback),
+                ("Command Window", "assets/menus/command.png", self.generic_callback),
                 (
-                    "Object Window Viewer",
-                    "icons/object_viewer.png",
+                    "Ether AI Chat Window",
+                    "assets/menus/ai_chat.png",
+                    self.generic_callback,
+                ),
+                ("Server Explorer", None, self.generic_callback),
+                ("Web Browser", "assets/menus/browser.png", self.generic_callback),
+                ("Object Window Viewer", None, self.generic_callback),
+                ("Code Definition Window Browser", None, self.generic_callback),
+                ("Errors List", "assets/menus/errors.png", self.generic_callback),
+                ("Outputs Window", None, self.generic_callback),
+                ("Tasks TODO List", "assets/menus/todo.png", self.generic_callback),
+                (
+                    "Notifications",
+                    "assets/menus/notifications.png",
                     self.generic_callback,
                 ),
                 (
-                    "Code Definition Window Browser",
-                    "icons/code_def.png",
+                    "Code Analysis Manager",
+                    "assets/menus/analysis.png",
                     self.generic_callback,
                 ),
-                None,
-                ("Errors List", "icons/errors.png", self.generic_callback),
-                ("Outputs Window", "icons/outputs.png", self.generic_callback),
-                ("Tasks TODO List", "icons/todo.png", self.generic_callback),
-                ("Notifications", "icons/notifications.png", self.generic_callback),
-                None,
-                ("Code Analysis Manager", "icons/analysis.png", self.generic_callback),
-                ("Code Snippets Manager", "icons/snippets.png", self.generic_callback),
+                ("Code Snippets Manager", None, self.generic_callback),
             ],
             "Code": [
-                ("Format Code", "icons/format.png", self.generic_callback),
+                ("Format Code", "assets/menus/format.png", self.generic_callback),
+                ("Minify Code in Current File", None, self.generic_callback),
                 (
-                    "Minify Code in Current File",
-                    "icons/minify.png",
-                    self.generic_callback,
-                ),
-                ("Comment Current Line", "icons/comment.png", self.generic_callback),
-                (
-                    "Comment Current Selection",
-                    "icons/comment_sel.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Uncomment Current Line",
-                    "icons/uncomment.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Uncomment Current Selection",
-                    "icons/uncomment_sel.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Duplicate Current Line",
-                    "icons/duplicate.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Duplicate Current Selection",
-                    "icons/duplicate_sel.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Sort Code",
-                    "icons/sort.png",
+                    "Comment Current Line",
+                    "assets/menus/comment.png",
                     self.generic_callback,
                 ),
                 None,
-                ("Go to Definition", "icons/go_def.png", self.generic_callback),
-                ("Go to Declaration", "icons/go_decl.png", self.generic_callback),
-                ("Go to Implementation", "icons/go_impl.png", self.generic_callback),
+                ("Comment Current Selection", None, self.generic_callback),
+                ("Uncomment Current Line", None, self.generic_callback),
+                ("Uncomment Current Selection", None, self.generic_callback),
+                ("Duplicate Current Line", None, self.generic_callback),
+                ("Duplicate Current Selection", None, self.generic_callback),
+                ("Sort Code", None, self.generic_callback),
+                None,
+                ("Go to Definition", None, self.generic_callback),
+                ("Go to Declaration", None, self.generic_callback),
+                ("Go to Implementation", None, self.generic_callback),
                 (
                     "Find Usages and References in Current File",
-                    "icons/find_usages.png",
+                    None,
                     self.generic_callback,
                 ),
-                ("Go to Symbol", "icons/symbol.png", self.generic_callback),
+                ("Go to Symbol", None, self.generic_callback),
             ],
             "Run": [
-                ("Run Current File", "icons/run.png", self.generic_callback),
-                ("Run File Selection", "icons/run_sel.png", self.generic_callback),
+                ("Run Current File", "assets/menus/run.png", self.generic_callback),
                 (
                     "Run Current File with Configured Arguments",
-                    "icons/run_args.png",
+                    "assets/menus/run_args.png",
                     self.generic_callback,
                 ),
                 (
                     "Run Current File without Debugging",
-                    "icons/run_no_debug.png",
+                    "assets/menus/run_no_debug.png",
+                    self.generic_callback,
+                ),
+                (
+                    "Stop Current Execution",
+                    "assets/menus/stop.png",
+                    self.generic_callback,
+                ),
+                (
+                    "Restart Debugging",
+                    "assets/menus/restart.png",
                     self.generic_callback,
                 ),
                 None,
-                ("Stop Current Execution", "icons/stop.png", self.generic_callback),
-                ("Restart Debugging", "icons/restart.png", self.generic_callback),
-                None,
-                ("Step Over", "icons/step_over.png", self.generic_callback),
-                ("Step Into", "icons/step_into.png", self.generic_callback),
-                ("Step Out", "icons/step_out.png", self.generic_callback),
-                ("Continue", "icons/continue.png", self.generic_callback),
+                ("Step Over", None, self.generic_callback),
+                ("Step Into", None, self.generic_callback),
+                ("Step Out", None, self.generic_callback),
+                ("Continue", None, self.generic_callback),
                 None,
                 (
                     "Add New Breakpoint at Current File",
-                    "icons/breakpoint.png",
+                    "assets/menus/breakpoint.png",
                     self.generic_callback,
                 ),
-                (
-                    "Enable All Breakpoints",
-                    "icons/enable_bp.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Disable All Breakpoints",
-                    "icons/disable_bp.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Remove All Breakpoints",
-                    "icons/remove_bp.png",
-                    self.generic_callback,
-                ),
+                ("Enable All Breakpoints", None, self.generic_callback),
+                ("Disable All Breakpoints", None, self.generic_callback),
+                ("Remove All Breakpoints", None, self.generic_callback),
             ],
             "Marketplace": [
-                ("Open Marketplace", "icons/manage_ext.png", self.generic_callback),
-                ("Refresh Extensions", "icons/refresh_ext.png", self.generic_callback),
+                (
+                    "Open Marketplace",
+                    "assets/menus/manage_ext.png",
+                    self.generic_callback,
+                ),
+                (
+                    "Refresh Extensions",
+                    "assets/menus/refresh_ext.png",
+                    self.generic_callback,
+                ),
             ],
             "Help": [
-                ("Welcome", "icons/welcome.png", self.generic_callback),
-                ("Show All Commands", "icons/commands.png", self.generic_callback),
-                ("Documentation", "icons/docs.png", self.generic_callback),
-                None,
-                ("View License", "icons/license.png", self.generic_callback),
-                ("Check for Updates", "icons/updates.png", self.generic_callback),
-                ("About", "icons/about.png", self.generic_callback),
+                ("Welcome", None, self.generic_callback),
+                ("Show All Commands", None, self.generic_callback),
+                ("Documentation", "assets/menus/docs.png", self.generic_callback),
+                ("View License", "assets/menus/license.png", self.generic_callback),
+                ("Check for Updates", None, self.generic_callback),
+                ("About", "assets/menus/info.png", self.generic_callback),
             ],
         }
 
