@@ -125,6 +125,14 @@ class OptionsMenu(QFrame):
             padding-right: 10px;
         }
         QPushButton:hover{background-color: #333;}
+
+        QToolTip{
+        color: #F5F5F5; 
+        font-family: inter;
+        padding: 6px 5px;
+        font-size: 12px;
+        background-color: #25272B; 
+        border: none;}
         """
 
         # Tools & Execution

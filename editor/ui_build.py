@@ -208,6 +208,7 @@ class DreamStudio(QMainWindow):
             function=lambda: self.sidebar_frame.setCurrentIndex(0),
         )
         self.leftmost_layout.addWidget(self.explorerBtn)
+        self.explorerBtn.setToolTip("File Explorer")
 
         self.searchBtn = self.create_bar_option(
             text=None,
@@ -216,6 +217,7 @@ class DreamStudio(QMainWindow):
             function=lambda: self.sidebar_frame.setCurrentIndex(1),
         )
         self.leftmost_layout.addWidget(self.searchBtn)
+        self.searchBtn.setToolTip("Find and Replace")
 
         self.gitChangesBtn = self.create_bar_option(
             text=None,
@@ -224,6 +226,7 @@ class DreamStudio(QMainWindow):
             function=lambda: self.sidebar_frame.setCurrentIndex(2),
         )
         self.leftmost_layout.addWidget(self.gitChangesBtn)
+        self.gitChangesBtn.setToolTip("Manage Changes")
 
         self.extensionsBtn = self.create_bar_option(
             text=None,
@@ -232,6 +235,7 @@ class DreamStudio(QMainWindow):
             function=lambda: self.sidebar_frame.setCurrentIndex(3),
         )
         self.leftmost_layout.addWidget(self.extensionsBtn)
+        self.extensionsBtn.setToolTip("Open Marketplace")
 
         self.leftmost_layout.addStretch()
 
@@ -239,6 +243,7 @@ class DreamStudio(QMainWindow):
             text=None, image="assets/system/info.png", image_size=QSize(26, 26)
         )
         self.leftmost_layout.addWidget(self.infoBtn)
+        self.infoBtn.setToolTip("Manage Code Quality")
 
         self.terminalBtn = self.create_bar_option(
             text=None,
@@ -247,13 +252,15 @@ class DreamStudio(QMainWindow):
             function=lambda: self.toggle_terminal(),
         )
         self.leftmost_layout.addWidget(self.terminalBtn)
+        self.terminalBtn.setToolTip("Open Terminals")
 
-        self.version_controlBtn = self.create_bar_option(
+        self.preferencesBtn = self.create_bar_option(
             text=None,
             image="assets/system/version_control.png",
             image_size=QSize(26, 26),
         )
-        self.leftmost_layout.addWidget(self.version_controlBtn)
+        self.leftmost_layout.addWidget(self.preferencesBtn)
+        self.preferencesBtn.setToolTip("Set Preferences")
 
         ####################################################
         # Main Editor
@@ -360,6 +367,14 @@ class DreamStudio(QMainWindow):
             padding-right:2px;
         }
         QPushButton:hover{background-color:#333}
+
+        QToolTip{
+        color: #F5F5F5; 
+        font-family: inter;
+        padding: 6px 5px;
+        font-size: 12px;
+        background-color: #25272B; 
+        border: none;}
         """
 
         btn.setStyleSheet(custom_css if custom_css else default_css)
