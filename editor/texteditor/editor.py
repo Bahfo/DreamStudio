@@ -51,6 +51,7 @@ import os
 import re
 import json
 import jedi
+import math
 import logging
 import pathlib
 import markdown
@@ -158,6 +159,10 @@ class DreamStudioIDETabBar(QTabBar):
     def on_currentChanged(self, index):
         super().currentChanged(index)
         self._on_current_changed()
+
+        ##### Here we added status bar syncronization to alert changes
+        self._parent.update_position_status()
+        self._parent.return_file_info()
 
     def tabInserted(self, index):
         super().tabInserted(index)
@@ -423,6 +428,9 @@ class DreamTabbedEditor(QTabWidget):
 
         logger.debug(f"Opened files: {self.opened_files}")
 
+        self._parent.update_position_status()
+        self.return_file_info()
+
         return new_editor
 
     def close_editor(self, index):
@@ -575,6 +583,47 @@ class DreamTabbedEditor(QTabWidget):
             if editor and hasattr(editor, "save") and editor.current_file_path:
                 editor.save()
 
+    def return_file_info(self):
+        editor = self._parent._get_current_editor()
+        text = editor.text()
+
+        if not text:
+            return "LF", 4  # Default fallback for empty editors
+
+        # ---------- Line Endings ----------
+        if "\r\n" in text:
+            line_ending = "CRLF"
+        elif "\r" in text:
+            line_ending = "CR"
+        else:
+            line_ending = "LF"
+
+        indents = set()
+        uses_tabs = False
+        for line in text.splitlines():
+            if not line.strip():
+                continue
+
+            if line.startswith("\t"):
+                uses_tabs = True
+                break
+
+            match = re.match(r"^( +)", line)
+            if match:
+                indents.add(len(match.group(1)))
+
+        if uses_tabs:
+            indentation_width = "Tabs"
+        elif indents:
+            indentation_width = min(indents)
+        else:
+            indentation_width = 4
+
+        self._parent.status_bar.EOL.setText(f"{line_ending}")
+        self._parent.status_bar.spacing_options.setText(
+            f"Indent {indentation_width} Spaces"
+        )
+
 
 class CodeEditor(QsciScintilla):
     def __init__(self, _parent=None, language=None):
@@ -615,6 +664,11 @@ class CodeEditor(QsciScintilla):
 
         self.fold_bg = QColor("#1C1C1C")
         self.fold_color = QColor("#A0A0A0")
+
+        #####################################
+        # Lines and Columns
+        #####################################
+        self.cursorPositionChanged.connect(self._parent._parent.update_position_status)
 
         #####################################
         # JEDI

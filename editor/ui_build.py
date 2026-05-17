@@ -19,9 +19,12 @@ Supervised by Excellent Technologies Co.
 
 # Main Imports
 import os
+import re
 import logging
 import pathlib
 import platform
+
+from collections import Counter
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +51,10 @@ from editor.animations.splash import SplashOverlay
 from editor.utils.etherAI import EtherAIMainScreen
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.terminal.terminal_ui import TerminalPanel
-from editor.texteditor.editor import DreamTabbedEditor
 from editor.utils.find_replace import FindReplaceWidget
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
+from editor.texteditor.editor import DreamTabbedEditor, CodeEditor
 
 
 class DreamStudio(QMainWindow):
@@ -139,6 +142,9 @@ class DreamStudio(QMainWindow):
         )
         main_layout.addWidget(self.title_bar)
         main_layout.addWidget(self.options_menu)
+
+        #### Status Bar Creation
+        self.status_bar = StatusBar(self)
 
         self.body_layout = QHBoxLayout()
         self.body_layout.setContentsMargins(0, 0, 0, 0)
@@ -331,12 +337,11 @@ class DreamStudio(QMainWindow):
 
         self.terminal_collapsed = True
 
-        self.status_bar = StatusBar(self)
         main_layout.addWidget(self.status_bar)
 
         self.installEventFilter(self)
-        self.sync_minimap_on_tab_switch(self.tab_editors.currentIndex())
-        self.tab_editors.currentChanged.connect(self.sync_minimap_on_tab_switch)
+        self.sync_changes_on_tab_switch(self.tab_editors.currentIndex())
+        self.tab_editors.currentChanged.connect(self.sync_changes_on_tab_switch)
         self.title_bar.setStyleSheet("background-color: #00438A;")
 
     def create_bar_option(
@@ -381,7 +386,7 @@ class DreamStudio(QMainWindow):
 
         return btn
 
-    def sync_minimap_on_tab_switch(self, index):
+    def sync_changes_on_tab_switch(self, index):
         editor = self.tab_editors.widget(index) if index >= 0 else None
 
         if self._minimap_bound_editor is not None:
@@ -404,6 +409,24 @@ class DreamStudio(QMainWindow):
         self._minimap_bound_editor = editor
         editor.textChanged.connect(self._update_minimap_from_editor)
         self._update_minimap_from_editor()
+
+        #### Update Lines and Columns
+        self.update_position_status()
+
+    def update_position_status(self):
+        editor = self._get_current_editor()
+        if editor:
+            line, col = editor.getCursorPosition()
+            self.status_bar.lines_and_cols.setText(f"Ln {line + 1} : Col {col + 1}")
+        else:
+            self.status_bar.lines_and_cols.setText("")
+
+    def _get_current_editor(self):
+        """Returns the currently active QScintilla instance, or None."""
+        current_widget = self.tab_editors.currentWidget()
+        if isinstance(current_widget, CodeEditor):
+            return current_widget
+        return None
 
     def _update_minimap_from_editor(self):
         editor = self._minimap_bound_editor

@@ -16,14 +16,12 @@ class StatusBar(QFrame):
 
         self.setFrameShape(QFrame.Shape.Panel)
         self.setFixedHeight(30)
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
         QFrame{
         border: 0;
         border-radius: 0px;
         background-color: #25272B;
-        }"""
-        )
+        }""")
         statusbar_layout = QHBoxLayout(self)
         statusbar_layout.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
@@ -45,8 +43,7 @@ class StatusBar(QFrame):
         self.zoomBtn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.zoomBtn.currentTextChanged.connect(self.on_zoom_toggle)
 
-        self.zoomBtn.setStyleSheet(
-            """
+        self.zoomBtn.setStyleSheet("""
             QComboBox {
                 background: transparent;
                 color: white;
@@ -66,8 +63,7 @@ class StatusBar(QFrame):
                 selection-background-color: #2E436E;
                 outline: none;
                 padding: 5px;
-            }"""
-        )
+            }""")
         statusbar_layout.addWidget(self.zoomBtn)
 
         statusbar_layout.addSpacing(3)
@@ -76,15 +72,13 @@ class StatusBar(QFrame):
         self.warningBtn.setFixedSize(30, 28)
         self.warningBtn.setIcon(QIcon("assets/system/warning.png"))
         self.warningBtn.setIconSize(QSize(17, 17))
-        self.warningBtn.setStyleSheet(
-            """
+        self.warningBtn.setStyleSheet("""
         QPushButton{
         background-color: transparent;
         border: none;
         color: white;
         border-radius: 0px;
-        }"""
-        )
+        }""")
         statusbar_layout.addWidget(self.warningBtn)
 
         statusbar_layout.addSpacing(3)
@@ -93,24 +87,21 @@ class StatusBar(QFrame):
         self.errorsBtn.setFixedSize(30, 28)
         self.errorsBtn.setIcon(QIcon("assets/system/problem.png"))
         self.errorsBtn.setIconSize(QSize(17, 17))
-        self.errorsBtn.setStyleSheet(
-            """
+        self.errorsBtn.setStyleSheet("""
         QPushButton{
         background-color: transparent;
         border: none;
         color: white;
         border-radius: 0px;
-        }"""
-        )
+        }""")
         statusbar_layout.addWidget(self.errorsBtn)
 
         statusbar_layout.addStretch()
 
         self.lines_and_cols = QLabel()
         self.lines_and_cols.setText("Ln 1 : Col 1")
-        self.lines_and_cols.setStyleSheet(
-            """
-        QLabel{
+        self.lines_and_cols.setStyleSheet("""
+        QLabel{addPermanentWidget
         background-color: transparent;
         border:none;
         border-radius: 0px;
@@ -118,14 +109,12 @@ class StatusBar(QFrame):
         font-size: 12px;
         font-family: Arial;
         }
-        """
-        )
+        """)
         statusbar_layout.addWidget(self.lines_and_cols)
 
         self.spacing_options = QLabel()
         self.spacing_options.setText("Indent: 4 Spaces")
-        self.spacing_options.setStyleSheet(
-            """
+        self.spacing_options.setStyleSheet("""
         QLabel{
         background-color: transparent;
         border:none;
@@ -135,14 +124,12 @@ class StatusBar(QFrame):
         font-family: Arial;
         padding-left: 7px;
         }
-        """
-        )
+        """)
         statusbar_layout.addWidget(self.spacing_options)
 
         self.EOL = QLabel()
         self.EOL.setText("LF")
-        self.EOL.setStyleSheet(
-            """
+        self.EOL.setStyleSheet("""
         QLabel{
         background-color: transparent;
         border:none;
@@ -153,16 +140,14 @@ class StatusBar(QFrame):
         padding-left: 7px;
         padding-right: 13px;
         }
-        """
-        )
+        """)
         statusbar_layout.addWidget(self.EOL)
 
         self.terminalWindow = QPushButton("   Open Terminal")
         self.terminalWindow.setFixedSize(120, 28)
         self.terminalWindow.setIcon(QIcon("assets/system/code.png"))
         self.terminalWindow.setIconSize(QSize(17, 17))
-        self.terminalWindow.setStyleSheet(
-            """
+        self.terminalWindow.setStyleSheet("""
         QPushButton{
         background-color: transparent;
         font-size:12px;
@@ -175,16 +160,14 @@ class StatusBar(QFrame):
         }
         QPushButton:hover{
         background-color: #333;
-        }"""
-        )
+        }""")
         statusbar_layout.addWidget(self.terminalWindow)
 
         self.statusBtn = QPushButton("   Ready")
         self.statusBtn.setFixedSize(80, 28)
         self.statusBtn.setIcon(QIcon("assets/system/status.png"))
         self.statusBtn.setIconSize(QSize(17, 17))
-        self.statusBtn.setStyleSheet(
-            """
+        self.statusBtn.setStyleSheet("""
         QPushButton{
         background-color: transparent;
         font-size:12px;
@@ -197,16 +180,14 @@ class StatusBar(QFrame):
         }
         QPushButton:hover{
         background-color: #333;
-        }"""
-        )
+        }""")
         statusbar_layout.addWidget(self.statusBtn)
 
         self.warningBtn = QPushButton("")
         self.warningBtn.setFixedSize(30, 28)
         self.warningBtn.setIcon(QIcon("assets/system/notificaiton.png"))
         self.warningBtn.setIconSize(QSize(20, 20))
-        self.warningBtn.setStyleSheet(
-            """
+        self.warningBtn.setStyleSheet("""
         QPushButton{
         background-color: transparent;
         border: none;
@@ -215,8 +196,7 @@ class StatusBar(QFrame):
         padding-left: 5px;
         padding-right: 10px;
         }
-        QPushButton:hover{background-color: #333}"""
-        )
+        QPushButton:hover{background-color: #333}""")
         statusbar_layout.addWidget(self.warningBtn)
 
     def on_zoom_toggle(self, zoomText: str):
