@@ -1792,6 +1792,12 @@ class CodeEditor(QsciScintilla):
             logger.error(f"Save failed: {e}")
             return False
 
+    def copy_selection_as_plain_text(self):
+        selected_text = self.selectedText()
+        if selected_text:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(selected_text)
+
 
 class MarkdownViewer(QWidget):
     def __init__(self):

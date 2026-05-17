@@ -19,12 +19,9 @@ Supervised by Excellent Technologies Co.
 
 # Main Imports
 import os
-import sys
-import json
+import logging
 import pathlib
 import platform
-import subprocess
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -525,3 +522,19 @@ class DreamStudio(QMainWindow):
         except Exception as e:
             logger.error(f"Open file failed: {e}")
             return
+
+    def ui_build_save_file(self):
+        return self.tab_editors.save_current_file()
+
+    def ui_build_save_all(self):
+        return self.tab_editors.save_all_files()
+
+    def ui_build_save_as(self):
+        return self.tab_editors.save_current_file_as()
+
+    def ui_build_close_all_editors(self):
+        self.tab_editors.save_all_files()
+        for i in range(self.tab_editors.count() - 1, -1, -1):
+            tab_to_close = self.tab_editors.widget(i)
+            if tab_to_close:
+                self.tab_editors.close_editor(i)

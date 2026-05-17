@@ -11,8 +11,6 @@ from PyQt6.QtWidgets import (
     QLabel,
 )
 
-from PyQt6.Qsci import QsciScintilla
-
 
 class FindReplaceWidget(QFrame):
 
