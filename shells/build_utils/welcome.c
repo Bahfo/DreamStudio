@@ -18,13 +18,13 @@ void _print_welcome()
     char *descriptor_help_table = 
         "PromptX is a powerful advanced REPL shell developed for automation and extreme customizability.\n"
         "┌─────────────────────────────────┬─────────────────────────────────┬──────────────────────────┐\n"
-        "│     EXCELLENT TECHNOLOGIES      │        DREAMSTUDIO TEAM         │     PROMPTX-PROJECT      │\n"
+        "│     EXcellent TechStacks      │        DREAMSTUDIO TEAM         │     PROMPTX-PROJECT      │\n"
         "└─────────────────────────────────┴─────────────────────────────────┴──────────────────────────┘\n";
 
     printf(RED "%s" RESET, name);
     printf(YELLOW "(C) Copyright - All rights reserved\n" RESET);
     printf("Welcome to PromptX Shell!\n");
-    printf("Developed By DreamStudio Team - Excellent Technologies\n");
+    printf("Developed By DreamStudio Team - EXcellent TechStacks\n");
     printf("\n");
     printf(descriptor_help_table);
 }

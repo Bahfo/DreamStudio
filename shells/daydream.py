@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 - EXcellent Technologies : All Rights Reserved
+(C) COPYRIGHT 2026 - EXcellent TechStacks : All Rights Reserved
 
 A Tkinter CLI Tool that comes with DreamStudio IDE: The main purpose of the
 tool is to interact directly with the build_utils (Build Utilities) that are
@@ -10,7 +10,7 @@ itself, but it can also come as a standalone system that helps developers write
 building commands and scripts faster with autocompletion, syntax highlighting,
 and a very responsive system.
 
-Developed and Maintained by DreamStudio Team - EXcellent Technologies. 2026
+Developed and Maintained by DreamStudio Team - EXcellent TechStacks. 2026
 """
 
 # Written by Bahaa Nofal - 5/2026
@@ -23,7 +23,7 @@ import subprocess
 import psutil
 
 help_tool = """
-(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
 
 DayDream Terminal
 Building Manager for DreamStudio Projects. It uses .dst files written and 

@@ -1,6 +1,6 @@
 """
-(C) COPYRIGHT 2026 - EXcellent Technologies - All rights reserved.
-Excellent Technologies Game devices emulators. Mainitaind by DreamStudio
+(C) COPYRIGHT 2026 - EXcellent TechStacks - All rights reserved.
+EXcellent TechStacks Game devices emulators. Mainitaind by DreamStudio
 maintainers and developers.
 
 This project aims to emulate the EXConsoles behaviors inside a development

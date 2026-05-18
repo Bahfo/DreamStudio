@@ -1,7 +1,7 @@
 """
-(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
 Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
-Supervised by Excellent Technologies Co.
+Supervised by EXcellent TechStacks Co.
 
 Custom Widgets for DreamStudio: Animated Label with Gradient Colors.
 - Used primarily for Welcoming the Developer when he enters EtherAI.
@@ -84,8 +84,7 @@ class AnimatedGradientLabel(QLabel):
 class CustomTooltip(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent, flags=Qt.WindowType.ToolTip)
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
             QLabel {
                 color: #e0e0e0;
                 background-color: #1e1e1e;
@@ -95,6 +94,5 @@ class CustomTooltip(QLabel):
                 font-family: "JetBrains Mono";
                 font-size: 12px;
             }
-        """
-        )
+        """)
         self.hide()

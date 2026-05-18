@@ -1,7 +1,7 @@
 """
-(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
 Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
-Supervised by Excellent Technologies Co.
+Supervised by EXcellent TechStacks Co.
 
 DreamStudio is an Integrated Development Environment Developed Mainly for C++,
 and Python.
@@ -82,7 +82,7 @@ class WelcomeWindow(QWidget):
         layout.addSpacing(270)
 
         self.copyright = QLabel(
-            "© 2026 Excellent Technologies - All Rights Reserved",
+            "© 2026 EXcellent TechStacks - All Rights Reserved",
             alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
         )
         self.copyright.setContentsMargins(17, 20, 17, 0)

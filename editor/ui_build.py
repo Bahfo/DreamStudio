@@ -3,9 +3,9 @@ DreamStudio: Application Integrated Development Environment.
 
 DreamStudio: Quiet Valley Edition: Version 1.0.1
 
-(C) COPYRIGHT - 2026 Excellent Technologies Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
 Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
-Supervised by Excellent Technologies Co.
+Supervised by EXcellent TechStacks Co.
 """
 
 # TODO:
@@ -48,13 +48,12 @@ from editor.utils.statusBar import StatusBar
 from editor.texteditor.minimap import MiniMap
 from editor.utils.optionsBar import OptionsMenu
 from editor.animations.splash import SplashOverlay
-from editor.utils.etherAI import EtherAIMainScreen
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.terminal.terminal_ui import TerminalPanel
 from editor.utils.find_replace import FindReplaceWidget
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
-from editor.texteditor.editor import DreamTabbedEditor, CodeEditor
+from editor.texteditor.tab_editor import DreamTabbedEditor, CodeEditor
 
 
 class DreamStudio(QMainWindow):
