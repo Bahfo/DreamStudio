@@ -394,13 +394,13 @@ class CodeEditor(QsciScintilla):
                 pass
             QToolTip.hideText()
 
-        line_start_pos = self.SendScintilla(
-            2022, word_info["line"]
-        )  # SCI_POSITIONFROMLINE
-        word_sci_pos = line_start_pos + word_info["start"]
+        word_sci_pos = self.positionFromLineIndex(
+            word_info["line"], word_info["start"]
+        )
         x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, word_sci_pos)
         y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, word_sci_pos)
-        tooltip_pos = self.mapToGlobal(QPoint(x, y + self.font_size + 8))
+        window_pos = self.mapTo(self.window(), QPoint(x, y + self.font_size + 8))
+        tooltip_pos = self.window().mapToGlobal(window_pos)
 
         self._hyperlink_target = {
             "word": word_info["word"],

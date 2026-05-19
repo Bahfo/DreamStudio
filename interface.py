@@ -378,9 +378,22 @@ class NewsAndArticles(QFrame):
         self.view.page().runJavaScript(app_js)
 
 
+TOOLTIP_STYLE = """
+QToolTip {
+    background-color: #252526;
+    color: #CCCCCC;
+    border: 1px solid #3C3C3C;
+    padding: 4px 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+}
+"""
+
+
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("DreamStudio")
+    app.setStyleSheet(TOOLTIP_STYLE)
     window = WelcomeInterface()
     window.show()
     sys.exit(app.exec())
