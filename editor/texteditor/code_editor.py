@@ -9,13 +9,17 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QApplication,
+    QToolTip,
 )
-from PyQt6.QtGui import QFont, QIcon, QColor, QKeyEvent
+from PyQt6.QtGui import QFont, QIcon, QColor, QKeyEvent, QPalette
 
 import ast
 import re
 import json
 import logging
+
+from typing import Optional, Dict, Any
+import html as html_lib
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +27,8 @@ logger = logging.getLogger(__name__)
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
 from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
 from editor.texteditor.clangd import ClangdClient
+
+_WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 class CodeEditor(QsciScintilla):
@@ -64,6 +70,15 @@ class CodeEditor(QsciScintilla):
 
         self.fold_bg = QColor("#1C1C1C")
         self.fold_color = QColor("#A0A0A0")
+
+        self._palette = self.palette()
+        self._palette.setColor(
+            QPalette.ColorRole.ToolTipBase, QColor("#2B2D30")
+        )  # Background
+        self._palette.setColor(
+            QPalette.ColorRole.ToolTipText, QColor("#DFE1E5")
+        )  # Text
+        self.setPalette(self._palette)
 
         #####################################
         # Lines and Columns
@@ -110,6 +125,13 @@ class CodeEditor(QsciScintilla):
         }
         QTabBar::close-button:hover {
             background-color: rgba(255, 255, 255, 0.1);
+        }
+        QToolTip {
+        background-color: #2B2D30;
+        color: #DFE1E5;
+        border: 1px solid #43454A;
+        border-radius: 4px;
+        padding: 4px;
         }
         """)
 
@@ -162,7 +184,6 @@ class CodeEditor(QsciScintilla):
         # Jedi async request tracking
         self._completion_request_id = None
         self._goto_request_id = None
-        self._hover_request_id = None
 
         self._symbol_update_timer.setInterval(400)
 
@@ -236,17 +257,7 @@ class CodeEditor(QsciScintilla):
 
         self._hyperlink_indicator = 8
         self._highlight_indicator = 9
-        self._hyperlink_target = None
-        self._last_word = None
-        self._last_line = -1
-        self._last_index = -1
-        self._hyperlink_debounce_timer = QTimer(self)
-        self._hyperlink_debounce_timer.setSingleShot(True)
-        self._hyperlink_debounce_timer.setInterval(100)
-        self._hyperlink_debounce_timer.timeout.connect(
-            self._on_hyperlink_debounce_timeout
-        )
-        self._pending_hyperline_update = False
+        self._hyperlink_target: Optional[Dict[str, Any]] = None
         self._setup_hyperlink_indicator()
 
         ###############################
@@ -280,7 +291,7 @@ class CodeEditor(QsciScintilla):
         self.indicatorDefine(
             QsciScintilla.IndicatorStyle.TextColorIndicator, self._hyperlink_indicator
         )
-        self.setIndicatorForegroundColor(QColor("#00558A"), self._hyperlink_indicator)
+        self.setIndicatorForegroundColor(QColor("#569CD6"), self._hyperlink_indicator)
         self.indicatorDefine(
             QsciScintilla.IndicatorStyle.RoundBoxIndicator, self._highlight_indicator
         )
@@ -288,47 +299,34 @@ class CodeEditor(QsciScintilla):
         self.setIndicatorDrawUnder(True, self._highlight_indicator)
 
     def focusInEvent(self, event):
-        self._force_clear_hyperlink_state()
+        self._hide_symbol_link()
         super().focusInEvent(event)
 
     def focusOutEvent(self, event):
-        self._force_clear_hyperlink_state()
+        self._hide_symbol_link()
         super().focusOutEvent(event)
 
     def hideEvent(self, event):
-        self._force_clear_hyperlink_state()
+        self._hide_symbol_link()
         super().hideEvent(event)
-
-    def _force_clear_hyperlink_state(self):
-        self._hyperlink_debounce_timer.stop()
-        self._pending_hyperline_update = False
-        self._last_word = None
-        self._last_line = -1
-        self._last_index = -1
-        if self._hyperlink_target:
-            try:
-                line = self._hyperlink_target["line"]
-                start = self._hyperlink_target["start"]
-                end = self._hyperlink_target["end"]
-                self.clearIndicatorRange(
-                    line, start, line, end, self._hyperlink_indicator
-                )
-            except RuntimeError:
-                pass
-            self._hyperlink_target = None
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
+
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            return
+
         mods = QApplication.keyboardModifiers()
         has_ctrl = bool(
             mods
             & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
         )
-        if has_ctrl:
-            self._last_mouse_pos = event.pos()
-            self._schedule_hyperlink_update()
-        else:
-            self._force_clear_hyperlink_state()
+        if has_ctrl and self._can_hyperlink():
+            word_info = self._get_word_at(event.pos())
+            if word_info and not self._is_python_keyword(word_info["word"]):
+                self._show_symbol_link(word_info)
+                return
+        self._hide_symbol_link()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -340,133 +338,107 @@ class CodeEditor(QsciScintilla):
                     | Qt.KeyboardModifier.MetaModifier
                 )
             )
-
             if has_ctrl and self._hyperlink_target:
-                # Convert mouse coordinates into Scintilla position
-                pos = self.SendScintilla(
+                sci_pos = self.SendScintilla(
                     QsciScintilla.SCI_POSITIONFROMPOINT,
                     event.pos().x(),
                     event.pos().y(),
                 )
-                line, index = self.lineIndexFromPosition(pos)
-
-                if line >= 0 and self._is_hyperlink_at(line, index):
-                    self._hyperlink_debounce_timer.stop()
-                    self._pending_hyperline_update = False
+                line, index = self.lineIndexFromPosition(sci_pos)
+                target = self._hyperlink_target
+                if line == target["line"] and target["start"] <= index <= target["end"]:
                     self._navigate_to_definition()
                     event.accept()
                     return
-
-            # Clear state only if we didn't execute a valid navigation click
-            self._force_clear_hyperlink_state()
-
+            self._hide_symbol_link()
         super().mousePressEvent(event)
 
-    def _schedule_hyperlink_update(self):
-        self._hyperlink_debounce_timer.stop()
-        self._pending_hyperline_update = True
-        self._hyperlink_debounce_timer.start()
-
-    def _on_hyperlink_debounce_timeout(self):
-        self._pending_hyperline_update = False
-        self._update_hyperlink_from_cursor()
-
-    def _update_hyperlink_from_cursor(self):
-        if (
-            self.language != "Python"
-            or not self.jedi_enabled
-            or not self.current_file_path
-        ):
-            return
-
-        if not hasattr(self, "_last_mouse_pos") or self._last_mouse_pos is None:
-            return
-
-        pos = self.SendScintilla(
-            QsciScintilla.SCI_POSITIONFROMPOINT,
-            self._last_mouse_pos.x(),
-            self._last_mouse_pos.y(),
+    def _can_hyperlink(self) -> bool:
+        return (
+            self.language == "Python"
+            and self.jedi_enabled
+            and self.current_file_path is not None
         )
-        line, index = self.lineIndexFromPosition(pos)
 
+    def _get_word_at(self, pos: QPoint) -> Optional[Dict[str, Any]]:
+        sci_pos = self.SendScintilla(
+            QsciScintilla.SCI_POSITIONFROMPOINT, int(pos.x()), int(pos.y())
+        )
+        line, index = self.lineIndexFromPosition(sci_pos)
         if line < 0 or index < 0:
-            self._force_clear_hyperlink_state()
-            return
-
-        if line == self._last_line and index == self._last_index:
-            return
-
+            return None
         text = self.text(line)
-        if not text:
-            self._force_clear_hyperlink_state()
-            # Save coordinates to avoid re-evaluating this empty line on next move
-            self._last_line, self._last_index = line, index
-            return
-
-        word_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-        word = None
-        start = 0
-        end = 0
-
-        for match in word_pattern.finditer(text):
+        if not text or index >= len(text):
+            return None
+        for match in _WORD_RE.finditer(text):
             s, e = match.span()
             if s <= index <= e:
-                word = match.group()
-                start = s
-                end = e
-                break
+                return {"word": match.group(), "line": line, "start": s, "end": e}
+        return None
 
-        # Save coordinates to minimize thread lookup workloads
-        self._last_line = line
-        self._last_index = index
-
-        if not word or self._is_python_keyword(word):
-            # Clear target indicator without destroying our coordinate cache tracking
-            if self._hyperlink_target:
-                try:
-                    old_line = self._hyperlink_target["line"]
-                    old_start = self._hyperlink_target["start"]
-                    old_end = self._hyperlink_target["end"]
-                    self.clearIndicatorRange(
-                        old_line,
-                        old_start,
-                        old_line,
-                        old_end,
-                        self._hyperlink_indicator,
-                    )
-                except RuntimeError:
-                    pass
-                self._hyperlink_target = None
-            self._last_word = None
+    def _show_symbol_link(self, word_info: Dict[str, Any]) -> None:
+        key = (word_info["line"], word_info["start"], word_info["end"])
+        old = self._hyperlink_target
+        if old is not None and (old["line"], old["start"], old["end"]) == key:
             return
-
-        if word == self._last_word and start == self._last_index:
-            return
-
-        self._last_word = word
-
-        _existing = self._hyperlink_target
-        if _existing:
+        if old is not None:
             try:
                 self.clearIndicatorRange(
-                    _existing["line"],
-                    _existing["start"],
-                    _existing["line"],
-                    _existing["end"],
+                    old["line"],
+                    old["start"],
+                    old["line"],
+                    old["end"],
                     self._hyperlink_indicator,
                 )
             except RuntimeError:
                 pass
+            QToolTip.hideText()
+
+        line_start_pos = self.SendScintilla(
+            2022, word_info["line"]
+        )  # SCI_POSITIONFROMLINE
+        word_sci_pos = line_start_pos + word_info["start"]
+        x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, word_sci_pos)
+        y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, word_sci_pos)
+        tooltip_pos = self.mapToGlobal(QPoint(x, y + self.font_size + 8))
 
         self._hyperlink_target = {
-            "word": word,
-            "line": line,
-            "start": start,
-            "end": end,
+            "word": word_info["word"],
+            "line": word_info["line"],
+            "start": word_info["start"],
+            "end": word_info["end"],
             "definition": None,
+            "_tooltip_pos": tooltip_pos,
         }
+        try:
+            self.fillIndicatorRange(
+                word_info["line"],
+                word_info["start"],
+                word_info["line"],
+                word_info["end"],
+                self._hyperlink_indicator,
+            )
+        except RuntimeError:
+            pass
+        self._request_definition_location(
+            word_info["word"], word_info["line"], word_info["start"]
+        )
 
-        self._request_definition_location(word, line, start)
+    def _hide_symbol_link(self) -> None:
+        old = self._hyperlink_target
+        if old is not None:
+            try:
+                self.clearIndicatorRange(
+                    old["line"],
+                    old["start"],
+                    old["line"],
+                    old["end"],
+                    self._hyperlink_indicator,
+                )
+            except RuntimeError:
+                pass
+            self._hyperlink_target = None
+        QToolTip.hideText()
 
     def _is_python_keyword(self, word):
         keywords = {
@@ -508,12 +480,8 @@ class CodeEditor(QsciScintilla):
         }
         return word in keywords
 
-    def _request_definition_location(self, word, line, index):
-        if self.language != "Python" or not self.jedi_enabled:
-            return
-        if not self.current_file_path:
-            return
-        if self._is_python_keyword(word):
+    def _request_definition_location(self, word: str, line: int, index: int) -> None:
+        if not self._can_hyperlink():
             return
 
         win = self.window()
@@ -530,78 +498,134 @@ class CodeEditor(QsciScintilla):
             source, self.current_file_path, line + 1, index, req_id
         )
 
+    def handle_jedi_hover_results(self, items) -> None:
+        win = self.window()
+        if hasattr(win, "_pending_jedi_requests"):
+            to_remove = [
+                rid for rid, ed in win._pending_jedi_requests.items() if ed is self
+            ]
+            for rid in to_remove:
+                win._pending_jedi_requests.pop(rid, None)
+
+    def _format_definition_tooltip(self, d: dict) -> str:
+        name = d.get("name", "")
+        typ = d.get("type", "")
+        doc = d.get("doc", "") or d.get("description", "")
+        file_path = d.get("file")
+        line_no = d.get("line")
+
+        # JetBrains Dark Theme (New UI) Color Palette
+        text_color = "#DFE1E5"  # Crisp white/grey for symbols
+        type_color = "#868A91"  # Muted grey for types
+        link_color = "#548AF7"  # JetBrains blue for locations
+        doc_color = "#A9B7C6"  # Classic Darcula text color for docs
+        divider_color = "#43454A"  # Subtle border line
+
+        # Wrap everything in Inter
+        parts = [
+            f"<div style=\"font-family: 'Inter', sans-serif; white-space: nowrap;\">"
+        ]
+
+        # 1. Header (Name : Type)
+        header = []
+        if name:
+            header.append(
+                f'<span style="color:{text_color}; font-size:13px; font-weight:600;">{name}</span>'
+            )
+        if typ:
+            header.append(
+                f'<span style="color:{type_color}; font-size:12px;"> : {typ}</span>'
+            )
+
+        if header:
+            parts.append("".join(header))
+
+        # 2. File Location
+        if file_path and line_no:
+            parts.append(
+                f'<div style="color:{link_color}; font-size:11px; margin-top:2px;">{file_path}:{line_no}</div>'
+            )
+
+        # 3. Docstring (Code font)
+        if doc:
+            doc_short = doc.strip()[:500]
+            if len(doc.strip()) > 500:
+                doc_short += "..."
+
+            # MUST escape to prevent <dict> or <list> in docstrings from breaking Qt HTML
+            doc_escaped = html_lib.escape(doc_short)
+
+            # Divider line
+            parts.append(
+                f'<div style="margin-top:8px; margin-bottom:8px; border-top:1px solid {divider_color};"></div>'
+            )
+
+            # JetBrains Mono for the docstring block
+            parts.append(
+                f"<pre style=\"font-family: 'JetBrains Mono', monospace; font-size:12px; color:{doc_color}; margin:0;\">"
+                f"{doc_escaped}</pre>"
+            )
+
+        parts.append("</div>")
+        return "".join(parts)
+
     def handle_jedi_goto_results(self, definitions):
         win = self.window()
-        if hasattr(win, '_pending_jedi_requests'):
-            to_remove = [rid for rid, ed in win._pending_jedi_requests.items() if ed is self]
+        if hasattr(win, "_pending_jedi_requests"):
+            to_remove = [
+                rid for rid, ed in win._pending_jedi_requests.items() if ed is self
+            ]
             for rid in to_remove:
                 win._pending_jedi_requests.pop(rid, None)
         self._goto_request_id = None
-        if not definitions:
-            self._on_definition_ready(None)
-            return
 
-        for d in definitions:
-            file_path = d.get("file")
-            if file_path is None:
-                continue
-            if d.get("in_builtin"):
-                continue
-
-            self._on_definition_ready({
-                "file": file_path,
-                "line": d["line"] - 1 if d["line"] else 0,
-                "column": d["column"] or 0,
-                "same_file": file_path == self.current_file_path,
-            })
-            return
-
-        self._on_definition_ready(None)
-
-    def handle_jedi_hover_results(self, items):
-        win = self.window()
-        if hasattr(win, '_pending_jedi_requests'):
-            to_remove = [rid for rid, ed in win._pending_jedi_requests.items() if ed is self]
-            for rid in to_remove:
-                win._pending_jedi_requests.pop(rid, None)
-        self._hover_request_id = None
-
-    def _on_definition_ready(self, definition):
         target = self._hyperlink_target
         if target is None:
             return
-        if definition:
-            target["definition"] = definition
-            try:
-                self.fillIndicatorRange(
-                    target["line"],
-                    target["start"],
-                    target["line"],
-                    target["end"],
-                    self._hyperlink_indicator,
-                )
-            except RuntimeError:
-                pass
-        else:
-            self._force_clear_hyperlink_state()
 
-    def _clear_hyperlink_highlight(self):
-        self._force_clear_hyperlink_state()
+        best_def = None
+        for d in definitions:
+            file_path = d.get("file")
+            if file_path is not None and best_def is None:
+                best_def = d
+                target["definition"] = {
+                    "file": file_path,
+                    "line": d["line"] - 1 if d["line"] else 0,
+                    "column": d["column"] or 0,
+                    "same_file": file_path == self.current_file_path,
+                }
+            target.setdefault("_hover_info", []).append(
+                {
+                    "name": d.get("name", ""),
+                    "description": d.get("description", ""),
+                    "doc": d.get("doc", ""),
+                }
+            )
 
-    def _is_hyperlink_at(self, line, index):
-        if not self._hyperlink_target:
-            return False
+        display_def = best_def or (definitions[0] if definitions else None)
+        tooltip_pos = target.get("_tooltip_pos")
+        if display_def and tooltip_pos:
+            html = self._format_definition_tooltip(display_def)
+            QToolTip.showText(tooltip_pos, html)
+        elif tooltip_pos:
+            QToolTip.showText(
+                tooltip_pos,
+                f"<b>{target.get('word', 'Symbol')}</b><br/>"
+                f'<span style="color:#888;">no definition found</span>',
+            )
+
+    def _navigate_to_definition(self) -> None:
         target = self._hyperlink_target
-        return target["line"] == line and target["start"] <= index <= target["end"]
-
-    def _navigate_to_definition(self):
-        if not self._hyperlink_target:
+        if target is None:
             return
 
-        definition = self._hyperlink_target.get("definition")
-        if not definition:
-            # If definition hasn't loaded yet, try to wait briefly
-            self.window().statusBar().showMessage("Resolving definition...", 2000)
+        definition = target.get("definition")
+        if definition is None:
+            hover_info = target.get("_hover_info", [])
+            if hover_info and target.get("_tooltip_pos"):
+                display = hover_info[0]
+                html = self._format_definition_tooltip(display)
+                QToolTip.showText(target["_tooltip_pos"], html)
             return
 
         file_path = definition.get("file")
@@ -612,7 +636,7 @@ class CodeEditor(QsciScintilla):
 
         same_file = definition.get("same_file", False)
 
-        self._force_clear_hyperlink_state()
+        self._hide_symbol_link()
 
         if same_file:
             self.setCursorPosition(line, 0)
@@ -622,12 +646,12 @@ class CodeEditor(QsciScintilla):
         else:
             self._parent.open_file_at_line(file_path, line)
 
-    def _flash_definition_line(self, line):
+    def _flash_definition_line(self, line: int) -> None:
         line_len = len(self.text(line))
         self.fillIndicatorRange(line, 0, line, line_len, self._highlight_indicator)
         QTimer.singleShot(2000, lambda: self._clear_flash_highlight(line))
 
-    def _clear_flash_highlight(self, line):
+    def _clear_flash_highlight(self, line: int) -> None:
         try:
             line_len = len(self.text(line))
             self.clearIndicatorRange(line, 0, line, line_len, self._highlight_indicator)
@@ -1026,8 +1050,10 @@ class CodeEditor(QsciScintilla):
             return
 
         win = self.window()
-        if hasattr(win, '_pending_jedi_requests'):
-            to_remove = [rid for rid, ed in win._pending_jedi_requests.items() if ed is self]
+        if hasattr(win, "_pending_jedi_requests"):
+            to_remove = [
+                rid for rid, ed in win._pending_jedi_requests.items() if ed is self
+            ]
             for rid in to_remove:
                 win._pending_jedi_requests.pop(rid, None)
         self._completion_request_id = None
@@ -1043,14 +1069,16 @@ class CodeEditor(QsciScintilla):
             label = item.get("label", "")
             if prefix and not label.lower().startswith(prefix.lower()):
                 continue
-            add({
-                "label": label,
-                "type": self.normalize_type(item.get("type", "variable")),
-                "source": "jedi",
-                "score": 200,
-                "signature": label,
-                "module": item.get("module", ""),
-            })
+            add(
+                {
+                    "label": label,
+                    "type": self.normalize_type(item.get("type", "variable")),
+                    "source": "jedi",
+                    "score": 200,
+                    "signature": label,
+                    "module": item.get("module", ""),
+                }
+            )
 
         if not items_by_label:
             return

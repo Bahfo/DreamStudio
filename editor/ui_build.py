@@ -87,6 +87,13 @@ class DreamStudio(QMainWindow):
         self._jedi_worker.error_occurred.connect(self._on_jedi_error)
         self._pending_jedi_requests = {}
         self._jedi_request_counter = 0
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        venv_path = os.path.join(project_root, "venv", "bin", "python3")
+        if not os.path.isfile(venv_path):
+            venv_path = os.path.join(project_root, "venv", "bin", "python")
+        if not os.path.isfile(venv_path):
+            venv_path = None
+        self._jedi_worker.set_virtual_environment(venv_path)
         self._jedi_worker.start()
 
         self.setup_layout()
