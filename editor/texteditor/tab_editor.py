@@ -8,7 +8,7 @@ A Custom editor tab changer and code editor for DreamStudio.
 
 # Written by Bahaa Nofal
 
-from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent
+from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QPoint, QEvent
 from PyQt6.Qsci import QsciScintilla
 from PyQt6.QtWidgets import (
     QStyle,
@@ -69,6 +69,7 @@ class DreamStudioIDETabBar(QTabBar):
 
         self._hover_index = -1
         self._is_syncing = False
+        self._dirty_indices: set = set()
         self.currentChanged.connect(self._on_current_changed)
         self.tabBarDoubleClicked.connect(
             self.on_double_click, Qt.ConnectionType.UniqueConnection
@@ -237,8 +238,19 @@ class DreamStudioIDETabBar(QTabBar):
         else:
             option.palette.setColor(QPalette.ColorRole.WindowText, QColor("#AFB1B3"))
 
+        if index in self._dirty_indices:
+            painter.save()
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor("#FFFFFF"))
+            dot_radius = 4
+            dot_x = r.left() + 8
+            dot_y = r.center().y()
+            painter.drawEllipse(QPoint(dot_x, dot_y), dot_radius, dot_radius)
+            painter.restore()
+
         right_reserve = 32 if self.tabsClosable() else 10
-        option.rect = r.adjusted(10, 0, -right_reserve, 0)
+        left_margin = 20 if index in self._dirty_indices else 10
+        option.rect = r.adjusted(left_margin, 0, -right_reserve, 0)
 
         option.state &= ~QStyle.StateFlag.State_MouseOver
         option.state &= ~QStyle.StateFlag.State_HasFocus
@@ -258,6 +270,26 @@ class DreamStudioIDETabBar(QTabBar):
         # +12px height creates extra "breathing room" above and below the tabs
         return QSize(size.width() + 25, size.height() + 12)
 
+    def mark_dirty(self, index: int, is_dirty: bool) -> None:
+        if is_dirty:
+            self._dirty_indices.add(index)
+        else:
+            self._dirty_indices.discard(index)
+        rect = self.tabRect(index)
+        if not rect.isNull():
+            self.update(rect)
+
+    def rebuild_dirty_indices(self) -> None:
+        self._dirty_indices.clear()
+        for i in range(self._parent.count()):
+            w = self._parent.widget(i)
+            if w is not None and hasattr(w, "is_dirty"):
+                try:
+                    if w.is_dirty():
+                        self._dirty_indices.add(i)
+                except RuntimeError:
+                    pass
+
     def on_double_click(self, index):
         logger.debug("double click triggered")
         if index == -1:
@@ -265,7 +297,7 @@ class DreamStudioIDETabBar(QTabBar):
 
 
 class DreamTabbedEditor(QTabWidget):
-    def __init__(self, _parent):
+    def __init__(self, _parent, dirty_tracker=None):
         super().__init__(_parent)
 
         self.setTabBar(DreamStudioIDETabBar(self))
@@ -275,6 +307,10 @@ class DreamTabbedEditor(QTabWidget):
         self._parent = _parent
         self.currentDirectory = self._parent.currentDirectory
         self.opened_files = {}
+        self._dirty_tracker = dirty_tracker
+
+        if dirty_tracker is not None:
+            dirty_tracker.dirty_state_changed.connect(self._on_dirty_state_changed)
 
         self.tab_counter = self.count()
 
@@ -300,6 +336,12 @@ class DreamTabbedEditor(QTabWidget):
         self._save_as_shortcut.activated.connect(self.save_current_file_as)
         self._save_all_shortcut = QShortcut(QKeySequence("Ctrl+Alt+S"), self)
         self._save_all_shortcut.activated.connect(self.save_all_files)
+
+    def _on_dirty_state_changed(self, editor: object, is_dirty: bool) -> None:
+        for i in range(self.count()):
+            if self.widget(i) is editor:
+                self.tabBar().mark_dirty(i, is_dirty)
+                break
 
     def open_configurations_json(self):
         key = "json_user_configs"
@@ -338,6 +380,7 @@ class DreamTabbedEditor(QTabWidget):
                 new_editor.load_from_file(file_path)
             else:
                 new_editor.setText(content)
+                new_editor.clear_dirty()
 
         elif viewer_type == "image":
             try:
@@ -387,6 +430,7 @@ class DreamTabbedEditor(QTabWidget):
             else:
                 new_editor = CodeEditor(self, language=language)
                 new_editor.setText(content)
+                new_editor.clear_dirty()
 
         if not key:
             key = f"__untitled_{id(new_editor)}"
@@ -403,6 +447,11 @@ class DreamTabbedEditor(QTabWidget):
 
         self.opened_files[key] = index
 
+        if self._dirty_tracker is not None and hasattr(new_editor, "is_dirty"):
+            self._dirty_tracker.watch(new_editor)
+
+        self.tabBar().rebuild_dirty_indices()
+
         self.setFocus()
         self._parent.update_editor_visibility()
 
@@ -417,6 +466,10 @@ class DreamTabbedEditor(QTabWidget):
         editor = self.widget(index)
         if not editor:
             return
+
+        if self._dirty_tracker is not None:
+            self._dirty_tracker.unwatch(editor)
+
         if hasattr(editor, "textChanged"):
             try:
                 editor.textChanged.disconnect()
@@ -435,6 +488,7 @@ class DreamTabbedEditor(QTabWidget):
 
         self.removeTab(index)
         editor.deleteLater()
+        self.tabBar().rebuild_dirty_indices()
 
         for k in list(self.opened_files.keys()):
             if self.opened_files[k] > index:
@@ -555,13 +609,32 @@ class DreamTabbedEditor(QTabWidget):
 
     def save_current_file(self):
         editor = self.currentWidget()
-        if editor and hasattr(editor, "save"):
-            editor.save()
+        if not editor or not hasattr(editor, "save"):
+            return
+        was_unsaved = not getattr(editor, 'current_file_path', None)
+        editor.save()
+        if was_unsaved and getattr(editor, 'current_file_path', None):
+            self._reopen_saved_tab(editor)
 
     def save_current_file_as(self):
         editor = self.currentWidget()
-        if editor and hasattr(editor, "save_as"):
-            editor.save_as()
+        if not editor or not hasattr(editor, "save_as"):
+            return
+        old_path = getattr(editor, 'current_file_path', None)
+        editor.save_as()
+        new_path = getattr(editor, 'current_file_path', None)
+        if new_path and new_path != old_path:
+            self._reopen_saved_tab(editor)
+
+    def _reopen_saved_tab(self, editor):
+        file_path = editor.current_file_path
+        current_idx = self.currentIndex()
+        self.close_editor(current_idx)
+        self.add_new_editor(
+            file_name=pathlib.Path(file_path).name,
+            file_path=file_path,
+            language=self.set_language(pathlib.Path(file_path).suffix),
+        )
 
     def save_all_files(self):
         for i in range(self.count()):

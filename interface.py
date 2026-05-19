@@ -15,6 +15,8 @@ to establish a personal EcoSystem for usage separated from tracking and stay in
 a comfort zone for daily users.
 """
 
+
+
 # Written by Bahaa Nofal 2-2026
 
 import os, sys

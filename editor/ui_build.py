@@ -55,6 +55,7 @@ from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
 from editor.texteditor.tab_editor import DreamTabbedEditor, CodeEditor
 from editor.lsp.jedi_worker import JediWorker
+from backend.dirty_tracker import DirtyTracker
 
 
 class DreamStudio(QMainWindow):
@@ -307,7 +308,9 @@ class DreamStudio(QMainWindow):
         editor_layout.setContentsMargins(0, 0, 0, 0)
         editor_layout.setSpacing(0)
 
-        self.tab_editors = DreamTabbedEditor(self)
+        self._dirty_tracker = DirtyTracker(self)
+        self.tab_editors = DreamTabbedEditor(self, dirty_tracker=self._dirty_tracker)
+        self._dirty_tracker.start()
 
         editor_layout.addWidget(self.tab_editors)
 

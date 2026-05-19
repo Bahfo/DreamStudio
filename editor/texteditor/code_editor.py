@@ -75,8 +75,7 @@ class CodeEditor(QsciScintilla):
         #####################################
         self.jedi_enabled = True
         self.current_file_path = None
-        self._is_dirty = False
-        self.textChanged.connect(self._mark_dirty)
+        self._saved_hash: int = 0
 
         #####################################
         # ClangD
@@ -1089,6 +1088,7 @@ class CodeEditor(QsciScintilla):
 
         with open(file_path, "r", encoding="utf-8") as f:
             self.setText(f.read())
+        self.clear_dirty()
 
         if self.language in ("CPP", "C", "C++"):
             self.clangd.did_open(file_path, self.text())
@@ -1283,14 +1283,11 @@ class CodeEditor(QsciScintilla):
         self.keyword_map = classification_map
         return lexer
 
-    def _mark_dirty(self):
-        self._is_dirty = True
-
     def clear_dirty(self):
-        self._is_dirty = False
+        self._saved_hash = hash(self.text())
 
     def is_dirty(self):
-        return self._is_dirty
+        return self._saved_hash != hash(self.text())
 
     def save(self):
         if self.current_file_path:
