@@ -29,7 +29,7 @@ from collections import Counter
 logger = logging.getLogger(__name__)
 
 # GUI Imports
-from PyQt6.QtCore import Qt, QSize, QEvent, QDir
+from PyQt6.QtCore import Qt, QSize, QEvent, QDir, QTimer
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -54,6 +54,7 @@ from editor.utils.find_replace import FindReplaceWidget
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
 from editor.texteditor.tab_editor import DreamTabbedEditor, CodeEditor
+from editor.lsp.jedi_worker import JediWorker
 
 
 class DreamStudio(QMainWindow):
@@ -64,6 +65,10 @@ class DreamStudio(QMainWindow):
         self._frame_has_exited = False
         self.etherAI_frame_visible = False
         self._minimap_bound_editor = None
+        self._minimap_timer = QTimer(self)
+        self._minimap_timer.setSingleShot(True)
+        self._minimap_timer.setInterval(500)
+        self._minimap_timer.timeout.connect(self._flush_minimap)
         self._splitter_initialized = False
         self.currentDirectory = QDir.currentPath()
         self.setWindowIcon(QIcon("assets/logos/dreamStudio_icon.png"))
@@ -75,8 +80,15 @@ class DreamStudio(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
+        # Jedi background worker
+        self._jedi_worker = JediWorker(self)
+        self._jedi_worker.results_ready.connect(self._on_jedi_results)
+        self._jedi_worker.error_occurred.connect(self._on_jedi_error)
+        self._pending_jedi_requests = {}
+        self._jedi_request_counter = 0
+        self._jedi_worker.start()
+
         self.setup_layout()
-        self.check_for_OS_compatability()
 
         # Keybindings and shortcutsof editor tabs management:
         # Find them in keybindings_reference.md
@@ -120,9 +132,25 @@ class DreamStudio(QMainWindow):
             self.find_replace_widget.show()
             self.find_replace_widget.find_input.setFocus()
 
-    def check_for_OS_compatability(self):
-        if platform.system() == "Linux":
-            pass
+    def closeEvent(self, event):
+        if self._jedi_worker.isRunning():
+            self._jedi_worker.shutdown()
+        super().closeEvent(event)
+
+    def _on_jedi_results(self, payload, request_id):
+        editor = self._pending_jedi_requests.pop(request_id, None)
+        if editor is None:
+            return
+        cmd, rid, data = payload
+        if cmd == "complete":
+            editor.handle_jedi_completion_results(data)
+        elif cmd == "goto":
+            editor.handle_jedi_goto_results(data)
+        elif cmd == "hover":
+            editor.handle_jedi_hover_results(data)
+
+    def _on_jedi_error(self, error_msg, request_id):
+        self._pending_jedi_requests.pop(request_id, None)
 
     def _widget_Focus(self, frame, color):
         overlay = SplashOverlay(frame, color)
@@ -296,8 +324,6 @@ class DreamStudio(QMainWindow):
         self.minimap.setMaximumWidth(100)
 
         self.tab_editors.installEventFilter(self)
-        self.main_editor_area.addWidget(self.tutorial_window)
-        self.main_editor_area.addWidget(editor_container)
 
         # Ether AI Main Screen
         self.etherAIScreen = QFrame()
@@ -391,26 +417,31 @@ class DreamStudio(QMainWindow):
         if self._minimap_bound_editor is not None:
             try:
                 self._minimap_bound_editor.textChanged.disconnect(
-                    self._update_minimap_from_editor
+                    self._schedule_minimap_update
                 )
             except (TypeError, RuntimeError, AttributeError):
                 pass
             self._minimap_bound_editor = None
 
-        if editor is None:
-            self.minimap.setText("")
-            return
-
-        if not hasattr(editor, "textChanged"):
+        if editor is None or not hasattr(editor, "textChanged"):
             self.minimap.setText("")
             return
 
         self._minimap_bound_editor = editor
-        editor.textChanged.connect(self._update_minimap_from_editor)
-        self._update_minimap_from_editor()
+        editor.textChanged.connect(self._schedule_minimap_update)
+        self._flush_minimap()
 
-        #### Update Lines and Columns
         self.update_position_status()
+
+    def _schedule_minimap_update(self):
+        self._minimap_timer.start()
+
+    def _flush_minimap(self):
+        editor = self._minimap_bound_editor
+        if editor is None:
+            self.minimap.setText("")
+            return
+        self.minimap.setText(editor.text())
 
     def update_position_status(self):
         editor = self._get_current_editor()
@@ -426,14 +457,6 @@ class DreamStudio(QMainWindow):
         if isinstance(current_widget, CodeEditor):
             return current_widget
         return None
-
-    def _update_minimap_from_editor(self):
-        editor = self._minimap_bound_editor
-        if editor is None:
-            self.minimap.setText("")
-            return
-
-        self.minimap.setText(editor.text())
 
     def _state_str(self):
         flags = []

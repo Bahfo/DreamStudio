@@ -1,23 +1,156 @@
+import os
 import sys
+import logging
+
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QSplitter,
     QPushButton,
     QSpacerItem,
     QSizePolicy,
     QStackedWidget,
+    QPlainTextEdit,
+    QTextEdit,
 )
-from PyQt6.QtGui import QFont
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtGui import QFont, QColor, QTextCursor, QPalette
+from PyQt6.QtCore import pyqtSignal, Qt
+
+from editor.lsp.runner import ProcessRunner
+
+logger = logging.getLogger(__name__)
 
 TAB_PROBLEMS = 0
 TAB_TERMINAL = 1
 TAB_PROMPTX = 2
 TAB_DEBUG = 3
 TAB_OUTPUT = 4
+
+
+class TerminalWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._runner = ProcessRunner(self)
+        self._runner.output_received.connect(self._on_output)
+        self._runner.error_received.connect(self._on_error)
+        self._runner.process_finished.connect(self._on_finished)
+        self._runner.process_errored.connect(self._on_runner_error)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._output = QPlainTextEdit(self)
+        self._output.setReadOnly(True)
+        self._output.setUndoRedoEnabled(False)
+        self._output.setMaximumBlockCount(10000)
+        self._output.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: none;
+                font-family: "JetBrains Mono", "Consolas", monospace;
+                font-size: 12px;
+                selection-background-color: #264f78;
+            }
+        """)
+
+        self._input = QPlainTextEdit(self)
+        self._input.setMaximumBlockCount(1)
+        self._input.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._input.setFixedHeight(28)
+        self._input.setPlaceholderText("Enter command...")
+        self._input.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #252526;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                font-family: "JetBrains Mono", "Consolas", monospace;
+                font-size: 12px;
+                selection-background-color: #264f78;
+            }
+        """)
+        self._input.installEventFilter(self)
+
+        layout.addWidget(self._output, stretch=1)
+        layout.addWidget(self._input)
+
+        self._buffer = ""
+
+    def _on_output(self, text):
+        self._output.moveCursor(QTextCursor.MoveOperation.End)
+        self._output.insertPlainText(text)
+        self._output.moveCursor(QTextCursor.MoveOperation.End)
+
+    def _on_error(self, text):
+        self._output.moveCursor(QTextCursor.MoveOperation.End)
+        self._output.insertPlainText(text)
+        self._output.moveCursor(QTextCursor.MoveOperation.End)
+
+    def _on_finished(self, returncode, reason):
+        if reason == "TIMEOUT":
+            self._output.appendPlainText("\n[Process timed out]")
+        elif reason == "CANCELLED":
+            self._output.appendPlainText("\n[Process cancelled]")
+        else:
+            self._output.appendPlainText(f"\n[Process exited with code {returncode}]")
+        self._output.moveCursor(QTextCursor.MoveOperation.End)
+
+    def _on_runner_error(self, error):
+        self._output.appendPlainText(f"\n[Error: {error}]")
+        self._output.moveCursor(QTextCursor.MoveOperation.End)
+
+    def run_command(self, cmd, cwd=None):
+        self._output.appendPlainText(f"$ {' '.join(cmd)}\n")
+        self._output.moveCursor(QTextCursor.MoveOperation.End)
+        self._runner.configure(cmd=cmd, cwd=cwd or os.getcwd())
+        self._runner.start()
+
+    def run_shell_command(self, command_text, cwd=None):
+        shell = "powershell.exe" if sys.platform == "win32" else "bash"
+        flag = "-c"
+        self.run_command([shell, flag, command_text], cwd)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Return and not event.modifiers():
+            text = self._input.toPlainText().strip()
+            self._input.clear()
+            if text:
+                self.run_shell_command(text)
+            return
+        super().keyPressEvent(event)
+
+    def stop(self):
+        if self._runner.is_running():
+            self._runner.stop()
+
+
+class OutputWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._text = QPlainTextEdit(self)
+        self._text.setReadOnly(True)
+        self._text.setMaximumBlockCount(10000)
+        self._text.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: none;
+                font-family: "JetBrains Mono", "Consolas", monospace;
+                font-size: 12px;
+            }
+        """)
+        layout.addWidget(self._text)
+
+    def append_text(self, text):
+        self._text.moveCursor(QTextCursor.MoveOperation.End)
+        self._text.insertPlainText(text)
+
+    def clear(self):
+        self._text.clear()
 
 
 class TerminalPanel(QWidget):
@@ -52,14 +185,13 @@ class TerminalPanel(QWidget):
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(0)
 
-        # ---------------- STACK ----------------
         self.stack = QStackedWidget()
 
         self.problems_tab = QWidget()
-        self.terminal_tab = QWidget()
+        self.terminal_tab = TerminalWidget(self)
         self.promptXShell_tab = QWidget()
         self.debug_tab = QWidget()
-        self.output_tab = QWidget()
+        self.output_tab = OutputWidget(self)
 
         self.tabs = {
             TAB_PROBLEMS: (self.problems_tab, "PROBLEMS"),
@@ -73,7 +205,6 @@ class TerminalPanel(QWidget):
             widget, _ = self.tabs[i]
             self.stack.addWidget(widget)
 
-        # ---------------- TOOLBAR ----------------
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(10, 5, 10, 5)
 
@@ -81,12 +212,10 @@ class TerminalPanel(QWidget):
 
         for i in range(5):
             _, label = self.tabs[i]
-
             btn = QPushButton(label)
             btn.setFont(QFont("Inter", 9, QFont.Weight.Bold))
             btn.setCheckable(True)
             btn.clicked.connect(lambda _, idx=i: self.switch_tab(idx))
-
             toolbar.addWidget(btn)
             self.buttons[i] = btn
 
@@ -99,16 +228,16 @@ class TerminalPanel(QWidget):
         self.btn_close = QPushButton("✕")
         self.btn_close.setFixedSize(26, 26)
         self.btn_close.clicked.connect(self.close_requested.emit)
-
         toolbar.addWidget(self.btn_close)
 
-        # ---------------- LAYOUT ----------------
         main_layout.addLayout(toolbar)
         main_layout.addWidget(self.stack)
 
         self.switch_tab(TAB_TERMINAL)
 
     def switch_tab(self, index):
+        if index < 0 or index >= self.stack.count():
+            return
         self.stack.setCurrentIndex(index)
 
         for i, btn in self.buttons.items():
@@ -118,6 +247,9 @@ class TerminalPanel(QWidget):
             else:
                 btn.setStyleSheet("color: #cccccc; border-bottom: none;")
                 btn.setFixedWidth(90)
+
+    def append_output(self, text):
+        self.output_tab.append_text(text)
 
 
 if __name__ == "__main__":

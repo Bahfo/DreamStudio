@@ -3,16 +3,13 @@
 Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
 Supervised by EXcellent TechStacks Co.
 
-DreamStudio is an Integrated Development Environment Developed Mainly for C++,
-and Python.
-
-The main purpose of DreamStudio is mainly to maintain and develop Excellent
-Technologies Applications and Software. It is mainly established as a software
-to complete the BlueSea Operating System EcoSystem.
-
-DreamStudio is a software written by its original author Bahaa Nofal. His idea is
-to establish a personal EcoSystem for usage separated from tracking and stay in
-a comfort zone for daily users.
+DreamStudio was originally written EXcellent TechStacks founder Bahaa Nofal, his
+idea was to make a reliable ecosystem for future developers to safely and
+securely work in. DreamStudio is the base development environment for EXcellent
+TechStacks applications and Integrated Development Environment, and through its
+reliabilty and ability to be highly optimized using safe pre-optimized tools
+inherited from C-Plus-Plus. DreamStudio is able to be used as a basetool for
+future IDEs and developer software.
 """
 
 # Written By Bahaa Nofal - 4/2026

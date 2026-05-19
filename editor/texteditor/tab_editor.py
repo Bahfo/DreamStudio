@@ -9,6 +9,7 @@ A Custom editor tab changer and code editor for DreamStudio.
 # Written by Bahaa Nofal
 
 from PyQt6.QtCore import Qt, QSize, QTimer, QRect, QEvent
+from PyQt6.Qsci import QsciScintilla
 from PyQt6.QtWidgets import (
     QStyle,
     QLabel,
@@ -422,6 +423,12 @@ class DreamTabbedEditor(QTabWidget):
             except (TypeError, RuntimeError):
                 pass
 
+        if hasattr(editor, "clangd") and hasattr(editor.clangd, "shutdown"):
+            try:
+                editor.clangd.shutdown()
+            except Exception:
+                pass
+
         key = getattr(editor, "file_key", None)
         if key and key in self.opened_files:
             del self.opened_files[key]
@@ -437,7 +444,7 @@ class DreamTabbedEditor(QTabWidget):
 
     def close_tab(self):
         index = self.currentIndex()
-        if index == -1:
+        if index < 0 or index >= self.count():
             return
 
         self.close_editor(index)
@@ -564,39 +571,24 @@ class DreamTabbedEditor(QTabWidget):
 
     def return_file_info(self):
         editor = self._parent._get_current_editor()
-        text = editor.text()
+        if editor is None:
+            return
 
-        if not text:
-            return "LF", 4  # Default fallback for empty editors
-
-        # ---------- Line Endings ----------
-        if "\r\n" in text:
+        eol_mode = editor.eolMode()
+        if eol_mode == QsciScintilla.EolMode.EolWindows:
             line_ending = "CRLF"
-        elif "\r" in text:
+        elif eol_mode == QsciScintilla.EolMode.EolMac:
             line_ending = "CR"
         else:
             line_ending = "LF"
 
-        indents = set()
-        uses_tabs = False
-        for line in text.splitlines():
-            if not line.strip():
-                continue
-
-            if line.startswith("\t"):
-                uses_tabs = True
-                break
-
-            match = re.match(r"^( +)", line)
-            if match:
-                indents.add(len(match.group(1)))
+        tab_width = editor.indentationWidth()
+        uses_tabs = editor.indentationsUseTabs()
 
         if uses_tabs:
-            indentation_width = "Tabs"
-        elif indents:
-            indentation_width = min(indents)
+            indentation_width = f"Tabs"
         else:
-            indentation_width = 4
+            indentation_width = f"{tab_width}"
 
         self._parent.status_bar.EOL.setText(f"{line_ending}")
         self._parent.status_bar.spacing_options.setText(

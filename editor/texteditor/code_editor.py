@@ -12,11 +12,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont, QIcon, QColor, QKeyEvent
 
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-
+import ast
 import re
 import json
-import jedi
 import logging
 
 logger = logging.getLogger(__name__)
@@ -161,6 +159,11 @@ class CodeEditor(QsciScintilla):
         self._completion_timer = QTimer(self)
         self._completion_timer.setSingleShot(True)
         self._completion_timer.timeout.connect(self.request_completion)
+
+        # Jedi async request tracking
+        self._completion_request_id = None
+        self._goto_request_id = None
+        self._hover_request_id = None
 
         self._symbol_update_timer.setInterval(400)
 
@@ -323,20 +326,7 @@ class CodeEditor(QsciScintilla):
             & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
         )
         if has_ctrl:
-            self._schedule_hyperlink_update()
-        else:
-            self._force_clear_hyperlink_state()
-
-        mods = QApplication.keyboardModifiers()
-        has_ctrl = bool(
-            mods
-            & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
-        )
-
-        if has_ctrl:
-            self._last_mouse_pos = (
-                event.pos()
-            )  # Cache mouse coordinate point safely once
+            self._last_mouse_pos = event.pos()
             self._schedule_hyperlink_update()
         else:
             self._force_clear_hyperlink_state()
@@ -456,53 +446,28 @@ class CodeEditor(QsciScintilla):
 
         self._last_word = word
 
-        # Only ask Jedi for tracking data if we moved over a distinct new token string
-        definition = self._get_definition_location(word, line, start)
-        if definition:
-            if self._hyperlink_target:
-                try:
-                    old_line = self._hyperlink_target["line"]
-                    old_start = self._hyperlink_target["start"]
-                    old_end = self._hyperlink_target["end"]
-                    self.clearIndicatorRange(
-                        old_line,
-                        old_start,
-                        old_line,
-                        old_end,
-                        self._hyperlink_indicator,
-                    )
-                except RuntimeError:
-                    pass
-
-            self._hyperlink_target = {
-                "word": word,
-                "line": line,
-                "start": start,
-                "end": end,
-                "definition": definition,
-            }
+        _existing = self._hyperlink_target
+        if _existing:
             try:
-                self.fillIndicatorRange(
-                    line, start, line, end, self._hyperlink_indicator
+                self.clearIndicatorRange(
+                    _existing["line"],
+                    _existing["start"],
+                    _existing["line"],
+                    _existing["end"],
+                    self._hyperlink_indicator,
                 )
             except RuntimeError:
                 pass
-        else:
-            if self._hyperlink_target:
-                try:
-                    old_line = self._hyperlink_target["line"]
-                    old_start = self._hyperlink_target["start"]
-                    old_end = self._hyperlink_target["end"]
-                    self.clearIndicatorRange(
-                        old_line,
-                        old_start,
-                        old_line,
-                        old_end,
-                        self._hyperlink_indicator,
-                    )
-                except RuntimeError:
-                    pass
-                self._hyperlink_target = None
+
+        self._hyperlink_target = {
+            "word": word,
+            "line": line,
+            "start": start,
+            "end": end,
+            "definition": None,
+        }
+
+        self._request_definition_location(word, line, start)
 
     def _is_python_keyword(self, word):
         keywords = {
@@ -544,43 +509,82 @@ class CodeEditor(QsciScintilla):
         }
         return word in keywords
 
-    def _get_definition_location(self, word, line, index):
+    def _request_definition_location(self, word, line, index):
         if self.language != "Python" or not self.jedi_enabled:
-            return None
+            return
         if not self.current_file_path:
-            return None
+            return
         if self._is_python_keyword(word):
-            return None
+            return
 
-        try:
-            source = self.text()
-            script = jedi.Script(code=source, path=self.current_file_path)
-            definitions = script.goto(line + 1, index)
-            if not definitions:
-                return None
+        win = self.window()
+        if not hasattr(win, "_jedi_worker"):
+            return
 
-            for defn in definitions:
-                if defn.line is None:
-                    continue
+        source = self.text()
+        req_id = win._jedi_request_counter
+        win._jedi_request_counter += 1
+        win._pending_jedi_requests[req_id] = self
+        self._goto_request_id = req_id
 
-                module_path = defn.module_path
-                file_path = None
+        win._jedi_worker.request_goto(
+            source, self.current_file_path, line + 1, index, req_id
+        )
 
-                if module_path is not None:
-                    file_path = str(module_path)
-                elif hasattr(defn, "line") and defn.line:
-                    file_path = self.current_file_path
+    def handle_jedi_goto_results(self, definitions):
+        win = self.window()
+        if hasattr(win, '_pending_jedi_requests'):
+            to_remove = [rid for rid, ed in win._pending_jedi_requests.items() if ed is self]
+            for rid in to_remove:
+                win._pending_jedi_requests.pop(rid, None)
+        self._goto_request_id = None
+        if not definitions:
+            self._on_definition_ready(None)
+            return
 
-                if file_path:
-                    return {
-                        "file": file_path,
-                        "line": defn.line - 1,
-                        "column": defn.column or 0,
-                        "same_file": file_path == self.current_file_path,
-                    }
-            return None
-        except Exception:
-            return None
+        for d in definitions:
+            file_path = d.get("file")
+            if file_path is None:
+                continue
+            if d.get("in_builtin"):
+                continue
+
+            self._on_definition_ready({
+                "file": file_path,
+                "line": d["line"] - 1 if d["line"] else 0,
+                "column": d["column"] or 0,
+                "same_file": file_path == self.current_file_path,
+            })
+            return
+
+        self._on_definition_ready(None)
+
+    def handle_jedi_hover_results(self, items):
+        win = self.window()
+        if hasattr(win, '_pending_jedi_requests'):
+            to_remove = [rid for rid, ed in win._pending_jedi_requests.items() if ed is self]
+            for rid in to_remove:
+                win._pending_jedi_requests.pop(rid, None)
+        self._hover_request_id = None
+
+    def _on_definition_ready(self, definition):
+        target = self._hyperlink_target
+        if target is None:
+            return
+        if definition:
+            target["definition"] = definition
+            try:
+                self.fillIndicatorRange(
+                    target["line"],
+                    target["start"],
+                    target["line"],
+                    target["end"],
+                    self._hyperlink_indicator,
+                )
+            except RuntimeError:
+                pass
+        else:
+            self._force_clear_hyperlink_state()
 
     def _clear_hyperlink_highlight(self):
         self._force_clear_hyperlink_state()
@@ -597,6 +601,8 @@ class CodeEditor(QsciScintilla):
 
         definition = self._hyperlink_target.get("definition")
         if not definition:
+            # If definition hasn't loaded yet, try to wait briefly
+            self.window().statusBar().showMessage("Resolving definition...", 2000)
             return
 
         file_path = definition.get("file")
@@ -644,10 +650,38 @@ class CodeEditor(QsciScintilla):
     def update_document_symbols(self):
         self.imported_modules.clear()
         self.imported_symbols.clear()
-
         self.document_symbols["variables"] = set()
         self.document_symbols["functions"] = set()
         self.document_symbols["classes"] = set()
+
+        if self.language != "Python":
+            return
+
+        source = self.text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            return
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                self.document_symbols["functions"].add(node.name)
+            elif isinstance(node, ast.AsyncFunctionDef):
+                self.document_symbols["functions"].add(node.name)
+            elif isinstance(node, ast.ClassDef):
+                self.document_symbols["classes"].add(node.name)
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        self.document_symbols["variables"].add(target.id)
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    self.imported_modules.add(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    self.imported_modules.add(node.module.split(".")[0])
+                for alias in node.names:
+                    self.imported_symbols.add(alias.name)
 
     def show_completion_popup(self, items):
         self.completion_popup.clear()
@@ -773,6 +807,7 @@ class CodeEditor(QsciScintilla):
         self.current_completion_context = context
         items = self.get_completion_items(context)
         self.show_completion_popup(items)
+        self._request_jedi_completions(context)
 
     def normalize_type(self, t):
         return {
@@ -842,16 +877,8 @@ class CodeEditor(QsciScintilla):
         context_type = context.get("type", "global")
         items_by_label = {}
 
-        # unified insertion function (prevents inconsistent metadata)
         def add(item):
             self.add_item(items_by_label, item, context)
-
-        if self.language == "Python":
-            for item in self.get_jedi_completions(context):
-                add(item)
-
-        elif self.language in ("CPP", "C"):
-            return
 
         if context_type != "attribute":
             for word, word_type in self.keyword_map.items():
@@ -972,46 +999,90 @@ class CodeEditor(QsciScintilla):
 
         return "    ".join(parts)
 
-    def get_jedi_completions(self, context):
+    def _request_jedi_completions(self, context):
         if self.language != "Python" or not self.jedi_enabled:
-            return []
+            return
+        if not self.current_file_path:
+            return
 
-        try:
-            prefix = context.get("prefix", "")
-            source = self.text()
-            line, index = self.getCursorPosition()
+        win = self.window()
+        if not hasattr(win, "_jedi_worker"):
+            return
 
-            script = jedi.Script(code=source, path=self.current_file_path)
-            completions = script.complete(line + 1, index)
+        source = self.text()
+        line, index = self.getCursorPosition()
+        req_id = win._jedi_request_counter
+        win._jedi_request_counter += 1
+        win._pending_jedi_requests[req_id] = self
+        self._completion_request_id = req_id
 
-            items = []
-            seen = set()
+        win._jedi_worker.request_completion(
+            source, self.current_file_path, line + 1, index, req_id
+        )
 
-            for completion in completions:
-                name = completion.name or ""
-                if prefix and not name.lower().startswith(prefix.lower()):
-                    continue
+    def handle_jedi_completion_results(self, items):
+        if not items:
+            return
+        if not self.current_completion_context:
+            return
 
-                key = (name, completion.type)
-                if key in seen:
-                    continue
-                seen.add(key)
+        win = self.window()
+        if hasattr(win, '_pending_jedi_requests'):
+            to_remove = [rid for rid, ed in win._pending_jedi_requests.items() if ed is self]
+            for rid in to_remove:
+                win._pending_jedi_requests.pop(rid, None)
+        self._completion_request_id = None
 
-                items.append(
-                    {
-                        "label": name,
-                        "type": self.normalize_type(completion.type),
-                        "source": "jedi",
-                        "score": 200,
-                        "signature": name,
-                        "module": completion.module_name,
-                    }
+        context = self.current_completion_context
+        prefix = context.get("prefix", "")
+        items_by_label = {}
+
+        def add(item):
+            self.add_item(items_by_label, item, context)
+
+        for item in items:
+            label = item.get("label", "")
+            if prefix and not label.lower().startswith(prefix.lower()):
+                continue
+            add({
+                "label": label,
+                "type": self.normalize_type(item.get("type", "variable")),
+                "source": "jedi",
+                "score": 200,
+                "signature": label,
+                "module": item.get("module", ""),
+            })
+
+        if not items_by_label:
+            return
+
+        existing_popup_items = []
+        if self.completion_popup.isVisible():
+            for i in range(self.completion_popup.count()):
+                existing_popup_items.append(
+                    self.completion_popup.item(i).data(Qt.ItemDataRole.UserRole)
                 )
+            self.completion_popup.clear()
+        else:
+            self.show_completion_popup(list(items_by_label.values()))
+            return
 
-            return items
+        merged = {}
+        for item in existing_popup_items:
+            self.add_item(merged, item, context)
+        for item in items_by_label.values():
+            self.add_item(merged, item, context)
 
-        except Exception:
-            return []
+        merged_items = list(merged.values())
+        merged_items.sort(
+            key=lambda x: (
+                self.score_item(x, context),
+                x.get("score", 0),
+                x["label"].lower(),
+            ),
+            reverse=True,
+        )
+        self.show_completion_popup(merged_items)
 
     def load_from_file(self, file_path):
         self.current_file_path = file_path

@@ -183,11 +183,11 @@ class StatusBar(QFrame):
         }""")
         statusbar_layout.addWidget(self.statusBtn)
 
-        self.warningBtn = QPushButton("")
-        self.warningBtn.setFixedSize(30, 28)
-        self.warningBtn.setIcon(QIcon("assets/system/notificaiton.png"))
-        self.warningBtn.setIconSize(QSize(20, 20))
-        self.warningBtn.setStyleSheet("""
+        self.notificationBtn = QPushButton("")
+        self.notificationBtn.setFixedSize(30, 28)
+        self.notificationBtn.setIcon(QIcon("assets/system/notificaiton.png"))
+        self.notificationBtn.setIconSize(QSize(20, 20))
+        self.notificationBtn.setStyleSheet("""
         QPushButton{
         background-color: transparent;
         border: none;
@@ -197,7 +197,7 @@ class StatusBar(QFrame):
         padding-right: 10px;
         }
         QPushButton:hover{background-color: #333}""")
-        statusbar_layout.addWidget(self.warningBtn)
+        statusbar_layout.addWidget(self.notificationBtn)
 
     def on_zoom_toggle(self, zoomText: str):
         if not zoomText:
@@ -205,34 +205,19 @@ class StatusBar(QFrame):
 
         try:
             percent = int(zoomText.replace("%", "").strip())
-            new_size = int(10 * (percent / 100))
-
-            app = QApplication.instance()
-            font = app.font()
-            font.setPointSize(new_size)
-            app.setFont(font)
-            app.setStyleSheet(f"* {{ font-size: {new_size}pt; }}")
-            self.text_zoom_toggle(zoomText)
-
-            for widget in app.allWidgets():
-                widget.style().unpolish(widget)
-                widget.style().polish(widget)
-                widget.update()
-
+            zoom_map = {"75": -2, "100": 0, "110": 1, "125": 3, "150": 5}
+            zoom_level = zoom_map.get(str(percent), 0)
+            self.text_zoom_toggle(zoom_level)
         except Exception as e:
             print(f"Zoom error: {e}")
 
-    def text_zoom_toggle(self, zoomText: str):
-        if not zoomText:
-            return
-
+    def text_zoom_toggle(self, zoom_level: int):
         main_win = self.window()
         tabs = getattr(main_win, "tab_editors", None)
+        if not tabs:
+            return
 
-        if tabs:
-            current_editor = tabs.currentWidget()
-
-            if current_editor:
-                zoom_map = {"75%": -2, "100%": 0, "110%": 1, "125%": 3, "150%": 5}
-                level = zoom_map.get(zoomText, 0)
-                current_editor.zoomTo(level)
+        for i in range(tabs.count()):
+            editor = tabs.widget(i)
+            if editor and hasattr(editor, "zoomTo"):
+                editor.zoomTo(zoom_level)

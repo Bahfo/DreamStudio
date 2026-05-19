@@ -1,8 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QVBoxLayout, QSplitter, QFileDialog
 from PyQt6.QtCore import QTimer, Qt
 
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-
 import markdown
 
 
@@ -19,12 +17,12 @@ class MarkdownViewer(QWidget):
             }
         """)
 
-        # ---- Layout ----
+        from PyQt6.QtWebEngineWidgets import QWebEngineView
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
 
-        # ---- Editor ----
         self.editor = QPlainTextEdit()
         self.editor.setPlaceholderText("# Markdown...\nStart typing here")
 
@@ -63,12 +61,10 @@ class MarkdownViewer(QWidget):
             }
         """)
 
-        # ---- Preview ----
         self.preview = QWebEngineView()
         self.preview.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.preview.setHtml(self._base_html())
 
-        # ---- Splitter ----
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self.editor)
         splitter.addWidget(self.preview)
@@ -89,7 +85,6 @@ class MarkdownViewer(QWidget):
 
         layout.addWidget(splitter)
 
-        # ---- Debounce ----
         self.timer = QTimer()
         self.timer.setSingleShot(True)
         self.timer.setInterval(300)
@@ -202,13 +197,9 @@ class MarkdownViewer(QWidget):
 
     def update_preview(self):
         text = self.editor.toPlainText()
-
         html = markdown.markdown(text, extensions=["fenced_code", "tables", "toc"])
-
         html = html.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-
         js = f"""
             document.getElementById('content').innerHTML = '{html}';
         """
-
         self.preview.page().runJavaScript(js)
