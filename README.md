@@ -11,7 +11,7 @@ If you are new to the project and would like to get started quickly, please read
 ![DreamStudio in Action](assets/logos/dreamstudio_in_action.png)
 
 ## Getting the Source Code
-The repository is available from the [GitHub Repository][https://github.com/Bahfo/DreamJetPack-Official_Repository], which can be cloned or downloaded as a zip file. The *main* (default) branch contains the source code of the repository. 
+The repository is available from at https://github.com/Bahfo/DreamJetPack-Official_Repository, which can be cloned or downloaded as a zip file. The *main* (default) branch contains the source code of the repository. 
 
 Alternatively, follow the steps shown below in a terminal:
 
