@@ -19,12 +19,8 @@ Supervised by EXcellent TechStacks Co.
 
 # Main Imports
 import os
-import re
 import logging
 import pathlib
-import platform
-
-from collections import Counter
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +46,7 @@ from editor.utils.optionsBar import OptionsMenu
 from editor.animations.splash import SplashOverlay
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.terminal.terminal_ui import TerminalPanel
+from editor.extns.marketplace import ExtensionsTab
 from editor.utils.find_replace import FindReplaceWidget
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
@@ -223,7 +220,7 @@ class DreamStudio(QMainWindow):
         #### Some PlaceHolders
         self.search_menu = QWidget()
         self.git_menu = QWidget()
-        self.extns_menu = QWidget()
+        self.extns_menu = ExtensionsTab()
 
         self.sidebar_frame.addWidget(self.treeview)
         self.sidebar_frame.addWidget(self.search_menu)
