@@ -2,12 +2,13 @@ import re
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QFrame,
     QHBoxLayout,
     QVBoxLayout,
-    QLineEdit,
     QPushButton,
+    QSizePolicy,
+    QLineEdit,
     QLabel,
+    QFrame,
 )
 
 
@@ -361,3 +362,144 @@ class FindReplaceWidget(QFrame):
             self._navigate(False)
             return
         super().keyPressEvent(event)
+
+
+class GlobalFileSearchEngine(QFrame):
+    def __init__(self, _parent=None):
+        super().__init__()
+        self._parent = _parent
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.setStyleSheet("background-color: #171717; border: none;")
+
+        self._init_ui()
+
+    def _init_ui(self):
+        self._layout = QVBoxLayout(self)
+
+        self._layout.addSpacing(10)
+        self.search_label = QLabel("FIND AND REPLACE")
+        self.search_label.setStyleSheet(
+            "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+        )
+        self._layout.addWidget(self.search_label)
+        self._layout.addSpacing(10)
+
+        find_row = QHBoxLayout()
+        find_row.setSpacing(4)
+        self.find_input = QLineEdit()
+        self.find_input.setPlaceholderText("Find")
+        self.btn_case = QPushButton("Aa")
+        self.btn_case.setCheckable(True)
+        self.btn_word = QPushButton("ab")
+        self.btn_word.setCheckable(True)
+        self.btn_regex = QPushButton(".*")
+        self.btn_regex.setCheckable(True)
+        self.result_label = QLabel("")
+        self.btn_prev = QPushButton("↑")
+        self.btn_next = QPushButton("↓")
+        self.btn_close = QPushButton("✕")
+
+        find_row.addWidget(self.find_input)
+        find_row.addWidget(self.btn_case)
+        find_row.addWidget(self.btn_word)
+        find_row.addWidget(self.btn_regex)
+        find_row.addWidget(self.result_label)
+        find_row.addWidget(self.btn_prev)
+        find_row.addWidget(self.btn_next)
+        find_row.addWidget(self.btn_close)
+
+        replace_row = QHBoxLayout()
+        replace_row.setSpacing(4)
+        self.replace_input = QLineEdit()
+        self.replace_input.setPlaceholderText("Replace")
+        self.btn_replace = QPushButton("Replace")
+        self.btn_replace_all = QPushButton("All")
+        replace_row.addWidget(self.replace_input)
+        replace_row.addWidget(self.btn_replace)
+        replace_row.addWidget(self.btn_replace_all)
+
+        self._layout.addLayout(find_row)
+        self._layout.addLayout(replace_row)
+
+        self._layout.addSpacing(20)
+        self.constraints_label = QLabel("SEARCH CONSTRAINTS")
+        self.constraints_label.setStyleSheet(
+            "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+        )
+        self._layout.addWidget(self.constraints_label)
+        self._layout.addSpacing(10)
+
+        self.file_mask_input = QLineEdit()
+        self.file_mask_input.setPlaceholderText("File Mask (.*)")
+        self._layout.addWidget(self.file_mask_input)
+
+        options_row = QHBoxLayout()
+        options_row.setSpacing(4)
+        self.btn_inProject = QPushButton("In Project")
+        self.btn_inProject.setCheckable(True)
+        self.btn_inProject.setFixedWidth(90)
+        self.btn_Directory = QPushButton("Directory")
+        self.btn_Directory.setCheckable(True)
+        self.btn_Directory.setFixedWidth(90)
+        self.btn_Module = QPushButton("Module")
+        self.btn_Module.setCheckable(True)
+        self.btn_Module.setFixedWidth(90)
+        self.btn_Scope = QPushButton("Scope")
+        self.btn_Scope.setCheckable(True)
+        self.btn_Scope.setFixedWidth(90)
+
+        options_row.addWidget(self.btn_inProject)
+        options_row.addWidget(self.btn_Directory)
+        options_row.addWidget(self.btn_Module)
+        options_row.addWidget(self.btn_Scope)
+
+        options_row.addStretch()
+        self._layout.addLayout(options_row)
+
+        self.setStyleSheet("""
+            QFrame#findReplaceWidget {
+                background-color: #252526;
+                border: 1px solid #454545;
+                border-radius: 4px;
+            }
+
+            QLineEdit {
+                background-color: #3C3C3C;
+                color: #D4D4D4;
+                border: 1px solid #3C3C3C;
+                border-radius: 2px;
+                padding: 4px;
+                font-family: "JetBrains Mono";
+                font-size: 12px;
+            }
+
+            QLineEdit:focus {
+                border: 1px solid #007ACC;
+            }
+
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 2px;
+                color: #858585;
+                padding: 3px 6px;
+            }
+
+            QPushButton:hover {
+                background-color: #3A3A3C;
+            }
+
+            QPushButton:checked {
+                background-color: #007ACC;
+                color: white;
+            }
+
+            QLabel {
+                color: #C5C5C5;
+                font-size: 11px;
+                background-color: #171717;
+            }
+        """)
+
+        self._layout.addStretch()

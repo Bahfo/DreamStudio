@@ -46,8 +46,9 @@ from editor.utils.optionsBar import OptionsMenu
 from editor.animations.splash import SplashOverlay
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.terminal.terminal_ui import TerminalPanel
-from editor.extns.marketplace import ExtensionsTab
-from editor.utils.find_replace import FindReplaceWidget
+from editor.utils.marketplace import ExtensionsTab
+from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
+from editor.utils.source_control import SourceControl
 from editor.utils.fast_tutorial import FastTutorialFrame
 from editor.utils.file_explorer import DreamFileTreeWindow
 from editor.texteditor.tab_editor import DreamTabbedEditor, CodeEditor
@@ -218,8 +219,8 @@ class DreamStudio(QMainWindow):
         )
 
         #### Some PlaceHolders
-        self.search_menu = QWidget()
-        self.git_menu = QWidget()
+        self.search_menu = GlobalFileSearchEngine()
+        self.git_menu = SourceControl()
         self.extns_menu = ExtensionsTab()
 
         self.sidebar_frame.addWidget(self.treeview)

@@ -9,12 +9,13 @@ A Custom Treeview hierarchy for DreamStudio.
 # Written by Bahaa Nofal - April/2026
 
 from PyQt6.QtWidgets import (
+    QVBoxLayout,
+    QSizePolicy,
     QTreeView,
     QLineEdit,
-    QVBoxLayout,
     QFrame,
+    QLabel,
     QMenu,
-    QSizePolicy,
 )
 from PyQt6.QtGui import QFileSystemModel
 from PyQt6.QtCore import QSortFilterProxyModel, Qt
@@ -24,21 +25,15 @@ from editor.widgets.QIconsProvider import DreamStudioIconProvider
 
 class DreamTreeViewProxy(QSortFilterProxyModel):
     def lessThan(self, source_left, source_right):
-        left_data = self.sourceModel().data(source_left)
-        right_data = self.sourceModel().data(source_right)
-
-        # Get file info to check if it is a directory
         left_is_dir = self.sourceModel().isDir(source_left)
         right_is_dir = self.sourceModel().isDir(source_right)
 
-        # If one is a directory and the other is not
         if left_is_dir != right_is_dir:
             if self.sortOrder() == Qt.SortOrder.AscendingOrder:
                 return left_is_dir
             else:
                 return not left_is_dir
 
-        # If both are same type, fall back to default sorting (e.g., by name)
         return super().lessThan(source_left, source_right)
 
 
@@ -60,6 +55,14 @@ class DreamFileTreeWindow(QFrame):
         self.model = QFileSystemModel()
         self.icon_provider = DreamStudioIconProvider()
         self.model.setIconProvider(self.icon_provider)
+
+        self.treeview_layout.addSpacing(10)
+        self.search_label = QLabel("FILE EXPLORER")
+        self.search_label.setStyleSheet(
+            "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+        )
+        self.treeview_layout.addWidget(self.search_label)
+        self.treeview_layout.addSpacing(10)
 
         # Search Bar
         self.searchBar = QLineEdit()
