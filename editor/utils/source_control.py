@@ -112,7 +112,7 @@ class SourceControl(QFrame):
     # TODO: Implement git in backend logic
     def refresh_git_status(self):
         """
-        Stub loader where your backend logic queries git status
+        Stub loader where the backend logic queries git status
         and updates the section sub-layouts with GitFileRow items.
         """
         pass
