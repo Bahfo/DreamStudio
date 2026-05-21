@@ -1257,20 +1257,45 @@ class CodeEditor(QsciScintilla):
             self.apply_theme()
             return
 
-    def apply_theme(self):
-        self.setPaper(QColor("#1E1E1E"))
-        self.setColor(QColor("#D4D4D4"))
-        self.setSelectionBackgroundColor(QColor("#264F78"))
-        self.setSelectionForegroundColor(QColor("#FFFFFF"))
-        self.setCaretForegroundColor(QColor("#FFFFFF"))
+    def apply_theme(self, t=None):
+        if t is not None:
+            bg = t.color("editor.background")
+            fg = t.color("editor.text")
+            sel_bg = t.color("editor.selection_bg")
+            sel_fg = t.color("editor.selection_fg")
+            caret = t.color("editor.caret")
+            margin_bg = t.color("editor.margin_bg")
+            margin_fg = t.color("editor.margin_fg")
+        else:
+            bg = "#1E1E1E"
+            fg = "#D4D4D4"
+            sel_bg = "#264F78"
+            sel_fg = "#FFFFFF"
+            caret = "#FFFFFF"
+            margin_bg = "#1E1E1E"
+            margin_fg = "#D4D4D4"
 
-        self.setMarginsBackgroundColor(QColor("#1E1E1E"))
-        self.setMarginsForegroundColor(QColor("#D4D4D4"))
+        self.setPaper(QColor(bg))
+        self.setColor(QColor(fg))
+        self.setSelectionBackgroundColor(QColor(sel_bg))
+        self.setSelectionForegroundColor(QColor(sel_fg))
+        self.setCaretForegroundColor(QColor(caret))
+        caret_line = t.color("widget.border") if t is not None else "#323232"
+        self.setCaretLineBackgroundColor(QColor(caret_line))
+        self.setCaretLineVisible(True)
 
-        if self._lexer:
-            self._lexer.setDefaultColor(QColor("#D4D4D4"))
-            for style in range(128):
-                self._lexer.setPaper(QColor("#1E1E1E"), style)
+        self.setMarginsBackgroundColor(QColor(margin_bg))
+        self.setMarginsForegroundColor(QColor(margin_fg))
+
+        self.setFoldMarginColors(QColor(margin_bg), QColor(margin_bg))
+
+        if self._lexer and t is not None:
+            if hasattr(self._lexer, "apply_syntax_theme"):
+                self._lexer.apply_syntax_theme(t)
+            else:
+                self._lexer.setDefaultColor(QColor(fg))
+                for style in range(128):
+                    self._lexer.setPaper(QColor(bg), style)
 
     def load_language_keywords(self, lang: str):
         lang_key = "CPP" if lang in ("C", "CPP", "C++") else lang

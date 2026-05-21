@@ -199,6 +199,42 @@ class StatusBar(QFrame):
         QPushButton:hover{background-color: #333}""")
         statusbar_layout.addWidget(self.notificationBtn)
 
+    def retheme(self, t) -> None:
+        bg = t.color("statusbar.background")
+        text = t.color("statusbar.text")
+        self.setStyleSheet(f"""
+        QFrame{{border: 0; border-radius: 0px; background-color: {bg};}}""")
+        self.zoomBtn.setStyleSheet(f"""
+            QComboBox {{background: transparent; color: {text}; border: none; padding-left: 5px;}}
+            QComboBox::drop-down {{border: none; width: 0px;}}
+            QAbstractItemView {{
+                background-color: {t.color("menu.background")};
+                color: {text};
+                border: 1px solid {t.color("menu.border")};
+                selection-background-color: {t.color("menu.selected")};
+                outline: none;
+                padding: 5px;
+            }}""")
+        btn_style = f"""
+        QPushButton{{background-color: transparent; border: none; color: {text}; border-radius: 0px;}}
+        QPushButton:hover{{background-color: {t.color("notifications.button_hover")};}}"""
+        self.warningBtn.setStyleSheet(btn_style)
+        self.errorsBtn.setStyleSheet(btn_style)
+        label_style = f"""
+        QLabel{{background-color: transparent; border:none; border-radius: 0px; color: {text}; font-size: 12px; font-family: Arial;}}"""
+        self.lines_and_cols.setStyleSheet(label_style)
+        self.spacing_options.setStyleSheet(label_style + "padding-left: 7px;")
+        self.EOL.setStyleSheet(label_style + "padding-left: 7px; padding-right: 13px;")
+        self.terminalWindow.setStyleSheet(f"""
+        QPushButton{{background-color: transparent; font-size:12px; font-family: Arial; border: none; color: {text}; border-radius: 0px; padding-left: 5px; padding-right: 10px;}}
+        QPushButton:hover{{background-color: {t.color("notifications.button_hover")};}}""")
+        self.statusBtn.setStyleSheet(f"""
+        QPushButton{{background-color: transparent; font-size:12px; font-family: Arial; border: none; color: {text}; border-radius: 0px; padding-left: 5px; padding-right: 5px;}}
+        QPushButton:hover{{background-color: {t.color("notifications.button_hover")};}}""")
+        self.notificationBtn.setStyleSheet(f"""
+        QPushButton{{background-color: transparent; border: none; color: {text}; border-radius: 0px; padding-left: 5px; padding-right: 10px;}}
+        QPushButton:hover{{background-color: {t.color("notifications.button_hover")};}}""")
+
     def on_zoom_toggle(self, zoomText: str):
         if not zoomText:
             return

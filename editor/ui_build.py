@@ -24,12 +24,14 @@ import pathlib
 
 # Third-Party Imports (GUI)
 from PyQt6.QtCore import QDir, QEvent, QSize, Qt, QTimer
-from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
+from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QFrame,
     QHBoxLayout,
     QMainWindow,
+    QMenu,
     QPushButton,
     QSplitter,
     QStackedWidget,
@@ -52,6 +54,7 @@ from editor.texteditor.tab_editor import (
     BackgroundHintsFrame,
 )
 from editor.utils.file_explorer import DreamFileTreeWindow
+from editor.utils.theme_manager import ThemeManager
 from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
 from editor.utils.marketplace import ExtensionsTab
 from editor.utils.optionsBar import OptionsMenu
@@ -75,6 +78,7 @@ class DreamStudio(QMainWindow):
         self._minimap_timer.setInterval(500)
         self._minimap_timer.timeout.connect(self._flush_minimap)
         self._splitter_initialized = False
+        self.terminal_collapsed = True
         self.currentDirectory = QDir.currentPath()
         self.setWindowIcon(QIcon("assets/logos/dreamStudio_icon.png"))
 
@@ -99,6 +103,9 @@ class DreamStudio(QMainWindow):
             venv_path = None
         self._jedi_worker.set_virtual_environment(venv_path)
         self._jedi_worker.start()
+
+        self.theme_manager = ThemeManager(self)
+        self.theme_manager.theme_changed.connect(self._on_theme_changed)
 
         self.setup_layout()
 
@@ -136,6 +143,122 @@ class DreamStudio(QMainWindow):
         self.replace_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
         self.replace_shortcut.activated.connect(self.toggle_find_replace)
         self.replace_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+    def _show_preferences_menu(self):
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {self.theme_manager.color("menu.background")};
+                color: {self.theme_manager.color("menu.text")};
+                border: 1px solid {self.theme_manager.color("menu.border")};
+                padding: 4px 0px;
+                font-size: 13px;
+            }}
+            QMenu::item {{
+                padding: 6px 24px;
+            }}
+            QMenu::item:selected {{
+                background-color: {self.theme_manager.color("menu.selected")};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background-color: {self.theme_manager.color("menu.separator")};
+                margin: 4px 8px;
+            }}
+        """)
+
+        current = self.theme_manager.name
+        dark_action = QAction("Dark Theme", self)
+        dark_action.setCheckable(True)
+        dark_action.setChecked(current == "dark")
+        dark_action.triggered.connect(lambda: self.theme_manager.switch_to("dark"))
+
+        light_action = QAction("Light Theme", self)
+        light_action.setCheckable(True)
+        light_action.setChecked(current == "light")
+        light_action.triggered.connect(lambda: self.theme_manager.switch_to("light"))
+
+        menu.addAction(dark_action)
+        menu.addAction(light_action)
+
+        btn_pos = self.preferencesBtn.mapToGlobal(
+            self.preferencesBtn.rect().bottomLeft()
+        )
+        menu.exec(btn_pos)
+
+    def _on_theme_changed(self, theme_name: str):
+        t = self.theme_manager
+        tip_css = (f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter;"
+                   f" padding: 6px 5px; font-size: 12px;"
+                   f" background-color: {t.color('tooltip.background')};"
+                   f" border: 1px solid {t.color('tooltip.border')};}}")
+
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(
+                f"QToolTip{{background-color: {t.color('tooltip.background')};"
+                f" color: {t.color('tooltip.text')};"
+                f" border: 1px solid {t.color('tooltip.border')};"
+                f" padding: 4px 8px;"
+                f' font-family: "JetBrains Mono", monospace;'
+                f" font-size: 11px;}}"
+            )
+
+        self.setStyleSheet(
+            f"background-color: {t.color('window.background')};"
+            f" color: {t.color('window.text')};"
+            f" font-family: inter, Arial;"
+            + tip_css
+        )
+
+        self.leftmost_bar.setStyleSheet(
+            f"background: {t.color('leftmost.background')}; border: none;"
+        )
+
+        self.sidebar_frame.setStyleSheet(
+            f"background-color: {t.color('sidebar.background')}; border: none;"
+        )
+
+        self.hero_splitter.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {t.color('splitter.handle')}; }}"
+            f"QSplitter::handle:pressed {{ background-color: {t.color('splitter.handle_pressed')}; }}"
+        )
+        self.workspace_splitter.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {t.color('workspace_splitter')}; }}"
+        )
+
+        self.background_window.retheme(t)
+
+        for i in range(self.tab_editors.count()):
+            editor = self.tab_editors.widget(i)
+            if isinstance(editor, CodeEditor):
+                editor.apply_theme(t)
+            elif isinstance(editor, FastTutorialFrame):
+                editor.retheme(t)
+            elif hasattr(editor, "apply_theme"):
+                editor.apply_theme(t)
+        self.tab_editors.tabBar().retheme(t)
+        self.tab_editors.retheme(t)
+
+        self.find_replace_widget.retheme(t)
+        self.status_bar.retheme(t)
+        self.options_menu.update_styles(t)
+        self.treeview.retheme(t)
+        self.terminalWidget.retheme(t)
+        self.title_bar.retheme(t)
+
+        self.minimap.retheme(t)
+
+        for w in (self.search_menu, self.git_menu, self.extns_menu, self.infoBtn):
+            if hasattr(w, "retheme"):
+                w.retheme(t)
+
+        btn_hover = t.color("sidebar.button_hover")
+        btn_css = (f"QPushButton{{background-color: transparent; border: none; border-radius: 10px;}}"
+                   f"QPushButton:hover{{background-color: {btn_hover};}}" + tip_css)
+        for btn in (self.explorerBtn, self.searchBtn, self.gitChangesBtn,
+                    self.extensionsBtn, self.infoBtn, self.terminalBtn, self.preferencesBtn):
+            btn.setStyleSheet(btn_css)
 
     def toggle_find_replace(self):
         editor = self._get_current_editor()
@@ -303,6 +426,7 @@ class DreamStudio(QMainWindow):
             text=None,
             image="assets/system/version_control.png",
             image_size=QSize(26, 26),
+            function=self._show_preferences_menu,
         )
         self.leftmost_layout.addWidget(self.preferencesBtn)
         self.preferencesBtn.setToolTip("Set Preferences")
@@ -376,8 +500,6 @@ class DreamStudio(QMainWindow):
         self.hero_splitter.setCollapsible(1, True)
         self.hero_splitter.setSizes([800, 0])
 
-        self.terminal_collapsed = True
-
         main_layout.addWidget(self.status_bar)
 
         self.installEventFilter(self)
@@ -410,14 +532,6 @@ class DreamStudio(QMainWindow):
             padding-right:2px;
         }
         QPushButton:hover{background-color:#333}
-
-        QToolTip{
-        color: #F5F5F5; 
-        font-family: inter;
-        padding: 6px 5px;
-        font-size: 12px;
-        background-color: #25272B; 
-        border: none;}
         """
 
         btn.setStyleSheet(custom_css if custom_css else default_css)
@@ -523,7 +637,7 @@ class DreamStudio(QMainWindow):
         hero_total = self.hero_splitter.height()
 
         if self.terminal_collapsed:
-            self.hero_splitter.setSizes([800, 400])
+            self.hero_splitter.setSizes([800, 700])
             self.terminal_collapsed = False
             self.terminalWidget.switch_tab(1)
         else:

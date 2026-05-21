@@ -347,6 +347,46 @@ class FindReplaceWidget(QFrame):
         self._refresh_live_search()
 
     # Events
+    def retheme(self, t) -> None:
+        self.setStyleSheet(f"""
+            QFrame#findReplaceWidget {{
+                background-color: {t.color("find_replace.background")};
+                border: 1px solid {t.color("find_replace.border")};
+                border-radius: 4px;
+            }}
+            QLineEdit {{
+                background-color: {t.color("find_replace.input_bg")};
+                color: {t.color("input.text")};
+                border: 1px solid {t.color("input.border")};
+                border-radius: 2px;
+                padding: 4px;
+                font-family: "JetBrains Mono";
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {t.color("input.focus_border")};
+            }}
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 2px;
+                color: {t.color("widget.text")};
+                padding: 3px 6px;
+            }}
+            QPushButton:hover {{
+                background-color: {t.color("button.hover")};
+            }}
+            QPushButton:checked {{
+                background-color: {t.color("widget.accent")};
+                color: white;
+            }}
+            QLabel {{
+                color: {t.color("find_replace.result_match")};
+                font-size: 11px;
+                background-color: {t.color("find_replace.background")};
+            }}
+        """)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.reposition()

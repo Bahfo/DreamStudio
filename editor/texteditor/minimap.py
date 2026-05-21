@@ -50,5 +50,17 @@ class MiniMap(QsciScintilla):
 
         self.setEdgeMode(QsciScintilla.EdgeMode.EdgeNone)
 
+    def retheme(self, t) -> None:
+        self.setPaper(QColor(t.color("editor.background")))
+        self.setColor(QColor(t.color("editor.text")))
+        self.setStyleSheet(
+            f"""
+            QWidget#MiniMap {{
+                background-color: {t.color("minimap.background")};
+                border: 1px solid {t.color("minimap.border")};
+            }}
+            """
+        )
+
     def set_editor_text(self, text: str):
         self.setText(text)

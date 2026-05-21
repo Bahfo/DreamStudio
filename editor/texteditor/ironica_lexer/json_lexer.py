@@ -54,6 +54,25 @@ class CustomJSONLexer(QsciLexerCustom):
         }
         return descriptions.get(style, "Unknown")
 
+    def apply_syntax_theme(self, t) -> None:
+        self.bg_color = QColor(t.color("editor.background"))
+        self.default_fg = QColor(t.color("editor.text"))
+        self.setDefaultPaper(self.bg_color)
+        self.setDefaultColor(self.default_fg)
+        for style_id in range(128):
+            self.setPaper(self.bg_color, style_id)
+            self.setColor(self.default_fg, style_id)
+        self.styles = {
+            0: self.default_fg,
+            1: QColor(t.color("syntax.string")),
+            2: QColor(t.color("syntax.number")),
+            3: QColor(t.color("syntax.keyword")),
+            4: self.default_fg,
+            5: QColor(t.color("syntax.json_key")),
+        }
+        for style_id, color in self.styles.items():
+            self.setColor(color, style_id)
+
     def styleText(self, start, end):
         editor = self.parent()
         if not editor:

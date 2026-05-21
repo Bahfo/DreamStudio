@@ -9,6 +9,11 @@ class VSeparator(QFrame):
         self.setFixedWidth(1)
         self.setFixedHeight(18)
         self.setStyleSheet("background-color: #444444; border: none;")
+        self._color = "#444444"
+
+    def retheme(self, t) -> None:
+        self._color = t.color("optionsbar.separator")
+        self.setStyleSheet(f"background-color: {self._color}; border: none;")
 
 
 class OptionsMenu(QFrame):
@@ -114,26 +119,32 @@ class OptionsMenu(QFrame):
         )
 
         # Text Buttons CSS (Monitor & Config)
-        text_btn_css = """
-        QPushButton{
-            background-color: #34373C;
+        self._text_btn_css_template = """
+        QPushButton{{
+            background-color: {bg};
             font-size:12px;
             border: none;
-            color: white;
+            color: {fg};
             border-radius: 0px;
             padding-left: 5px;
             padding-right: 10px;
-        }
-        QPushButton:hover{background-color: #333;}
+        }}
+        QPushButton:hover{{background-color: {hover};}}
 
-        QToolTip{
-        color: #F5F5F5; 
+        QToolTip{{
+        color: {fg};
         font-family: inter;
         padding: 6px 5px;
         font-size: 12px;
-        background-color: #25272B; 
-        border: none;}
+        background-color: {bg};
+        border: none;}}
         """
+        text_btn_base_bg = "#34373C"
+        text_btn_base_fg = "white"
+        text_btn_base_hover = "#333"
+        text_btn_css = self._text_btn_css_template.format(
+            bg=text_btn_base_bg, fg=text_btn_base_fg, hover=text_btn_base_hover
+        )
 
         # Tools & Execution
         self.monitor = self.create_menu_button(
@@ -144,6 +155,7 @@ class OptionsMenu(QFrame):
             custom_css=text_btn_css,
             tooltip="Monitor hardware behavior while running your solution",
         )
+        self.monitor.setProperty("_custom_text_btn", True)
 
         self.config_run_options = self.create_menu_button(
             image="assets/system/config.png",
@@ -153,6 +165,7 @@ class OptionsMenu(QFrame):
             custom_css=text_btn_css,
             tooltip="Configure running options for custom run and debug support",
         )
+        self.config_run_options.setProperty("_custom_text_btn", True)
 
         self.runBtn = self.create_menu_button(
             text=None,
@@ -302,6 +315,26 @@ class OptionsMenu(QFrame):
         tabs = getattr(self.master, "tab_editors", None)
         if tabs and hasattr(tabs, "save_current_file"):
             tabs.save_current_file()
+
+    def update_styles(self, t) -> None:
+        bg = t.color("optionsbar.background")
+        hover = t.color("button.hover")
+        fg = t.color("button.text")
+        self.setStyleSheet(f"""
+        QFrame{{border: 0px; border-radius: 0px; background-color: {bg};}}""")
+        for sep in self.findChildren(VSeparator):
+            sep.retheme(t)
+        for widget in self.findChildren(QPushButton):
+            if widget.property("_custom_text_btn"):
+                widget.setStyleSheet(self._text_btn_css_template.format(
+                    bg=bg, fg=fg, hover=hover
+                ))
+            elif widget.property("_default_styled") is None:
+                widget.setProperty("_default_styled", True)
+            widget.setStyleSheet(f"""
+            QPushButton{{background-color: transparent; border: none; color: {fg}; border-radius: 10px; padding-top:4px; padding-left:2px; padding-right:2px;}}
+            QPushButton:hover{{background-color: {hover};}}
+            QToolTip{{color: {fg}; font-family: inter; padding: 6px 5px; font-size: 12px; background-color: {bg}; border: none;}}""")
 
     def _on_search(self):
         if hasattr(self.master, "toggle_find_replace"):

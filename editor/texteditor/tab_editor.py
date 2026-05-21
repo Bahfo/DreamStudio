@@ -284,6 +284,17 @@ class DreamStudioIDETabBar(QTabBar):
         if not rect.isNull():
             self.update(rect)
 
+    def retheme(self, t) -> None:
+        self.selected_bg = QColor(t.color("tab.selected_bg"))
+        self.hover_bg = QColor(t.color("tab.hover_bg"))
+        self.inactive_bg = QColor(t.color("tab.inactive_bg"))
+        self.border_color = QColor(t.color("tab.selected_border"))
+        self.hover_border_color = QColor(t.color("tab.hover_border"))
+        self.inactive_border_color = QColor(t.color("tab.inactive_border"))
+        self._dirty_indices.clear()
+        self.rebuild_dirty_indices()
+        self.update()
+
     def rebuild_dirty_indices(self) -> None:
         self._dirty_indices.clear()
         for i in range(self._parent.count()):
@@ -319,20 +330,21 @@ class DreamTabbedEditor(QTabWidget):
 
         self.tab_counter = self.count()
 
-        self.setStyleSheet("""
-        QTabBar::tab {
+        self._base_tab_style = """
+        QTabBar::tab {{
             padding: 6px 12px;
             margin-right: 2px;
-        }
+        }}
 
-        QTabBar::tab:selected {
-            color: white; 
-        }
+        QTabBar::tab:selected {{
+            color: {};
+        }}
 
-        QTabBar::close-button {
+        QTabBar::close-button {{
             image: url(assets/system/close.png);
             background: transparent;
-        }""")
+        }}"""
+        self._apply_tab_style("white")
 
         self.tabCloseRequested.connect(self.close_editor)
         self._save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
@@ -342,6 +354,12 @@ class DreamTabbedEditor(QTabWidget):
         self._save_all_shortcut = QShortcut(QKeySequence("Ctrl+Alt+S"), self)
         self._save_all_shortcut.activated.connect(self.save_all_files)
 
+    def _apply_tab_style(self, selected_color: str) -> None:
+        self.setStyleSheet(self._base_tab_style.format(selected_color))
+
+    def retheme(self, t) -> None:
+        self._apply_tab_style(t.color("tab.text_selected"))
+
     def _on_dirty_state_changed(self, editor: object, is_dirty: bool) -> None:
         for i in range(self.count()):
             if self.widget(i) is editor:
@@ -350,7 +368,8 @@ class DreamTabbedEditor(QTabWidget):
 
     def open_configurations_json(self):
         key = "json_user_configs"
-        new_editor = EditConfigurationsTab()
+        theme_mgr = getattr(self._parent, "theme_manager", None)
+        new_editor = EditConfigurationsTab(theme_manager=theme_mgr)
         new_editor.run_text()
 
         index = self.addTab(new_editor, "configurations")
@@ -844,6 +863,35 @@ class FastTutorialFrame(QFrame):
 
         main_layout.addLayout(footer)
 
+    def retheme(self, t) -> None:
+        self.setStyleSheet(f"background-color: {t.color('welcome.background_dark')}; border: none;")
+        for child in self.findChildren(QLabel):
+            txt = child.text()
+            if txt == "DreamStudio 2026":
+                child.setStyleSheet(f"color: {t.color('welcome.title')}; font-size: 42px; font-weight: 300; font-family: montserrat, Arial; padding-left: 120px;")
+            elif txt == "Get Started with":
+                child.setStyleSheet(f"color: {t.color('welcome.subtitle')}; font-size: 20px; padding-left: 130px;")
+            elif txt == "Start":
+                child.setStyleSheet(f"color: {t.color('welcome.start_label')}; font-size: 18px; font-weight: bold; padding-left: 5px; padding-top: 20px;")
+        for child in self.findChildren(QCheckBox):
+            child.setStyleSheet(f"color: {t.color('welcome.footer')}; font-size: 12px;")
+        for child in self.findChildren(WelcomeAction):
+            child.setStyleSheet(f"""
+                QPushButton {{
+                    text-align: left;
+                    color: {t.color('welcome.action')};
+                    background: transparent;
+                    border: none;
+                    font-size: 14px;
+                    padding-left: 10px;
+                    padding-top: 10px;
+                }}
+                QPushButton:hover {{
+                    text-decoration: underline;
+                    color: {t.color('welcome.action_hover')};
+                }}
+            """)
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -884,6 +932,7 @@ class BackgroundHintsFrame(QFrame):
         hints_grid.setSpacing(10)
         hints_grid.setHorizontalSpacing(40)
 
+        self._hint_labels = []
         for row, (keys, desc) in enumerate(self.BINDINGS):
             desc_label = QLabel(desc)
             desc_label.setStyleSheet("""
@@ -910,6 +959,7 @@ class BackgroundHintsFrame(QFrame):
 
             hints_grid.addWidget(desc_label, row, 0)
             hints_grid.addWidget(key_label, row, 1)
+            self._hint_labels.append((key_label, desc_label))
 
         hints_grid.setColumnStretch(0, 0)
         hints_grid.setColumnStretch(1, 1)
@@ -920,3 +970,22 @@ class BackgroundHintsFrame(QFrame):
         center_layout.addStretch()
 
         main_layout.addWidget(center_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def retheme(self, t) -> None:
+        self.setStyleSheet(
+            f"background-color: {t.color('window.background')}; border: none;"
+        )
+        for key_label, desc_label in self._hint_labels:
+            desc_label.setStyleSheet(f"""
+                font-family: 'inter';
+                color: {t.color('hints.desc')};
+                font-size: 16px;
+            """)
+            key_label.setStyleSheet(f"""
+                color: {t.color('hints.text')};
+                font-size: 16px;
+                font-family: 'JetBrains Mono', monospace;
+                padding: 4px 10px;
+                background-color: {t.color('hints.key_bg')};
+                border-radius: 3px;
+            """)

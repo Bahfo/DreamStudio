@@ -660,6 +660,34 @@ class DreamStudioTitleBar(QWidget):
 
             editor.endUndoAction()
 
+    def retheme(self, t) -> None:
+        tb_bg = t.color("titlebar.background")
+        tb_text = t.color("titlebar.text")
+        btn_hover = t.color("titlebar.btn_hover")
+        self.setStyleSheet(f"background-color: {tb_bg};")
+        self.icon_btn.setStyleSheet(f"""
+            QPushButton{{color: {tb_text}; background-color: transparent; border: none; border-radius: 4px; font-size: 13px;}}""")
+        self.menubar.setStyleSheet(f"""
+            QMenuBar {{background-color: transparent; color: {t.color("menubar.text")}; font-size: 13px; border: none;}}
+            QMenuBar::item {{background: transparent; padding: 7px 5px; margin: 0px 2px; border-radius: 4px;}}
+            QMenuBar::item:selected {{background-color: {t.color("menubar.selected")}; color: {t.color("menubar.text_bright")};}}
+            QMenu {{background-color: {t.color("menu.background")}; color: {t.color("menu.text")}; border: 1px solid {t.color("menu.border")}; padding: 4px 6px;}}
+            QMenu::item {{min-width: 300px; padding: 8px 15px 8px 32px; background-color: transparent; margin: 0px;}}
+            QMenu::item:selected {{background-color: {t.color("menu.selected")}; color: {t.color("menubar.text_bright")};}}
+            QMenu::icon {{position: absolute; left: 7px;}}
+            QMenu::separator {{height: 1px; background-color: {t.color("menu.separator")}; margin: 4px 0px;}}""")
+        self.studioSearch.setStyleSheet(f"""
+            QLineEdit{{background-color: transparent; color: {tb_text}; font-size:13px; font-style:normal; border:0.5px solid #9D9D9D; padding-left:15px; border-radius:5px;}}
+            QLineEdit:placeholder{{font-style:italic;}}""")
+        win_btn_style = f"""
+            QPushButton{{color: {tb_text}; background-color: transparent; border: none; border-radius: 4px; font-size: 12px;}}
+            QPushButton:hover{{background-color: {btn_hover};}}"""
+        self.accountBtn.setStyleSheet(win_btn_style)
+        self.btn_minimize.setStyleSheet(win_btn_style)
+        self.btn_maximize.setStyleSheet(win_btn_style)
+        self.btn_close.setStyleSheet(win_btn_style + f"""
+            QPushButton:hover{{background-color: #E81123; color: white;}}""")
+
     def set_find_replace(self):
         return self.parent.toggle_find_replace()
 

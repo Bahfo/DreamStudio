@@ -61,6 +61,34 @@ class CustomPythonLexer(QsciLexerCustom):
     def description(self, style):
         return f"Style_{style}"
 
+    def apply_syntax_theme(self, t) -> None:
+        self.setDefaultColor(QColor(t.color("editor.text")))
+        self.setDefaultPaper(QColor(t.color("editor.background")))
+        self.setColor(QColor(t.color("syntax.string")), self.STYLE_STRING)
+        self.setColor(QColor(t.color("syntax.comment")), self.STYLE_COMMENT)
+        self.setColor(QColor(t.color("syntax.number")), self.STYLE_NUMBER)
+        for i in range(128):
+            self.setPaper(QColor(t.color("editor.background")), i)
+        colors_schema = self.json_data.get("colors_schema", {})
+        category_map = {
+            "definition": "syntax.definition",
+            "import": "syntax.import",
+            "keyword": "syntax.keyword",
+            "execution_logic": "syntax.execution_logic",
+            "logic": "syntax.logic",
+            "constructor": "syntax.type",
+            "collection": "syntax.collection",
+            "meta": "syntax.meta",
+            "iterator": "syntax.iterator",
+            "exception_class": "syntax.exception",
+            "warning_class": "syntax.warning",
+        }
+        current_style_id = 4
+        for category in colors_schema:
+            theme_key = category_map.get(category, "syntax.keyword")
+            self.setColor(QColor(t.color(theme_key)), current_style_id)
+            current_style_id += 1
+
     def styleText(self, start, end):
         editor = self.editor()
         if not editor:

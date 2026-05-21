@@ -195,6 +195,59 @@ class DreamFileTreeWindow(QFrame):
         if show:
             self.tree.resizeColumnToContents(0)
 
+    def retheme(self, t) -> None:
+        bg = t.color("treeview.background")
+        txt = t.color("treeview.text")
+        hl = t.color("treeview.highlight")
+        hdr_bg = t.color("treeview.header_bg")
+        hdr_txt = t.color("treeview.header_text")
+        self.setStyleSheet(f"""
+            QFrame{{background-color: {bg}; border: none;}}
+        """)
+        self.tree.setStyleSheet(f"""
+            QTreeView {{
+                background-color: {bg};
+                color: {txt};
+                border: none;
+                outline: 0;
+            }}
+            QTreeView::item {{
+                height: 20px;
+                padding-left: 5px;
+                padding-top:2px;
+                padding-bottom:2px;
+            }}
+            QTreeView::item:hover {{
+                background-color: {t.color("tab.hover_dark")};
+            }}
+            QTreeView::item:selected {{
+                background-color: {hl};
+                color: white;
+            }}
+            QHeaderView::section {{
+                background-color: {hdr_bg};
+                color: {hdr_txt};
+                padding: 4px;
+                border: 1px solid {t.color("window.background")};
+            }}
+            QScrollBar:vertical {{
+                background: {t.color("scrollbar.bg")};
+                width: 12px;
+                margin: 0px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {t.color("scrollbar.fg")};
+                min-height: 20px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {t.color("scrollbar.hover")};
+            }}
+        """)
+        self.search_label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+        )
+
     def set_treeview_directory(self, path):
         self.model.setRootPath(path)
         self.source_index = self.model.index(path)

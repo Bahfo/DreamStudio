@@ -248,6 +248,59 @@ class TerminalPanel(QWidget):
                 btn.setStyleSheet("color: #cccccc; border-bottom: none;")
                 btn.setFixedWidth(90)
 
+    def retheme(self, t) -> None:
+        bg = t.color("terminal.background")
+        txt = t.color("terminal.text")
+        input_bg = t.color("terminal.input_bg")
+        input_border = t.color("terminal.input_border")
+        sel = t.color("terminal.selection")
+        self.setStyleSheet(f"""
+            QWidget#terminalPanel {{
+                background-color: {bg};
+                color: {txt};
+            }}
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                padding: 5px;
+                color: {txt};
+            }}
+            QPushButton:hover {{
+                background-color: {t.color("button.hover")};
+                border-radius: 3px;
+            }}
+        """)
+        self.terminal_tab._output.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: {bg};
+                color: {txt};
+                border: none;
+                font-family: "JetBrains Mono", "Consolas", monospace;
+                font-size: 12px;
+                selection-background-color: {sel};
+            }}
+        """)
+        self.terminal_tab._input.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: {input_bg};
+                color: {txt};
+                border: 1px solid {input_border};
+                font-family: "JetBrains Mono", "Consolas", monospace;
+                font-size: 12px;
+                selection-background-color: {sel};
+            }}
+        """)
+        self.output_tab._text.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: {bg};
+                color: {txt};
+                border: none;
+                font-family: "JetBrains Mono", "Consolas", monospace;
+                font-size: 12px;
+            }}
+        """)
+        self.switch_tab(self.stack.currentIndex())
+
     def append_output(self, text):
         self.output_tab.append_text(text)
 
