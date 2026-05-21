@@ -18,42 +18,48 @@ Supervised by EXcellent TechStacks Co.
 # ONCE DOING THESE ABOVE WE CAN THINK OF OTHER STUFF LATER
 
 # Main Imports
-import os
 import logging
+import os
 import pathlib
 
-logger = logging.getLogger(__name__)
-
-# GUI Imports
-from PyQt6.QtCore import Qt, QSize, QEvent, QDir, QTimer
+# Third-Party Imports (GUI)
+from PyQt6.QtCore import QDir, QEvent, QSize, Qt, QTimer
+from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QFrame,
-    QSplitter,
-    QPushButton,
-    QStackedWidget,
-    QHBoxLayout,
     QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QMainWindow,
+    QPushButton,
+    QSplitter,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtGui import QIcon, QShortcut, QKeySequence
 
-# Local IDE Imports
-from editor.utils.statusBar import StatusBar
-from editor.texteditor.minimap import MiniMap
-from editor.utils.optionsBar import OptionsMenu
-from editor.animations.splash import SplashOverlay
-from editor.utils.titleBar import DreamStudioTitleBar
-from editor.terminal.terminal_ui import TerminalPanel
-from editor.utils.marketplace import ExtensionsTab
-from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
-from editor.utils.source_control import SourceControl
-from editor.utils.fast_tutorial import FastTutorialFrame
-from editor.utils.file_explorer import DreamFileTreeWindow
-from editor.texteditor.tab_editor import DreamTabbedEditor, CodeEditor
-from editor.lsp.jedi_worker import JediWorker
+# Local Application Imports - Backend
 from backend.dirty_tracker import DirtyTracker
+from editor.lsp.jedi_worker import JediWorker
+
+# Local Application Imports - UI Components
+from editor.animations.splash import SplashOverlay
+from editor.terminal.terminal_ui import TerminalPanel
+from editor.texteditor.minimap import MiniMap
+from editor.texteditor.tab_editor import (
+    CodeEditor,
+    DreamTabbedEditor,
+    FastTutorialFrame,
+    BackgroundHintsFrame,
+)
+from editor.utils.file_explorer import DreamFileTreeWindow
+from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
+from editor.utils.marketplace import ExtensionsTab
+from editor.utils.optionsBar import OptionsMenu
+from editor.utils.source_control import SourceControl
+from editor.utils.statusBar import StatusBar
+from editor.utils.titleBar import DreamStudioTitleBar
+
+logger = logging.getLogger(__name__)
 
 
 class DreamStudio(QMainWindow):
@@ -132,6 +138,9 @@ class DreamStudio(QMainWindow):
         self.replace_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
     def toggle_find_replace(self):
+        editor = self._get_current_editor()
+        if editor is None:
+            return
         if self.find_replace_widget.isVisible():
             self.find_replace_widget.hide()
         else:
@@ -304,7 +313,7 @@ class DreamStudio(QMainWindow):
         # Editor, Background screen, and other stacked layout widgets
         self.main_editor_area = QStackedWidget()
 
-        self.tutorial_window = FastTutorialFrame(self)
+        self.background_window = BackgroundHintsFrame(self)
 
         # main editor area
         editor_container = QWidget()
@@ -320,10 +329,9 @@ class DreamStudio(QMainWindow):
         editor_layout.addWidget(self.tab_editors)
 
         self.find_replace_widget = FindReplaceWidget(editor_container, self.tab_editors)
-
         self.find_replace_widget.hide()
 
-        self.main_editor_area.addWidget(self.tutorial_window)
+        self.main_editor_area.addWidget(self.background_window)
         self.main_editor_area.addWidget(editor_container)
 
         # Minimap
@@ -591,3 +599,6 @@ class DreamStudio(QMainWindow):
             tab_to_close = self.tab_editors.widget(i)
             if tab_to_close:
                 self.tab_editors.close_editor(i)
+
+    def ui_build_show_welcome(self):
+        self.tab_editors.add_new_editor(welcome=True)

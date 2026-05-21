@@ -51,6 +51,21 @@ class DirtyTracker(QObject):
             except (TypeError, RuntimeError):
                 pass
 
+    def sync_state(self, editor: object) -> None:
+        """Re-check dirty state after external changes (e.g., save) and
+        emit dirty_state_changed if the state has diverged from our cache."""
+        eid = id(editor)
+        if eid not in self._editors:
+            return
+        try:
+            current = editor.is_dirty()
+        except RuntimeError:
+            return
+        old = self._dirty_states.get(eid)
+        if current != old:
+            self._dirty_states[eid] = current
+            self.dirty_state_changed.emit(editor, current)
+
     def start(self) -> None:
         pass
 

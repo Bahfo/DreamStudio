@@ -13,10 +13,14 @@ from PyQt6.Qsci import QsciScintilla
 from PyQt6.QtWidgets import (
     QStyle,
     QLabel,
+    QFrame,
     QTabBar,
     QWidget,
+    QCheckBox,
     QTabWidget,
     QFileDialog,
+    QHBoxLayout,
+    QGridLayout,
     QPushButton,
     QVBoxLayout,
     QStyleOptionTab,
@@ -25,15 +29,16 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import (
     QPen,
     QColor,
+    QPixmap,
     QPainter,
     QPalette,
     QShortcut,
     QPainterPath,
     QKeySequence,
 )
+from PyQt6.QtSvg import QSvgRenderer
 
 import os
-import re
 import logging
 import pathlib
 
@@ -362,7 +367,27 @@ class DreamTabbedEditor(QTabWidget):
         logger.debug(f"Opened files: {self.opened_files}")
         return new_editor
 
-    def add_new_editor(self, file_name=None, content="", language=None, file_path=None):
+    def add_new_editor(
+        self,
+        file_name=None,
+        content="",
+        language=None,
+        file_path=None,
+        welcome: bool = False,
+    ):
+        if welcome:
+            new_editor = FastTutorialFrame(self._parent)
+            key = f"__welcome_{id(new_editor)}"
+            index = self.addTab(new_editor, "Welcome")
+            self.setCurrentIndex(index)
+            new_editor.file_path = None
+            new_editor.file_key = key
+            new_editor.viewer_type = "welcome"
+            self.opened_files[key] = index
+            self.setFocus()
+            self._parent.update_editor_visibility()
+            return new_editor
+
         key = self.resolve_key(file_path) if file_path else None
         viewer_type = self.resolve_viewer_type(file_path) if file_path else "code"
 
@@ -611,20 +636,28 @@ class DreamTabbedEditor(QTabWidget):
         editor = self.currentWidget()
         if not editor or not hasattr(editor, "save"):
             return
-        was_unsaved = not getattr(editor, 'current_file_path', None)
+        was_unsaved = not getattr(editor, "current_file_path", None)
         editor.save()
-        if was_unsaved and getattr(editor, 'current_file_path', None):
+        if was_unsaved and getattr(editor, "current_file_path", None):
             self._reopen_saved_tab(editor)
+            return
+        if self._dirty_tracker is not None and hasattr(editor, "is_dirty"):
+            self._dirty_tracker.sync_state(editor)
+        self.tabBar().rebuild_dirty_indices()
 
     def save_current_file_as(self):
         editor = self.currentWidget()
         if not editor or not hasattr(editor, "save_as"):
             return
-        old_path = getattr(editor, 'current_file_path', None)
+        old_path = getattr(editor, "current_file_path", None)
         editor.save_as()
-        new_path = getattr(editor, 'current_file_path', None)
+        new_path = getattr(editor, "current_file_path", None)
         if new_path and new_path != old_path:
             self._reopen_saved_tab(editor)
+            return
+        if self._dirty_tracker is not None and hasattr(editor, "is_dirty"):
+            self._dirty_tracker.sync_state(editor)
+        self.tabBar().rebuild_dirty_indices()
 
     def _reopen_saved_tab(self, editor):
         file_path = editor.current_file_path
@@ -641,6 +674,9 @@ class DreamTabbedEditor(QTabWidget):
             editor = self.widget(i)
             if editor and hasattr(editor, "save") and editor.current_file_path:
                 editor.save()
+                if self._dirty_tracker is not None and hasattr(editor, "is_dirty"):
+                    self._dirty_tracker.sync_state(editor)
+        self.tabBar().rebuild_dirty_indices()
 
     def return_file_info(self):
         editor = self._parent._get_current_editor()
@@ -703,3 +739,184 @@ class FallBack(QWidget):
 
     def setText(self, text: str):
         self.page_label.setText(text)
+
+
+class WelcomeAction(QPushButton):
+    def __init__(self, text, parent=None, _event=None):
+        super().__init__(text, parent)
+        self._event = _event
+
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedWidth(200)
+        self.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                color: #3794ef;
+                background: transparent;
+                border: none;
+                font-size: 14px;
+                padding-left: 10px;
+                padding-top: 10px;
+            }
+            QPushButton:hover {
+                text-decoration: underline;
+                color: #4daafc;
+            }
+        """)
+        if self._event is not None:
+            self.clicked.connect(self._event)
+
+
+class FastTutorialFrame(QFrame):
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
+
+        self.background_img = QPixmap("assets/logos/welcome_icon.png").scaled(
+            150,
+            150,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._parent = _parent
+
+        self.bg_svg = QSvgRenderer("assets/logos/welcome_mountains.svg")
+
+        self.setStyleSheet("background-color: transparent; border: none;")
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(40, 40, 40, 20)
+        main_layout.setSpacing(10)
+
+        title = QLabel("DreamStudio 2026")
+        title.setStyleSheet("""color: #ffffff; 
+            font-size: 42px; 
+            font-weight: 300; 
+            font-family: montserrat, Arial; 
+            padding-left: 120px;""")
+
+        subtitle = QLabel("Get Started with")
+        subtitle.setStyleSheet("""
+            color: #cccccc; 
+            font-size: 20px;
+            padding-left: 130px;""")
+
+        main_layout.addWidget(subtitle)
+        main_layout.addWidget(title)
+        main_layout.addSpacing(20)
+
+        start_label = QLabel("Start")
+        start_label.setStyleSheet("""
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: bold;
+            padding-left: 5px;
+            padding-top: 20px;
+        """)
+
+        main_layout.addWidget(start_label)
+        main_layout.addSpacing(6)
+        main_layout.addWidget(
+            WelcomeAction("New File...", _event=self._parent.ui_build_add_new_editor)
+        )
+        main_layout.addWidget(
+            WelcomeAction("Open File...", _event=self._parent.ui_build_open_file)
+        )
+        main_layout.addWidget(
+            WelcomeAction("Open Folder...", _event=self._parent.open_directory)
+        )
+        main_layout.addWidget(WelcomeAction("Clone Git Repository..."))
+        main_layout.addSpacing(12)
+        main_layout.addStretch()
+
+        main_layout.addStretch()
+
+        footer = QHBoxLayout()
+        footer.setSpacing(0)
+        footer.setContentsMargins(0, 0, 0, 0)
+
+        startup_check = QCheckBox("Show welcome page on startup")
+        startup_check.setChecked(True)
+        startup_check.setStyleSheet("color: #cccccc; font-size: 12px;")
+
+        footer.addStretch()
+        footer.addWidget(startup_check)
+        footer.addStretch()
+
+        main_layout.addLayout(footer)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        if not self.background_img.isNull():
+            x = 10
+            y = 6
+            painter.drawPixmap(x, y, self.background_img)
+
+
+class BackgroundHintsFrame(QFrame):
+    BINDINGS = [
+        ("Ctrl + Alt + T", "Open New File"),
+        ("Ctrl + Alt + O", "Open Folder"),
+        ("Ctrl + O", "Select Directory"),
+        ("Ctrl + Alt + W", "Close Tab"),
+        ("Ctrl + S", "Save File"),
+        ("Ctrl + Alt + S", "Save All"),
+    ]
+
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
+        self._parent = _parent
+        self.setStyleSheet("background-color: #1E1E1E; border: none;")
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        center_widget = QWidget()
+        center_widget.setFixedWidth(520)
+        center_layout = QVBoxLayout(center_widget)
+        center_layout.setSpacing(8)
+        center_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        hints_grid = QGridLayout()
+        hints_grid.setSpacing(10)
+        hints_grid.setHorizontalSpacing(40)
+
+        for row, (keys, desc) in enumerate(self.BINDINGS):
+            desc_label = QLabel(desc)
+            desc_label.setStyleSheet("""
+                font-family: 'inter';
+                color: #CCCCCC;
+                font-size: 16px;
+            """)
+            desc_label.setAlignment(
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            )
+
+            key_label = QLabel(keys)
+            key_label.setStyleSheet("""
+                color: #569CD6;
+                font-size: 16px;
+                font-family: 'JetBrains Mono', monospace;
+                padding: 4px 10px;
+                background-color: #1E1E1E;
+                border-radius: 3px;
+            """)
+            key_label.setAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
+
+            hints_grid.addWidget(desc_label, row, 0)
+            hints_grid.addWidget(key_label, row, 1)
+
+        hints_grid.setColumnStretch(0, 0)
+        hints_grid.setColumnStretch(1, 1)
+
+        grid_container = QWidget()
+        grid_container.setLayout(hints_grid)
+        center_layout.addWidget(grid_container, alignment=Qt.AlignmentFlag.AlignCenter)
+        center_layout.addStretch()
+
+        main_layout.addWidget(center_widget, alignment=Qt.AlignmentFlag.AlignCenter)

@@ -411,7 +411,7 @@ class DreamStudioTitleBar(QWidget):
                 ),
             ],
             "Help": [
-                ("Welcome", None, self.generic_callback),
+                ("Welcome", None, self.show_welcome),
                 ("Show All Commands", None, self.generic_callback),
                 ("Documentation", "assets/menus/docs.png", self.generic_callback),
                 ("View License", "assets/menus/license.png", self.generic_callback),
@@ -441,6 +441,9 @@ class DreamStudioTitleBar(QWidget):
 
     def generic_callback(self, action_name):
         print(f"Action Triggered: {action_name}")
+
+    def show_welcome(self):
+        self.parent.ui_build_show_welcome()
 
     def toggle_maximize(self):
         win = self.window()

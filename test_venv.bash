@@ -13,6 +13,7 @@ if [ ! -f "$VENV_DIR/bin/activate" ]; then
     exit 1
 fi
 
+
 # Check Python executable
 if [ ! -x "$VENV_DIR/bin/python" ]; then
     echo "Invalid virtual environment: python executable missing."
