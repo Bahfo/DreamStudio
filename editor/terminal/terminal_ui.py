@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
 )
 from PyQt6.QtGui import QFont, QColor, QTextCursor, QPalette
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 
 from editor.lsp.runner import ProcessRunner
 
@@ -112,14 +112,15 @@ class TerminalWidget(QWidget):
         flag = "-c"
         self.run_command([shell, flag, command_text], cwd)
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Return and not event.modifiers():
-            text = self._input.toPlainText().strip()
-            self._input.clear()
-            if text:
-                self.run_shell_command(text)
-            return
-        super().keyPressEvent(event)
+    def eventFilter(self, obj, event):
+        if obj is self._input and event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Return and not event.modifiers():
+                text = self._input.toPlainText().strip()
+                self._input.clear()
+                if text:
+                    self.run_shell_command(text)
+                return True
+        return super().eventFilter(obj, event)
 
     def stop(self):
         if self._runner.is_running():

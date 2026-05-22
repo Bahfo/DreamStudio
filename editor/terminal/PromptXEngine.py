@@ -666,11 +666,13 @@ class CommandLine(cmd.Cmd):
         """
         if not arg:
             path = os.getcwd()
+        else:
+            path = arg
         try:
-            if os.path.isdir(arg):
-                os.rmdir(path=arg)
-            else:
-                os.rmdir(path=path)
+            if not os.path.isdir(path):
+                return f"Error 42: Path '{path}' is not a directory or does not exist."
+            os.rmdir(path=path)
+            return f"Directory '{path}' removed."
         except Exception as e:
             return f"Error 42: {e}"
 
@@ -738,9 +740,9 @@ class CommandLine(cmd.Cmd):
     # -------------------- Find --------------------
     def do_find(self, arg):
         """
-        Help: fileinfo    Displays detailed information about a specific file
+        Help: find    Searches for files matching patterns in destination
         Usage:
-            fileinfo --file=<file_path>
+            find --file=<file_path>
         Parameters:
             --file       Path to the file to inspect. Must exist
         Output:
@@ -805,10 +807,12 @@ class CommandLine(cmd.Cmd):
             clearhistory, help
         """
         args = self.parse_args(arg)
-        file_path = args.get("file", os.getcwd(), None)
+        file_path = args.get("file", os.getcwd())
         if not file_path:
             return "Error: You must provide --file=<file_path>"
         if not os.path.isfile(file_path):
+            if os.path.exists(file_path):
+                return f"Error: '{file_path}' is a directory, not a file."
             return f"Error: File '{file_path}' does not exist."
         try:
             stats = os.stat(file_path)
@@ -894,8 +898,17 @@ class CommandLine(cmd.Cmd):
         Hot-topic commands:
             peek, head, tail, deletedir, help
         """
-        if arg:
-            pass
+        args = self.parse_args(arg)
+        path = args.get("path", os.getcwd())
+        name = args.get("name", "untitled")
+        target = os.path.join(path, name)
+        try:
+            if not os.path.exists(path):
+                return f"Error 44: Path '{path}' does not exist."
+            os.mkdir(target)
+            return f"Directory '{target}' created."
+        except Exception as e:
+            return f"Error 44: {e}"
 
     # -------------------- Me --------------------
     def do_me(self, arg=None):
@@ -1097,13 +1110,20 @@ class CommandLine(cmd.Cmd):
             number = None
         try:
             path_to_use = custom_path if custom_path else os.getcwd()
-            all_items = os.listdir(path_to_use)
             if number in (None, "", "--all"):
-                return f"Directory ({path_to_use}):\n" + "\n".join(all_items)
+                items = []
+                with os.scandir(path_to_use) as it:
+                    for entry in it:
+                        items.append(entry.name)
+                return f"Directory ({path_to_use}):\n" + "\n".join(items)
             n = int(number)
-            return f"Directory ({path_to_use}) - first {n} items:\n" + "\n".join(
-                all_items[:n]
-            )
+            items = []
+            with os.scandir(path_to_use) as it:
+                for i, entry in enumerate(it):
+                    if i >= n:
+                        break
+                    items.append(entry.name)
+            return f"Directory ({path_to_use}) - first {n} items:\n" + "\n".join(items)
         except Exception as e:
             return f"Error 31: {e}"
 

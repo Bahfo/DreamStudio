@@ -53,14 +53,14 @@ from editor.texteditor.tab_editor import (
     FastTutorialFrame,
     BackgroundHintsFrame,
 )
-from editor.utils.file_explorer import DreamFileTreeWindow
-from editor.utils.theme_manager import ThemeManager
 from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
+from editor.utils.file_explorer import DreamFileTreeWindow
+from editor.utils.titleBar import DreamStudioTitleBar
+from editor.utils.source_control import SourceControl
+from editor.utils.theme_manager import ThemeManager
 from editor.utils.marketplace import ExtensionsTab
 from editor.utils.optionsBar import OptionsMenu
-from editor.utils.source_control import SourceControl
 from editor.utils.statusBar import StatusBar
-from editor.utils.titleBar import DreamStudioTitleBar
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +72,6 @@ class DreamStudio(QMainWindow):
         self._frame_has_started = False
         self._frame_has_exited = False
         self.etherAI_frame_visible = False
-        self._minimap_bound_editor = None
-        self._minimap_timer = QTimer(self)
-        self._minimap_timer.setSingleShot(True)
-        self._minimap_timer.setInterval(500)
-        self._minimap_timer.timeout.connect(self._flush_minimap)
         self._splitter_initialized = False
         self.terminal_collapsed = True
         self.currentDirectory = QDir.currentPath()
@@ -102,7 +97,6 @@ class DreamStudio(QMainWindow):
         if not os.path.isfile(venv_path):
             venv_path = None
         self._jedi_worker.set_virtual_environment(venv_path)
-        self._jedi_worker.start()
 
         self.theme_manager = ThemeManager(self)
         self.theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -188,10 +182,12 @@ class DreamStudio(QMainWindow):
 
     def _on_theme_changed(self, theme_name: str):
         t = self.theme_manager
-        tip_css = (f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter;"
-                   f" padding: 6px 5px; font-size: 12px;"
-                   f" background-color: {t.color('tooltip.background')};"
-                   f" border: 1px solid {t.color('tooltip.border')};}}")
+        tip_css = (
+            f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter;"
+            f" padding: 6px 5px; font-size: 12px;"
+            f" background-color: {t.color('tooltip.background')};"
+            f" border: 1px solid {t.color('tooltip.border')};}}"
+        )
 
         app = QApplication.instance()
         if app is not None:
@@ -207,8 +203,7 @@ class DreamStudio(QMainWindow):
         self.setStyleSheet(
             f"background-color: {t.color('window.background')};"
             f" color: {t.color('window.text')};"
-            f" font-family: inter, Arial;"
-            + tip_css
+            f" font-family: inter, Arial;" + tip_css
         )
 
         self.leftmost_bar.setStyleSheet(
@@ -254,10 +249,19 @@ class DreamStudio(QMainWindow):
                 w.retheme(t)
 
         btn_hover = t.color("sidebar.button_hover")
-        btn_css = (f"QPushButton{{background-color: transparent; border: none; border-radius: 10px;}}"
-                   f"QPushButton:hover{{background-color: {btn_hover};}}" + tip_css)
-        for btn in (self.explorerBtn, self.searchBtn, self.gitChangesBtn,
-                    self.extensionsBtn, self.infoBtn, self.terminalBtn, self.preferencesBtn):
+        btn_css = (
+            f"QPushButton{{background-color: transparent; border: none; border-radius: 10px;}}"
+            f"QPushButton:hover{{background-color: {btn_hover};}}" + tip_css
+        )
+        for btn in (
+            self.explorerBtn,
+            self.searchBtn,
+            self.gitChangesBtn,
+            self.extensionsBtn,
+            self.infoBtn,
+            self.terminalBtn,
+            self.preferencesBtn,
+        ):
             btn.setStyleSheet(btn_css)
 
     def toggle_find_replace(self):
@@ -273,7 +277,14 @@ class DreamStudio(QMainWindow):
     def closeEvent(self, event):
         if self._jedi_worker.isRunning():
             self._jedi_worker.shutdown()
-        super().closeEvent(event)
+        for i in range(self.tab_editors.count()):
+            editor = self.tab_editors.widget(i)
+            if hasattr(editor, "_lexer") and hasattr(editor._lexer, "shutdown"):
+                try:
+                    editor._lexer.shutdown()
+                except Exception:
+                    pass
+        event.accept()
 
     def _on_jedi_results(self, payload, request_id):
         editor = self._pending_jedi_requests.pop(request_id, None)
@@ -503,6 +514,7 @@ class DreamStudio(QMainWindow):
         main_layout.addWidget(self.status_bar)
 
         self.installEventFilter(self)
+        self._jedi_worker.start()
         self.sync_changes_on_tab_switch(self.tab_editors.currentIndex())
         self.tab_editors.currentChanged.connect(self.sync_changes_on_tab_switch)
         self.title_bar.setStyleSheet("background-color: #00438A;")
@@ -543,35 +555,8 @@ class DreamStudio(QMainWindow):
 
     def sync_changes_on_tab_switch(self, index):
         editor = self.tab_editors.widget(index) if index >= 0 else None
-
-        if self._minimap_bound_editor is not None:
-            try:
-                self._minimap_bound_editor.textChanged.disconnect(
-                    self._schedule_minimap_update
-                )
-            except (TypeError, RuntimeError, AttributeError):
-                pass
-            self._minimap_bound_editor = None
-
-        if editor is None or not hasattr(editor, "textChanged"):
-            self.minimap.setText("")
-            return
-
-        self._minimap_bound_editor = editor
-        editor.textChanged.connect(self._schedule_minimap_update)
-        self._flush_minimap()
-
+        self.minimap.bind_editor(editor if isinstance(editor, CodeEditor) else None)
         self.update_position_status()
-
-    def _schedule_minimap_update(self):
-        self._minimap_timer.start()
-
-    def _flush_minimap(self):
-        editor = self._minimap_bound_editor
-        if editor is None:
-            self.minimap.setText("")
-            return
-        self.minimap.setText(editor.text())
 
     def update_position_status(self):
         editor = self._get_current_editor()

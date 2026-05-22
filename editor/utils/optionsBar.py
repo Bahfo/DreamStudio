@@ -326,15 +326,17 @@ class OptionsMenu(QFrame):
             sep.retheme(t)
         for widget in self.findChildren(QPushButton):
             if widget.property("_custom_text_btn"):
-                widget.setStyleSheet(self._text_btn_css_template.format(
-                    bg=bg, fg=fg, hover=hover
-                ))
+                widget.setStyleSheet(
+                    self._text_btn_css_template.format(bg=bg, fg=fg, hover=hover)
+                )
             elif widget.property("_default_styled") is None:
                 widget.setProperty("_default_styled", True)
-            widget.setStyleSheet(f"""
+            widget.setStyleSheet(
+                f"""
             QPushButton{{background-color: transparent; border: none; color: {fg}; border-radius: 10px; padding-top:4px; padding-left:2px; padding-right:2px;}}
             QPushButton:hover{{background-color: {hover};}}
-            QToolTip{{color: {fg}; font-family: inter; padding: 6px 5px; font-size: 12px; background-color: {bg}; border: none;}}""")
+            QToolTip{{color: {fg}; font-family: inter; padding: 6px 5px; font-size: 12px; background-color: {bg}; border: none;}}"""
+            )
 
     def _on_search(self):
         if hasattr(self.master, "toggle_find_replace"):

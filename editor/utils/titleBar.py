@@ -513,7 +513,11 @@ class DreamStudioTitleBar(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         gradient = QLinearGradient(0, 0, self.width(), 0)
-        gradient.setColorAt(1.0, QColor("#004073"))
+        gradient.setColorAt(0.85, QColor("#004073"))
+        gradient.setColorAt(0.7, QColor("#11324E"))
+        gradient.setColorAt(0.5, QColor("#1E2E3B"))
+        gradient.setColorAt(0.3, QColor("#24292D"))
+        gradient.setColorAt(0.1, QColor("#25272B"))
 
         painter.fillRect(self.rect(), gradient)
         return super().paintEvent(a0)
@@ -665,9 +669,12 @@ class DreamStudioTitleBar(QWidget):
         tb_text = t.color("titlebar.text")
         btn_hover = t.color("titlebar.btn_hover")
         self.setStyleSheet(f"background-color: {tb_bg};")
-        self.icon_btn.setStyleSheet(f"""
-            QPushButton{{color: {tb_text}; background-color: transparent; border: none; border-radius: 4px; font-size: 13px;}}""")
-        self.menubar.setStyleSheet(f"""
+        self.icon_btn.setStyleSheet(
+            f"""
+            QPushButton{{color: {tb_text}; background-color: transparent; border: none; border-radius: 4px; font-size: 13px;}}"""
+        )
+        self.menubar.setStyleSheet(
+            f"""
             QMenuBar {{background-color: transparent; color: {t.color("menubar.text")}; font-size: 13px; border: none;}}
             QMenuBar::item {{background: transparent; padding: 7px 5px; margin: 0px 2px; border-radius: 4px;}}
             QMenuBar::item:selected {{background-color: {t.color("menubar.selected")}; color: {t.color("menubar.text_bright")};}}
@@ -675,7 +682,8 @@ class DreamStudioTitleBar(QWidget):
             QMenu::item {{min-width: 300px; padding: 8px 15px 8px 32px; background-color: transparent; margin: 0px;}}
             QMenu::item:selected {{background-color: {t.color("menu.selected")}; color: {t.color("menubar.text_bright")};}}
             QMenu::icon {{position: absolute; left: 7px;}}
-            QMenu::separator {{height: 1px; background-color: {t.color("menu.separator")}; margin: 4px 0px;}}""")
+            QMenu::separator {{height: 1px; background-color: {t.color("menu.separator")}; margin: 4px 0px;}}"""
+        )
         self.studioSearch.setStyleSheet(f"""
             QLineEdit{{background-color: transparent; color: {tb_text}; font-size:13px; font-style:normal; border:0.5px solid #9D9D9D; padding-left:15px; border-radius:5px;}}
             QLineEdit:placeholder{{font-style:italic;}}""")

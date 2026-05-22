@@ -1,4 +1,6 @@
-from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QVBoxLayout, QSplitter, QFileDialog
+from PyQt6.QtWidgets import (
+    QWidget, QPlainTextEdit, QTextBrowser, QVBoxLayout, QSplitter, QFileDialog,
+)
 from PyQt6.QtCore import QTimer, Qt
 
 import markdown
@@ -16,8 +18,6 @@ class MarkdownViewer(QWidget):
                 background-color: #2b2b2b;
             }
         """)
-
-        from PyQt6.QtWebEngineWidgets import QWebEngineView
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
@@ -61,9 +61,20 @@ class MarkdownViewer(QWidget):
             }
         """)
 
-        self.preview = QWebEngineView()
+        self.preview = QTextBrowser()
         self.preview.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.preview.setHtml(self._base_html())
+        self.preview.setOpenExternalLinks(True)
+        self.preview.setStyleSheet("""
+            QTextBrowser {
+                background-color: #1e1f22;
+                color: #d4d4d4;
+                border: 1px solid #3c3f41;
+                border-radius: 6px;
+                padding: 10px;
+                font-family: JetBrains Mono, Consolas, monospace;
+                font-size: 14px;
+            }
+        """)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self.editor)
@@ -94,88 +105,23 @@ class MarkdownViewer(QWidget):
 
         self.update_preview()
 
-    def _base_html(self):
-        return """
-        <html>
-        <head>
-            <style>
-                :root {
-                    --bg: #1e1f22;
-                    --panel: #26292c;
-                    --text: #d4d4d4;
-                    --muted: #9aa0a6;
-                    --accent: #4fc1ff;
-                    --border: #3c3f41;
-                }
-
-                body {
-                    font-family: JetBrains Mono, Consolas, monospace;
-                    background-color: var(--bg);
-                    color: var(--text);
-                    padding: 22px;
-                    margin: 0;
-                    line-height: 1.6;
-                    font-size: 14px;
-                }
-
-                h1, h2, h3 {
-                    color: #ffffff;
-                    border-bottom: 1px solid var(--border);
-                    padding-bottom: 6px;
-                    margin-top: 18px;
-                }
-
-                h1 { font-size: 24px; }
-                h2 { font-size: 20px; }
-                h3 { font-size: 17px; }
-
-                p { color: var(--text); }
-
-                code {
-                    background: #2b2d30;
-                    color: #dcdcaa;
-                    padding: 2px 6px;
-                    border-radius: 4px;}
-
-                pre {
-                    background: var(--panel);
-                    border: 1px solid var(--border);
-                    padding: 12px;
-                    border-radius: 8px;
-                    overflow-x: auto;
-                }
-
-                pre code { background: none; }
-
-                blockquote {
-                    border-left: 4px solid var(--accent);
-                    padding: 8px 12px;
-                    margin: 12px 0;
-                    color: var(--muted);
-                    background: #222427;
-                }
-
-                a {color: var(--accent);
-                   text-decoration: none;}
-
-                a:hover {
-                    text-decoration: underline;
-                }
-                ::-webkit-scrollbar {
-                    width: 10px;
-                    height: 10px;}
-                ::-webkit-scrollbar-track {background: var(--bg);}
-                ::-webkit-scrollbar-thumb {
-                    background: #4a4d52;
-                    border-radius: 6px;}
-                ::-webkit-scrollbar-thumb:hover { background: #5a5d62; }
-            </style>
-        </head>
-        <body>
-            <div id="content"></div>
-        </body>
-        </html>
-        """
+    def _base_html(self, body_html: str) -> str:
+        return f"""<html>
+<head><style>
+body {{ font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 14px; line-height: 1.6; padding: 22px; margin: 0; }}
+h1, h2, h3 {{ color: #ffffff; border-bottom: 1px solid #3c3f41; padding-bottom: 6px; }}
+h1 {{ font-size: 24px; }} h2 {{ font-size: 20px; }} h3 {{ font-size: 17px; }}
+code {{ background: #2b2d30; color: #dcdcaa; padding: 2px 6px; border-radius: 4px; }}
+pre {{ background: #26292c; border: 1px solid #3c3f41; padding: 12px; border-radius: 8px; }}
+pre code {{ background: none; }}
+blockquote {{ border-left: 4px solid #4fc1ff; padding: 8px 12px; margin: 12px 0; color: #9aa0a6; background: #222427; }}
+a {{ color: #4fc1ff; text-decoration: none; }}
+a:hover {{ text-decoration: underline; }}
+table {{ border-collapse: collapse; width: 100%; }}
+th, td {{ border: 1px solid #3c3f41; padding: 8px; text-align: left; }}
+th {{ background: #26292c; }}
+</style></head>
+<body>{body_html}</body></html>"""
 
     def load_file(self, path: str):
         try:
@@ -197,9 +143,11 @@ class MarkdownViewer(QWidget):
 
     def update_preview(self):
         text = self.editor.toPlainText()
-        html = markdown.markdown(text, extensions=["fenced_code", "tables", "toc"])
-        html = html.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-        js = f"""
-            document.getElementById('content').innerHTML = '{html}';
-        """
-        self.preview.page().runJavaScript(js)
+        if not text.strip():
+            self.preview.setHtml(self._base_html(""))
+            return
+        try:
+            html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+            self.preview.setHtml(self._base_html(html))
+        except Exception as e:
+            self.preview.setPlainText(f"Render error: {e}")

@@ -309,7 +309,10 @@ class FindReplaceWidget(QFrame):
                 original = editor.selectedText()
                 pattern = self.find_input.text()
                 flags = 0 if self.btn_case.isChecked() else re.IGNORECASE
-                replaced = re.sub(pattern, replace_text, original, flags=flags)
+                try:
+                    replaced = re.sub(pattern, replace_text, original, flags=flags)
+                except re.error:
+                    replaced = replace_text
                 editor.replaceSelectedText(replaced)
             else:
                 editor.replaceSelectedText(replace_text)
@@ -338,7 +341,10 @@ class FindReplaceWidget(QFrame):
                 editor.setSelection(s_line, s_idx, e_line, e_idx)
                 original = editor.selectedText()
                 if use_regex:
-                    replaced = re.sub(pattern, replace_text, original, flags=flags)
+                    try:
+                        replaced = re.sub(pattern, replace_text, original, flags=flags)
+                    except re.error:
+                        replaced = replace_text
                     editor.replaceSelectedText(replaced)
                 else:
                     editor.replaceSelectedText(replace_text)

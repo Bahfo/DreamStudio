@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
 from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
+from editor.texteditor.ironica_lexer.python_jedi_highlighter import PythonJediHighlighter
 from editor.texteditor.clangd import ClangdClient
 
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -90,7 +91,7 @@ class CodeEditor(QsciScintilla):
         #####################################
         self.jedi_enabled = True
         self.current_file_path = None
-        self._saved_hash: int = 0
+        self._saved_text: str = ""
 
         #####################################
         # ClangD
@@ -184,6 +185,7 @@ class CodeEditor(QsciScintilla):
         # Jedi async request tracking
         self._completion_request_id = None
         self._goto_request_id = None
+        self._last_hover_word = None
 
         self._symbol_update_timer.setInterval(400)
 
@@ -493,6 +495,7 @@ class CodeEditor(QsciScintilla):
         win._jedi_request_counter += 1
         win._pending_jedi_requests[req_id] = self
         self._goto_request_id = req_id
+        self._last_hover_word = word
 
         win._jedi_worker.request_goto(
             source, self.current_file_path, line + 1, index, req_id
@@ -581,6 +584,9 @@ class CodeEditor(QsciScintilla):
 
         target = self._hyperlink_target
         if target is None:
+            return
+        last_word = getattr(self, "_last_hover_word", None)
+        if last_word is not None and target.get("word") != last_word:
             return
 
         best_def = None
@@ -1225,14 +1231,23 @@ class CodeEditor(QsciScintilla):
             return
 
         if lang == "Python":
-            self._lexer = self.load_language_keywords("Python")
+            self._lexer = self.load_jedi_highlighter()
             if self._lexer:
                 self._lexer.setDefaultFont(self._font)
                 self.setLexer(self._lexer)
+                self._connect_jedi_analysis()
                 self.apply_theme()
                 self._schedule_document_symbol_update()
+            else:
+                self._lexer = self.load_language_keywords("Python")
+                if self._lexer:
+                    self._lexer.setDefaultFont(self._font)
+                    self.setLexer(self._lexer)
+                    self.apply_theme()
+                    self._schedule_document_symbol_update()
 
         elif lang in ("CPP", "C", "C++"):
+            self._disconnect_jedi_analysis()
             self._lexer = self.load_language_keywords("CPP")
             if self._lexer:
                 self._lexer.setDefaultFont(self._font)
@@ -1241,6 +1256,7 @@ class CodeEditor(QsciScintilla):
                 self._schedule_document_symbol_update()
 
         elif lang == "CMAKE":
+            self._disconnect_jedi_analysis()
             self._lexer = QsciLexerCMake()
             self._lexer.setDefaultFont(self._font)
             self.setLexer(self._lexer)
@@ -1248,6 +1264,7 @@ class CodeEditor(QsciScintilla):
             self._schedule_document_symbol_update()
 
         else:
+            self._disconnect_jedi_analysis()
             self._lexer = None
             self.setLexer(None)
             self.keyword_map = {}
@@ -1352,11 +1369,56 @@ class CodeEditor(QsciScintilla):
         self.keyword_map = classification_map
         return lexer
 
+    def load_jedi_highlighter(self) -> Optional[PythonJediHighlighter]:
+        path = "editor/texteditor/keywords/python_highlights.json"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return None
+
+        lexer = PythonJediHighlighter(self, data)
+
+        if self.api is not None and hasattr(self.api, "clear"):
+            self.api.clear()
+
+        self.api = QsciAPIs(lexer)
+        for word in data.get("keyword_map", {}):
+            self.api.add(word)
+        for word in data.get("builtins", []):
+            self.api.add(word)
+        for word in data.get("builtin_types", []):
+            self.api.add(word)
+        self.api.prepare()
+
+        classification_map = {}
+        for word, category in data.get("keyword_map", {}).items():
+            classification_map[word] = category
+        self.keyword_map = classification_map
+
+        return lexer
+
+    def _disconnect_jedi_analysis(self) -> None:
+        try:
+            self.textChanged.disconnect(self._schedule_jedi_analysis)
+        except (TypeError, RuntimeError):
+            pass
+
+    def _connect_jedi_analysis(self) -> None:
+        self._disconnect_jedi_analysis()
+        self.textChanged.connect(self._schedule_jedi_analysis)
+
+    def _schedule_jedi_analysis(self) -> None:
+        if self._lexer is not None and hasattr(
+            self._lexer, "schedule_analysis"
+        ):
+            self._lexer.schedule_analysis()
+
     def clear_dirty(self):
-        self._saved_hash = hash(self.text())
+        self._saved_text = self.text()
 
     def is_dirty(self):
-        return self._saved_hash != hash(self.text())
+        return self._saved_text != self.text()
 
     def save(self):
         if self.current_file_path:

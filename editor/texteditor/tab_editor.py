@@ -539,6 +539,13 @@ class DreamTabbedEditor(QTabWidget):
             except Exception:
                 pass
 
+        lexer = getattr(editor, "_lexer", None)
+        if lexer is not None and hasattr(lexer, "shutdown"):
+            try:
+                lexer.shutdown()
+            except Exception:
+                pass
+
         key = getattr(editor, "file_key", None)
         if key and key in self.opened_files:
             del self.opened_files[key]

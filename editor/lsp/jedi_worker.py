@@ -59,6 +59,9 @@ class JediWorker(QThread):
             if not self._running:
                 self._mutex.unlock()
                 break
+            if not self._queue:
+                self._mutex.unlock()
+                continue
             item = self._queue.popleft()
             self._mutex.unlock()
 
