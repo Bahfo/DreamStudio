@@ -1,7 +1,6 @@
 import json
 import logging
 import pathlib
-from typing import Any
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -61,6 +60,7 @@ LIGHT_COLORS = {
     "treeview.highlight": "#B3D4F7",
     "treeview.header_bg": "#E0E0E0",
     "treeview.header_text": "#666666",
+    "treeview.hover": "#E0E0E0",
     "terminal.background": "#FFFFFF",
     "terminal.text": "#333333",
     "terminal.input_bg": "#F5F5F5",
@@ -98,7 +98,7 @@ LIGHT_COLORS = {
     "tab.hover_dark": "#444444",
     "sidebar.button_hover_dark": "#333333",
     "welcome.background_dark": "transparent",
-    "hints.key_bg": "#3C3C3C",
+    "hints.key_bg": "#ECECEC",
     "notifications.button_hover": "#333333",
     "terminal.prompt": "#569CD6",
     "leftmost.background": "#E8E8E8",
@@ -178,6 +178,7 @@ DARK_COLORS = {
     "treeview.highlight": "#2d476d",
     "treeview.header_bg": "#313335",
     "treeview.header_text": "#afb1b3",
+    "treeview.hover": "#323232",
     "terminal.background": "#1e1e1e",
     "terminal.text": "#d4d4d4",
     "terminal.input_bg": "#252526",

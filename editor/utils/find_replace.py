@@ -543,3 +543,52 @@ class GlobalFileSearchEngine(QFrame):
         """)
 
         self._layout.addStretch()
+
+    def retheme(self, t) -> None:
+        bg = t.color("find_replace.background")
+        border = t.color("find_replace.border")
+        input_bg = t.color("find_replace.input_bg")
+        txt = t.color("window.text")
+        accent = t.color("widget.accent")
+        btn_hover = t.color("button.hover")
+        self.setStyleSheet(f"""
+            QFrame#findReplaceWidget {{
+                background-color: {bg};
+                border: 1px solid {border};
+                border-radius: 4px;
+            }}
+            QLineEdit {{
+                background-color: {input_bg};
+                color: {txt};
+                border: 1px solid {input_bg};
+                border-radius: 2px;
+                padding: 4px;
+                font-family: "JetBrains Mono";
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {accent};
+            }}
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 2px;
+                color: {txt};
+                padding: 3px 6px;
+            }}
+            QPushButton:hover {{
+                background-color: {btn_hover};
+            }}
+            QPushButton:checked {{
+                background-color: {accent};
+                color: white;
+            }}
+            QLabel {{
+                color: {txt};
+                font-size: 11px;
+                background-color: transparent;
+            }}
+        """)
+        self.search_label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px; background-color: transparent;"
+        )

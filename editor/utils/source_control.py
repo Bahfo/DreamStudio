@@ -1,4 +1,5 @@
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -108,6 +109,43 @@ class SourceControl(QFrame):
         print(f"Executing: git commit -m '{message}'")
         self.commit_input.clear()
         self.refresh_git_status()
+
+    def retheme(self, t) -> None:
+        bg = t.color("sidebar.background")
+        txt = t.color("sidebar.text")
+        input_bg = t.color("input.background")
+        input_border = t.color("input.border")
+        input_focus = t.color("input.focus_border")
+        input_txt = t.color("input.text")
+        accent = t.color("widget.accent")
+        btn_hover = t.color("button.hover")
+        self.setStyleSheet(f"background-color: {bg}; border: none;")
+        self.search_label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+        )
+        self.commit_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {input_bg};
+                color: {input_txt};
+                border: 1px solid {input_border};
+                border-radius: 3px;
+                padding: 6px;
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{ border: 1px solid {input_focus}; }}
+        """)
+        self.btn_commit.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {accent};
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 6px;
+                font-weight: bold;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{ background-color: {btn_hover}; }}
+        """)
 
     # TODO: Implement git in backend logic
     def refresh_git_status(self):

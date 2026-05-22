@@ -92,6 +92,7 @@ class DreamFileTreeWindow(QFrame):
             }
             QTreeView::item:hover {
                 background-color: #323232;
+                color: #afb1b3;
             }
             QTreeView::item:selected {
                 background-color: #2d476d;
@@ -218,11 +219,12 @@ class DreamFileTreeWindow(QFrame):
                 padding-bottom:2px;
             }}
             QTreeView::item:hover {{
-                background-color: {t.color("tab.hover_dark")};
+                background-color: {t.color("treeview.hover")};
+                color: {txt};
             }}
             QTreeView::item:selected {{
                 background-color: {hl};
-                color: white;
+                color: {t.color("window.text")};
             }}
             QHeaderView::section {{
                 background-color: {hdr_bg};

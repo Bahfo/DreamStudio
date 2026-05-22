@@ -1,4 +1,5 @@
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QSizePolicy,
@@ -27,11 +28,11 @@ class ExtensionsTab(QFrame):
         self.main_layout.setSpacing(10)
 
         self.main_layout.addSpacing(10)
-        market_label = QLabel("MARKETPLACE")
-        market_label.setStyleSheet(
+        self._market_label = QLabel("MARKETPLACE")
+        self._market_label.setStyleSheet(
             "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
         )
-        self.main_layout.addWidget(market_label)
+        self.main_layout.addWidget(self._market_label)
         self.main_layout.addSpacing(10)
 
         self.search_bar = QLineEdit()
@@ -102,15 +103,15 @@ more powerful widgets, and more.""",
 
         scroll_layout.addLayout(self.marketplace_container)
 
-        installed_label = QLabel("INSTALLED")
-        installed_label.setStyleSheet("""
+        self._installed_label = QLabel("INSTALLED")
+        self._installed_label.setStyleSheet("""
             color: #969696; 
             font-size:11px; 
             font-weight: bold; 
             letter-spacing: 1px; 
             margin-top: 10px;
         """)
-        scroll_layout.addWidget(installed_label)
+        scroll_layout.addWidget(self._installed_label)
 
         self.installed_container = QVBoxLayout()
         self.installed_container.setSpacing(2)
@@ -122,6 +123,34 @@ more powerful widgets, and more.""",
         scroll_layout.addStretch()
         scroll_area.setWidget(scroll_content)
         self.main_layout.addWidget(scroll_area)
+
+    def retheme(self, t) -> None:
+        bg = t.color("sidebar.background")
+        txt = t.color("sidebar.text")
+        input_bg = t.color("input.background")
+        input_border = t.color("input.border")
+        input_focus = t.color("input.focus_border")
+        input_txt = t.color("input.text")
+        self.setStyleSheet(f"background-color: {bg}; border: none;")
+        self._market_label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+        )
+        self._installed_label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin-top: 10px;"
+        )
+        self.search_bar.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {input_bg};
+                color: {input_txt};
+                border: 1px solid {input_border};
+                border-radius: 2px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {input_focus};
+            }}
+        """)
 
     def filter_marketplace(self, text):
         """Filters the Marketplace section items by name only."""

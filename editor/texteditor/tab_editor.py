@@ -173,13 +173,12 @@ class DreamStudioIDETabBar(QTabBar):
 
         selected_index = self.currentIndex()
 
-        # Define Colors
-        selected_bg = QColor("#25324D")
-        hover_bg = QColor("#2D2D2D")
-        inactive_bg = QColor("#1E1E1E")
-        border_color = QColor("#35538F")
-        hover_border_color = QColor("#3C3F41")
-        inactive_border_color = QColor("#1E1E1E")
+        selected_bg = getattr(self, "selected_bg", QColor("#25324D"))
+        hover_bg = getattr(self, "hover_bg", QColor("#2D2D2D"))
+        inactive_bg = getattr(self, "inactive_bg", QColor("#1E1E1E"))
+        border_color = getattr(self, "border_color", QColor("#35538F"))
+        hover_border_color = getattr(self, "hover_border_color", QColor("#3C3F41"))
+        inactive_border_color = getattr(self, "inactive_border_color", QColor("#1E1E1E"))
 
         for i in range(self.count()):
             if i == selected_index:
@@ -238,15 +237,15 @@ class DreamStudioIDETabBar(QTabBar):
                 r.top(),
             )
 
-        if selected:
-            option.palette.setColor(QPalette.ColorRole.WindowText, QColor("white"))
-        else:
-            option.palette.setColor(QPalette.ColorRole.WindowText, QColor("#AFB1B3"))
+        text_sel = getattr(self, "_text_selected", QColor("white"))
+        text_inactive = getattr(self, "_text_inactive", QColor("#AFB1B3"))
+        option.palette.setColor(QPalette.ColorRole.WindowText, text_sel if selected else text_inactive)
 
         if index in self._dirty_indices:
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor("#FFFFFF"))
+            dirty_color = getattr(self, "_dirty_dot", QColor("#FFFFFF"))
+            painter.setBrush(dirty_color)
             dot_radius = 4
             dot_x = r.left() + 8
             dot_y = r.center().y()
@@ -291,6 +290,9 @@ class DreamStudioIDETabBar(QTabBar):
         self.border_color = QColor(t.color("tab.selected_border"))
         self.hover_border_color = QColor(t.color("tab.hover_border"))
         self.inactive_border_color = QColor(t.color("tab.inactive_border"))
+        self._text_selected = QColor(t.color("tab.text_selected"))
+        self._text_inactive = QColor(t.color("tab.text_inactive"))
+        self._dirty_dot = QColor(t.color("tab.dirty_dot"))
         self._dirty_indices.clear()
         self.rebuild_dirty_indices()
         self.update()
@@ -475,6 +477,17 @@ class DreamTabbedEditor(QTabWidget):
                 new_editor = CodeEditor(self, language=language)
                 new_editor.setText(content)
                 new_editor.clear_dirty()
+
+        t = getattr(self._parent, "theme_manager", None)
+        if t is not None:
+            if isinstance(new_editor, CodeEditor):
+                new_editor.apply_theme(t)
+            elif isinstance(new_editor, FastTutorialFrame):
+                new_editor.retheme(t)
+            elif hasattr(new_editor, "apply_theme"):
+                new_editor.apply_theme(t)
+            elif hasattr(new_editor, "retheme"):
+                new_editor.retheme(t)
 
         if not key:
             key = f"__untitled_{id(new_editor)}"
@@ -864,15 +877,23 @@ class FastTutorialFrame(QFrame):
         main_layout.addLayout(footer)
 
     def retheme(self, t) -> None:
-        self.setStyleSheet(f"background-color: {t.color('welcome.background_dark')}; border: none;")
+        self.setStyleSheet(
+            f"background-color: {t.color('welcome.background_dark')}; border: none;"
+        )
         for child in self.findChildren(QLabel):
             txt = child.text()
             if txt == "DreamStudio 2026":
-                child.setStyleSheet(f"color: {t.color('welcome.title')}; font-size: 42px; font-weight: 300; font-family: montserrat, Arial; padding-left: 120px;")
+                child.setStyleSheet(
+                    f"color: {t.color('welcome.title')}; font-size: 42px; font-weight: 300; font-family: montserrat, Arial; padding-left: 120px;"
+                )
             elif txt == "Get Started with":
-                child.setStyleSheet(f"color: {t.color('welcome.subtitle')}; font-size: 20px; padding-left: 130px;")
+                child.setStyleSheet(
+                    f"color: {t.color('welcome.subtitle')}; font-size: 20px; padding-left: 130px;"
+                )
             elif txt == "Start":
-                child.setStyleSheet(f"color: {t.color('welcome.start_label')}; font-size: 18px; font-weight: bold; padding-left: 5px; padding-top: 20px;")
+                child.setStyleSheet(
+                    f"color: {t.color('welcome.start_label')}; font-size: 18px; font-weight: bold; padding-left: 5px; padding-top: 20px;"
+                )
         for child in self.findChildren(QCheckBox):
             child.setStyleSheet(f"color: {t.color('welcome.footer')}; font-size: 12px;")
         for child in self.findChildren(WelcomeAction):
@@ -922,9 +943,9 @@ class BackgroundHintsFrame(QFrame):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        center_widget = QWidget()
-        center_widget.setFixedWidth(520)
-        center_layout = QVBoxLayout(center_widget)
+        self._center_widget = QWidget()
+        self._center_widget.setFixedWidth(520)
+        center_layout = QVBoxLayout(self._center_widget)
         center_layout.setSpacing(8)
         center_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -950,7 +971,7 @@ class BackgroundHintsFrame(QFrame):
                 font-size: 16px;
                 font-family: 'JetBrains Mono', monospace;
                 padding: 4px 10px;
-                background-color: #1E1E1E;
+                background-color: #2D2D2D;
                 border-radius: 3px;
             """)
             key_label.setAlignment(
@@ -964,17 +985,18 @@ class BackgroundHintsFrame(QFrame):
         hints_grid.setColumnStretch(0, 0)
         hints_grid.setColumnStretch(1, 1)
 
-        grid_container = QWidget()
-        grid_container.setLayout(hints_grid)
-        center_layout.addWidget(grid_container, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._grid_container = QWidget()
+        self._grid_container.setLayout(hints_grid)
+        center_layout.addWidget(self._grid_container, alignment=Qt.AlignmentFlag.AlignCenter)
         center_layout.addStretch()
 
-        main_layout.addWidget(center_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(self._center_widget, alignment=Qt.AlignmentFlag.AlignCenter)
 
     def retheme(self, t) -> None:
-        self.setStyleSheet(
-            f"background-color: {t.color('window.background')}; border: none;"
-        )
+        bg = t.color("window.background")
+        self.setStyleSheet(f"background-color: {bg}; border: none;")
+        self._center_widget.setStyleSheet(f"background-color: transparent;")
+        self._grid_container.setStyleSheet(f"background-color: transparent;")
         for key_label, desc_label in self._hint_labels:
             desc_label.setStyleSheet(f"""
                 font-family: 'inter';
