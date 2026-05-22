@@ -103,6 +103,61 @@ class CardButton(QWidget):
                 color: white;}
         """)
 
+    def retheme(self, t) -> None:
+        bg = t.color("widget.background")
+        hover_bg = t.color("widget.border")
+        title_fg = t.color("widget.text_bright")
+        desc_fg = t.color("widget.text")
+        accent = t.color("widget.accent")
+        btn_hover = t.color("button.hover")
+        menu_bg = t.color("menu.background")
+        menu_fg = t.color("menu.text")
+        menu_sel = t.color("menu.selected")
+        menu_border = t.color("menu.border")
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {bg};
+                font-family: 'inter', Arial;}}
+            CardButton:hover {{background-color: {hover_bg};}}
+            QLabel {{background-color: transparent;}}
+            #TitleLabel {{
+                color: {title_fg};
+                font-size: 13px;
+                font-weight: bold;}}
+            #DescLabel {{
+                color: {desc_fg};
+                font-size: 12px;}}
+            #PubLabel {{
+                color: {desc_fg};
+                font-size: 11px;}}
+            QPushButton {{
+                background-color: {accent};
+                color: white;
+                border: none;
+                border-radius: 2px;
+                font-size: 12px;
+                font-weight: 500;
+                padding-right: 15px;}}
+            QPushButton:hover {{
+                background-color: {btn_hover};}}
+            QPushButton::menu-indicator {{
+                image: none;
+                subcontrol-position: right center;
+                subcontrol-origin: padding;
+                left: -4px;}}
+            QMenu {{
+                background-color: {menu_bg};
+                border: 1px solid {menu_border};
+                color: {menu_fg};
+                padding: 4px 0px;}}
+            QMenu::item {{
+                padding: 6px 20px 6px 12px;
+                font-size: 12px;}}
+            QMenu::item:selected {{
+                background-color: {menu_sel};
+                color: white;}}
+        """)
+
     def set_circular_icon(self, icon_path):
         """Creates a smooth circular cutout for any source image."""
         src_pixmap = QPixmap(icon_path)

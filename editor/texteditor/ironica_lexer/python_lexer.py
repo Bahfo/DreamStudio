@@ -64,6 +64,7 @@ class CustomPythonLexer(QsciLexerCustom):
     def apply_syntax_theme(self, t) -> None:
         self.setDefaultColor(QColor(t.color("editor.text")))
         self.setDefaultPaper(QColor(t.color("editor.background")))
+        self.setColor(QColor(t.color("editor.text")), self.STYLE_DEFAULT)
         self.setColor(QColor(t.color("syntax.string")), self.STYLE_STRING)
         self.setColor(QColor(t.color("syntax.comment")), self.STYLE_COMMENT)
         self.setColor(QColor(t.color("syntax.number")), self.STYLE_NUMBER)

@@ -151,6 +151,8 @@ more powerful widgets, and more.""",
                 border: 1px solid {input_focus};
             }}
         """)
+        for card in self.findChildren(CardButton):
+            card.retheme(t)
 
     def filter_marketplace(self, text):
         """Filters the Marketplace section items by name only."""

@@ -1289,6 +1289,22 @@ class CodeEditor(QsciScintilla):
 
         self.setFoldMarginColors(QColor(margin_bg), QColor(margin_bg))
 
+        if t is not None:
+            tip_bg = QColor(t.color("tooltip.background"))
+            tip_fg = QColor(t.color("tooltip.text"))
+            tip_border = t.color("tooltip.border")
+        else:
+            tip_bg = QColor("#2B2D30")
+            tip_fg = QColor("#DFE1E5")
+            tip_border = "#43454A"
+        self._palette.setColor(QPalette.ColorRole.ToolTipBase, tip_bg)
+        self._palette.setColor(QPalette.ColorRole.ToolTipText, tip_fg)
+        self.setPalette(self._palette)
+        self.setStyleSheet(
+            f"QToolTip{{background-color: {tip_bg.name()}; color: {tip_fg.name()};"
+            f" border: 1px solid {tip_border}; border-radius: 4px; padding: 4px;}}"
+        )
+
         if self._lexer and t is not None:
             if hasattr(self._lexer, "apply_syntax_theme"):
                 self._lexer.apply_syntax_theme(t)

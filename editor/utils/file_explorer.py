@@ -136,7 +136,7 @@ class DreamFileTreeWindow(QFrame):
         self.tree.header().setStretchLastSection(True)
 
         # Filtering based on search results
-        self.searchBar.textChanged.connect(self.proxy_model.setFilterFixedString)
+        self.searchBar.textChanged.connect(self._on_search)
 
         self.set_treeview_directory(path)
 
@@ -195,6 +195,13 @@ class DreamFileTreeWindow(QFrame):
 
         if show:
             self.tree.resizeColumnToContents(0)
+
+    def _on_search(self, text: str) -> None:
+        self.proxy_model.setFilterFixedString(text)
+        if hasattr(self, "source_index") and self.source_index.isValid():
+            root = self.proxy_model.mapFromSource(self.source_index)
+            if root.isValid():
+                self.tree.setRootIndex(root)
 
     def retheme(self, t) -> None:
         bg = t.color("treeview.background")
