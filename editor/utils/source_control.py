@@ -147,7 +147,7 @@ class SourceControl(QFrame):
             QPushButton:hover {{ background-color: {btn_hover}; }}
         """)
 
-    # TODO: Implement git in backend logic
+    # NOTE: Git backend logic not yet implemented
     def refresh_git_status(self):
         """
         Stub loader where the backend logic queries git status

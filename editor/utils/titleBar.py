@@ -509,16 +509,16 @@ class DreamStudioTitleBar(QWidget):
                 self.sync_titlebar_state()
         return super().eventFilter(obj, event)
 
+    _gradient_colors = ["#004073", "#11324E", "#1E2E3B", "#24292D", "#25272B"]
+
     def paintEvent(self, a0):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        stops = [0.85, 0.7, 0.5, 0.3, 0.1]
         gradient = QLinearGradient(0, 0, self.width(), 0)
-        gradient.setColorAt(0.85, QColor("#004073"))
-        gradient.setColorAt(0.7, QColor("#11324E"))
-        gradient.setColorAt(0.5, QColor("#1E2E3B"))
-        gradient.setColorAt(0.3, QColor("#24292D"))
-        gradient.setColorAt(0.1, QColor("#25272B"))
-
+        colors = getattr(self, "_gradient_colors", ["#004073", "#11324E", "#1E2E3B", "#24292D", "#25272B"])
+        for stop, color in zip(stops, colors):
+            gradient.setColorAt(stop, QColor(color))
         painter.fillRect(self.rect(), gradient)
         return super().paintEvent(a0)
 
@@ -668,6 +668,13 @@ class DreamStudioTitleBar(QWidget):
         tb_bg = t.color("titlebar.background")
         tb_text = t.color("titlebar.text")
         btn_hover = t.color("titlebar.btn_hover")
+        self._gradient_colors = [
+            t.color("titlebar.gradient_0"),
+            t.color("titlebar.gradient_1"),
+            t.color("titlebar.gradient_2"),
+            t.color("titlebar.gradient_3"),
+            t.color("titlebar.gradient_4"),
+        ]
         self.setStyleSheet(f"background-color: {tb_bg};")
         self.icon_btn.setStyleSheet(
             f"""

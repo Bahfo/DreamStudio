@@ -23,13 +23,15 @@ import os
 import pathlib
 
 # Third-Party Imports (GUI)
-from PyQt6.QtCore import QDir, QEvent, QSize, Qt, QTimer
+from PyQt6.QtCore import QDir, QEvent, QPoint, QSize, Qt, QTimer
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QFrame,
     QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMenu,
     QPushButton,
@@ -137,48 +139,6 @@ class DreamStudio(QMainWindow):
         self.replace_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
         self.replace_shortcut.activated.connect(self.toggle_find_replace)
         self.replace_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
-
-    def _show_preferences_menu(self):
-        menu = QMenu(self)
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background-color: {self.theme_manager.color("menu.background")};
-                color: {self.theme_manager.color("menu.text")};
-                border: 1px solid {self.theme_manager.color("menu.border")};
-                padding: 4px 0px;
-                font-size: 13px;
-            }}
-            QMenu::item {{
-                padding: 6px 24px;
-            }}
-            QMenu::item:selected {{
-                background-color: {self.theme_manager.color("menu.selected")};
-            }}
-            QMenu::separator {{
-                height: 1px;
-                background-color: {self.theme_manager.color("menu.separator")};
-                margin: 4px 8px;
-            }}
-        """)
-
-        current = self.theme_manager.name
-        dark_action = QAction("Dark Theme", self)
-        dark_action.setCheckable(True)
-        dark_action.setChecked(current == "dark")
-        dark_action.triggered.connect(lambda: self.theme_manager.switch_to("dark"))
-
-        light_action = QAction("Light Theme", self)
-        light_action.setCheckable(True)
-        light_action.setChecked(current == "light")
-        light_action.triggered.connect(lambda: self.theme_manager.switch_to("light"))
-
-        menu.addAction(dark_action)
-        menu.addAction(light_action)
-
-        btn_pos = self.preferencesBtn.mapToGlobal(
-            self.preferencesBtn.rect().bottomLeft()
-        )
-        menu.exec(btn_pos)
 
     def _on_theme_changed(self, theme_name: str):
         t = self.theme_manager
@@ -437,7 +397,7 @@ class DreamStudio(QMainWindow):
             text=None,
             image="assets/system/version_control.png",
             image_size=QSize(26, 26),
-            function=self._show_preferences_menu,
+            function=lambda: self._show_preferences_menu(self.preferencesBtn),
         )
         self.leftmost_layout.addWidget(self.preferencesBtn)
         self.preferencesBtn.setToolTip("Set Preferences")
@@ -605,6 +565,128 @@ class DreamStudio(QMainWindow):
                 self.update_editor_visibility()
                 return True
         return super().eventFilter(obj, event)
+
+    def _show_preferences_menu(self, button: QPushButton):
+        THEMES = [
+            ("dark", "Dark"),
+            ("light", "Light"),
+            ("ocean", "Ocean"),
+            ("solarized_dark", "Solarized Dark"),
+            ("solarized_light", "Solarized Light"),
+            ("arcade", "Arcade"),
+            ("hacker_blue", "Hacker Blue"),
+            ("davy", "Davy"),
+            ("high_contrast_dark", "High Contrast Dark"),
+            ("coffee_dark", "Coffee Dark"),
+            ("coffee_light", "Coffee Light"),
+        ]
+
+        menu = QMenu(self)
+
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {self.theme_manager.color("menu.background")};
+                color: {self.theme_manager.color("menu.text")};
+                border: 1px solid {self.theme_manager.color("menu.border")};
+                padding: 6px 0px;
+                font-family: Inter, Arial;
+                font-size: 13px;
+            }}
+
+            QMenu::item {{
+                padding: 8px 28px 8px 18px;
+                background: transparent;
+            }}
+
+            QMenu::item:selected {{
+                background-color: {self.theme_manager.color("menu.selected")};
+            }}
+
+            QMenu::separator {{
+                height: 1px;
+                background: {self.theme_manager.color("menu.separator")};
+                margin: 6px 10px;
+            }}
+
+            QMenu::right-arrow {{
+                image: none;
+            }}
+        """)
+
+        # Header (disabled action)
+        header = QAction("General Settings", self)
+        header.setEnabled(False)
+        menu.addAction(header)
+
+        menu.addSeparator()
+
+        # Toggle actions
+        auto_save = QAction("Enable Auto-Save", self)
+        menu.addAction(auto_save)
+
+        minimap = QAction("Minimap Enabled", self)
+        menu.addAction(minimap)
+
+        sound = QAction("Enable Sound Effects", self)
+        menu.addAction(sound)
+
+        line_numbers = QAction("Show Line Numbers", self)
+        menu.addAction(line_numbers)
+
+        menu.addSeparator()
+
+        # Theme submenu
+        theme_menu = QMenu("Theme", self)
+
+        theme_menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {self.theme_manager.color("menu.background")};
+                color: {self.theme_manager.color("menu.text")};
+                border: 1px solid {self.theme_manager.color("menu.border")};
+            }}
+
+            QMenu::item {{
+                padding: 8px 28px 8px 18px;
+            }}
+
+            QMenu::item:selected {{
+                background-color: {self.theme_manager.color("menu.selected")};
+            }}
+        """)
+
+        for theme_key, theme_label in THEMES:
+            action = QAction(theme_label, self)
+            action.triggered.connect(
+                lambda checked, t=theme_key: self.theme_manager.switch_to(t)
+            )
+
+            theme_menu.addAction(action)
+
+        menu.addMenu(theme_menu)
+
+        # Font size submenu
+        font_menu = QMenu("Font Size", self)
+
+        for size in [10, 12, 14, 16, 18]:
+            action = QAction(str(size), self)
+
+            action.triggered.connect(
+                lambda checked, s=size: self.tab_editors.set_font_size(s)
+            )
+
+            font_menu.addAction(action)
+
+        menu.addMenu(font_menu)
+
+        menu.addSeparator()
+
+        close_action = QAction("Close", self)
+        menu.addAction(close_action)
+
+        # Position menu relative to edge button, offset upward for clarity
+        pos = button.mapToGlobal(button.rect().bottomRight())
+        pos += QPoint(-180, -360)
+        menu.exec(pos)
 
     def update_editor_visibility(self):
         if not hasattr(self, "minimap") or not hasattr(self, "main_editor_area"):
