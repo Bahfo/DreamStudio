@@ -15,6 +15,14 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 
+# Lexer states for multiline strings
+_STATE_NORMAL = 0
+_STATE_ML_DQUOTE = 1
+_STATE_ML_SQUOTE = 2
+
+_TRIPLE_DOUBLE = '"""'
+_TRIPLE_SINGLE = "'''"
+
 logger = logging.getLogger(__name__)
 
 _HIGHLIGHTS_PATH = "editor/texteditor/keywords/python_highlights.json"
@@ -60,41 +68,36 @@ _STR_PREFIX = r"(?:[rR](?:[bBfF])?|[bB][rR]?|[fF][rR]?|[uU])"
 
 _TOKEN_RE = re.compile(
     r"(?P<decorator>@\w+(?:\.\w+)*(?:\s*\([^()]*\))?)|"
-
-    r'(?P<string3>'
-    + _STR_PREFIX + r'?"""(?:[^"\\]|\\.|"(?!""))*"""|'
-    + _STR_PREFIX + r"?" + r"'''(?:[^'\\]|\\.|'(?!''))*''')|"
-
-    r'(?P<fstring>'
-    r'(?:[fF][rR]|[rR][fF]|[fF])"(?:[^"\\]|\\.)*"|'
-    r"(?:[fF][rR]|[rR][fF]|[fF])'(?:[^\'\\]|\\.)*')|"
-
-    r'(?P<string>'
+    r"(?P<string3>"
+    + _STR_PREFIX
+    + r'?"""(?:[^"\\]|\\.|"(?!""))*"""|'
+    + _STR_PREFIX
+    + r"?"
+    + r"'''(?:[^'\\]|\\.|'(?!''))*''')|"
+    r"(?P<fstring>"
+    r'(?:[fF][rR]|[rR][fF]|[fF])"(?:[^"\\]|\\.|{{|}})*"|'
+    r"(?:[fF][rR]|[rR][fF]|[fF])'(?:[^\'\\]|\\.|{{|}})*')|"
+    r"(?P<string>"
     r'(?:[rR][bB]|[bB][rR]|[rRbBuU])?"(?:[^"\\]|\\.)*"|'
     r"(?:[rR][bB]|[bB][rR]|[rRbBuU])?'(?:[^\'\\]|\\.)*')|"
-
     r"(?P<comment>#.*)|"
-
     r"(?P<number_float>"
     r"\b\d(_?\d)*\.\d(_?\d)*(?:[eE][+-]?\d(_?\d)*)?[jJ]?\b|"
     r"\b\d(_?\d)*\.(?:[jJ])?(?=\W|$)|"
     r"(?<!\w)\.\d(_?\d)*(?:[eE][+-]?\d(_?\d)*)?[jJ]?\b|"
     r"\b\d(_?\d)*[eE][+-]?\d(_?\d)*[jJ]?\b"
     r")|"
-
     r"(?P<number>"
     r"\b0[xX][\da-fA-F](_?[\da-fA-F])*\b|"
     r"\b0[bB][01](_?[01])*\b|"
     r"\b0[oO][0-7](_?[0-7])*\b|"
     r"\b\d(_?\d)*[jJ]?\b"
     r")|"
-
     r"(?P<operator>"
     r"\*\*=|//=|<<=|>>=|->|:=|\.\.\.|"
     r"\*\*|//|<<|>>|==|!=|<=|>=|"
     r"[-+*/%&|^~<>!]=?|@=?|="
     r")|"
-
     r"(?P<punctuation>[;,.:()\[\]{}])|"
     r"(?P<word>\b[^\W\d]\w*\b)|"
     r"(?P<ws>\s+)|"
@@ -176,9 +179,7 @@ class _JediAnalyzer(QThread):
                         env = jedi.create_environment(env_path)
                     except Exception:
                         env = jedi.get_default_environment()
-                script = jedi.Script(
-                    code=source, path=path, environment=env
-                )
+                script = jedi.Script(code=source, path=path, environment=env)
                 names = script.get_names(all_scopes=True)
                 new_cache: Dict[Tuple[int, int, str], str] = {}
                 new_call_cache: Set[Tuple[int, int, str]] = set()
@@ -192,8 +193,20 @@ class _JediAnalyzer(QThread):
                             new_cache[key] = "instance"
                         elif ntype == "statement":
                             new_cache[key] = "statement"
-                    elif ntype in ("function", "property", "class", "instance"):
-                        new_call_cache.add(key)
+
+                # Detect actual call sites by scanning for function call patterns
+                # Look for patterns like: identifier( or identifier (
+                lines = source.split("\n")
+                for line_idx, line in enumerate(lines):
+                    # Find all word tokens in the line
+                    for match in re.finditer(r"\b[^\W\d]\w*\b", line):
+                        word = match.group()
+                        col = match.start()
+                        # Check if this is followed by an opening parenthesis (with optional whitespace)
+                        after_word = line[col + len(word) :]
+                        if after_word.lstrip().startswith("("):
+                            # This looks like a function call
+                            new_call_cache.add((line_idx, col, word))
 
                 self._cache_mutex.lock()
                 self.cache = new_cache
@@ -213,15 +226,15 @@ class _JediAnalyzer(QThread):
 
 
 class PythonJediHighlighter(QsciLexerCustom):
-    def __init__(
-        self, parent, json_data: Optional[dict] = None
-    ) -> None:
+    def __init__(self, parent, json_data: Optional[dict] = None) -> None:
         super().__init__(parent)
         self.json_data = json_data or self._load_defaults()
         self._editor = parent
         self._analyzer: Optional[_JediAnalyzer] = None
         self._current_env_path: Optional[str] = None
-        self._last_analysis_key: Optional[Tuple[str, Optional[str], Optional[str]]] = None
+        self._last_analysis_key: Optional[Tuple[str, Optional[str], Optional[str]]] = (
+            None
+        )
         self._restyling = False
         self._request_counter = 0
         self._latest_request_id = -1
@@ -231,20 +244,12 @@ class PythonJediHighlighter(QsciLexerCustom):
         self.setDefaultPaper(QColor("#1E1E1E"))
         self.setDefaultColor(QColor("#D4D4D4"))
 
-        self._style_colors: Dict[str, str] = dict(
-            self.json_data.get("styles", {})
-        )
+        self._style_colors: Dict[str, str] = dict(self.json_data.get("styles", {}))
 
-        self._keyword_map: Dict[str, str] = dict(
-            self.json_data.get("keyword_map", {})
-        )
+        self._keyword_map: Dict[str, str] = dict(self.json_data.get("keyword_map", {}))
 
-        self._builtins: Set[str] = set(
-            self.json_data.get("builtins", [])
-        )
-        self._builtin_types: Set[str] = set(
-            self.json_data.get("builtin_types", [])
-        )
+        self._builtins: Set[str] = set(self.json_data.get("builtins", []))
+        self._builtin_types: Set[str] = set(self.json_data.get("builtin_types", []))
 
         self._jedi_type_map: Dict[str, str] = dict(
             self.json_data.get("jedi_type_map", {})
@@ -254,6 +259,12 @@ class PythonJediHighlighter(QsciLexerCustom):
         self._analysis_timer.setSingleShot(True)
         self._analysis_timer.setInterval(300)
         self._analysis_timer.timeout.connect(self._do_analysis)
+
+        # Track last styled range for incremental updates
+        self._last_styled_start = 0
+        self._last_styled_end = 0
+        # Lexer state for multiline strings
+        self._lexer_state = _STATE_NORMAL
 
         self._init_styles()
 
@@ -330,15 +341,35 @@ class PythonJediHighlighter(QsciLexerCustom):
             return
         self._restyling = True
         try:
-            total = self._editor.SendScintilla(
-                self._editor.SCI_GETTEXTLENGTH
+            # Get visible range for incremental recolorization
+            first_visible = self._editor.SendScintilla(
+                self._editor.SCI_GETFIRSTVISIBLELINE
             )
-            if total > 0:
+            lines_on_screen = self._editor.SendScintilla(self._editor.SCI_LINESONSCREEN)
+            total_lines = self._editor.SendScintilla(self._editor.SCI_GETLINECOUNT)
+
+            # Calculate range with buffer
+            buffer_lines = 50
+            start_line = max(0, first_visible - buffer_lines)
+            end_line = min(total_lines, first_visible + lines_on_screen + buffer_lines)
+
+            # Convert line range to position range
+            start_pos = self._editor.SendScintilla(
+                self._editor.SCI_POSITIONFROMLINE, start_line
+            )
+            end_pos = self._editor.SendScintilla(
+                self._editor.SCI_GETLINEENDPOSITION, end_line
+            )
+
+            if end_pos > start_pos:
                 self._editor.SendScintilla(
-                    self._editor.SCI_COLOURISE, 0, total
+                    self._editor.SCI_COLOURISE, start_pos, end_pos
                 )
         except Exception:
-            pass
+            # Fallback to full document if visible range fails
+            total = self._editor.SendScintilla(self._editor.SCI_GETTEXTLENGTH)
+            if total > 0:
+                self._editor.SendScintilla(self._editor.SCI_COLOURISE, 0, total)
         finally:
             self._restyling = False
 
@@ -350,15 +381,39 @@ class PythonJediHighlighter(QsciLexerCustom):
         if self._editor is not None and not self._restyling:
             self._restyling = True
             try:
-                total = self._editor.SendScintilla(
-                    self._editor.SCI_GETTEXTLENGTH
+                # Get visible range for incremental recolorization
+                first_visible = self._editor.SendScintilla(
+                    self._editor.SCI_GETFIRSTVISIBLELINE
                 )
-                if total > 0:
+                lines_on_screen = self._editor.SendScintilla(
+                    self._editor.SCI_LINESONSCREEN
+                )
+                total_lines = self._editor.SendScintilla(self._editor.SCI_GETLINECOUNT)
+
+                # Calculate range with buffer
+                buffer_lines = 50
+                start_line = max(0, first_visible - buffer_lines)
+                end_line = min(
+                    total_lines, first_visible + lines_on_screen + buffer_lines
+                )
+
+                # Convert line range to position range
+                start_pos = self._editor.SendScintilla(
+                    self._editor.SCI_POSITIONFROMLINE, start_line
+                )
+                end_pos = self._editor.SendScintilla(
+                    self._editor.SCI_GETLINEENDPOSITION, end_line
+                )
+
+                if end_pos > start_pos:
                     self._editor.SendScintilla(
-                        self._editor.SCI_COLOURISE, 0, total
+                        self._editor.SCI_COLOURISE, start_pos, end_pos
                     )
             except Exception:
-                pass
+                # Fallback to full document if visible range fails
+                total = self._editor.SendScintilla(self._editor.SCI_GETTEXTLENGTH)
+                if total > 0:
+                    self._editor.SendScintilla(self._editor.SCI_COLOURISE, 0, total)
             finally:
                 self._restyling = False
 
@@ -385,13 +440,9 @@ class PythonJediHighlighter(QsciLexerCustom):
             return None
 
         if start > 0:
-            prev_style = editor.SendScintilla(
-                editor.SCI_GETSTYLEAT, start - 1
-            )
+            prev_style = editor.SendScintilla(editor.SCI_GETSTYLEAT, start - 1)
             if prev_style == _STYLE_IDS["string_doc"]:
-                scan = self._slice_bytes(
-                    full_bytes, max(0, start - 6000), start
-                )
+                scan = self._slice_bytes(full_bytes, max(0, start - 6000), start)
                 last_dq = scan.rfind(_TRIPLE_DOUBLE)
                 last_sq = scan.rfind(_TRIPLE_SINGLE)
                 q = '"' if last_dq > last_sq else "'"
@@ -422,28 +473,28 @@ class PythonJediHighlighter(QsciLexerCustom):
 
         editor.SendScintilla(editor.SCI_STARTSTYLING, start)
 
-        prev_was_dot = False
+        last_significant_token = None
         prev_was_def = False
         prev_was_class = False
-        in_multiline = False
-        quote_run = 0
-        quote_char = ""
 
-        if start > 0:
-            ml_result = self._initial_state_for(editor, full_bytes, start)
-            if ml_result is not None:
-                in_multiline = True
-                ml_state, quote_char = ml_result
-                boundary_start = max(0, start - 3)
-                boundary = self._slice_bytes(full_bytes, boundary_start, start)
-                for ch in reversed(boundary):
-                    if ch == quote_char:
-                        quote_run += 1
-                    else:
-                        break
-                if quote_run >= 3:
-                    in_multiline = False
-                    quote_run = 0
+        # Use lexer states for multiline tracking
+        init_state = self._initial_state_for(editor, full_bytes, start)
+        in_multiline = init_state is not None
+        quote_char = ""
+        quote_run = 0
+        if init_state is not None:
+            ml_state, quote_char = init_state
+            # Count quote run at the boundary
+            boundary_start = max(0, start - 3)
+            boundary = self._slice_bytes(full_bytes, boundary_start, start)
+            for ch in reversed(boundary):
+                if ch == quote_char:
+                    quote_run += 1
+                else:
+                    break
+            if quote_run >= 3:
+                in_multiline = False
+                quote_run = 0
 
             ctx_scan = max(0, start - 200)
             prefix = self._slice_bytes(full_bytes, ctx_scan, start)
@@ -455,14 +506,38 @@ class PythonJediHighlighter(QsciLexerCustom):
                 elif category == "class":
                     prev_was_class = True
 
-            stripped = prefix.rstrip()
-            if stripped.endswith("."):
-                prev_was_dot = True
+        # Compute initial line and column for the start position
+        if start == 0:
+            line = 0
+            col = 0
+        else:
+            line = editor.SendScintilla(editor.SCI_LINEFROMPOSITION, start)
+            line_start_byte = editor.SendScintilla(editor.SCI_POSITIONFROMLINE, start)
+            col = editor.SendScintilla(
+                editor.SCI_COUNTCHARACTERS, line_start_byte, start
+            )
 
-        byte_offset = 0
+        # Use lexer states for multiline tracking (ported from python_lexer.py)
+        # Note: If _initial_state_for is used, this may overwrite it, keeping your logic intact below
+        init_state = self._lexer_state
+        in_multiline = init_state in (_STATE_ML_DQUOTE, _STATE_ML_SQUOTE)
+        was_multiline = in_multiline
+        quote_char = ""
+        quote_run = 0
+        if init_state == _STATE_ML_DQUOTE:
+            quote_char = '"'
+        elif init_state == _STATE_ML_SQUOTE:
+            quote_char = "'"
+
+        byte_offset = 0  # Initialize byte offset here
+
         for match in _TOKEN_RE.finditer(text):
             raw = match.group(0)
             byte_len = len(raw.encode("utf-8"))
+
+            # Current token starts at (line, col)
+            current_token_line = line
+            current_token_col = col
 
             tok = "default"
             style_id = _STYLE_IDS["default"]
@@ -491,27 +566,29 @@ class PythonJediHighlighter(QsciLexerCustom):
                 else:
                     tok = "string_doc"
                     style_id = _STYLE_IDS[tok]
-                    editor.SendScintilla(
-                        editor.SCI_SETSTYLING, byte_len, style_id
-                    )
+                    editor.SendScintilla(editor.SCI_SETSTYLING, byte_len, style_id)
                     byte_offset += byte_len
                     continue
 
             if match.group("comment"):
                 tok = "comment"
                 style_id = _STYLE_IDS[tok]
+                last_significant_token = None
 
             elif match.group("string3"):
                 tok = "string_doc"
                 style_id = _STYLE_IDS[tok]
+                last_significant_token = None
 
             elif match.group("fstring"):
                 tok = "string_fstring"
                 style_id = _STYLE_IDS[tok]
+                last_significant_token = None
 
             elif match.group("string"):
                 tok = "string"
                 style_id = _STYLE_IDS[tok]
+                last_significant_token = None
 
             elif match.group("number_float"):
                 tok = "number_float"
@@ -530,7 +607,10 @@ class PythonJediHighlighter(QsciLexerCustom):
             elif match.group("operator"):
                 tok = "operator"
                 style_id = _STYLE_IDS[tok]
-                prev_was_dot = raw == "."
+                if raw == ".":
+                    last_significant_token = "."
+                else:
+                    last_significant_token = None
                 prev_was_def = False
                 prev_was_class = False
 
@@ -538,67 +618,63 @@ class PythonJediHighlighter(QsciLexerCustom):
                 ch = raw
                 tok = "punctuation"
                 style_id = _STYLE_IDS[tok]
-                prev_was_dot = ch == "."
+                if ch == ".":
+                    last_significant_token = "."
+                else:
+                    last_significant_token = None
                 prev_was_def = False
                 prev_was_class = False
 
             elif match.group("word"):
                 word = match.group("word")
-                actual_pos = start + byte_offset
-                actual_line = editor.SendScintilla(
-                    editor.SCI_LINEFROMPOSITION, actual_pos
-                )
-                line_start_byte = editor.SendScintilla(
-                    editor.SCI_POSITIONFROMLINE, actual_line
-                )
-                actual_col = editor.SendScintilla(
-                    editor.SCI_COUNTCHARACTERS, line_start_byte, actual_pos
-                )
-
-                if prev_was_def:
-                    tok = "function"
-                    style_id = _STYLE_IDS[tok]
-                    prev_was_def = False
-                elif prev_was_class:
-                    tok = "class"
-                    style_id = _STYLE_IDS[tok]
-                    prev_was_class = False
-                elif word in ("self", "cls"):
-                    tok = "self"
-                    style_id = _STYLE_IDS[tok]
-                elif word in self._keyword_map:
-                    tok = self._keyword_map[word]
-                    style_id = _STYLE_IDS.get(
-                        tok, _STYLE_IDS["keyword"]
-                    )
-                    prev_was_def = word == "def"
-                    prev_was_class = word == "class"
-                elif word in self._builtin_types:
-                    tok = "builtin_type"
-                    style_id = _STYLE_IDS[tok]
-                elif word in self._builtins:
-                    tok = "builtin"
-                    style_id = _STYLE_IDS[tok]
-                elif _CAPITAL_WORD_RE.fullmatch(word):
-                    tok = "constant"
-                    style_id = _STYLE_IDS[tok]
-                else:
-                    if self._is_call_site(actual_line, actual_col, word):
-                        tok = "function_call"
-                        style_id = _STYLE_IDS["function_call"]
+                actual_line = current_token_line
+                actual_col = current_token_col
+                # Only process as identifier if it's a valid Python identifier
+                if word.isidentifier():
+                    if prev_was_def:
+                        tok = "function"
+                        style_id = _STYLE_IDS[tok]
+                        prev_was_def = False
+                    elif prev_was_class:
+                        tok = "class"
+                        style_id = _STYLE_IDS[tok]
+                        prev_was_class = False
+                    elif word in ("self", "cls"):
+                        tok = "self"
+                        style_id = _STYLE_IDS[tok]
+                    elif word in self._keyword_map:
+                        tok = self._keyword_map[word]
+                        style_id = _STYLE_IDS.get(tok, _STYLE_IDS["keyword"])
+                        prev_was_def = word == "def"
+                        prev_was_class = word == "class"
+                    elif word in self._builtin_types:
+                        tok = "builtin_type"
+                        style_id = _STYLE_IDS[tok]
+                    elif word in self._builtins:
+                        tok = "builtin"
+                        style_id = _STYLE_IDS[tok]
+                    elif _CAPITAL_WORD_RE.fullmatch(word):
+                        tok = "constant"
+                        style_id = _STYLE_IDS[tok]
                     else:
-                        jedi_type = self._get_jedi_type(
-                            actual_line, actual_col, word
-                        )
-                        if jedi_type and jedi_type in _STYLE_IDS:
-                            tok = jedi_type
-                            style_id = _STYLE_IDS[jedi_type]
-                        elif prev_was_dot:
-                            tok = "attribute"
-                            style_id = _STYLE_IDS[tok]
-                            prev_was_dot = False
-
-                prev_was_dot = False
+                        if self._is_call_site(actual_line, actual_col, word):
+                            tok = "function_call"
+                            style_id = _STYLE_IDS["function_call"]
+                        else:
+                            jedi_type = self._get_jedi_type(
+                                actual_line, actual_col, word
+                            )
+                            if jedi_type and jedi_type in _STYLE_IDS:
+                                tok = jedi_type
+                                style_id = _STYLE_IDS[jedi_type]
+                            elif last_significant_token == ".":
+                                tok = "attribute"
+                                style_id = _STYLE_IDS[tok]
+                                last_significant_token = None
+                else:
+                    # Not a valid Python identifier, treat as default
+                    tok = "default"
+                    style_id = _STYLE_IDS["default"]
 
             elif match.group("ws"):
                 tok = "default"
@@ -608,11 +684,59 @@ class PythonJediHighlighter(QsciLexerCustom):
                 tok = "default"
                 style_id = _STYLE_IDS["default"]
 
-            editor.SendScintilla(
-                editor.SCI_SETSTYLING, byte_len, style_id
-            )
+            editor.SendScintilla(editor.SCI_SETSTYLING, byte_len, style_id)
 
+            # Update line and column for next token
             byte_offset += byte_len
+            # Update line/col based on token text
+            for ch in raw:
+                if ch == "\n":
+                    line += 1
+                    col = 0
+                else:
+                    col += 1
+
+        # Update lexer state for multiline strings (ported from python_lexer.py)
+        if not in_multiline and not was_multiline:
+            # Strip comments before scanning for unclosed triple quotes
+            # to avoid false positives from # """ inside comments
+            clean_lines = []
+            for line_text in text.split("\n"):
+                comment_pos = line_text.find("#")
+                if comment_pos >= 0:
+                    clean_lines.append(line_text[:comment_pos])
+                else:
+                    clean_lines.append(line_text)
+            clean_text = "\n".join(clean_lines)
+
+            i = 0
+            while i < len(clean_text):
+                dq = clean_text.find(_TRIPLE_DOUBLE, i)
+                sq = clean_text.find(_TRIPLE_SINGLE, i)
+                if dq == -1 and sq == -1:
+                    break
+                if dq != -1 and (sq == -1 or dq < sq):
+                    cdq = clean_text.find(_TRIPLE_DOUBLE, dq + 3)
+                    if cdq == -1:
+                        in_multiline = True
+                        quote_char = '"'
+                        break
+                    i = cdq + 3
+                else:
+                    csq = clean_text.find(_TRIPLE_SINGLE, sq + 3)
+                    if csq == -1:
+                        in_multiline = True
+                        quote_char = "'"
+                        break
+                    i = csq + 3
+
+        if in_multiline:
+            if quote_char == '"':
+                self._lexer_state = _STATE_ML_DQUOTE
+            else:
+                self._lexer_state = _STATE_ML_SQUOTE
+        else:
+            self._lexer_state = _STATE_NORMAL
 
     def apply_syntax_theme(self, t) -> None:
         text_color = t.color("editor.text")
