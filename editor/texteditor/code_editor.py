@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 ### LOCAL IMPORTS
 from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
 from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
-from editor.texteditor.ironica_lexer.python_jedi_highlighter import PythonJediHighlighter
+from editor.texteditor.ironica_lexer.python_jedi_highlighter import (
+    PythonJediHighlighter,
+)
 from editor.texteditor.clangd import ClangdClient
 
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -267,6 +269,18 @@ class CodeEditor(QsciScintilla):
         ###############################
         self.setup_find_indicators()
 
+    def _set_font_size_(self, size: int):
+        self._font.setPointSize(size)
+
+        self.setFont(self._font)
+        self.setMarginsFont(self._font)
+
+        # Apply font to lexer if exists
+        lexer = self.lexer()
+        if lexer:
+            lexer.setDefaultFont(self._font)
+            lexer.setFont(self._font)
+
     def setup_find_indicators(self):
         FIND_ALL = 11
         CURRENT = 12
@@ -396,9 +410,7 @@ class CodeEditor(QsciScintilla):
                 pass
             QToolTip.hideText()
 
-        word_sci_pos = self.positionFromLineIndex(
-            word_info["line"], word_info["start"]
-        )
+        word_sci_pos = self.positionFromLineIndex(word_info["line"], word_info["start"])
         x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, word_sci_pos)
         y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, word_sci_pos)
         window_pos = self.mapTo(self.window(), QPoint(x, y + self.font_size + 8))
@@ -1409,9 +1421,7 @@ class CodeEditor(QsciScintilla):
         self.textChanged.connect(self._schedule_jedi_analysis)
 
     def _schedule_jedi_analysis(self) -> None:
-        if self._lexer is not None and hasattr(
-            self._lexer, "schedule_analysis"
-        ):
+        if self._lexer is not None and hasattr(self._lexer, "schedule_analysis"):
             self._lexer.schedule_analysis()
 
     def clear_dirty(self):

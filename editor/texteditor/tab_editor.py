@@ -178,7 +178,9 @@ class DreamStudioIDETabBar(QTabBar):
         inactive_bg = getattr(self, "inactive_bg", QColor("#1E1E1E"))
         border_color = getattr(self, "border_color", QColor("#35538F"))
         hover_border_color = getattr(self, "hover_border_color", QColor("#3C3F41"))
-        inactive_border_color = getattr(self, "inactive_border_color", QColor("#1E1E1E"))
+        inactive_border_color = getattr(
+            self, "inactive_border_color", QColor("#1E1E1E")
+        )
 
         for i in range(self.count()):
             if i == selected_index:
@@ -239,7 +241,9 @@ class DreamStudioIDETabBar(QTabBar):
 
         text_sel = getattr(self, "_text_selected", QColor("white"))
         text_inactive = getattr(self, "_text_inactive", QColor("#AFB1B3"))
-        option.palette.setColor(QPalette.ColorRole.WindowText, text_sel if selected else text_inactive)
+        option.palette.setColor(
+            QPalette.ColorRole.WindowText, text_sel if selected else text_inactive
+        )
 
         if index in self._dirty_indices:
             painter.save()
@@ -387,6 +391,17 @@ class DreamTabbedEditor(QTabWidget):
 
         logger.debug(f"Opened files: {self.opened_files}")
         return new_editor
+
+    def set_font_size(self, value):
+        main_win = self.window()
+        tabs = getattr(main_win, "tab_editors", None)
+        if not tabs:
+            return
+
+        for i in range(tabs.count()):
+            editor = tabs.widget(i)
+            if editor and hasattr(editor, "_set_font_size_"):
+                editor._set_font_size_(value)
 
     def add_new_editor(
         self,
@@ -994,10 +1009,14 @@ class BackgroundHintsFrame(QFrame):
 
         self._grid_container = QWidget()
         self._grid_container.setLayout(hints_grid)
-        center_layout.addWidget(self._grid_container, alignment=Qt.AlignmentFlag.AlignCenter)
+        center_layout.addWidget(
+            self._grid_container, alignment=Qt.AlignmentFlag.AlignCenter
+        )
         center_layout.addStretch()
 
-        main_layout.addWidget(self._center_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(
+            self._center_widget, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
     def retheme(self, t) -> None:
         bg = t.color("window.background")
