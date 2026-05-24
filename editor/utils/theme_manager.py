@@ -992,7 +992,7 @@ SOLARIZED_LIGHT_COLORS = {
     "syntax.logic": "#268BD2",
 }
 
-ARCADE_COLORS = {
+Moses_COLORS = {
     "window.background": "#1A0B2E",
     "window.text": "#E0D0F0",
     "widget.background": "#24133A",
@@ -1382,8 +1382,8 @@ class ThemeManager(QObject):
             self._data = dict(SOLARIZED_DARK_COLORS)
         elif name == "solarized_light":
             self._data = dict(SOLARIZED_LIGHT_COLORS)
-        elif name == "arcade":
-            self._data = dict(ARCADE_COLORS)
+        elif name == "Moses":
+            self._data = dict(Moses_COLORS)
         elif name == "hacker_blue":
             self._data = dict(HACKER_BLUE_COLORS)
         elif name == "davy":

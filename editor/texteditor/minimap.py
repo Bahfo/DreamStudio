@@ -41,6 +41,7 @@ class MiniMap(QsciScintilla):
         self._font = QFont("JetBrains Mono", 10)
         self.setFont(self._font)
         self.SendScintilla(QsciScintilla.SCI_SETZOOM, -10)
+        self.setContentsMargins(10, 10, 10, 10)
 
         self.setUtf8(True)
         self.setReadOnly(True)

@@ -12,21 +12,28 @@ _pyqt6_modules = [
 
 def _build_mock_hierarchy():
     root = MagicMock()
+    class _MockWithParent(MagicMock):
+        """Mock that ignores positional __init__ args (avoids spec-on-mock error)."""
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+        def _get_child_mock(self, **kw):
+            return MagicMock(**kw)
+
     root.QtCore = MagicMock()
     root.QtCore.Qt = MagicMock()
-    root.QtCore.QTimer = MagicMock
-    root.QtCore.QThread = MagicMock
-    root.QtCore.pyqtSignal = MagicMock
-    root.QtCore.QMutex = MagicMock
-    root.QtCore.QWaitCondition = MagicMock
-    root.QtCore.QObject = MagicMock
-    root.QtCore.QDir = MagicMock
-    root.QtCore.QEvent = MagicMock
-    root.QtCore.QSize = MagicMock
-    root.QtCore.QUrl = MagicMock
-    root.QtCore.QPoint = MagicMock
-    root.QtCore.QRect = MagicMock
-    root.QtCore.QDir = MagicMock
+    root.QtCore.QTimer = _MockWithParent
+    root.QtCore.QThread = _MockWithParent
+    root.QtCore.pyqtSignal = lambda *a, **kw: MagicMock()
+    root.QtCore.QMutex = _MockWithParent
+    root.QtCore.QWaitCondition = _MockWithParent
+    root.QtCore.QObject = _MockWithParent
+    root.QtCore.QDir = _MockWithParent
+    root.QtCore.QEvent = _MockWithParent
+    root.QtCore.QSize = _MockWithParent
+    root.QtCore.QUrl = _MockWithParent
+    root.QtCore.QPoint = _MockWithParent
+    root.QtCore.QRect = _MockWithParent
+    root.QtCore.QDir = _MockWithParent
 
     root.QtCore.Qt.KeyboardModifier = type("KeyboardModifier", (), {
         "ControlModifier": 67108864,
@@ -72,9 +79,9 @@ def _build_mock_hierarchy():
     })
 
     root.QtGui = MagicMock()
-    root.QtGui.QFont = MagicMock
-    root.QtGui.QIcon = MagicMock
-    root.QtGui.QColor = MagicMock
+    root.QtGui.QFont = _MockWithParent
+    root.QtGui.QIcon = _MockWithParent
+    root.QtGui.QColor = _MockWithParent
     root.QtGui.QKeyEvent = MagicMock
     root.QtGui.QPainter = MagicMock
     root.QtGui.QPixmap = MagicMock
@@ -121,8 +128,26 @@ def _build_mock_hierarchy():
         "SP_MessageBoxWarning": 1,
     })
 
+    class _QsciLexerCustomMock:
+        """Mock base for QsciLexerCustom subclasses; returns MagicMock for unknown attrs."""
+        def __init__(self, parent=None):
+            self._mock_state = 0
+        def __getattr__(self, name):
+            if name.startswith('_'):
+                raise AttributeError(name)
+            return MagicMock()
+        def state(self):
+            return self._mock_state
+        def setState(self, val):
+            self._mock_state = val
+        def editor(self):
+            return getattr(self, '_mock_editor', None)
+        def setEditor(self, editor):
+            self._mock_editor = editor
+
     root.Qsci = MagicMock()
     root.Qsci.QsciScintilla = MagicMock
+    root.Qsci.QsciLexerCustom = _QsciLexerCustomMock
     root.Qsci.QsciLexerCMake = MagicMock
     root.Qsci.QsciAPIs = MagicMock
 

@@ -1,7 +1,7 @@
 import re
 import json
 import logging
-from typing import Optional, Dict, Set, List, Tuple
+from typing import Optional, Dict, Set, Tuple
 from collections import deque
 
 import jedi
@@ -56,27 +56,57 @@ _ID_TO_NAME = {v: k for k, v in _STYLE_IDS.items()}
 _TRIPLE_DOUBLE = '"""'
 _TRIPLE_SINGLE = "'''"
 
+_STR_PREFIX = r"(?:[rR](?:[bBfF])?|[bB][rR]?|[fF][rR]?|[uU])"
+
 _TOKEN_RE = re.compile(
-    r"(?P<decorator>@\w+(?:\.\w+)*(?:\s*\([^)]*\))?)|"
-    r'(?P<string3>"""(?:[^"\\]|\\.|"(?!""))*"""|'
-    r"'''(?:[^'\\]|\\.|'(?!''))*''')|"
-    r'(?P<fstring>f["\'](?:[^"\'\\]|\\.|(?<!\\)["\'])*["\'])|'
-    r'(?P<string>"(?:\\"|[^"])*"|\'(?:\\\'|[^\'])*\')|'
+    r"(?P<decorator>@\w+(?:\.\w+)*(?:\s*\([^()]*\))?)|"
+
+    r'(?P<string3>'
+    + _STR_PREFIX + r'?"""(?:[^"\\]|\\.|"(?!""))*"""|'
+    + _STR_PREFIX + r"?" + r"'''(?:[^'\\]|\\.|'(?!''))*''')|"
+
+    r'(?P<fstring>'
+    r'(?:[fF][rR]|[rR][fF]|[fF])"(?:[^"\\]|\\.)*"|'
+    r"(?:[fF][rR]|[rR][fF]|[fF])'(?:[^\'\\]|\\.)*')|"
+
+    r'(?P<string>'
+    r'(?:[rR][bB]|[bB][rR]|[rRbBuU])?"(?:[^"\\]|\\.)*"|'
+    r"(?:[rR][bB]|[bB][rR]|[rRbBuU])?'(?:[^\'\\]|\\.)*')|"
+
     r"(?P<comment>#.*)|"
-    r"(?P<number_float>\b\d+\.\d*(?:[eE][+-]?\d+)?\b|\b\d+[eE][+-]?\d+\b)|"
-    r"(?P<number>\b0[xX][0-9a-fA-F]+\b|\b0[bB][01]+\b|\b0[oO][0-7]+\b|\b\d+\.?\d*\b)|"
-    r"(?P<operator>(?:<<|>>|==|!=|<=|>=|[-+*/%&|^~<>!]=?)|=>|\.\.\.)|"
+
+    r"(?P<number_float>"
+    r"\b\d(_?\d)*\.\d(_?\d)*(?:[eE][+-]?\d(_?\d)*)?[jJ]?\b|"
+    r"\b\d(_?\d)*\.(?:[jJ])?(?=\W|$)|"
+    r"(?<!\w)\.\d(_?\d)*(?:[eE][+-]?\d(_?\d)*)?[jJ]?\b|"
+    r"\b\d(_?\d)*[eE][+-]?\d(_?\d)*[jJ]?\b"
+    r")|"
+
+    r"(?P<number>"
+    r"\b0[xX][\da-fA-F](_?[\da-fA-F])*\b|"
+    r"\b0[bB][01](_?[01])*\b|"
+    r"\b0[oO][0-7](_?[0-7])*\b|"
+    r"\b\d(_?\d)*[jJ]?\b"
+    r")|"
+
+    r"(?P<operator>"
+    r"\*\*=|//=|<<=|>>=|->|:=|\.\.\.|"
+    r"\*\*|//|<<|>>|==|!=|<=|>=|"
+    r"[-+*/%&|^~<>!]=?|@=?|="
+    r")|"
+
     r"(?P<punctuation>[;,.:()\[\]{}])|"
-    r"(?P<word>\b\w+\b)|"
+    r"(?P<word>\b[^\W\d]\w*\b)|"
     r"(?P<ws>\s+)|"
     r"(?P<other>.)"
 )
 
-_CAPITAL_WORD_RE = re.compile(r"\b[A-Z][A-Z0-9_]+\b")
+_CAPITAL_WORD_RE = re.compile(r"\b[A-Z][A-Z0-9_]*\b")
 
 
 class _JediAnalyzer(QThread):
-    analysis_complete = pyqtSignal()
+    analysis_complete = pyqtSignal(int)
+    analysis_failed = pyqtSignal(int)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -86,30 +116,42 @@ class _JediAnalyzer(QThread):
         self._running = True
         self.cache: Dict[Tuple[int, int, str], str] = {}
         self._cache_mutex = QMutex()
-        self._env = jedi.get_default_environment()
+        self.call_cache: Set[Tuple[int, int, str]] = set()
+        self._call_cache_mutex = QMutex()
 
-    def set_environment(self, venv_path: Optional[str]) -> None:
-        if venv_path:
-            try:
-                self._env = jedi.create_environment(venv_path)
-            except Exception:
-                self._env = jedi.get_default_environment()
-        else:
-            self._env = jedi.get_default_environment()
-
-    def request_analysis(self, source: str, path: Optional[str]) -> None:
+    def request_analysis(
+        self,
+        source: str,
+        path: Optional[str],
+        env_path: Optional[str],
+        request_id: int,
+    ) -> None:
         self._mutex.lock()
-        self._queue.append((source, path))
+        while len(self._queue) >= 20:
+            self._queue.popleft()
+        self._queue.append((source, path, env_path, request_id))
         self._cond.wakeOne()
         self._mutex.unlock()
 
-    def get_name_type(
-        self, line: int, col: int, name: str
-    ) -> Optional[str]:
+    def get_name_type(self, line: int, col: int, name: str) -> Optional[str]:
         self._cache_mutex.lock()
         result = self.cache.get((line, col, name))
         self._cache_mutex.unlock()
         return result
+
+    def is_call_site(self, line: int, col: int, name: str) -> bool:
+        self._call_cache_mutex.lock()
+        result = (line, col, name) in self.call_cache
+        self._call_cache_mutex.unlock()
+        return result
+
+    def clear_cache(self) -> None:
+        self._cache_mutex.lock()
+        self.cache.clear()
+        self._cache_mutex.unlock()
+        self._call_cache_mutex.lock()
+        self.call_cache.clear()
+        self._call_cache_mutex.unlock()
 
     def run(self) -> None:
         while self._running:
@@ -122,31 +164,47 @@ class _JediAnalyzer(QThread):
             if not self._queue:
                 self._mutex.unlock()
                 continue
-            source, path = self._queue.popleft()
+            source, path, env_path, request_id = self._queue.popleft()
+            while self._queue:
+                self._queue.popleft()
             self._mutex.unlock()
 
             try:
+                env = jedi.get_default_environment()
+                if env_path:
+                    try:
+                        env = jedi.create_environment(env_path)
+                    except Exception:
+                        env = jedi.get_default_environment()
                 script = jedi.Script(
-                    code=source, path=path, environment=self._env
+                    code=source, path=path, environment=env
                 )
-                names = script.get_names(all_scopes=True, definitions=True)
+                names = script.get_names(all_scopes=True)
                 new_cache: Dict[Tuple[int, int, str], str] = {}
+                new_call_cache: Set[Tuple[int, int, str]] = set()
                 for n in names:
                     key = (n.line - 1, n.column, n.name)
                     ntype = n.type
-                    if ntype in ("function", "class", "module", "param"):
-                        new_cache[key] = ntype
-                    elif ntype == "instance":
-                        new_cache[key] = "instance"
-                    elif ntype == "statement":
-                        new_cache[key] = "statement"
+                    if n.is_definition():
+                        if ntype in ("function", "class", "module", "param"):
+                            new_cache[key] = ntype
+                        elif ntype == "instance":
+                            new_cache[key] = "instance"
+                        elif ntype == "statement":
+                            new_cache[key] = "statement"
+                    elif ntype in ("function", "property", "class", "instance"):
+                        new_call_cache.add(key)
 
                 self._cache_mutex.lock()
                 self.cache = new_cache
                 self._cache_mutex.unlock()
-                self.analysis_complete.emit()
+                self._call_cache_mutex.lock()
+                self.call_cache = new_call_cache
+                self._call_cache_mutex.unlock()
+                self.analysis_complete.emit(request_id)
             except Exception:
-                pass
+                logger.exception("Jedi analysis failed")
+                self.analysis_failed.emit(request_id)
 
     def shutdown(self) -> None:
         self._running = False
@@ -162,8 +220,11 @@ class PythonJediHighlighter(QsciLexerCustom):
         self.json_data = json_data or self._load_defaults()
         self._editor = parent
         self._analyzer: Optional[_JediAnalyzer] = None
-        self._last_source_text = ""
+        self._current_env_path: Optional[str] = None
+        self._last_analysis_key: Optional[Tuple[str, Optional[str], Optional[str]]] = None
         self._restyling = False
+        self._request_counter = 0
+        self._latest_request_id = -1
 
         self._default_font = QFont("JetBrains Mono", 11)
         self.setDefaultFont(self._default_font)
@@ -201,6 +262,9 @@ class PythonJediHighlighter(QsciLexerCustom):
             with open(_HIGHLIGHTS_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
+            logger.warning(
+                "Failed to load %s, using fallback defaults", _HIGHLIGHTS_PATH
+            )
             return {
                 "styles": {"default": "#D4D4D4"},
                 "keyword_map": {},
@@ -229,12 +293,12 @@ class PythonJediHighlighter(QsciLexerCustom):
         if self._analyzer is None:
             self._analyzer = _JediAnalyzer(self)
             self._analyzer.analysis_complete.connect(self._on_analysis_complete)
+            self._analyzer.analysis_failed.connect(self._on_analysis_failed)
             self._analyzer.start()
             self.destroyed.connect(self.shutdown)
 
     def set_environment(self, venv_path: Optional[str]) -> None:
-        self._ensure_analyzer()
-        self._analyzer.set_environment(venv_path)
+        self._current_env_path = venv_path
 
     def schedule_analysis(self) -> None:
         if self._editor is None or self._restyling:
@@ -245,15 +309,23 @@ class PythonJediHighlighter(QsciLexerCustom):
         if self._editor is None or self._restyling:
             return
         source = self._editor.text()
-        if source == self._last_source_text:
+        path = getattr(self._editor, "current_file_path", None)
+        env = self._current_env_path
+        key = (source, path, env)
+        if key == self._last_analysis_key:
             return
-        self._last_source_text = source
+        self._last_analysis_key = key
+
+        self._request_counter += 1
+        request_id = self._request_counter
+        self._latest_request_id = request_id
 
         self._ensure_analyzer()
-        path = getattr(self._editor, "current_file_path", None)
-        self._analyzer.request_analysis(source, path)
+        self._analyzer.request_analysis(source, path, env, request_id)
 
-    def _on_analysis_complete(self) -> None:
+    def _on_analysis_complete(self, request_id: int) -> None:
+        if request_id != self._latest_request_id:
+            return
         if self._editor is None or self._restyling:
             return
         self._restyling = True
@@ -270,6 +342,26 @@ class PythonJediHighlighter(QsciLexerCustom):
         finally:
             self._restyling = False
 
+    def _on_analysis_failed(self, request_id: int) -> None:
+        if request_id != self._latest_request_id:
+            return
+        if self._analyzer is not None:
+            self._analyzer.clear_cache()
+        if self._editor is not None and not self._restyling:
+            self._restyling = True
+            try:
+                total = self._editor.SendScintilla(
+                    self._editor.SCI_GETTEXTLENGTH
+                )
+                if total > 0:
+                    self._editor.SendScintilla(
+                        self._editor.SCI_COLOURISE, 0, total
+                    )
+            except Exception:
+                pass
+            finally:
+                self._restyling = False
+
     def _get_jedi_type(self, line: int, col: int, name: str) -> Optional[str]:
         if self._analyzer is None:
             return None
@@ -278,16 +370,17 @@ class PythonJediHighlighter(QsciLexerCustom):
             return None
         return self._jedi_type_map.get(jedi_type)
 
-    def _get_byte_safe_text(self, editor, start: int, end: int) -> str:
-        full_bytes = editor.text().encode("utf-8")
-        return full_bytes[start:end].decode("utf-8", errors="replace")
+    def _is_call_site(self, line: int, col: int, name: str) -> bool:
+        if self._analyzer is None:
+            return False
+        return self._analyzer.is_call_site(line, col, name)
 
     def _slice_bytes(self, full_bytes: bytes, start: int, end: int) -> str:
         return full_bytes[start:end].decode("utf-8", errors="replace")
 
     def _initial_state_for(
         self, editor, full_bytes: bytes, start: int
-    ) -> Optional[int]:
+    ) -> Optional[Tuple[int, str]]:
         if start < 6:
             return None
 
@@ -295,11 +388,14 @@ class PythonJediHighlighter(QsciLexerCustom):
             prev_style = editor.SendScintilla(
                 editor.SCI_GETSTYLEAT, start - 1
             )
-            if prev_style in (
-                _STYLE_IDS["string_doc"],
-                _STYLE_IDS["string_fstring"],
-            ):
-                return prev_style
+            if prev_style == _STYLE_IDS["string_doc"]:
+                scan = self._slice_bytes(
+                    full_bytes, max(0, start - 6000), start
+                )
+                last_dq = scan.rfind(_TRIPLE_DOUBLE)
+                last_sq = scan.rfind(_TRIPLE_SINGLE)
+                q = '"' if last_dq > last_sq else "'"
+                return (prev_style, q)
 
         scan_start = max(0, start - 6000)
         prefix = self._slice_bytes(full_bytes, scan_start, start)
@@ -307,9 +403,9 @@ class PythonJediHighlighter(QsciLexerCustom):
         double_count = prefix.count(_TRIPLE_DOUBLE)
         single_count = prefix.count(_TRIPLE_SINGLE)
         if double_count % 2 == 1:
-            return _STYLE_IDS["string_doc"]
+            return (_STYLE_IDS["string_doc"], '"')
         if single_count % 2 == 1:
-            return _STYLE_IDS["string_doc"]
+            return (_STYLE_IDS["string_doc"], "'")
         return None
 
     def styleText(self, start: int, end: int) -> None:
@@ -334,10 +430,10 @@ class PythonJediHighlighter(QsciLexerCustom):
         quote_char = ""
 
         if start > 0:
-            ml_state = self._initial_state_for(editor, full_bytes, start)
-            if ml_state is not None:
+            ml_result = self._initial_state_for(editor, full_bytes, start)
+            if ml_result is not None:
                 in_multiline = True
-                quote_char = '"' if ml_state == _STYLE_IDS["string_doc"] else "'"
+                ml_state, quote_char = ml_result
                 boundary_start = max(0, start - 3)
                 boundary = self._slice_bytes(full_bytes, boundary_start, start)
                 for ch in reversed(boundary):
@@ -348,16 +444,20 @@ class PythonJediHighlighter(QsciLexerCustom):
                 if quote_run >= 3:
                     in_multiline = False
                     quote_run = 0
-                editor.SendScintilla(
-                    editor.SCI_SETSTYLING, 0, ml_state
-                )
 
-            ctx_scan = max(0, start - 60)
+            ctx_scan = max(0, start - 200)
             prefix = self._slice_bytes(full_bytes, ctx_scan, start)
-            ctx_words = re.findall(r"\b(def|class)\s+\w*\Z", prefix)
-            if ctx_words:
-                prev_was_def = ctx_words[-1] == "def"
-                prev_was_class = ctx_words[-1] == "class"
+            m = re.search(r"\b(async\s+)?(def|class)\s+\w*\Z", prefix)
+            if m:
+                category = m.group(2)
+                if category == "def":
+                    prev_was_def = True
+                elif category == "class":
+                    prev_was_class = True
+
+            stripped = prefix.rstrip()
+            if stripped.endswith("."):
+                prev_was_dot = True
 
         byte_offset = 0
         for match in _TOKEN_RE.finditer(text):
@@ -368,14 +468,19 @@ class PythonJediHighlighter(QsciLexerCustom):
             style_id = _STYLE_IDS["default"]
 
             if in_multiline:
-                if raw == quote_char:
-                    quote_run += 1
-                else:
-                    quote_run = 0
+                closed_by_quotes = False
+                for ch in raw:
+                    if ch == quote_char:
+                        quote_run += 1
+                    else:
+                        quote_run = 0
+                    if quote_run >= 3:
+                        in_multiline = False
+                        quote_run = 0
+                        closed_by_quotes = True
+                        break
 
-                if quote_run >= 3:
-                    in_multiline = False
-                    quote_run = 0
+                if closed_by_quotes:
                     tok = "string_doc"
                     style_id = _STYLE_IDS[tok]
                 elif match.group("string3"):
@@ -466,9 +571,8 @@ class PythonJediHighlighter(QsciLexerCustom):
                     style_id = _STYLE_IDS.get(
                         tok, _STYLE_IDS["keyword"]
                     )
-                    if tok == "keyword":
-                        prev_was_def = word == "def"
-                        prev_was_class = word == "class"
+                    prev_was_def = word == "def"
+                    prev_was_class = word == "class"
                 elif word in self._builtin_types:
                     tok = "builtin_type"
                     style_id = _STYLE_IDS[tok]
@@ -478,19 +582,21 @@ class PythonJediHighlighter(QsciLexerCustom):
                 elif _CAPITAL_WORD_RE.fullmatch(word):
                     tok = "constant"
                     style_id = _STYLE_IDS[tok]
-                elif prev_was_dot:
-                    tok = "attribute"
-                    style_id = _STYLE_IDS[tok]
-                    prev_was_dot = False
                 else:
-                    jedi_type = self._get_jedi_type(
-                        actual_line, actual_col, word
-                    )
-                    if jedi_type:
-                        mapped = self._jedi_type_map.get(jedi_type)
-                        if mapped and mapped in _STYLE_IDS:
-                            tok = mapped
-                            style_id = _STYLE_IDS[mapped]
+                    if self._is_call_site(actual_line, actual_col, word):
+                        tok = "function_call"
+                        style_id = _STYLE_IDS["function_call"]
+                    else:
+                        jedi_type = self._get_jedi_type(
+                            actual_line, actual_col, word
+                        )
+                        if jedi_type and jedi_type in _STYLE_IDS:
+                            tok = jedi_type
+                            style_id = _STYLE_IDS[jedi_type]
+                        elif prev_was_dot:
+                            tok = "attribute"
+                            style_id = _STYLE_IDS[tok]
+                            prev_was_dot = False
 
                 prev_was_dot = False
 

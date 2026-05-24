@@ -573,7 +573,7 @@ class DreamStudio(QMainWindow):
             ("ocean", "Ocean"),
             ("solarized_dark", "Solarized Dark"),
             ("solarized_light", "Solarized Light"),
-            ("arcade", "Arcade"),
+            ("Moses", "Moses"),
             ("hacker_blue", "Hacker Blue"),
             ("davy", "Davy"),
             ("high_contrast_dark", "High Contrast Dark"),
