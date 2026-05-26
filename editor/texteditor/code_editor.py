@@ -1,3 +1,17 @@
+"""
+(C) COPYRIGHT 2026 - EXcellent TechStacks, All Rights Reserved.
+
+Ironica Code Editor - The Base Code and Texteditor for DreamStudio.
+Ironica is a self contained code editor that operates on a modern level by
+utilizing Ironica lexer: The base lexer behind Python and C++ Ironica lexical
+analysis.
+
+This code is protected under the GPLv3 License.
+"""
+
+# Written By Bahaa Nofal - 26/May/2026
+
+
 from PyQt6.Qsci import (
     QsciScintilla,
     QsciLexerCMake,
@@ -11,7 +25,15 @@ from PyQt6.QtWidgets import (
     QApplication,
     QToolTip,
 )
-from PyQt6.QtGui import QFont, QIcon, QColor, QKeyEvent, QPalette, QShortcut, QKeySequence
+from PyQt6.QtGui import (
+    QFont,
+    QIcon,
+    QColor,
+    QKeyEvent,
+    QPalette,
+    QShortcut,
+    QKeySequence,
+)
 
 import ast
 import re
@@ -70,7 +92,7 @@ class CodeEditor(QsciScintilla):
         self.setIndentationWidth(self._indentation_spacing)
         self.setIndentationsUseTabs(False)
         self.setTabWidth(4)
-        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 2)
+        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 3)
 
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
@@ -416,7 +438,12 @@ class CodeEditor(QsciScintilla):
         if has_ctrl and self._can_hyperlink():
             word_info = self._get_word_at(event.pos())
             if word_info and not self._is_python_keyword(word_info["word"]):
-                new_key = (word_info["line"], word_info["start"], word_info["end"], word_info["word"])
+                new_key = (
+                    word_info["line"],
+                    word_info["start"],
+                    word_info["end"],
+                    word_info["word"],
+                )
                 if new_key != self._last_hover_pos:
                     self._last_hover_pos = new_key
                     self._hover_debounce_word_info = word_info
@@ -627,7 +654,7 @@ class CodeEditor(QsciScintilla):
                     f'<div style="font-family: Inter, sans-serif;">'
                     f'<span style="color:#DFE1E5;font-weight:600;">{self._cpp_goto_word}</span>'
                     f'<br/><span style="color:#548AF7;font-size:11px;">{file_path}:{rline + 1}</span>'
-                    f'</div>',
+                    f"</div>",
                 )
 
     def _request_definition_location(self, word: str, line: int, index: int) -> None:
@@ -645,7 +672,8 @@ class CodeEditor(QsciScintilla):
         # Drop any stale pending requests from this editor
         if hasattr(win, "_pending_jedi_requests"):
             to_drop = [
-                rid for rid, ed in win._pending_jedi_requests.items()
+                rid
+                for rid, ed in win._pending_jedi_requests.items()
                 if isinstance(ed, tuple) and ed[0] is self
             ]
             for rid in to_drop:
@@ -735,7 +763,8 @@ class CodeEditor(QsciScintilla):
         # Clean up pending requests for this editor
         if hasattr(win, "_pending_jedi_requests"):
             to_remove = [
-                rid for rid, ed in win._pending_jedi_requests.items()
+                rid
+                for rid, ed in win._pending_jedi_requests.items()
                 if isinstance(ed, tuple) and ed[0] is self
             ]
             for rid in to_remove:
@@ -901,7 +930,8 @@ class CodeEditor(QsciScintilla):
 
         if hasattr(win, "_pending_jedi_requests"):
             to_drop = [
-                rid for rid, ed in win._pending_jedi_requests.items()
+                rid
+                for rid, ed in win._pending_jedi_requests.items()
                 if isinstance(ed, tuple) and ed[0] is self
             ]
             for rid in to_drop:
@@ -960,7 +990,8 @@ class CodeEditor(QsciScintilla):
 
         if hasattr(win, "_pending_jedi_requests"):
             to_remove = [
-                rid for rid, ed in win._pending_jedi_requests.items()
+                rid
+                for rid, ed in win._pending_jedi_requests.items()
                 if isinstance(ed, tuple) and ed[0] is self
             ]
             for rid in to_remove:
@@ -985,7 +1016,9 @@ class CodeEditor(QsciScintilla):
             if rline >= 0 and name:
                 end_col = rcol + len(name)
                 try:
-                    self.fillIndicatorRange(rline, rcol, rline, end_col, USAGE_INDICATOR)
+                    self.fillIndicatorRange(
+                        rline, rcol, rline, end_col, USAGE_INDICATOR
+                    )
                 except RuntimeError:
                     pass
 
@@ -1006,7 +1039,7 @@ class CodeEditor(QsciScintilla):
         if total == 0:
             return
         text = self.text()
-        lines = text.split('\n')
+        lines = text.split("\n")
         indent_unit = self.indentationWidth() or 4
 
         for line_num in range(total):
@@ -1016,12 +1049,28 @@ class CodeEditor(QsciScintilla):
 
             stripped = line_text.strip()
             is_header = False
-            if stripped and not stripped.startswith(('#', '//', '/*', '*', '"""', "'''")):
+            if stripped and not stripped.startswith(
+                ("#", "//", "/*", "*", '"""', "'''")
+            ):
                 is_header = any(
                     stripped.startswith(kw)
-                    for kw in ('def ', 'class ', 'if ', 'elif ', 'else:', 'for ',
-                               'while ', 'try:', 'except ', 'finally:', 'with ',
-                               'async def ', 'async for ', 'async with ', '@')
+                    for kw in (
+                        "def ",
+                        "class ",
+                        "if ",
+                        "elif ",
+                        "else:",
+                        "for ",
+                        "while ",
+                        "try:",
+                        "except ",
+                        "finally:",
+                        "with ",
+                        "async def ",
+                        "async for ",
+                        "async with ",
+                        "@",
+                    )
                 )
 
             level = indent_level + 0x400
@@ -1654,6 +1703,7 @@ class CodeEditor(QsciScintilla):
             caret = t.color("editor.caret")
             margin_bg = t.color("editor.margin_bg")
             margin_fg = t.color("editor.margin_fg")
+            edge_color = t.color("editor.edge", "#444444")
         else:
             bg = "#1E1E1E"
             fg = "#D4D4D4"
@@ -1662,25 +1712,32 @@ class CodeEditor(QsciScintilla):
             caret = "#FFFFFF"
             margin_bg = "#1E1E1E"
             margin_fg = "#D4D4D4"
+            edge_color = "#444444"
 
+        solid_edge_qcolor = QColor(edge_color)
         self.setPaper(QColor(bg))
         self.setColor(QColor(fg))
-        self.setSelectionBackgroundColor(QColor(sel_bg))
-        self.setSelectionForegroundColor(QColor(sel_fg))
         self.setCaretForegroundColor(QColor(caret))
+        self.setSelectionBackgroundColor(QColor(sel_bg))
+        self.setSelectionForegroundColor(QColor())
         caret_line = t.color("widget.border") if t is not None else "#323232"
         self.setCaretLineBackgroundColor(QColor(caret_line))
         self.setCaretLineVisible(True)
-
         self.setMarginsBackgroundColor(QColor(margin_bg))
         self.setMarginsForegroundColor(QColor(margin_fg))
 
         fold_fg = t.color("scrollbar.fg", "#B0B0B0") if t is not None else "#B0B0B0"
         self.setFoldMarginColors(QColor(margin_bg), QColor(margin_bg))
         self.setMarkerForegroundColor(QColor(fold_fg), QsciScintilla.SC_MARKNUM_FOLDER)
-        self.setMarkerForegroundColor(QColor(fold_fg), QsciScintilla.SC_MARKNUM_FOLDEROPEN)
-        self.setMarkerBackgroundColor(QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDER)
-        self.setMarkerBackgroundColor(QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDEROPEN)
+        self.setMarkerForegroundColor(
+            QColor(fold_fg), QsciScintilla.SC_MARKNUM_FOLDEROPEN
+        )
+        self.setMarkerBackgroundColor(
+            QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDER
+        )
+        self.setMarkerBackgroundColor(
+            QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDEROPEN
+        )
 
         if t is not None:
             tip_bg = QColor(t.color("tooltip.background"))
@@ -1699,6 +1756,8 @@ class CodeEditor(QsciScintilla):
         )
 
         self._apply_scrollbar_style(t is not None, t)
+        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 3)
+        self.setEdgeColor(solid_edge_qcolor)
 
         if t is not None:
             text_color = t.color("editor.text", "#D4D4D4")
@@ -1709,14 +1768,18 @@ class CodeEditor(QsciScintilla):
             ws_bg.setAlpha(20)
             self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEBACK, True, ws_bg)
 
-            guide = QColor(text_color)
-            guide.setAlpha(28)
-            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, guide)
+            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, solid_edge_qcolor)
         else:
-            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEFORE, True, QColor("#3C3C3C"))
-            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEBACK, True, QColor("#1E1E1E"))
+            self.SendScintilla(
+                QsciScintilla.SCI_SETWHITESPACEFORE, True, QColor("#3C3C3C")
+            )
+            self.SendScintilla(
+                QsciScintilla.SCI_SETWHITESPACEBACK, True, QColor("#1E1E1E")
+            )
 
-            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, QColor("#3C3C3C"))
+            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, solid_edge_qcolor)
+
+        self.SendScintilla(QsciScintilla.SCI_STYLESETBACK, 37, QColor(bg))
 
         if self._lexer and t is not None:
             if hasattr(self._lexer, "apply_syntax_theme"):
