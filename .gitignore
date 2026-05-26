@@ -45,3 +45,7 @@ config.json
 # OS-specific
 Thumbs.db
 .DS_Store
+
+# Test directories
+tests/
+.pytest_cache/
