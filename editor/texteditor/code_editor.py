@@ -76,8 +76,8 @@ class CodeEditor(QsciScintilla):
         self.imported_modules = set()
         self.imported_symbols = set()
 
-        self.font_size = 11
-        self._font = QFont("JetBrains Mono", self.font_size)
+        self._font_size = 11
+        self._font = QFont("consolas", self._font_size)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
@@ -374,14 +374,18 @@ class CodeEditor(QsciScintilla):
         except RuntimeError:
             pass
 
-    def _set_font_size_(self, size: int):
-        self._font.setPointSize(size)
+    @property
+    def font_size(self):
+        return self._font_size
+
+    @font_size.setter
+    def font_size(self, size):
+        self._font_size = int(size)
+        self._font.setPointSize(self._font_size)
         self.setFont(self._font)
         self.setMarginsFont(self._font)
-        lexer = self.lexer()
-        if lexer:
-            lexer.setDefaultFont(self._font)
-            lexer.setFont(self._font)
+        if self._lexer and hasattr(self._lexer, "apply_font"):
+            self._lexer.apply_font(self._font)
 
     def setup_find_indicators(self):
         FIND_ALL = 11
@@ -1553,17 +1557,13 @@ class CodeEditor(QsciScintilla):
 
         self._font.setPointSize(self.font_size)
         self.setFont(self._font)
+        self.setMarginsFont(self._font)
 
-        if self._lexer:
-            self._lexer.setDefaultFont(self._font)
+        if self._lexer and hasattr(self._lexer, "apply_font"):
+            self._lexer.apply_font(self._font)
 
     def set_editor_font_size(self, font_size):
         self.font_size = int(font_size)
-        self._font.setPointSize(self.font_size)
-        self.setFont(self._font)
-
-        if self._lexer:
-            self._lexer.setDefaultFont(self._font)
 
     def set_wrap_mode(self, enabled=False):
         self.setWrapMode(
@@ -1653,7 +1653,7 @@ class CodeEditor(QsciScintilla):
         if lang == "Python":
             self._lexer = self.load_jedi_highlighter()
             if self._lexer:
-                self._lexer.setDefaultFont(self._font)
+                self._lexer.apply_font(self._font)
                 self.setLexer(self._lexer)
                 self._connect_jedi_analysis()
                 self.apply_theme()
@@ -1661,7 +1661,7 @@ class CodeEditor(QsciScintilla):
             else:
                 self._lexer = self.load_language_keywords("Python")
                 if self._lexer:
-                    self._lexer.setDefaultFont(self._font)
+                    self._lexer.apply_font(self._font)
                     self.setLexer(self._lexer)
                     self.apply_theme()
                     self._schedule_document_symbol_update()
@@ -1670,7 +1670,7 @@ class CodeEditor(QsciScintilla):
             self._disconnect_jedi_analysis()
             self._lexer = self.load_language_keywords("CPP")
             if self._lexer:
-                self._lexer.setDefaultFont(self._font)
+                self._lexer.apply_font(self._font)
                 self.setLexer(self._lexer)
                 self.apply_theme()
                 self._schedule_document_symbol_update()

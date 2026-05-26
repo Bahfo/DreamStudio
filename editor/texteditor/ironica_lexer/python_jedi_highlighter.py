@@ -789,6 +789,12 @@ class PythonJediHighlighter(QsciLexerCustom):
             self.setPaper(QColor(bg_color), style_id)
             self.setFont(self._default_font, style_id)
 
+    def apply_font(self, font: QFont) -> None:
+        self._default_font = QFont(font)
+        self.setDefaultFont(self._default_font)
+        for style_id in _STYLE_IDS.values():
+            self.setFont(self._default_font, style_id)
+
     def shutdown(self) -> None:
         if self._analyzer is not None:
             try:

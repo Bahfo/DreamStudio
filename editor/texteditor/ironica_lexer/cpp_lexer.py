@@ -92,6 +92,12 @@ class CustomCppLexer(QsciLexerCustom):
             self.setColor(QColor(t.color(theme_key)), current_style_id)
             current_style_id += 1
 
+    def apply_font(self, font: QFont) -> None:
+        self.default_font = QFont(font)
+        self.setDefaultFont(self.default_font)
+        for i in range(128):
+            self.setFont(self.default_font, i)
+
     def styleText(self, start, end):
         editor = self.editor()
         if not editor:

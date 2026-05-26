@@ -138,6 +138,12 @@ class CustomPythonLexer(QsciLexerCustom):
         for sid, theme_key in category_map.items():
             self.setColor(QColor(t.color(theme_key, fg)), sid)
 
+    def apply_font(self, font: QFont) -> None:
+        self.default_font = QFont(font)
+        self.setDefaultFont(self.default_font)
+        for i in range(STYLE_WARNING_CLASS + 1):
+            self.setFont(self.default_font, i)
+
     def styleText(self, start, end):
         editor = self.editor()
         if not editor:
