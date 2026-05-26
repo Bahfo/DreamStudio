@@ -438,7 +438,7 @@ class DreamStudio(QMainWindow):
         # Minimap
         self.minimap = MiniMap(self)
         self.minimap.setMinimumWidth(100)
-        self.minimap.setMaximumWidth(100)
+        self.minimap.setMaximumWidth(120)
 
         self.tab_editors.installEventFilter(self)
 

@@ -70,7 +70,6 @@ class CodeEditor(QsciScintilla):
         self.setIndentationWidth(self._indentation_spacing)
         self.setIndentationsUseTabs(False)
         self.setTabWidth(4)
-        self.setIndentationGuides(True)
         self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 2)
 
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1702,12 +1701,22 @@ class CodeEditor(QsciScintilla):
         self._apply_scrollbar_style(t is not None, t)
 
         if t is not None:
-            ws_fg = t.color("editor.text", "#D4D4D4")
-            ws_color = QColor(ws_fg)
-            ws_color.setAlpha(60)
-            self.SendScintilla(2084, True, ws_color)
+            text_color = t.color("editor.text", "#D4D4D4")
+            ws_fg = QColor(text_color)
+            ws_fg.setAlpha(72)
+            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEFORE, True, ws_fg)
+            ws_bg = QColor(text_color)
+            ws_bg.setAlpha(20)
+            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEBACK, True, ws_bg)
+
+            guide = QColor(text_color)
+            guide.setAlpha(28)
+            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, guide)
         else:
-            self.SendScintilla(2084, True, QColor("#3C3C3C"))
+            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEFORE, True, QColor("#3C3C3C"))
+            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEBACK, True, QColor("#1E1E1E"))
+
+            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, QColor("#3C3C3C"))
 
         if self._lexer and t is not None:
             if hasattr(self._lexer, "apply_syntax_theme"):
