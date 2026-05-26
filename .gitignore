@@ -47,5 +47,5 @@ Thumbs.db
 .DS_Store
 
 # Test directories
-tests/
+/tests/
 .pytest_cache/

@@ -247,9 +247,13 @@ class DreamStudio(QMainWindow):
         event.accept()
 
     def _on_jedi_results(self, payload, request_id):
-        editor = self._pending_jedi_requests.pop(request_id, None)
-        if editor is None:
+        entry = self._pending_jedi_requests.pop(request_id, None)
+        if entry is None:
             return
+        if isinstance(entry, tuple):
+            editor, req_type = entry
+        else:
+            editor, req_type = entry, "unknown"
         cmd, rid, data = payload
         if cmd == "complete":
             editor.handle_jedi_completion_results(data)
@@ -257,6 +261,8 @@ class DreamStudio(QMainWindow):
             editor.handle_jedi_goto_results(data)
         elif cmd == "hover":
             editor.handle_jedi_hover_results(data)
+        elif cmd == "references":
+            editor.handle_jedi_references_results(data)
 
     def _on_jedi_error(self, error_msg, request_id):
         self._pending_jedi_requests.pop(request_id, None)

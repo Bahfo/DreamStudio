@@ -137,6 +137,35 @@ class ClangdClient:
             return None
         return self._wait_response(req_id)
 
+    def goto_definition(self, file_path, source, line, col):
+        req_id = self._send("textDocument/definition", {
+            "textDocument": {"uri": f"file://{file_path}"},
+            "position": {"line": line, "character": col},
+        })
+        if req_id is None:
+            return None
+        resp = self._wait_response(req_id)
+        if resp is None:
+            return None
+        result = resp.get("result")
+        if isinstance(result, dict):
+            uri = result.get("uri", "")
+            loc = result.get("range", {}).get("start", {})
+            return {
+                "file": uri.replace("file://", ""),
+                "line": loc.get("line", 0),
+                "column": loc.get("character", 0),
+            }
+        if isinstance(result, list) and result:
+            loc = result[0].get("range", {}).get("start", {})
+            uri = result[0].get("uri", "")
+            return {
+                "file": uri.replace("file://", ""),
+                "line": loc.get("line", 0),
+                "column": loc.get("character", 0),
+            }
+        return None
+
     def shutdown(self):
         self._running = False
         proc = self._proc

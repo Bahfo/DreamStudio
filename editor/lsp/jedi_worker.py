@@ -8,6 +8,8 @@ from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QWaitCondition
 
 logger = logging.getLogger(__name__)
 
+_MAX_QUEUE = 20
+
 
 class JediWorker(QThread):
     results_ready = pyqtSignal(object, int)
@@ -21,6 +23,8 @@ class JediWorker(QThread):
         self._running = True
         self.current_venv_path: Optional[str] = None
         self._jedi_env = jedi.get_default_environment()
+        self._last_script_key = None
+        self._cached_script = None
 
     def set_virtual_environment(self, venv_path: Optional[str]) -> None:
         self.current_venv_path = venv_path
@@ -32,38 +36,56 @@ class JediWorker(QThread):
         else:
             self._jedi_env = jedi.get_default_environment()
 
-    def request_completion(self, source: str, path: str, line: int, col: int, request_id: int) -> None:
+    def _enqueue(self, cmd, source, path, line, col, request_id):
+        key = (cmd, path, line, col)
         self._mutex.lock()
-        self._queue.append(("complete", source, path, line, col, request_id))
-        self._cond.wakeOne()
-        self._mutex.unlock()
+        try:
+            for i, existing in enumerate(self._queue):
+                if (existing[0], existing[2], existing[3], existing[4]) == key:
+                    self._queue[i] = (cmd, source, path, line, col, request_id)
+                    break
+            else:
+                if len(self._queue) >= _MAX_QUEUE:
+                    self._queue.popleft()
+                self._queue.append((cmd, source, path, line, col, request_id))
+            self._cond.wakeOne()
+        finally:
+            self._mutex.unlock()
 
-    def request_goto(self, source: str, path: str, line: int, col: int, request_id: int) -> None:
-        self._mutex.lock()
-        self._queue.append(("goto", source, path, line, col, request_id))
-        self._cond.wakeOne()
-        self._mutex.unlock()
+    def request_completion(self, source, path, line, col, request_id):
+        self._enqueue("complete", source, path, line, col, request_id)
 
-    def request_hover(self, source: str, path: str, line: int, col: int, request_id: int) -> None:
-        self._mutex.lock()
-        self._queue.append(("hover", source, path, line, col, request_id))
-        self._cond.wakeOne()
-        self._mutex.unlock()
+    def request_goto(self, source, path, line, col, request_id):
+        self._enqueue("goto", source, path, line, col, request_id)
 
-    def run(self) -> None:
+    def request_hover(self, source, path, line, col, request_id):
+        self._enqueue("hover", source, path, line, col, request_id)
+
+    def request_references(self, source, path, line, col, request_id):
+        self._enqueue("references", source, path, line, col, request_id)
+
+    def _get_script(self, source, path):
+        key = (source, path)
+        if key == self._last_script_key and self._cached_script is not None:
+            return self._cached_script
+        script = jedi.Script(code=source, path=path, environment=self._jedi_env)
+        self._last_script_key = key
+        self._cached_script = script
+        return script
+
+    def run(self):
         while self._running:
             item = None
             self._mutex.lock()
-            while self._running and not self._queue:
-                self._cond.wait(self._mutex, 50)
-            if not self._running:
+            try:
+                while self._running and not self._queue:
+                    self._cond.wait(self._mutex, 50)
+                if not self._running or not self._queue:
+                    self._mutex.unlock()
+                    continue
+                item = self._queue.popleft()
+            finally:
                 self._mutex.unlock()
-                break
-            if not self._queue:
-                self._mutex.unlock()
-                continue
-            item = self._queue.popleft()
-            self._mutex.unlock()
 
             if item is None:
                 continue
@@ -71,7 +93,7 @@ class JediWorker(QThread):
             cmd, source, path, line, col, rid = item
 
             try:
-                script = jedi.Script(code=source, path=path, environment=self._jedi_env)
+                script = self._get_script(source, path)
 
                 if cmd == "complete":
                     result = script.complete(line, col)
@@ -123,11 +145,25 @@ class JediWorker(QThread):
                         })
                     self.results_ready.emit(("hover", rid, hovers), rid)
 
+                elif cmd == "references":
+                    result = script.get_references(line, col)
+                    refs = []
+                    for r in result:
+                        refs.append({
+                            "file": str(r.module_path) if r.module_path else None,
+                            "line": r.line,
+                            "column": r.column,
+                            "name": r.name,
+                            "description": r.description,
+                            "type": r.type,
+                        })
+                    self.results_ready.emit(("references", rid, refs), rid)
+
             except Exception:
                 logger.debug("JediWorker error: %s", traceback.format_exc())
                 self.error_occurred.emit(traceback.format_exc(), rid)
 
-    def shutdown(self, timeout: int = 3000) -> None:
+    def shutdown(self, timeout=3000):
         self._running = False
         self._mutex.lock()
         self._queue.clear()
