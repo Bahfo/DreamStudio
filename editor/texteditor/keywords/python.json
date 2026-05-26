@@ -12,7 +12,6 @@
     "return": "definition",
     "nonlocal": "definition",
     "global": "definition",
-    "local": "definition",
 
     "import": "import",
     "from": "import",
@@ -136,7 +135,7 @@
 
   "all_words": 
   [
-    "def", "class", "return", "nonlocal", "global", "local",
+    "def", "class", "return", "nonlocal", "global",
     "import", "from",
     "as", "if", "elif", "else", "for", "while", "try", "except",
     "with", "pass", "break", "continue", "yield", "finally",

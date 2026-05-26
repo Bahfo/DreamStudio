@@ -71,6 +71,7 @@ class CodeEditor(QsciScintilla):
         self.setIndentationsUseTabs(False)
         self.setTabWidth(4)
         self.setIndentationGuides(True)
+        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 2)
 
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
@@ -146,6 +147,8 @@ class CodeEditor(QsciScintilla):
         self.setEdgeColumn(80)
         self.setEdgeColor(QColor("#444444"))
         self.zoomIn(0)
+
+        self._apply_scrollbar_style(False)
 
         ####################################
         # AutoCompletion
@@ -280,6 +283,12 @@ class CodeEditor(QsciScintilla):
         self._setup_hyperlink_indicator()
 
         ###############################
+        # Whitespace visualization (show dots during selection)
+        ###############################
+        self.SendScintilla(2084, True, QColor("#3C3C3C"))
+        self.selectionChanged.connect(self._on_sel_changed)
+
+        ###############################
         # Find and Replace Indicators
         ###############################
         self.setup_find_indicators()
@@ -297,8 +306,52 @@ class CodeEditor(QsciScintilla):
 
     def show_context_menu(self, point):
         self.menu = ClickMenu(self)
+        win = self.window()
+        if win is not None and hasattr(win, "theme_manager"):
+            self.menu.retheme(win.theme_manager)
         global_point = self.mapToGlobal(point)
         self.menu.exec(global_point)
+
+    def _apply_scrollbar_style(self, themed=True, t=None):
+        try:
+            scrollbar = self.verticalScrollBar()
+            if not scrollbar:
+                return
+            if themed and t is not None:
+                bg = t.color("scrollbar.bg", "#1E1E1E")
+                fg = t.color("scrollbar.fg", "#424242")
+                hover = t.color("scrollbar.hover", "#555555")
+            else:
+                bg = "#1E1E1E"
+                fg = "#424242"
+                hover = "#555555"
+            scrollbar.setStyleSheet(f"""
+                QScrollBar:vertical {{
+                    background: {bg};
+                    width: 10px;
+                    margin: 0;
+                    border: none;
+                }}
+                QScrollBar::handle:vertical {{
+                    background: {fg};
+                    min-height: 24px;
+                    border-radius: 4px;
+                    margin: 0 2px;
+                }}
+                QScrollBar::handle:vertical:hover {{
+                    background: {hover};
+                }}
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                    height: 0;
+                    border: none;
+                }}
+                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                    background: none;
+                    border: none;
+                }}
+            """)
+        except RuntimeError:
+            pass
 
     def _set_font_size_(self, size: int):
         self._font.setPointSize(size)
@@ -492,6 +545,12 @@ class CodeEditor(QsciScintilla):
         word_info = self._hover_debounce_word_info
         if word_info is not None:
             self._show_symbol_link(word_info)
+
+    def _on_sel_changed(self):
+        if self.hasSelectedText():
+            self.SendScintilla(QsciScintilla.SCI_SETVIEWWS, 1)
+        else:
+            self.SendScintilla(QsciScintilla.SCI_SETVIEWWS, 0)
 
     def _is_python_keyword(self, word):
         keywords = {
@@ -943,6 +1002,35 @@ class CodeEditor(QsciScintilla):
         except RuntimeError:
             pass
 
+    def _update_folding(self):
+        total = self.lines()
+        if total == 0:
+            return
+        text = self.text()
+        lines = text.split('\n')
+        indent_unit = self.indentationWidth() or 4
+
+        for line_num in range(total):
+            line_text = lines[line_num] if line_num < len(lines) else ""
+            indent = len(line_text) - len(line_text.lstrip())
+            indent_level = indent // indent_unit
+
+            stripped = line_text.strip()
+            is_header = False
+            if stripped and not stripped.startswith(('#', '//', '/*', '*', '"""', "'''")):
+                is_header = any(
+                    stripped.startswith(kw)
+                    for kw in ('def ', 'class ', 'if ', 'elif ', 'else:', 'for ',
+                               'while ', 'try:', 'except ', 'finally:', 'with ',
+                               'async def ', 'async for ', 'async with ', '@')
+                )
+
+            level = indent_level + 0x400
+            if is_header:
+                level |= 0x2000
+
+            self.SendScintilla(QsciScintilla.SCI_SETFOLDLEVEL, line_num, level)
+
     def _schedule_document_symbol_update(self):
         self._symbol_update_timer.start(150)
 
@@ -956,6 +1044,8 @@ class CodeEditor(QsciScintilla):
         return ""
 
     def update_document_symbols(self):
+        self._update_folding()
+
         self.imported_modules.clear()
         self.imported_symbols.clear()
         self.document_symbols["variables"] = set()
@@ -1402,6 +1492,7 @@ class CodeEditor(QsciScintilla):
         with open(file_path, "r", encoding="utf-8") as f:
             self.setText(f.read())
         self.clear_dirty()
+        self._update_folding()
 
         if self.language in ("CPP", "C", "C++"):
             self.clangd.did_open(file_path, self.text())
@@ -1426,12 +1517,14 @@ class CodeEditor(QsciScintilla):
         if self._lexer:
             self._lexer.setDefaultFont(self._font)
 
-    def set_wrap_mode(self, enabled=True):
+    def set_wrap_mode(self, enabled=False):
         self.setWrapMode(
-            QsciScintilla.WrapMode.WrapWord
-            if enabled
-            else QsciScintilla.WrapMode.WrapNone
+            QsciScintilla.WrapMode.WrapNone
+            if not enabled
+            else QsciScintilla.WrapMode.WrapWord
         )
+        if not enabled:
+            self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     def keyPressEvent(self, e: QKeyEvent):
 
@@ -1583,7 +1676,12 @@ class CodeEditor(QsciScintilla):
         self.setMarginsBackgroundColor(QColor(margin_bg))
         self.setMarginsForegroundColor(QColor(margin_fg))
 
+        fold_fg = t.color("scrollbar.fg", "#B0B0B0") if t is not None else "#B0B0B0"
         self.setFoldMarginColors(QColor(margin_bg), QColor(margin_bg))
+        self.setMarkerForegroundColor(QColor(fold_fg), QsciScintilla.SC_MARKNUM_FOLDER)
+        self.setMarkerForegroundColor(QColor(fold_fg), QsciScintilla.SC_MARKNUM_FOLDEROPEN)
+        self.setMarkerBackgroundColor(QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDER)
+        self.setMarkerBackgroundColor(QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDEROPEN)
 
         if t is not None:
             tip_bg = QColor(t.color("tooltip.background"))
@@ -1600,6 +1698,16 @@ class CodeEditor(QsciScintilla):
             f"QToolTip{{background-color: {tip_bg.name()}; color: {tip_fg.name()};"
             f" border: 1px solid {tip_border}; border-radius: 4px; padding: 4px;}}"
         )
+
+        self._apply_scrollbar_style(t is not None, t)
+
+        if t is not None:
+            ws_fg = t.color("editor.text", "#D4D4D4")
+            ws_color = QColor(ws_fg)
+            ws_color.setAlpha(60)
+            self.SendScintilla(2084, True, ws_color)
+        else:
+            self.SendScintilla(2084, True, QColor("#3C3C3C"))
 
         if self._lexer and t is not None:
             if hasattr(self._lexer, "apply_syntax_theme"):

@@ -85,6 +85,7 @@ class CustomPythonLexer(QsciLexerCustom):
                 self.setPaper(QColor("#1E1E1E"), sid)
                 self.setFont(self.default_font, sid)
 
+        self._lexer_state = _STATE_NORMAL
         self.word_to_style = {}
         categories = ["words", "types", "iterators", "exceptions"]
         for cat in categories:
@@ -145,7 +146,7 @@ class CustomPythonLexer(QsciLexerCustom):
         full_bytes = editor.text().encode("utf-8")
         text = full_bytes[start:end].decode("utf-8", errors="replace")
 
-        init_state = self.state()
+        init_state = self._lexer_state
         in_multiline = init_state in (_STATE_ML_DQUOTE, _STATE_ML_SQUOTE)
         was_multiline = in_multiline
         quote_char = ""
@@ -227,8 +228,8 @@ class CustomPythonLexer(QsciLexerCustom):
 
         if in_multiline:
             if quote_char == '"':
-                self.setState(_STATE_ML_DQUOTE)
+                self._lexer_state = _STATE_ML_DQUOTE
             else:
-                self.setState(_STATE_ML_SQUOTE)
+                self._lexer_state = _STATE_ML_SQUOTE
         else:
-            self.setState(_STATE_NORMAL)
+            self._lexer_state = _STATE_NORMAL

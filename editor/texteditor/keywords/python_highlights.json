@@ -3,7 +3,7 @@
     "language": "Python",
     "highlighter": "jedi_enhanced",
     "theme": "Firebase Studio (Google)",
-    "style_count": 30
+    "style_count": 31
   },
   "styles": {
     "default": "#D4D4D4",
@@ -34,7 +34,8 @@
     "attribute": "#9CDCFE",
     "annotation": "#4EC9B0",
     "type": "#4EC9B0",
-    "meta": "#808080"
+    "meta": "#808080",
+    "escape": "#D16969"
   },
   "keyword_map": {
     "False": "keyword_operator",
@@ -73,7 +74,8 @@
     "with": "keyword",
     "yield": "keyword",
     "match": "keyword",
-    "case": "keyword"
+    "case": "keyword",
+    "type": "keyword"
   },
   "builtins": [
     "abs", "all", "any", "bin", "bool", "bytearray", "bytes",
@@ -131,6 +133,7 @@
     "attribute": "syntax.collection",
     "annotation": "syntax.type",
     "type": "syntax.type",
-    "meta": "syntax.meta"
+    "meta": "syntax.meta",
+    "escape": "syntax.string"
   }
 }

@@ -7,45 +7,19 @@ class ClickMenu(QMenu):
         super().__init__(parent_editor)
         self.editor = parent_editor
 
-        self.menu_style = """
-            QMenu {
-                background-color: #1E1E1E;
-                color: #BCBEC4;
-                border: 1px solid #808080;
-                border-radius: 0px;
-                padding: 4px 0px;
-                font-family: 'Inter', Arial;
-                font-size: 13px;
-            }
-            QMenu::item {
-                padding: 6px 24px 6px 32px; 
-                background-color: transparent;
-            }
-            QMenu::item:selected {
-                background-color: #2F3135;
-                color: #DFE1E5;
-            }
-            QMenu::item:disabled {
-                color: #5F6165;
-            }
-            QMenu::separator {
-                height: 1px;
-                background-color: #808080;
-                margin: 4px 0px;
-            }
-            QMenu::icon {
-                padding-left: 10px;
-            }
-        """
-        self.setStyleSheet(self.menu_style)
+        self._bg = "#1E1E1E"
+        self._fg = "#BCBEC4"
+        self._border = "#808080"
+        self._sel_bg = "#2F3135"
+        self._sel_fg = "#DFE1E5"
+        self._disabled_fg = "#5F6165"
+        self._sep_color = "#808080"
+
+        self._build_stylesheet()
 
         has_selection = self.editor.hasSelectedText()
         can_undo = self.editor.isUndoAvailable()
         can_redo = self.editor.isRedoAvailable()
-
-        #############################
-        # Text Editing Options
-        #############################
 
         undo_action = QAction("Undo", self)
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
@@ -82,9 +56,6 @@ class ClickMenu(QMenu):
         self.addAction(select_all_action)
         self.addSeparator()
 
-        #############################
-        # Code Definition Options
-        #############################
         find_usage_action = QAction("Find Usages", self)
         find_usage_action.triggered.connect(self.editor.find_usages)
         self.addAction(find_usage_action)
@@ -101,11 +72,8 @@ class ClickMenu(QMenu):
 
         self.addSeparator()
 
-        #############################
-        # Code Related Options
-        #############################
         refactor_submenu = QMenu("Refactor", self)
-        refactor_submenu.setStyleSheet(self.menu_style)
+        refactor_submenu.setStyleSheet(self._build_submenu_style())
 
         rename_action = QAction("Rename Symbol...", refactor_submenu)
         refactor_submenu.addAction(rename_action)
@@ -136,11 +104,8 @@ class ClickMenu(QMenu):
         unindent_selection.setEnabled(has_selection)
         self.addAction(unindent_selection)
 
-        #############################
-        # Code Analysis Options
-        #############################
         analysis_submenu = QMenu("Analysis", self)
-        analysis_submenu.setStyleSheet(self.menu_style)
+        analysis_submenu.setStyleSheet(self._build_submenu_style())
 
         inspect_action = QAction("Inspect Code", analysis_submenu)
         analysis_submenu.addAction(inspect_action)
@@ -153,8 +118,83 @@ class ClickMenu(QMenu):
 
         self.addMenu(analysis_submenu)
 
+    def _build_stylesheet(self):
+        self.setStyleSheet(f"""
+            QMenu {{
+                background-color: {self._bg};
+                color: {self._fg};
+                border: 1px solid {self._border};
+                border-radius: 0px;
+                padding: 4px 0px;
+                font-family: 'Inter', Arial;
+                font-size: 13px;
+            }}
+            QMenu::item {{
+                padding: 6px 24px 6px 32px;
+                background-color: transparent;
+            }}
+            QMenu::item:selected {{
+                background-color: {self._sel_bg};
+                color: {self._sel_fg};
+            }}
+            QMenu::item:disabled {{
+                color: {self._disabled_fg};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background-color: {self._sep_color};
+                margin: 4px 0px;
+            }}
+            QMenu::icon {{
+                padding-left: 10px;
+            }}
+        """)
+
+    def _build_submenu_style(self):
+        return f"""
+            QMenu {{
+                background-color: {self._bg};
+                color: {self._fg};
+                border: 1px solid {self._border};
+                border-radius: 0px;
+                padding: 4px 0px;
+                font-family: 'Inter', Arial;
+                font-size: 13px;
+            }}
+            QMenu::item {{
+                padding: 6px 24px 6px 32px;
+                background-color: transparent;
+            }}
+            QMenu::item:selected {{
+                background-color: {self._sel_bg};
+                color: {self._sel_fg};
+            }}
+            QMenu::item:disabled {{
+                color: {self._disabled_fg};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background-color: {self._sep_color};
+                margin: 4px 0px;
+            }}
+        """
+
+    def retheme(self, t):
+        if t is None:
+            return
+        self._bg = t.color("menu.background", "#1E1E1E")
+        self._fg = t.color("menu.text", "#BCBEC4")
+        self._border = t.color("menu.border", "#808080")
+        self._sel_bg = t.color("menu.selection_bg", "#2F3135")
+        self._sel_fg = t.color("menu.selection_fg", "#DFE1E5")
+        self._disabled_fg = t.color("menu.disabled_fg", "#5F6165")
+        self._sep_color = t.color("menu.separator", "#808080")
+        self._build_stylesheet()
+        for action in self.actions():
+            if action.menu():
+                action.menu().setStyleSheet(self._build_submenu_style())
+
     def _handle_ai_explain(self):
-        """Extracts text context and passes it safely to the IDE interface layer."""
         selected_text = self.editor.selectedText()
         if selected_text:
             print(f"Sending to AI:\n{selected_text}")

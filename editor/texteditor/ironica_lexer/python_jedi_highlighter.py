@@ -15,7 +15,6 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 
-# Lexer states for multiline strings
 _STATE_NORMAL = 0
 _STATE_ML_DQUOTE = 1
 _STATE_ML_SQUOTE = 2
@@ -57,17 +56,23 @@ _STYLE_IDS = {
     "annotation": 26,
     "type": 27,
     "meta": 28,
+    "escape": 29,
 }
 
 _ID_TO_NAME = {v: k for k, v in _STYLE_IDS.items()}
 
-_TRIPLE_DOUBLE = '"""'
-_TRIPLE_SINGLE = "'''"
-
 _STR_PREFIX = r"(?:[rR](?:[bBfF])?|[bB][rR]?|[fF][rR]?|[uU])"
 
+_ESCAPE_RE = re.compile(r"\\(x[\da-fA-F]{1,2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|N\{\w+\}|[0-7]{1,3}|.)")
+
+_COMMENT_TODO_RE = re.compile(r"\b(TODO|FIXME|XXX|HACK|NOTE|BUG|OPTIMIZE)\b")
+
+_DUNDER_RE = re.compile(r"__\w+__")
+
+_CAPITAL_WORD_RE = re.compile(r"\b[A-Z][A-Z0-9_]*\b")
+
 _TOKEN_RE = re.compile(
-    r"(?P<decorator>@\w+(?:\.\w+)*(?:\s*\([^()]*\))?)|"
+    r"(?P<decorator>@(?:\w+(?:\.\w+)*(?:\s*\([^()]*(?:\([^()]*\)[^()]*)*\))?))|"
     r"(?P<string3>"
     + _STR_PREFIX
     + r'?"""(?:[^"\\]|\\.|"(?!""))*"""|'
@@ -81,6 +86,7 @@ _TOKEN_RE = re.compile(
     r'(?:[rR][bB]|[bB][rR]|[rRbBuU])?"(?:[^"\\]|\\.)*"|'
     r"(?:[rR][bB]|[bB][rR]|[rRbBuU])?'(?:[^\'\\]|\\.)*')|"
     r"(?P<comment>#.*)|"
+    r"(?P<ellipsis>\.\.\.)|"
     r"(?P<number_float>"
     r"\b\d(_?\d)*\.\d(_?\d)*(?:[eE][+-]?\d(_?\d)*)?[jJ]?\b|"
     r"\b\d(_?\d)*\.(?:[jJ])?(?=\W|$)|"
@@ -94,6 +100,7 @@ _TOKEN_RE = re.compile(
     r"\b\d(_?\d)*[jJ]?\b"
     r")|"
     r"(?P<operator>"
+    r":==?|"
     r"\*\*=|//=|<<=|>>=|->|:=|\.\.\.|"
     r"\*\*|//|<<|>>|==|!=|<=|>=|"
     r"[-+*/%&|^~<>!]=?|@=?|="
@@ -104,7 +111,38 @@ _TOKEN_RE = re.compile(
     r"(?P<other>.)"
 )
 
-_CAPITAL_WORD_RE = re.compile(r"\b[A-Z][A-Z0-9_]*\b")
+
+def _styling_escape(editor, raw_text, base_style, start_byte=0):
+    text = raw_text[start_byte:]
+    if not text:
+        return
+    has_escape = "\\" in text
+    if not has_escape:
+        editor.SendScintilla(
+            editor.SCI_SETSTYLING, len(text.encode("utf-8")), base_style
+        )
+        return
+    pos = 0
+    for m in _ESCAPE_RE.finditer(text):
+        if m.start() > pos:
+            editor.SendScintilla(
+                editor.SCI_SETSTYLING,
+                len(text[pos:m.start()].encode("utf-8")),
+                base_style,
+            )
+        esc_text = m.group()
+        editor.SendScintilla(
+            editor.SCI_SETSTYLING,
+            len(esc_text.encode("utf-8")),
+            _STYLE_IDS["escape"],
+        )
+        pos = m.end()
+    if pos < len(text):
+        editor.SendScintilla(
+            editor.SCI_SETSTYLING,
+            len(text[pos:].encode("utf-8")),
+            base_style,
+        )
 
 
 class _JediAnalyzer(QThread):
@@ -183,31 +221,19 @@ class _JediAnalyzer(QThread):
                 names = script.get_names(all_scopes=True)
                 new_cache: Dict[Tuple[int, int, str], str] = {}
                 new_call_cache: Set[Tuple[int, int, str]] = set()
+                source_lines = source.split("\n")
                 for n in names:
                     key = (n.line - 1, n.column, n.name)
                     ntype = n.type
-                    if n.is_definition():
-                        if ntype in ("function", "class", "module", "param"):
-                            new_cache[key] = ntype
-                        elif ntype == "instance":
-                            new_cache[key] = "instance"
-                        elif ntype == "statement":
-                            new_cache[key] = "statement"
-
-                # Detect actual call sites by scanning for function call patterns
-                # Look for patterns like: identifier( or identifier (
-                lines = source.split("\n")
-                for line_idx, line in enumerate(lines):
-                    # Find all word tokens in the line
+                    if ntype in ("function", "class", "module", "param", "instance", "statement", "property"):
+                        new_cache[key] = ntype
+                for line_idx, line in enumerate(source_lines):
                     for match in re.finditer(r"\b[^\W\d]\w*\b", line):
                         word = match.group()
                         col = match.start()
-                        # Check if this is followed by an opening parenthesis (with optional whitespace)
-                        after_word = line[col + len(word) :]
-                        if after_word.lstrip().startswith("("):
-                            # This looks like a function call
+                        after_word = line[col + len(word) :].lstrip()
+                        if after_word.startswith("("):
                             new_call_cache.add((line_idx, col, word))
-
                 self._cache_mutex.lock()
                 self.cache = new_cache
                 self._cache_mutex.unlock()
@@ -260,10 +286,8 @@ class PythonJediHighlighter(QsciLexerCustom):
         self._analysis_timer.setInterval(300)
         self._analysis_timer.timeout.connect(self._do_analysis)
 
-        # Track last styled range for incremental updates
         self._last_styled_start = 0
         self._last_styled_end = 0
-        # Lexer state for multiline strings
         self._lexer_state = _STATE_NORMAL
 
         self._init_styles()
@@ -334,88 +358,51 @@ class PythonJediHighlighter(QsciLexerCustom):
         self._ensure_analyzer()
         self._analyzer.request_analysis(source, path, env, request_id)
 
-    def _on_analysis_complete(self, request_id: int) -> None:
-        if request_id != self._latest_request_id:
-            return
+    def _safe_recolourise(self) -> None:
         if self._editor is None or self._restyling:
             return
         self._restyling = True
         try:
-            # Get visible range for incremental recolorization
             first_visible = self._editor.SendScintilla(
                 self._editor.SCI_GETFIRSTVISIBLELINE
             )
-            lines_on_screen = self._editor.SendScintilla(self._editor.SCI_LINESONSCREEN)
-            total_lines = self._editor.SendScintilla(self._editor.SCI_GETLINECOUNT)
-
-            # Calculate range with buffer
+            lines_on_screen = self._editor.SendScintilla(
+                self._editor.SCI_LINESONSCREEN
+            )
+            total_lines = self._editor.SendScintilla(
+                self._editor.SCI_GETLINECOUNT
+            )
             buffer_lines = 50
             start_line = max(0, first_visible - buffer_lines)
-            end_line = min(total_lines, first_visible + lines_on_screen + buffer_lines)
-
-            # Convert line range to position range
+            end_line = min(total_lines - 1, first_visible + lines_on_screen + buffer_lines)
             start_pos = self._editor.SendScintilla(
                 self._editor.SCI_POSITIONFROMLINE, start_line
             )
             end_pos = self._editor.SendScintilla(
                 self._editor.SCI_GETLINEENDPOSITION, end_line
             )
-
             if end_pos > start_pos:
                 self._editor.SendScintilla(
                     self._editor.SCI_COLOURISE, start_pos, end_pos
                 )
         except Exception:
-            # Fallback to full document if visible range fails
             total = self._editor.SendScintilla(self._editor.SCI_GETTEXTLENGTH)
             if total > 0:
                 self._editor.SendScintilla(self._editor.SCI_COLOURISE, 0, total)
         finally:
             self._restyling = False
 
+    def _on_analysis_complete(self, request_id: int) -> None:
+        if request_id != self._latest_request_id:
+            return
+        self._safe_recolourise()
+
     def _on_analysis_failed(self, request_id: int) -> None:
         if request_id != self._latest_request_id:
             return
         if self._analyzer is not None:
             self._analyzer.clear_cache()
-        if self._editor is not None and not self._restyling:
-            self._restyling = True
-            try:
-                # Get visible range for incremental recolorization
-                first_visible = self._editor.SendScintilla(
-                    self._editor.SCI_GETFIRSTVISIBLELINE
-                )
-                lines_on_screen = self._editor.SendScintilla(
-                    self._editor.SCI_LINESONSCREEN
-                )
-                total_lines = self._editor.SendScintilla(self._editor.SCI_GETLINECOUNT)
-
-                # Calculate range with buffer
-                buffer_lines = 50
-                start_line = max(0, first_visible - buffer_lines)
-                end_line = min(
-                    total_lines, first_visible + lines_on_screen + buffer_lines
-                )
-
-                # Convert line range to position range
-                start_pos = self._editor.SendScintilla(
-                    self._editor.SCI_POSITIONFROMLINE, start_line
-                )
-                end_pos = self._editor.SendScintilla(
-                    self._editor.SCI_GETLINEENDPOSITION, end_line
-                )
-
-                if end_pos > start_pos:
-                    self._editor.SendScintilla(
-                        self._editor.SCI_COLOURISE, start_pos, end_pos
-                    )
-            except Exception:
-                # Fallback to full document if visible range fails
-                total = self._editor.SendScintilla(self._editor.SCI_GETTEXTLENGTH)
-                if total > 0:
-                    self._editor.SendScintilla(self._editor.SCI_COLOURISE, 0, total)
-            finally:
-                self._restyling = False
+        self._safe_recolourise()
 
     def _get_jedi_type(self, line: int, col: int, name: str) -> Optional[str]:
         if self._analyzer is None:
@@ -433,30 +420,47 @@ class PythonJediHighlighter(QsciLexerCustom):
     def _slice_bytes(self, full_bytes: bytes, start: int, end: int) -> str:
         return full_bytes[start:end].decode("utf-8", errors="replace")
 
-    def _initial_state_for(
-        self, editor, full_bytes: bytes, start: int
-    ) -> Optional[Tuple[int, str]]:
-        if start < 6:
+    def _initial_state_for(self, full_bytes: bytes, start: int):
+        if start < 3:
             return None
-
-        if start > 0:
-            prev_style = editor.SendScintilla(editor.SCI_GETSTYLEAT, start - 1)
-            if prev_style == _STYLE_IDS["string_doc"]:
-                scan = self._slice_bytes(full_bytes, max(0, start - 6000), start)
-                last_dq = scan.rfind(_TRIPLE_DOUBLE)
-                last_sq = scan.rfind(_TRIPLE_SINGLE)
-                q = '"' if last_dq > last_sq else "'"
-                return (prev_style, q)
-
-        scan_start = max(0, start - 6000)
+        scan_start = max(0, start - 8000)
         prefix = self._slice_bytes(full_bytes, scan_start, start)
-
-        double_count = prefix.count(_TRIPLE_DOUBLE)
-        single_count = prefix.count(_TRIPLE_SINGLE)
-        if double_count % 2 == 1:
-            return (_STYLE_IDS["string_doc"], '"')
-        if single_count % 2 == 1:
-            return (_STYLE_IDS["string_doc"], "'")
+        stripped_lines = []
+        for line in prefix.split("\n"):
+            ci = line.find("#")
+            if ci >= 0:
+                stripped_lines.append(line[:ci])
+            else:
+                stripped_lines.append(line)
+        clean = "\n".join(stripped_lines)
+        dq_count = clean.count(_TRIPLE_DOUBLE)
+        sq_count = clean.count(_TRIPLE_SINGLE)
+        if dq_count % 2 == 1:
+            last_dq = clean.rfind(_TRIPLE_DOUBLE)
+            before_last = clean[:last_dq]
+            stripped_before = []
+            for line in before_last.split("\n"):
+                ci = line.find("#")
+                if ci >= 0:
+                    stripped_before.append(line[:ci])
+                else:
+                    stripped_before.append(line)
+            clean_before = "\n".join(stripped_before)
+            if clean_before.count(_TRIPLE_DOUBLE) % 2 == 0:
+                return (_STATE_ML_DQUOTE, '"')
+        if sq_count % 2 == 1:
+            last_sq = clean.rfind(_TRIPLE_SINGLE)
+            before_last = clean[:last_sq]
+            stripped_before = []
+            for line in before_last.split("\n"):
+                ci = line.find("#")
+                if ci >= 0:
+                    stripped_before.append(line[:ci])
+                else:
+                    stripped_before.append(line)
+            clean_before = "\n".join(stripped_before)
+            if clean_before.count(_TRIPLE_SINGLE) % 2 == 0:
+                return (_STATE_ML_SQUOTE, "'")
         return None
 
     def styleText(self, start: int, end: int) -> None:
@@ -471,55 +475,15 @@ class PythonJediHighlighter(QsciLexerCustom):
         full_bytes = editor.text().encode("utf-8")
         text = self._slice_bytes(full_bytes, start, end)
 
+        full_text = editor.text()
         editor.SendScintilla(editor.SCI_STARTSTYLING, start)
 
-        last_significant_token = None
-        prev_was_def = False
-        prev_was_class = False
-
-        # Use lexer states for multiline tracking
-        init_state = self._initial_state_for(editor, full_bytes, start)
-        in_multiline = init_state is not None
-        quote_char = ""
-        quote_run = 0
-        if init_state is not None:
-            ml_state, quote_char = init_state
-            # Count quote run at the boundary
-            boundary_start = max(0, start - 3)
-            boundary = self._slice_bytes(full_bytes, boundary_start, start)
-            for ch in reversed(boundary):
-                if ch == quote_char:
-                    quote_run += 1
-                else:
-                    break
-            if quote_run >= 3:
-                in_multiline = False
-                quote_run = 0
-
-            ctx_scan = max(0, start - 200)
-            prefix = self._slice_bytes(full_bytes, ctx_scan, start)
-            m = re.search(r"\b(async\s+)?(def|class)\s+\w*\Z", prefix)
-            if m:
-                category = m.group(2)
-                if category == "def":
-                    prev_was_def = True
-                elif category == "class":
-                    prev_was_class = True
-
-        # Compute initial line and column for the start position
-        if start == 0:
-            line = 0
-            col = 0
-        else:
-            line = editor.SendScintilla(editor.SCI_LINEFROMPOSITION, start)
-            line_start_byte = editor.SendScintilla(editor.SCI_POSITIONFROMLINE, start)
-            col = editor.SendScintilla(
-                editor.SCI_COUNTCHARACTERS, line_start_byte, start
-            )
-
-        # Use lexer states for multiline tracking (ported from python_lexer.py)
-        # Note: If _initial_state_for is used, this may overwrite it, keeping your logic intact below
         init_state = self._lexer_state
+        detected = self._initial_state_for(full_bytes, start)
+        if detected is not None:
+            ml_state, qchar = detected
+            init_state = ml_state
+
         in_multiline = init_state in (_STATE_ML_DQUOTE, _STATE_ML_SQUOTE)
         was_multiline = in_multiline
         quote_char = ""
@@ -529,18 +493,34 @@ class PythonJediHighlighter(QsciLexerCustom):
         elif init_state == _STATE_ML_SQUOTE:
             quote_char = "'"
 
-        byte_offset = 0  # Initialize byte offset here
+        if start == 0:
+            line = 0
+            col = 0
+        else:
+            line = editor.SendScintilla(editor.SCI_LINEFROMPOSITION, start)
+            line_start_byte = editor.SendScintilla(
+                editor.SCI_POSITIONFROMLINE, line
+            )
+            col = editor.SendScintilla(
+                editor.SCI_COUNTCHARACTERS, line_start_byte, start
+            )
+
+        last_significant_token = None
+        prev_was_def = False
+        prev_was_class = False
+        expect_annotation = False
+        expect_return_annotation = False
 
         for match in _TOKEN_RE.finditer(text):
             raw = match.group(0)
             byte_len = len(raw.encode("utf-8"))
 
-            # Current token starts at (line, col)
             current_token_line = line
             current_token_col = col
 
             tok = "default"
             style_id = _STYLE_IDS["default"]
+            styled = False
 
             if in_multiline:
                 closed_by_quotes = False
@@ -554,84 +534,130 @@ class PythonJediHighlighter(QsciLexerCustom):
                         quote_run = 0
                         closed_by_quotes = True
                         break
-
-                if closed_by_quotes:
-                    tok = "string_doc"
-                    style_id = _STYLE_IDS[tok]
-                elif match.group("string3"):
-                    in_multiline = False
-                    quote_run = 0
+                if closed_by_quotes or match.group("string3"):
+                    if closed_by_quotes:
+                        in_multiline = False
+                        quote_run = 0
                     tok = "string_doc"
                     style_id = _STYLE_IDS[tok]
                 else:
                     tok = "string_doc"
                     style_id = _STYLE_IDS[tok]
-                    editor.SendScintilla(editor.SCI_SETSTYLING, byte_len, style_id)
-                    byte_offset += byte_len
+                    editor.SendScintilla(
+                        editor.SCI_SETSTYLING, byte_len, style_id
+                    )
+                    for ch in raw:
+                        if ch == "\n":
+                            line += 1
+                            col = 0
+                        else:
+                            col += 1
                     continue
 
-            if match.group("comment"):
-                tok = "comment"
+            if match.group("ellipsis"):
+                tok = "punctuation"
                 style_id = _STYLE_IDS[tok]
                 last_significant_token = None
 
-            elif match.group("string3"):
+            elif match.group("comment"):
+                tok = "comment"
+                style_id = _STYLE_IDS[tok]
+                last_significant_token = None
+                comment_text = raw[1:]
+                if _COMMENT_TODO_RE.search(comment_text):
+                    editor.SendScintilla(
+                        editor.SCI_SETSTYLING, byte_len, style_id
+                    )
+                    for ch in raw:
+                        if ch == "\n":
+                            line += 1
+                            col = 0
+                        else:
+                            col += 1
+                    expect_annotation = False
+                    expect_return_annotation = False
+                    continue
+
+            elif match.group("string3") and not in_multiline:
                 tok = "string_doc"
                 style_id = _STYLE_IDS[tok]
                 last_significant_token = None
 
-            elif match.group("fstring"):
+            elif match.group("fstring") and not in_multiline:
                 tok = "string_fstring"
                 style_id = _STYLE_IDS[tok]
                 last_significant_token = None
 
-            elif match.group("string"):
+            elif match.group("string") and not in_multiline:
                 tok = "string"
                 style_id = _STYLE_IDS[tok]
                 last_significant_token = None
 
-            elif match.group("number_float"):
+            elif match.group("number_float") and not in_multiline:
                 tok = "number_float"
                 style_id = _STYLE_IDS[tok]
 
-            elif match.group("number"):
+            elif match.group("number") and not in_multiline:
                 tok = "number"
                 style_id = _STYLE_IDS[tok]
 
-            elif match.group("decorator"):
+            elif match.group("decorator") and not in_multiline:
                 tok = "decorator"
                 style_id = _STYLE_IDS[tok]
                 prev_was_def = False
                 prev_was_class = False
 
-            elif match.group("operator"):
+            elif match.group("operator") and not in_multiline:
+                op = raw
                 tok = "operator"
                 style_id = _STYLE_IDS[tok]
-                if raw == ".":
+                if op == ".":
                     last_significant_token = "."
+                elif op == "->":
+                    expect_return_annotation = True
+                    last_significant_token = None
+                elif op == ":":
+                    expect_annotation = True
+                    last_significant_token = None
                 else:
                     last_significant_token = None
                 prev_was_def = False
                 prev_was_class = False
 
-            elif match.group("punctuation"):
+            elif match.group("punctuation") and not in_multiline:
                 ch = raw
                 tok = "punctuation"
                 style_id = _STYLE_IDS[tok]
                 if ch == ".":
                     last_significant_token = "."
+                elif ch in ("(", ")"):
+                    expect_annotation = False
+                    last_significant_token = None
+                elif ch == ":":
+                    expect_annotation = True
+                    last_significant_token = None
                 else:
                     last_significant_token = None
                 prev_was_def = False
                 prev_was_class = False
 
-            elif match.group("word"):
+            elif match.group("word") and not in_multiline:
                 word = match.group("word")
                 actual_line = current_token_line
                 actual_col = current_token_col
-                # Only process as identifier if it's a valid Python identifier
                 if word.isidentifier():
-                    if prev_was_def:
+                    if word == "_":
+                        tok = "default"
+                        style_id = _STYLE_IDS["default"]
+                    elif expect_return_annotation:
+                        tok = "annotation"
+                        style_id = _STYLE_IDS[tok]
+                        expect_return_annotation = False
+                    elif expect_annotation:
+                        tok = "annotation"
+                        style_id = _STYLE_IDS[tok]
+                        expect_annotation = False
+                    elif prev_was_def:
                         tok = "function"
                         style_id = _STYLE_IDS[tok]
                         prev_was_def = False
@@ -644,9 +670,14 @@ class PythonJediHighlighter(QsciLexerCustom):
                         style_id = _STYLE_IDS[tok]
                     elif word in self._keyword_map:
                         tok = self._keyword_map[word]
-                        style_id = _STYLE_IDS.get(tok, _STYLE_IDS["keyword"])
+                        style_id = _STYLE_IDS.get(
+                            tok, _STYLE_IDS["keyword"]
+                        )
                         prev_was_def = word == "def"
                         prev_was_class = word == "class"
+                        if word in ("def", "class"):
+                            expect_annotation = False
+                            expect_return_annotation = False
                     elif word in self._builtin_types:
                         tok = "builtin_type"
                         style_id = _STYLE_IDS[tok]
@@ -656,8 +687,13 @@ class PythonJediHighlighter(QsciLexerCustom):
                     elif _CAPITAL_WORD_RE.fullmatch(word):
                         tok = "constant"
                         style_id = _STYLE_IDS[tok]
+                    elif _DUNDER_RE.fullmatch(word):
+                        tok = "constant"
+                        style_id = _STYLE_IDS[tok]
                     else:
-                        if self._is_call_site(actual_line, actual_col, word):
+                        if self._is_call_site(
+                            actual_line, actual_col, word
+                        ):
                             tok = "function_call"
                             style_id = _STYLE_IDS["function_call"]
                         else:
@@ -672,23 +708,26 @@ class PythonJediHighlighter(QsciLexerCustom):
                                 style_id = _STYLE_IDS[tok]
                                 last_significant_token = None
                 else:
-                    # Not a valid Python identifier, treat as default
                     tok = "default"
                     style_id = _STYLE_IDS["default"]
 
-            elif match.group("ws"):
-                tok = "default"
-                style_id = _STYLE_IDS["default"]
+            if not styled:
+                if tok in ("string", "string_fstring", "string_doc"):
+                    has_escape = "\\" in raw and tok != "string_doc"
+                    if has_escape:
+                        editor.SendScintilla(
+                            editor.SCI_SETSTYLING, 0, style_id
+                        )
+                        _styling_escape(editor, raw, style_id)
+                    else:
+                        editor.SendScintilla(
+                            editor.SCI_SETSTYLING, byte_len, style_id
+                        )
+                else:
+                    editor.SendScintilla(
+                        editor.SCI_SETSTYLING, byte_len, style_id
+                    )
 
-            else:
-                tok = "default"
-                style_id = _STYLE_IDS["default"]
-
-            editor.SendScintilla(editor.SCI_SETSTYLING, byte_len, style_id)
-
-            # Update line and column for next token
-            byte_offset += byte_len
-            # Update line/col based on token text
             for ch in raw:
                 if ch == "\n":
                     line += 1
@@ -696,10 +735,7 @@ class PythonJediHighlighter(QsciLexerCustom):
                 else:
                     col += 1
 
-        # Update lexer state for multiline strings (ported from python_lexer.py)
         if not in_multiline and not was_multiline:
-            # Strip comments before scanning for unclosed triple quotes
-            # to avoid false positives from # """ inside comments
             clean_lines = []
             for line_text in text.split("\n"):
                 comment_pos = line_text.find("#")
@@ -751,6 +787,7 @@ class PythonJediHighlighter(QsciLexerCustom):
             hex_color = t.color(theme_key, text_color)
             self.setColor(QColor(hex_color), style_id)
             self.setPaper(QColor(bg_color), style_id)
+            self.setFont(self._default_font, style_id)
 
     def shutdown(self) -> None:
         if self._analyzer is not None:
