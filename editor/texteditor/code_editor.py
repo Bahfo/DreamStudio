@@ -77,7 +77,7 @@ class CodeEditor(QsciScintilla):
         self.imported_symbols = set()
 
         self._font_size = 11
-        self._font = QFont("consolas", self._font_size)
+        self._font = QFont("Consolas", self._font_size)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
@@ -85,7 +85,6 @@ class CodeEditor(QsciScintilla):
             pass
 
         self._indentation_spacing = 4
-        self._vertical_spacing = 1
         self.setAutoIndent(True)
         self.setBackspaceUnindents(True)
         self.setTabIndents(True)
@@ -101,12 +100,8 @@ class CodeEditor(QsciScintilla):
         self.fold_color = QColor("#A0A0A0")
 
         self._palette = self.palette()
-        self._palette.setColor(
-            QPalette.ColorRole.ToolTipBase, QColor("#2B2D30")
-        )  # Background
-        self._palette.setColor(
-            QPalette.ColorRole.ToolTipText, QColor("#DFE1E5")
-        )  # Text
+        self._palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#2B2D30"))
+        self._palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#DFE1E5"))
         self.setPalette(self._palette)
 
         #####################################
@@ -302,12 +297,6 @@ class CodeEditor(QsciScintilla):
         self._highlight_indicator = 9
         self._hyperlink_target: Optional[Dict[str, Any]] = None
         self._setup_hyperlink_indicator()
-
-        ###############################
-        # Whitespace visualization (show dots during selection)
-        ###############################
-        self.SendScintilla(2084, True, QColor("#3C3C3C"))
-        self.selectionChanged.connect(self._on_sel_changed)
 
         ###############################
         # Find and Replace Indicators
@@ -575,12 +564,6 @@ class CodeEditor(QsciScintilla):
         word_info = self._hover_debounce_word_info
         if word_info is not None:
             self._show_symbol_link(word_info)
-
-    def _on_sel_changed(self):
-        if self.hasSelectedText():
-            self.SendScintilla(QsciScintilla.SCI_SETVIEWWS, 1)
-        else:
-            self.SendScintilla(QsciScintilla.SCI_SETVIEWWS, 0)
 
     def _is_python_keyword(self, word):
         keywords = {

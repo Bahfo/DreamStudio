@@ -437,8 +437,12 @@ class DreamStudio(QMainWindow):
 
         # Minimap
         self.minimap = MiniMap(self)
-        self.minimap.setMinimumWidth(100)
-        self.minimap.setMaximumWidth(120)
+        self.minimap_wrapper = QWidget()
+        self.minimap_wrapper.setMinimumWidth(100)
+        self.minimap_wrapper.setMaximumWidth(120)
+        wrapper_layout = QVBoxLayout(self.minimap_wrapper)
+        wrapper_layout.setContentsMargins(4, 4, 4, 4)
+        wrapper_layout.addWidget(self.minimap)
 
         self.tab_editors.installEventFilter(self)
 
@@ -449,7 +453,7 @@ class DreamStudio(QMainWindow):
 
         self.workspace_splitter.addWidget(self.sidebar_frame)
         self.workspace_splitter.addWidget(self.main_editor_area)
-        self.workspace_splitter.addWidget(self.minimap)
+        self.workspace_splitter.addWidget(self.minimap_wrapper)
         self.workspace_splitter.addWidget(self.etherAIScreen)
 
         self.workspace_splitter.setStretchFactor(0, 0)

@@ -38,10 +38,10 @@ class MiniMap(QsciScintilla):
         self._lexer = None
         self._scroll_syncing = False
 
-        self._font = QFont("JetBrains Mono", 10)
+        self._font = QFont("Consolas", 1)
         self.setFont(self._font)
-        self.SendScintilla(QsciScintilla.SCI_SETZOOM, -10)
         self.setContentsMargins(8, 10, 18, 10)
+        self.setStyleSheet("border:none;")
 
         self.setUtf8(True)
         self.setReadOnly(True)
@@ -84,10 +84,20 @@ class MiniMap(QsciScintilla):
             json_data = editor._lexer.json_data
             try:
                 self._lexer = lexer_cls(self, json_data)
+                if (
+                    hasattr(self._lexer, "_analyzer")
+                    and self._lexer._analyzer is not None
+                ):
+                    self._lexer._analyzer.shutdown()
+                    self._lexer._analyzer = None
                 self.setLexer(self._lexer)
+
+                if hasattr(self._lexer, "apply_font"):
+                    self._lexer.apply_font(self._font)
+
                 return True
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Minimap lexer clone failed: {e}")
         self._lexer = None
         self.setLexer(None)
         return False
@@ -165,16 +175,22 @@ class MiniMap(QsciScintilla):
         e_last_doc = editor.SendScintilla(
             QsciScintilla.SCI_DOCLINEFROMVISIBLE, e_last_vis
         )
-
         mm_first_vis = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
 
-        y_start = (e_first_doc - mm_first_vis) * mm_line_h
-        y_end = (e_last_doc - mm_first_vis + 1) * mm_line_h
+        margins = self.contentsMargins()
+        m_top = margins.top()
+        m_left = margins.left()
+        m_right = margins.right()
+        m_bottom = margins.bottom()
 
-        if y_start >= h or y_end <= 0:
+        y_start = (e_first_doc - mm_first_vis) * mm_line_h + m_top
+        y_end = (e_last_doc - mm_first_vis + 1) * mm_line_h + m_top
+        if y_start >= (h - m_bottom) or y_end <= m_top:
             return None
 
-        return QRect(1, int(y_start), w - 2, int(max(y_end - y_start, 2)))
+        rect_w = w - m_left - m_right - 1
+        rect_h = max(y_end - y_start, 2)
+        return QRect(m_left, int(y_start), rect_w, int(rect_h))
 
     def _update_tick(self) -> None:
         if self._editor is None or self._scroll_syncing:
@@ -214,27 +230,33 @@ class MiniMap(QsciScintilla):
 
     def mousePressEvent(self, event) -> None:
         if self._editor is not None and event.button() == Qt.MouseButton.LeftButton:
+            margins = self.contentsMargins()
             sci_pos = self.SendScintilla(
                 QsciScintilla.SCI_POSITIONFROMPOINT,
-                int(event.pos().x()),
-                int(event.pos().y()),
+                int(event.pos().x()) - margins.left(),
+                int(event.pos().y()) - margins.top(),
             )
             line, _ = self.lineIndexFromPosition(sci_pos)
             if line >= 0:
                 self._scroll_to_line(line)
-        super().mousePressEvent(event)
+                # WITHOUT super METHOD TO KEEP IT FROM NORMAL BEHAVIOR
 
     def mouseMoveEvent(self, event) -> None:
         if self._editor is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            margins = self.contentsMargins()
             sci_pos = self.SendScintilla(
                 QsciScintilla.SCI_POSITIONFROMPOINT,
-                int(event.pos().x()),
-                int(event.pos().y()),
+                int(event.pos().x()) - margins.left(),
+                int(event.pos().y()) - margins.top(),
             )
             line, _ = self.lineIndexFromPosition(sci_pos)
             if line >= 0:
                 self._scroll_to_line(line)
-        super().mouseMoveEvent(event)
+                # WITHOUT super METHOD TO KEEP IT FROM NORMAL BEHAVIOR
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        """Kept like that to swallow all incoming events"""
+        pass
 
     def resizeEvent(self, event) -> None:
         self._overlay.resize(self.size())
@@ -246,9 +268,3 @@ class MiniMap(QsciScintilla):
 
         if self._lexer is not None and hasattr(self._lexer, "apply_syntax_theme"):
             self._lexer.apply_syntax_theme(t)
-
-        self.setStyleSheet(f"""
-            QWidget#MiniMap {{
-                border: 1px solid {t.color("minimap.border")};
-            }}
-            """)
