@@ -5,14 +5,60 @@ from PyQt6.QtWidgets import QFileIconProvider
 
 class DreamStudioIconProvider(QFileIconProvider):
     def icon(self, file_info: QFileInfo) -> QIcon:
+        if not isinstance(file_info, QFileInfo):
+            return super().icon(file_info)
+
+        name = file_info.fileName()
+        name_lower = name.lower()
+        extension = file_info.suffix().lower()
+
         if file_info.isDir():
+            if name_lower in [".vscode", "vscode"]:
+                return QIcon("assets/types/vscode.png")
+            elif name_lower in [".vs", "vs"]:
+                return QIcon("assets/types/vs.png")
+            elif name_lower in ["venv", ".venv"]:
+                return QIcon("assets/types/venv.png")
+            elif name_lower in ["ai", "agents", ".ai", ".agents"]:
+                return QIcon("assets/types/ai.png")
+            elif name_lower in [
+                "pytest_cache",
+                ".pytest_cache",
+                "test",
+                ".test",
+                "tests",
+                ".tests",
+            ]:
+                return QIcon("assets/types/tests.png")
+            elif name_lower == "assets":
+                return QIcon("assets/types/assets.png")
+            elif name_lower in ["build", ".build", "bin", ".bin"]:
+                return QIcon("assets/types/build.png")
+            elif name_lower in ["containers", "container", "docker"]:
+                return QIcon("assets/types/docker_dir.png")
+            elif name_lower == "dso" or name_lower == ".dso":
+                return QIcon("assets/types/dream.png")
+            elif name_lower == "git" or name_lower == ".git":
+                return QIcon("assets/types/git_init.png")
+            elif name_lower == "include":
+                return QIcon("assets/types/include.png")
+            elif name_lower == "src" or name_lower == "editor":
+                return QIcon("assets/types/src.png")
             return QIcon("assets/types/folder.png")
 
-        extension = file_info.suffix().lower()
-        if extension == "py":
-            return QIcon("assets/types/python.png")
-        elif extension == "asm":
+        if name_lower in ["license", "copyright"]:
+            return QIcon("assets/types/license.png")
+        elif name_lower in [".gitignore", ".gitattributes"]:
+            return QIcon("assets/types/git.png")
+        elif name_lower == "vs":
+            return QIcon("assets/types/vs.png")
+        elif name_lower == "vscode":
+            return QIcon("assets/types/vscode.png")
+
+        if extension == "asm":
             return QIcon("assets/types/asm.png")
+        elif extension == "bash" or extension == "sh":
+            return QIcon("assets/types/bash.png")
         elif extension == "bin":
             return QIcon("assets/types/bin.png")
         elif extension == "bsharp":
@@ -37,12 +83,12 @@ class DreamStudioIconProvider(QFileIconProvider):
             return QIcon("assets/types/dart.png")
         elif extension == "docker":
             return QIcon("assets/types/docker.png")
+        elif extension == "docx":
+            QIcon("assets/types/docx.png")
         elif extension == "flutter":
             return QIcon("assets/types/flutter.png")
         elif extension == "fsharp":
             return QIcon("assets/types/fsharp.png")
-        elif extension == "git":
-            return QIcon("assets/types/git.png")
         elif extension == "git":
             return QIcon("assets/types/git.png")
         elif extension == "go":
@@ -55,6 +101,8 @@ class DreamStudioIconProvider(QFileIconProvider):
             return QIcon("assets/types/ipynb.png")
         elif extension == "js":
             return QIcon("assets/types/javascript.png")
+        elif extension == "json":
+            return QIcon("assets/types/json.png")
         elif extension in ["png", "jpeg", "apng", "avif", "gif", "webp"]:
             return QIcon("assets/types/jpeg.png")
         elif extension == "lua":
@@ -65,27 +113,27 @@ class DreamStudioIconProvider(QFileIconProvider):
             return QIcon("assets/types/pdf.png")
         elif extension in ["pyc", "pyx", "pyz"]:
             return QIcon("assets/types/pyc.png")
-        elif extension == "python":
-            return QIcon("assets/types/py.png")
+        elif extension == "py":
+            return QIcon("assets/types/python.png")
         elif extension in ["rar", "zip", "tar", "gz"]:
             return QIcon("assets/types/rar.png")
         elif extension == "rb":
             return QIcon("assets/types/ruby.png")
         elif extension == "rs":
             return QIcon("assets/types/rust.png")
-        elif extension == "ps1" or extension == "bash":
+        elif extension == "ps1":
             return QIcon("assets/types/shell.png")
         elif extension == "svg":
             return QIcon("assets/types/svg.png")
+        elif extension == "sql":
+            QIcon("assets/types/data.png")
         elif extension == "swift":
             return QIcon("assets/types/swift.png")
         elif extension == "ts":
             return QIcon("assets/types/typescript.png")
+        elif extension == "txt":
+            return QIcon("assets/types/txt.png")
         elif extension == "vb":
             return QIcon("assets/types/vb.png")
-        elif extension == "vs":
-            return QIcon("assets/types/vs.png")
-        elif extension == "vscode":
-            return QIcon("assets/types/vscode.png")
 
         return QIcon("assets/types/file.png")

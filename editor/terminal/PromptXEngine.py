@@ -1,26 +1,11 @@
-logo_ascii = r"""
-            /$$$$$$$                                               /$$     /$$   /$$
-            | $$__  $$                                             | $$    | $$  / $$
-            | $$  \ $$ /$$$$$$   /$$$$$$  /$$$$$$/$$$$   /$$$$$$  /$$$$$$  |  $$/ $$/
-            | $$$$$$$//$$__  $$ /$$__  $$| $$_  $$_  $$ /$$__  $$|_  $$_/   \  $$$$/ 
-            | $$____/| $$  \__/| $$  \ $$| $$ \ $$ \ $$| $$  \ $$  | $$      >$$  $$ 
-            | $$     | $$      | $$  | $$| $$ | $$ | $$| $$  | $$  | $$ /$$ /$$/\  $$
-            | $$     | $$      |  $$$$$$/| $$ | $$ | $$| $$$$$$$/  |  $$$$/| $$  \ $$
-            |__/     |__/       \______/ |__/ |__/ |__/| $$____/    \___/  |__/  |__/
-                                                       | $$                          
-                                                       | $$                          
-                                                       |__/
-
+HELP = r"""
 ────────────────────────────────────────────────────────────────────────────────────────────────
                         DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
                                     © EX Technologies
 ────────────────────────────────────────────────────────────────────────────────────────────────
-
-────────────────────────────────────────────────────────────────────────────────────────────────
 COMMAND INDEX:
 • Display help documentation:              help
 • Exit terminal environment:               quit
-
 ────────────────────────────────────────────────────────────────────────────────────────────────
 NOTE:
 All command inputs are processed sequentially by the terminal's
@@ -29,52 +14,49 @@ undefined behavior or ignored operations.
 ────────────────────────────────────────────────────────────────────────────────────────────────
 
 A DreamStudio commands shell powered by command-type language 'Prompt-X'
-Prompt-X is a one-line shell command language for executing various
-system level commands, and various input/output user commands.
+Prompt-X is a one-line shell command language for executing various system level commands, and 
+various input/output user commands.
+"""
 
-Below is a detailed list of available documented commands:
-
-changedir       Changes current workspace directoy
-clear           Clears terminal screen
-clearhistory    Clears the commands history (with errors commands)
-clone           Clones (Copies) a file from source to destination
-copydir         Copies files inside a directory recursively
-cpuinfo         Shows CPU related info
-date            Shows current date and time
-deletedir       Deletes the specified directory by path
-diskinfo        Shows HDD related info
-download
-echo
-env
+ALL_COMMANDS = """All Available Commands:
+changedir       Changes the current working directory
+clear           Clears the terminal screen
+clearhistory    Clears the command history
+clone           Copies a file from source to destination
+copydir         Copies a directory recursively from source to destination
+cpuinfo         Displays CPU information
+date            Shows the current date and time
+deletedir       Deletes the specified directory
+diskinfo        Shows hard disk information
+download        Downloads a file from a URL
+echo            Prints text to the terminal output
+env             Displays environment variables
 erase           Deletes the specified file
-find            Searches file matching patterns in destination
-fileinfo        Shows files info
-head            Shows first few lines of a file
-help            Documentation Help of a specific command or topic
-here            Shows current working directory
-history
-kill
-makedir         Creates a new directory at the specified location
-me              Shows info about the system
-meminfo         Shows memory related info
-mybox           Shows host name
-newbie          Creates a new file
-pacman          Universal language package manager (ULPM)
-peek            Lists the content of a specific directory
-ping
-ps
-rename
-shift           Moves a file from source to destination
-sysinfo         Shows system related info
-tail            Shows last few lines of a file
-unzip
-uptime
-whoami
-zip             Packages a file into a .zip format
-
-────────────────────────────────────────────────────────────────────────────────────────────────
-                                    END OF DOCUMENTATION
-────────────────────────────────────────────────────────────────────────────────────────────────
+find            Shows detailed information about a file
+fileinfo        Shows metadata and properties of a file
+head            Shows first N lines of a file
+help            Displays documentation for commands and topics
+here            Shows the current working directory
+history         Displays command history
+kill            Terminates a process by PID
+makedir         Creates a new directory
+me              Shows the current username
+meminfo         Shows memory usage information
+mybox           Shows the system hostname
+newbie          Creates a new file with optional content
+pacman          Universal package manager for development languages
+peek            Lists the contents of a directory
+ping            Tests network connectivity to a host
+ps              Lists running processes
+quit            Exits the terminal environment
+rename          Renames a file or directory
+shift           Replaces strings within a file
+sysinfo         Shows system information
+tail            Shows last N lines of a file
+unzip           Extracts a zip archive
+uptime          Shows system uptime
+whoami          Displays the current user
+zip             Creates a zip archive
 """
 
 pacman_real_commands = {
@@ -276,6 +258,7 @@ import os
 import cmd
 import sys
 import socket
+import signal
 import psutil
 import shutil
 import getpass
@@ -283,6 +266,8 @@ import zipfile
 import datetime
 import platform
 import subprocess
+import urllib.request
+import urllib.error
 from itertools import islice
 from collections import deque
 
@@ -323,29 +308,42 @@ class CommandLine(cmd.Cmd):
         self._history_index = None
         self.commands_list = [
             "changedir",
-            "clearhistory",
             "clear",
+            "clearhistory",
             "clone",
             "copydir",
             "cpuinfo",
             "date",
+            "deletedir",
             "diskinfo",
+            "download",
+            "echo",
+            "env",
             "erase",
             "find",
             "fileinfo",
             "head",
-            "here",
             "help",
+            "here",
+            "history",
+            "kill",
+            "makedir",
             "me",
             "meminfo",
             "mybox",
             "newbie",
             "pacman",
             "peek",
+            "ping",
+            "ps",
             "quit",
+            "rename",
             "shift",
             "sysinfo",
             "tail",
+            "unzip",
+            "uptime",
+            "whoami",
             "zip",
         ]
 
@@ -485,9 +483,28 @@ class CommandLine(cmd.Cmd):
             help changedir
         """
         if arg != "":
-            return super().do_help(arg)
+            import io
+
+            buf = io.StringIO()
+            old_stdout = self.stdout
+            self.stdout = buf
+            try:
+                super().do_help(arg)
+            finally:
+                self.stdout = old_stdout
+            result = buf.getvalue()
+            return result if result else f"No help available for '{arg}'."
         else:
-            return logo_ascii
+            return HELP
+
+    # -------------------- All Commands --------------------
+    def do_commands(self, arg):
+        """
+        Help: allcommands -- display all PromptX commands
+        """
+        if arg != 0:
+            return "Error 0: Usage: commands"
+        return ALL_COMMANDS
 
     # -------------------- Changedir --------------------
     def do_changedir(self, arg):
@@ -677,32 +694,31 @@ class CommandLine(cmd.Cmd):
             return f"Error 42: {e}"
 
     # -------------------- Diskinfo --------------------
-    def do_diskinfo(self, path):
+    def do_diskinfo(self, arg):
         """
         Help: diskinfo: Returns the hard disk drive (HDD) information
         Usage:
-            diskinfo
+            diskinfo [--path=<path>]
+        Parameters:
+            --path      Optional. Path to check disk usage for. Default is current directory
         Output:
             - Disk info (HDD) is displayed
+        Errors:
+            Error 43: Path does not exist
         Hot-topic commands:
-            clearhistory, help
+            cpuinfo, meminfo, sysinfo, help
         """
         try:
-            if not path:
-                path = os.getcwd()
-            if os.path.exists(path):
-                usage = shutil.disk_usage(path)
-                total = usage.total // (1024**3)
-                used = usage.used // (1024**3)
-                free = usage.free // (1024**3)
-                percent = round((used / total) * 100, 2)
-                return f"""Disk info for {path}:
-                Total: {total} GB
-                Used: {used} GB
-                Free: {free} GB
-                Usage: {percent}%"""
-            else:
-                return f"Error: Path does not exist: {path}"
+            args = self.parse_args(arg) if arg else {}
+            path = args.get("path", os.getcwd())
+            if not os.path.exists(path):
+                return f"Error 43: Path does not exist: {path}"
+            usage = shutil.disk_usage(path)
+            total = usage.total // (1024**3)
+            used = usage.used // (1024**3)
+            free = usage.free // (1024**3)
+            percent = round((used / total) * 100, 2)
+            return f"Disk info for {path}:\nTotal: {total} GB\nUsed: {used} GB\nFree: {free} GB\nUsage: {percent}%"
         except Exception as e:
             return f"Error: {e}"
 
@@ -1013,15 +1029,15 @@ class CommandLine(cmd.Cmd):
         Output:
             Performs the requested operation on the specified language/package and returns success or error messages
         Errors:
-            Error 24: Language not specified or invalid
-            Error 25: Command not specified or invalid
-            Error 26: Package not specified when required
+            Error 24: Language not specified
+            Error 25: Command not specified
+            Error 26: Package required but not provided
             Error 27: Unsupported language
-            Error 28: Unsupported command
-            Error 29: No internet connection or connection not stable
+            Error 28: Unsupported command for language
+            Error 29: No internet connection required
             Error 30: Exception error
         Hot-topic commands:
-            pacman_languages, download
+            download, help
         """
         args = self.parse_args(arg)
         language = args.get("language")
@@ -1031,38 +1047,29 @@ class CommandLine(cmd.Cmd):
 
         if not language:
             return "Error 24: --language is required"
-        if language not in pacman_real_commands:
-            return f"Error 27: Unsupported language: {language}"
         if not command:
             return "Error 25: --command is required"
+        if language not in pacman_real_commands:
+            return f"Error 27: Unsupported language '{language}'"
         if command not in pacman_real_commands[language]:
             return (
                 f"Error 28: Unsupported command '{command}' for language '{language}'"
             )
 
-        commands_require_package = [
-            "install",
-            "uninstall",
-            "update",
-            "upgrade",
-            "remove",
-            "info",
-            "search",
-        ]
+        commands_require_package = ["install", "uninstall", "remove"]
         if command in commands_require_package and not package:
-            return "Error 26: --package is required for this command"
+            return f"Error 26: --package is required for '{command}' command"
+
         real_cmd = pacman_real_commands[language][command]
+
         if language == "python":
             cmd_list = [sys.executable, "-m", "pip"]
-            cmd_list.extend(real_cmd.split()[1:])
+            pip_args = real_cmd.split(maxsplit=1)
+            if len(pip_args) > 1:
+                cmd_list.extend(pip_args[1:])
             if package:
                 cmd_list.append(package)
-            if parameters == "yes" and command in [
-                "install",
-                "uninstall",
-                "upgrade",
-                "remove",
-            ]:
+            if parameters == "yes" and command in ("install", "uninstall", "remove"):
                 cmd_list.append("-y")
         else:
             cmd_list = real_cmd.split()
@@ -1072,8 +1079,10 @@ class CommandLine(cmd.Cmd):
                 cmd_list.append("-y")
             elif parameters == "all":
                 cmd_list.append("--all")
-        if command in self.internet_required_commands and not self.internet_exists():
-            return "Error 29: No internet connection"
+
+        needs_internet = command in self.internet_required_commands
+        if needs_internet and not self.internet_exists():
+            return "Error 29: No internet connection available"
         try:
             output = self.run_command(cmd_list)
             return output
@@ -1277,3 +1286,335 @@ class CommandLine(cmd.Cmd):
             return f"Archive '{destination}' created from '{source}'."
         except Exception as e:
             return f"Error 42: {e}"
+
+    # -------------------- Clear --------------------
+    def do_clear(self, arg=None):
+        """
+        Help: clear    Clears the terminal screen
+        Usage:
+            clear
+        Output:
+            - All previous output is cleared from the terminal display
+        Hot-topic commands:
+            help
+        """
+        return None
+
+    # -------------------- Download --------------------
+    def do_download(self, arg):
+        """
+        Help: download    Downloads a file from a URL to the local filesystem
+        Usage:
+            download --url=<url> [--path=<destination_path>]
+        Parameters:
+            --url       URL of the file to download
+            --path      Optional. Destination path to save the file. Default is current directory
+        Output:
+            Downloads the file from the specified URL and saves it to the destination path.
+            Returns a success message with the file location.
+        Errors:
+            Error 50: URL not provided
+            Error 51: Download failed - network or server error
+        Hot-topic commands:
+            ping, pacman, help
+        """
+        args = self.parse_args(arg)
+        url = args.get("url")
+        if not url:
+            return "Error 50: You must provide --url=<url>"
+        dest = args.get("path", os.getcwd())
+        try:
+            if os.path.isdir(dest):
+                filename = url.split("/")[-1].split("?")[0]
+                dest = os.path.join(dest, filename)
+            urllib.request.urlretrieve(url, dest)
+            return f"Downloaded '{url}' to '{dest}'."
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+            return f"Error 51: Download failed: {e}"
+
+    # -------------------- Echo --------------------
+    def do_echo(self, arg):
+        """
+        Help: echo    Prints the given text to the terminal output
+        Usage:
+            echo <text>
+        Parameters:
+            <text>      The text to display. Enclose in quotes if it contains spaces
+        Output:
+            Repeats the provided text back to the terminal
+        Hot-topic commands:
+            help
+        """
+        return arg if arg else ""
+
+    # -------------------- Env --------------------
+    def do_env(self, arg=None):
+        """
+        Help: env    Displays all environment variables
+        Usage:
+            env
+        Output:
+            Lists all environment variables and their values, one per line
+        Hot-topic commands:
+            sysinfo, me, help
+        """
+        try:
+            lines = [f"{k}={v}" for k, v in sorted(os.environ.items())]
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Error: {e}"
+
+    # -------------------- History --------------------
+    def do_history(self, arg=None):
+        """
+        Help: history    Displays the recently executed commands history
+        Usage:
+            history
+        Output:
+            Shows all previously executed commands in order, each prefixed by its index
+        Hot-topic commands:
+            clearhistory, help
+        """
+        if not self._history:
+            return "No commands in history."
+        lines = [f"{i:4d}  {cmd}" for i, cmd in enumerate(self._history, 1)]
+        return "\n".join(lines)
+
+    # -------------------- Kill --------------------
+    def do_kill(self, arg):
+        """
+        Help: kill    Terminates a running process by its PID
+        Usage:
+            kill --pid=<process_id> [--force]
+        Parameters:
+            --pid       Process ID of the process to terminate
+            --force     Optional. Force kill the process (SIGKILL on Unix)
+        Output:
+            Sends a termination signal to the specified process.
+            Returns a success or error message.
+        Errors:
+            Error 52: PID not provided
+            Error 53: Process does not exist
+            Error 54: Permission denied
+        Hot-topic commands:
+            ps, help
+        """
+        args = self.parse_args(arg)
+        pid = args.get("pid")
+        if not pid:
+            return "Error 52: You must provide --pid=<process_id>"
+        try:
+            pid = int(pid)
+            sig = signal.SIGKILL if "force" in args else signal.SIGTERM
+            os.kill(pid, sig)
+            return f"Process {pid} terminated."
+        except ValueError:
+            return "Error 52: PID must be a valid integer."
+        except ProcessLookupError:
+            return f"Error 53: Process '{pid}' does not exist."
+        except PermissionError:
+            return f"Error 54: Permission denied to kill process '{pid}'."
+        except Exception as e:
+            return f"Error: {e}"
+
+    # -------------------- Ping --------------------
+    def do_ping(self, arg):
+        """
+        Help: ping    Tests network connectivity to a remote host
+        Usage:
+            ping --host=<hostname_or_ip> [--count=<n>]
+        Parameters:
+            --host      Hostname or IP address to ping
+            --count     Optional. Number of ping requests to send. Default is 4
+        Output:
+            Sends ICMP echo requests to the specified host and returns the results.
+        Errors:
+            Error 55: Host not provided
+            Error 56: Ping command failed
+        Hot-topic commands:
+            download, help
+        """
+        args = self.parse_args(arg)
+        host = args.get("host")
+        if not host:
+            return "Error 55: You must provide --host=<hostname_or_ip>"
+        count = args.get("count", "4")
+        try:
+            param = "-n" if sys.platform == "win32" else "-c"
+            result = subprocess.run(
+                ["ping", param, str(count), host],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=30,
+            )
+            output = result.stdout.strip()
+            return output if output else f"Ping to '{host}' completed."
+        except subprocess.TimeoutExpired:
+            return f"Error 56: Ping to '{host}' timed out."
+        except FileNotFoundError:
+            return "Error 56: Ping command not found on this system."
+        except Exception as e:
+            return f"Error 56: {e}"
+
+    # -------------------- Ps --------------------
+    def do_ps(self, arg=None):
+        """
+        Help: ps    Lists currently running processes on the system
+        Usage:
+            ps
+        Output:
+            Displays a table of running processes with PID, name, and status
+        Hot-topic commands:
+            kill, sysinfo, help
+        """
+        try:
+            processes = []
+            for proc in psutil.process_iter(["pid", "name", "status"]):
+                try:
+                    pinfo = proc.info
+                    processes.append(
+                        f"{pinfo['pid']:>8d}  {pinfo['name']:<30s}  {pinfo['status'] or 'running'}"
+                    )
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            header = f"{'PID':>8s}  {'NAME':<30s}  {'STATUS'}"
+            lines = [header, "-" * 60] + sorted(
+                processes, key=lambda x: int(x.split()[0])
+            )
+            return "\n".join(lines[:100])
+        except Exception as e:
+            return f"Error: {e}"
+
+    # -------------------- Quit --------------------
+    def do_quit(self, arg=None):
+        """
+        Help: quit    Exits the terminal environment
+        Usage:
+            quit
+        Output:
+            Prompts the user to close the terminal panel
+        Hot-topic commands:
+            help
+        """
+        return "Type 'close' or use the close button to close the terminal panel."
+
+    # -------------------- Rename --------------------
+    def do_rename(self, arg):
+        """
+        Help: rename    Renames a file or directory
+        Usage:
+            rename --source=<current_name> --destination=<new_name>
+        Parameters:
+            --source       Current name or path of the file/directory
+            --destination  New name or path for the file/directory
+        Output:
+            Renames the specified file or directory from source to destination.
+            Returns a success message with both old and new names.
+        Errors:
+            Error 57: Source or destination not provided
+            Error 58: Source does not exist
+            Error 59: Destination already exists
+            Error 60: Permission denied
+        Hot-topic commands:
+            shift, clone, help
+        """
+        args = self.parse_args(arg)
+        source = args.get("source")
+        destination = args.get("destination")
+        if not source or not destination:
+            return "Error 57: You must provide --source=<current_name> --destination=<new_name>"
+        try:
+            if not os.path.exists(source):
+                return f"Error 58: Source '{source}' does not exist."
+            if os.path.exists(destination):
+                return f"Error 59: Destination '{destination}' already exists."
+            os.rename(source, destination)
+            return f"Renamed '{source}' to '{destination}'."
+        except PermissionError:
+            return f"Error 60: Permission denied."
+        except Exception as e:
+            return f"Error: {e}"
+
+    # -------------------- Unzip --------------------
+    def do_unzip(self, arg):
+        """
+        Help: unzip    Extracts a zip archive to a specified directory
+        Usage:
+            unzip --source=<zipfile> [--destination=<output_dir>]
+        Parameters:
+            --source       Path to the zip file to extract
+            --destination  Optional. Directory to extract contents into.
+                           Default is the current working directory
+        Output:
+            Extracts all files from the zip archive into the destination directory.
+            Returns a success message with the extraction location.
+        Errors:
+            Error 61: Source not provided
+            Error 62: Source file does not exist
+            Error 63: Not a valid zip file
+            Error 64: Exception during extraction
+        Examples:
+            unzip --source=archive.zip
+            unzip --source=archive.zip --destination=./extracted
+        Hot-topic commands:
+            zip, peek, help
+        """
+        args = self.parse_args(arg)
+        source = args.get("source")
+        if not source:
+            return "Error 61: You must provide --source=<zipfile>"
+        if not os.path.isfile(source):
+            return f"Error 62: File '{source}' does not exist."
+        destination = args.get("destination", os.getcwd())
+        try:
+            if not os.path.exists(destination):
+                os.makedirs(destination, exist_ok=True)
+            with zipfile.ZipFile(source, "r") as z:
+                z.extractall(destination)
+            return f"Extracted '{source}' to '{destination}'."
+        except zipfile.BadZipFile:
+            return f"Error 63: '{source}' is not a valid zip file."
+        except Exception as e:
+            return f"Error 64: {e}"
+
+    # -------------------- Uptime --------------------
+    def do_uptime(self, arg=None):
+        """
+        Help: uptime    Displays how long the system has been running
+        Usage:
+            uptime
+        Output:
+            Shows the system uptime in days, hours, minutes, and seconds
+        Hot-topic commands:
+            sysinfo, date, help
+        """
+        try:
+            uptime_seconds = datetime.datetime.now().timestamp() - psutil.boot_time()
+            days, remainder = divmod(int(uptime_seconds), 86400)
+            hours, remainder = divmod(remainder, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            parts = []
+            if days > 0:
+                parts.append(f"{days}d")
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0:
+                parts.append(f"{minutes}m")
+            parts.append(f"{seconds}s")
+            return f"Uptime: {' '.join(parts)}"
+        except Exception as e:
+            return f"Error: {e}"
+
+    # -------------------- Whoami --------------------
+    def do_whoami(self, arg=None):
+        """
+        Help: whoami    Displays the current username
+        Usage:
+            whoami
+        Output:
+            Shows the username of the currently logged-in user
+        Hot-topic commands:
+            me, mybox, help
+        """
+        return getpass.getuser()

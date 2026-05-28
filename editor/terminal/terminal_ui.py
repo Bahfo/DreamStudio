@@ -12,12 +12,12 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QStackedWidget,
     QPlainTextEdit,
-    QTextEdit,
 )
-from PyQt6.QtGui import QFont, QColor, QTextCursor, QPalette
+from PyQt6.QtGui import QFont, QTextCursor
 from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 
 from editor.lsp.runner import ProcessRunner
+from editor.terminal.PromptXEngine import CommandLine, HELP
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +154,247 @@ class OutputWidget(QWidget):
         self._text.clear()
 
 
+class TerminalEdit(QPlainTextEdit):
+    def __init__(self, terminal_widget, parent=None):
+        super().__init__(parent)
+        self._tw = terminal_widget
+        self._font_size = 14
+        self._bg = "#1e1e1e"
+        self._fg = "#d4d4d4"
+        self._sel = "#264f78"
+        self.setUndoRedoEnabled(False)
+        self.setMaximumBlockCount(10000)
+        self._apply_style()
+
+    def _apply_style(self) -> None:
+        self.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: {self._bg};
+                color: {self._fg};
+                border: none;
+                font-family: "JetBrains Mono", "Consolas", "monospace";
+                font-size: {self._font_size}px;
+                selection-background-color: {self._sel};
+            }}
+        """)
+
+    def _zoom_font(self, delta: int) -> None:
+        self._font_size = max(6, self._font_size + delta)
+        self._apply_style()
+
+    def set_theme(self, bg: str, fg: str, sel: str) -> None:
+        self._bg = bg
+        self._fg = fg
+        self._sel = sel
+        self._apply_style()
+
+    def keyPressEvent(self, event):
+        tw = self._tw
+        cursor = self.textCursor()
+        key = event.key()
+        mods = event.modifiers()
+
+        if key == Qt.Key.Key_Return and mods == Qt.KeyboardModifier.NoModifier:
+            tw._execute_current()
+            return
+
+        if key == Qt.Key.Key_Up and mods == Qt.KeyboardModifier.NoModifier:
+            tw._history_navigate(-1)
+            return
+
+        if key == Qt.Key.Key_Down and mods == Qt.KeyboardModifier.NoModifier:
+            tw._history_navigate(1)
+            return
+
+        if key == Qt.Key.Key_Left:
+            if cursor.position() > tw._input_pos:
+                super().keyPressEvent(event)
+            return
+
+        if key == Qt.Key.Key_Right:
+            if cursor.position() < self.document().characterCount() - 1:
+                super().keyPressEvent(event)
+            return
+
+        if key == Qt.Key.Key_Home:
+            c = self.textCursor()
+            c.setPosition(tw._input_pos)
+            self.setTextCursor(c)
+            return
+
+        if key == Qt.Key.Key_End:
+            self.moveCursor(QTextCursor.MoveOperation.End)
+            return
+
+        if key == Qt.Key.Key_Backspace:
+            if cursor.hasSelection():
+                if (
+                    cursor.selectionStart() < tw._input_pos
+                    or cursor.selectionEnd() < tw._input_pos
+                ):
+                    return
+            elif cursor.position() <= tw._input_pos:
+                return
+            super().keyPressEvent(event)
+            return
+
+        if key == Qt.Key.Key_Delete:
+            if cursor.hasSelection():
+                if (
+                    cursor.selectionStart() < tw._input_pos
+                    or cursor.selectionEnd() < tw._input_pos
+                ):
+                    return
+            super().keyPressEvent(event)
+            return
+
+        if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal) and mods == Qt.KeyboardModifier.ControlModifier:
+            self._zoom_font(1)
+            return
+
+        if key == Qt.Key.Key_Minus and mods == Qt.KeyboardModifier.ControlModifier:
+            self._zoom_font(-1)
+            return
+
+        if key == Qt.Key.Key_0 and mods == Qt.KeyboardModifier.ControlModifier:
+            self._font_size = 14
+            self._apply_style()
+            return
+
+        if key == Qt.Key.Key_A and mods == Qt.KeyboardModifier.ControlModifier:
+            c = self.textCursor()
+            c.setPosition(tw._input_pos)
+            c.movePosition(
+                QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor
+            )
+            self.setTextCursor(c)
+            return
+
+        if cursor.position() < tw._input_pos:
+            c = self.textCursor()
+            c.setPosition(tw._input_pos)
+            self.setTextCursor(c)
+
+        super().keyPressEvent(event)
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        tw = self._tw
+        cursor = self.textCursor()
+        if cursor.position() < tw._input_pos or cursor.anchor() < tw._input_pos:
+            c = self.textCursor()
+            c.setPosition(tw._input_pos)
+            self.setTextCursor(c)
+
+    def mouseDoubleClickEvent(self, event):
+        super().mouseDoubleClickEvent(event)
+        tw = self._tw
+        cursor = self.textCursor()
+        if cursor.position() < tw._input_pos or cursor.anchor() < tw._input_pos:
+            c = self.textCursor()
+            c.setPosition(tw._input_pos)
+            c.movePosition(
+                QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor
+            )
+            self.setTextCursor(c)
+
+    def contextMenuEvent(self, event):
+        event.ignore()
+
+    def wheelEvent(self, event):
+        super().wheelEvent(event)
+
+
+class PromptXTerminalWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._engine = CommandLine(os.getcwd())
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._terminal = TerminalEdit(self)
+        layout.addWidget(self._terminal)
+
+        self._input_pos = 0
+        self._saved_input = ""
+        self._navigating_history = False
+
+        self._terminal.insertPlainText(HELP)
+        self._show_prompt()
+
+    def _show_prompt(self) -> None:
+        prompt = self._engine.prompt
+        self._terminal.moveCursor(QTextCursor.MoveOperation.End)
+        self._terminal.insertPlainText(prompt)
+        self._input_pos = self._terminal.textCursor().position()
+
+    def _get_input(self) -> str:
+        cursor = self._terminal.textCursor()
+        cursor.setPosition(self._input_pos)
+        cursor.movePosition(
+            QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor
+        )
+        return cursor.selectedText()
+
+    def _replace_input(self, text: str) -> None:
+        cursor = self._terminal.textCursor()
+        cursor.setPosition(self._input_pos)
+        cursor.movePosition(
+            QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor
+        )
+        cursor.removeSelectedText()
+        cursor.insertText(text)
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self._terminal.setTextCursor(cursor)
+
+    def _history_navigate(self, direction: int) -> None:
+        if not self._navigating_history:
+            self._saved_input = self._get_input()
+            self._navigating_history = True
+
+        if direction < 0:
+            cmd = self._engine.get_previous_command()
+        else:
+            cmd = self._engine.get_next_command()
+            if not cmd and self._navigating_history:
+                cmd = self._saved_input
+                self._navigating_history = False
+
+        self._replace_input(cmd)
+
+    def _execute_current(self) -> None:
+        cmd = self._get_input()
+        self._terminal.moveCursor(QTextCursor.MoveOperation.End)
+        self._terminal.insertPlainText("\n")
+        self._navigating_history = False
+        stripped = cmd.strip()
+
+        if stripped.lower() == "clear":
+            self._terminal.clear()
+            self._show_prompt()
+            return
+
+        if stripped.lower() == "quit":
+            self._terminal.insertPlainText(
+                "Use the close button to close the terminal panel.\n"
+            )
+            self._show_prompt()
+            return
+
+        result = self._engine.onecmd(cmd)
+        if result is not None:
+            self._terminal.insertPlainText(str(result) + "\n")
+        self._show_prompt()
+
+    def focus_input(self) -> None:
+        self._terminal.setFocus()
+        cursor = self._terminal.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self._terminal.setTextCursor(cursor)
+
+
 class TerminalPanel(QWidget):
     close_requested = pyqtSignal()
 
@@ -190,7 +431,7 @@ class TerminalPanel(QWidget):
 
         self.problems_tab = QWidget()
         self.terminal_tab = TerminalWidget(self)
-        self.promptXShell_tab = QWidget()
+        self.promptXShell_tab = PromptXTerminalWidget(self)
         self.debug_tab = QWidget()
         self.output_tab = OutputWidget(self)
 
@@ -202,8 +443,8 @@ class TerminalPanel(QWidget):
             TAB_OUTPUT: (self.output_tab, "OUTPUT"),
         }
 
-        for i in range(5):
-            widget, _ = self.tabs[i]
+        for tab_id in range(len(self.tabs)):
+            widget, _ = self.tabs[tab_id]
             self.stack.addWidget(widget)
 
         toolbar = QHBoxLayout()
@@ -211,14 +452,14 @@ class TerminalPanel(QWidget):
 
         self.buttons = {}
 
-        for i in range(5):
-            _, label = self.tabs[i]
+        for tab_id in range(len(self.tabs)):
+            _, label = self.tabs[tab_id]
             btn = QPushButton(label)
             btn.setFont(QFont("Inter", 9, QFont.Weight.Bold))
             btn.setCheckable(True)
-            btn.clicked.connect(lambda _, idx=i: self.switch_tab(idx))
+            btn.clicked.connect(lambda _, idx=tab_id: self.switch_tab(idx))
             toolbar.addWidget(btn)
-            self.buttons[i] = btn
+            self.buttons[tab_id] = btn
 
         toolbar.addItem(
             QSpacerItem(
@@ -248,6 +489,9 @@ class TerminalPanel(QWidget):
             else:
                 btn.setStyleSheet("color: #cccccc; border-bottom: none;")
                 btn.setFixedWidth(90)
+
+        if index == TAB_PROMPTX:
+            self.promptXShell_tab.focus_input()
 
     def retheme(self, t) -> None:
         bg = t.color("terminal.background")
@@ -291,6 +535,7 @@ class TerminalPanel(QWidget):
                 selection-background-color: {sel};
             }}
         """)
+        self.promptXShell_tab._terminal.set_theme(bg, txt, sel)
         self.output_tab._text.setStyleSheet(f"""
             QPlainTextEdit {{
                 background-color: {bg};

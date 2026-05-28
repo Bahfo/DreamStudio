@@ -28,9 +28,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="1.5758483"
-     inkscape:cx="98.042432"
-     inkscape:cy="-257.63901"
+     inkscape:zoom="2.578111"
+     inkscape:cx="221.67393"
+     inkscape:cy="-166.4009"
      inkscape:window-width="1920"
      inkscape:window-height="1003"
      inkscape:window-x="0"
@@ -43,7 +43,7 @@
        width="35.277779"
        height="35.277779"
        id="page345"
-       inkscape:export-filename="apps/DreamStudio-IDE/assets/logos/dreamStudio_icon.png"
+       inkscape:export-filename="dreamStudio_icon.png"
        inkscape:export-xdpi="96"
        inkscape:export-ydpi="96" />
     <inkscape:page
@@ -740,87 +740,6 @@
          transform="matrix(-0.90900435,-0.41678662,-0.001459,0.99999894,0,0)" />
     </g>
     <rect
-       style="fill:#0026ff;fill-opacity:1;stroke:none;stroke-width:0.55717;stroke-linecap:round"
-       id="rect24307"
-       width="28.055241"
-       height="28.055241"
-       x="89.273308"
-       y="-43.607609"
-       ry="2.262445"
-       transform="rotate(-0.14134861)" />
-    <rect
-       style="fill:#003cff;fill-opacity:1;stroke:none;stroke-width:0.512423;stroke-linecap:round"
-       id="rect24305"
-       width="25.802101"
-       height="25.802101"
-       x="88.564056"
-       y="-48.26897"
-       ry="2.0807462"
-       transform="rotate(3.0968415)" />
-    <rect
-       style="fill:#004fff;fill-opacity:1;stroke:none;stroke-width:0.465571;stroke-linecap:round"
-       id="rect24303"
-       width="23.442989"
-       height="23.442989"
-       x="85.284744"
-       y="-57.936726"
-       ry="1.8905014"
-       transform="rotate(9.3535374)" />
-    <rect
-       style="fill:#0064ff;fill-opacity:1;stroke:none;stroke-width:0.428994;stroke-linecap:round"
-       id="rect23967"
-       width="21.601212"
-       height="21.601212"
-       x="83.127289"
-       y="-62.676037"
-       ry="1.7419758"
-       transform="rotate(12.591411)" />
-    <rect
-       style="fill:#0079ff;fill-opacity:1;stroke:none;stroke-width:0.405403;stroke-linecap:round"
-       id="rect23782"
-       width="20.41325"
-       height="20.41325"
-       x="87.213593"
-       y="-55.182327"
-       ry="1.6461756"
-       transform="rotate(8.4611988)" />
-    <rect
-       style="fill:#0092ff;fill-opacity:1;stroke:none;stroke-width:0.379625;stroke-linecap:round"
-       id="rect1828"
-       width="19.115345"
-       height="19.115345"
-       x="90.435989"
-       y="-48.477985"
-       ry="1.5415094"
-       transform="rotate(4.9473688)" />
-    <rect
-       style="fill:#00baff;fill-opacity:1;stroke:none;stroke-width:0.357548;stroke-linecap:round"
-       id="rect1772"
-       width="18.003778"
-       height="18.003778"
-       x="93.975723"
-       y="-39.153679"
-       ry="1.4518697" />
-    <rect
-       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.451985;stroke-linecap:round"
-       id="rect6462"
-       width="16.033182"
-       height="16.033182"
-       x="94.866638"
-       y="-38.168388" />
-    <text
-       xml:space="preserve"
-       style="font-weight:bold;font-size:10.7144px;font-family:Z003;-inkscape-font-specification:'Z003 Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.375306;stroke-linecap:round"
-       x="95.052048"
-       y="-28.759821"
-       id="text24523"
-       transform="scale(1.0057643,0.99426873)"><tspan
-         sodipodi:role="line"
-         id="tspan24521"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Noto Sans Tifinagh Hawad';-inkscape-font-specification:'Noto Sans Tifinagh Hawad';fill:#ffffff;fill-opacity:1;stroke-width:0.375305"
-         x="95.052048"
-         y="-28.759821">DS</tspan></text>
-    <rect
        style="fill:#ff0002;fill-opacity:1;stroke:none;stroke-width:0.55717;stroke-linecap:round"
        id="rect24525"
        width="28.055241"
@@ -1275,18 +1194,102 @@
            x="203.32072"
            y="-24.963451">P</tspan></text>
     </g>
-    <text
-       xml:space="preserve"
-       style="font-weight:bold;font-size:3.14389px;font-family:Z003;-inkscape-font-specification:'Z003 Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.110125;stroke-linecap:round"
-       x="95.915741"
-       y="-24.208036"
-       id="text33305"
-       transform="scale(1.0057643,0.99426873)"><tspan
-         sodipodi:role="line"
-         id="tspan33303"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Noto Sans Tifinagh Hawad';-inkscape-font-specification:'Noto Sans Tifinagh Hawad';fill:#ffffff;fill-opacity:1;stroke-width:0.110125"
+    <g
+       id="g441">
+      <rect
+         style="fill:#0026ff;fill-opacity:1;stroke:none;stroke-width:0.55717;stroke-linecap:round"
+         id="rect24307"
+         width="28.055241"
+         height="28.055241"
+         x="89.273308"
+         y="-43.607609"
+         ry="2.262445"
+         transform="rotate(-0.14134861)" />
+      <rect
+         style="fill:#003cff;fill-opacity:1;stroke:none;stroke-width:0.512423;stroke-linecap:round"
+         id="rect24305"
+         width="25.802101"
+         height="25.802101"
+         x="88.564056"
+         y="-48.26897"
+         ry="2.0807462"
+         transform="rotate(3.0968415)" />
+      <rect
+         style="fill:#004fff;fill-opacity:1;stroke:none;stroke-width:0.465571;stroke-linecap:round"
+         id="rect24303"
+         width="23.442989"
+         height="23.442989"
+         x="85.284744"
+         y="-57.936726"
+         ry="1.8905014"
+         transform="rotate(9.3535374)" />
+      <rect
+         style="fill:#0064ff;fill-opacity:1;stroke:none;stroke-width:0.428994;stroke-linecap:round"
+         id="rect23967"
+         width="21.601212"
+         height="21.601212"
+         x="83.127289"
+         y="-62.676037"
+         ry="1.7419758"
+         transform="rotate(12.591411)" />
+      <rect
+         style="fill:#0079ff;fill-opacity:1;stroke:none;stroke-width:0.405403;stroke-linecap:round"
+         id="rect23782"
+         width="20.41325"
+         height="20.41325"
+         x="87.213593"
+         y="-55.182327"
+         ry="1.6461756"
+         transform="rotate(8.4611988)" />
+      <rect
+         style="fill:#0092ff;fill-opacity:1;stroke:none;stroke-width:0.379625;stroke-linecap:round"
+         id="rect1828"
+         width="19.115345"
+         height="19.115345"
+         x="90.435989"
+         y="-48.477985"
+         ry="1.5415094"
+         transform="rotate(4.9473688)" />
+      <rect
+         style="fill:#00baff;fill-opacity:1;stroke:none;stroke-width:0.357548;stroke-linecap:round"
+         id="rect1772"
+         width="18.003778"
+         height="18.003778"
+         x="93.975723"
+         y="-39.153679"
+         ry="1.4518697" />
+      <rect
+         style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.451985;stroke-linecap:round"
+         id="rect6462"
+         width="16.033182"
+         height="16.033182"
+         x="94.866638"
+         y="-38.168388" />
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:10.7144px;font-family:Z003;-inkscape-font-specification:'Z003 Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.375306;stroke-linecap:round"
+         x="95.052048"
+         y="-28.759821"
+         id="text24523"
+         transform="scale(1.0057643,0.99426873)"><tspan
+           sodipodi:role="line"
+           id="tspan24521"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Noto Sans Tifinagh Hawad';-inkscape-font-specification:'Noto Sans Tifinagh Hawad';fill:#ffffff;fill-opacity:1;stroke-width:0.375305"
+           x="95.052048"
+           y="-28.759821">DS</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:3.14389px;font-family:Z003;-inkscape-font-specification:'Z003 Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.110125;stroke-linecap:round"
          x="95.915741"
-         y="-24.208036">IDE</tspan></text>
+         y="-24.208036"
+         id="text33305"
+         transform="scale(1.0057643,0.99426873)"><tspan
+           sodipodi:role="line"
+           id="tspan33303"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Noto Sans Tifinagh Hawad';-inkscape-font-specification:'Noto Sans Tifinagh Hawad';fill:#ffffff;fill-opacity:1;stroke-width:0.110125"
+           x="95.915741"
+           y="-24.208036">IDE</tspan></text>
+    </g>
     <text
        xml:space="preserve"
        style="font-weight:bold;font-size:3.14389px;font-family:Z003;-inkscape-font-specification:'Z003 Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.110125;stroke-linecap:round"

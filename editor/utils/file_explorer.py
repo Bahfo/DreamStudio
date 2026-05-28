@@ -18,23 +18,52 @@ from PyQt6.QtWidgets import (
     QMenu,
 )
 from PyQt6.QtGui import QFileSystemModel
-from PyQt6.QtCore import QSortFilterProxyModel, Qt
+from PyQt6.QtCore import QSortFilterProxyModel, Qt, QDir
 
 from editor.widgets.QIconsProvider import DreamStudioIconProvider
 
 
+from PyQt6.QtCore import QSortFilterProxyModel, Qt, QFileInfo
+
+
 class DreamTreeViewProxy(QSortFilterProxyModel):
     def lessThan(self, source_left, source_right):
-        left_is_dir = self.sourceModel().isDir(source_left)
-        right_is_dir = self.sourceModel().isDir(source_right)
+        source_model = self.sourceModel()
+        left_info = source_model.fileInfo(source_left)
+        right_info = source_model.fileInfo(source_right)
 
-        if left_is_dir != right_is_dir:
-            if self.sortOrder() == Qt.SortOrder.AscendingOrder:
-                return left_is_dir
+        def get_rank(info: QFileInfo) -> int:
+            is_dir = info.isDir()
+            is_dot = info.fileName().startswith(".")
+
+            if is_dir and is_dot:
+                return 0  # 1st: Dot Folders
+            elif is_dir and not is_dot:
+                return 1  # 2nd: Normal Folders
+            elif not is_dir and is_dot:
+                return 2  # 3rd: Dot Files
             else:
-                return not left_is_dir
+                return 3  # 4th: Normal Files
 
-        return super().lessThan(source_left, source_right)
+        rank_left = get_rank(left_info)
+        rank_right = get_rank(right_info)
+
+        if rank_left != rank_right:
+            if self.sortOrder() == Qt.SortOrder.AscendingOrder:
+                return rank_left < rank_right
+            else:
+                return rank_left > rank_right
+
+        name_left = left_info.fileName().lower()
+        name_right = right_info.fileName().lower()
+
+        if rank_left == 3:
+            ext_left = left_info.suffix().lower()
+            ext_right = right_info.suffix().lower()
+
+            if ext_left != ext_right:
+                return ext_left < ext_right
+        return name_left < name_right
 
 
 class DreamFileTreeWindow(QFrame):
@@ -53,6 +82,12 @@ class DreamFileTreeWindow(QFrame):
 
         # Treeview System
         self.model = QFileSystemModel()
+        self.model.setFilter(
+            QDir.Filter.AllDirs  # Show all directories
+            | QDir.Filter.Files  # Show all files
+            | QDir.Filter.NoDotAndDotDot  # Hide the generic "." and ".." relative directory links
+            | QDir.Filter.Hidden  # <-- THIS LINE REVEALS THE DOT FILES/FOLDERS
+        )
         self.icon_provider = DreamStudioIconProvider()
         self.model.setIconProvider(self.icon_provider)
 
