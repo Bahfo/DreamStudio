@@ -8,25 +8,36 @@ A Custom Treeview hierarchy for DreamStudio.
 
 # Written by Bahaa Nofal - April/2026
 
+import os
+import shutil
+
 from PyQt6.QtWidgets import (
     QVBoxLayout,
+    QHBoxLayout,
     QSizePolicy,
     QTreeView,
     QLineEdit,
     QFrame,
     QLabel,
     QMenu,
+    QPushButton,
+    QApplication,
+    QDialog,
 )
-from PyQt6.QtGui import QFileSystemModel
-from PyQt6.QtCore import QSortFilterProxyModel, Qt, QDir
+from PyQt6.QtGui import QFileSystemModel, QAction, QActionGroup, QIcon
+from PyQt6.QtCore import QSortFilterProxyModel, Qt, QDir, QFileInfo, QSize, QPoint
 
 from editor.widgets.QIconsProvider import DreamStudioIconProvider
-
-
-from PyQt6.QtCore import QSortFilterProxyModel, Qt, QFileInfo
+from editor.widgets.QExitDialog import ConfirmDialog, RenameDialog
 
 
 class DreamTreeViewProxy(QSortFilterProxyModel):
+    def flags(self, index):
+        return (
+            self.sourceModel().flags(self.mapToSource(index))
+            | Qt.ItemFlag.ItemIsEditable
+        )
+
     def lessThan(self, source_left, source_right):
         source_model = self.sourceModel()
         left_info = source_model.fileInfo(source_left)
@@ -67,6 +78,9 @@ class DreamTreeViewProxy(QSortFilterProxyModel):
 
 
 class DreamFileTreeWindow(QFrame):
+    _clipboard_path: str | None = None
+    _clipboard_is_cut: bool = False
+
     def __init__(self, _parent):
         super().__init__(_parent)
         self._parent = _parent
@@ -91,17 +105,106 @@ class DreamFileTreeWindow(QFrame):
         self.icon_provider = DreamStudioIconProvider()
         self.model.setIconProvider(self.icon_provider)
 
+        # Context menu theme colors
+        self._menu_bg = "#1E1E1E"
+        self._menu_fg = "#afb1b3"
+        self._menu_border = "#3F4145"
+        self._menu_sel_bg = "#2E436E"
+        self._menu_sel_fg = "#ffffff"
+        self._menu_disabled_fg = "#555555"
+        self._menu_sep = "#3F4145"
+
         self.treeview_layout.addSpacing(10)
         self.search_label = QLabel("FILE EXPLORER")
         self.search_label.setStyleSheet(
             "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
         )
         self.treeview_layout.addWidget(self.search_label)
-        self.treeview_layout.addSpacing(10)
+        self.treeview_layout.addSpacing(5)
+
+        # Toolbar
+        self.toolbar = QFrame()
+        self.toolbar.setStyleSheet("background-color: transparent; border: none;")
+        toolbar_layout = QHBoxLayout(self.toolbar)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        toolbar_layout.setSpacing(2)
+
+        self._toolbar_btn_style = """
+        QPushButton {
+            background-color: transparent;
+            border: none;
+            color: #afb1b3;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        QPushButton:hover {
+            background-color: #323232;
+            color: #ffffff;
+        }
+        QPushButton:disabled {
+            color: #555555;
+        }
+        """
+
+        btn_size = QSize(26, 26)
+
+        self.add_file_btn = QPushButton("⊹")
+        self.add_file_btn.setFixedSize(btn_size)
+        self.add_file_btn.setStyleSheet(self._toolbar_btn_style)
+        self.add_file_btn.setToolTip("Create a new file")
+        self.add_file_btn.clicked.connect(self._add_new_file)
+
+        self.add_folder_btn = QPushButton("🗀")
+        self.add_folder_btn.setFixedSize(btn_size)
+        self.add_folder_btn.setStyleSheet(self._toolbar_btn_style)
+        self.add_folder_btn.setToolTip("Create a new folder")
+        self.add_folder_btn.clicked.connect(self._add_new_folder)
+
+        self.refresh_btn = QPushButton("🗘")
+        self.refresh_btn.setFixedSize(btn_size)
+        self.refresh_btn.setStyleSheet(self._toolbar_btn_style)
+        self.refresh_btn.setToolTip("Refresh the file tree")
+        self.refresh_btn.clicked.connect(self._refresh)
+
+        self.expand_btn = QPushButton("⮛")
+        self.expand_btn.setFixedSize(btn_size)
+        self.expand_btn.setStyleSheet(self._toolbar_btn_style)
+        self.expand_btn.setToolTip("Expand the selected folder")
+        self.expand_btn.setEnabled(False)
+        self.expand_btn.clicked.connect(self._expand_selected)
+
+        self.collapse_btn = QPushButton("⮙")
+        self.collapse_btn.setFixedSize(btn_size)
+        self.collapse_btn.setStyleSheet(self._toolbar_btn_style)
+        self.collapse_btn.setToolTip("Collapse all folders")
+        self.collapse_btn.clicked.connect(self._collapse_all)
+
+        toolbar_layout.addWidget(self.add_file_btn)
+        toolbar_layout.addWidget(self.add_folder_btn)
+        toolbar_layout.addWidget(self.refresh_btn)
+        toolbar_layout.addWidget(self.expand_btn)
+        toolbar_layout.addWidget(self.collapse_btn)
+        toolbar_layout.addStretch()
+
+        self.treeview_layout.addWidget(self.toolbar)
 
         # Search Bar
         self.searchBar = QLineEdit()
         self.searchBar.setPlaceholderText("Search for a file or directory")
+        self.searchBar.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #444444;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: #ffffff;
+            }
+            QLineEdit:focus {border: 1px solid #007acc;}
+        """)
+        self.searchBar.textChanged.connect(self._on_search)
+
+        self.treeview_layout.addWidget(self.searchBar)
+        self.treeview_layout.addSpacing(5)
 
         self.proxy_model = DreamTreeViewProxy()
         self.proxy_model.setSourceModel(self.model)
@@ -169,56 +272,142 @@ class DreamFileTreeWindow(QFrame):
         self.tree.setColumnHidden(2, True)  # Type
         self.tree.setColumnHidden(3, True)  # Date Modified
         self.tree.header().setStretchLastSection(True)
-
-        # Filtering based on search results
-        self.searchBar.textChanged.connect(self._on_search)
-
         self.set_treeview_directory(path)
 
         self.tree.setAnimated(True)
         self.tree.setIndentation(18)
         self.tree.setSortingEnabled(True)
+        self.tree.selectionModel().selectionChanged.connect(self._on_selection_changed)
 
-        self.treeview_layout.addWidget(self.searchBar)
         self.treeview_layout.setSpacing(10)
         self.treeview_layout.addWidget(self.tree)
 
     def show_context_menu(self, position):
         proxy_index = self.tree.indexAt(position)
+
+        menu_style = f"""
+        QMenu {{
+            background-color: {self._menu_bg};
+            color: {self._menu_fg};
+            border: 1px solid {self._menu_border};
+            border-radius: 0px;
+            padding: 4px 0px;
+            font-family: 'Inter', Arial;
+            font-size: 13px;
+        }}
+        QMenu::item {{
+            padding: 6px 24px 6px 32px;
+            background-color: transparent;
+        }}
+        QMenu::item:selected {{
+            background-color: {self._menu_sel_bg};
+            color: {self._menu_sel_fg};
+        }}
+        QMenu::item:disabled {{
+            color: {self._menu_disabled_fg};
+        }}
+        QMenu::separator {{
+            height: 1px;
+            background-color: {self._menu_sep};
+            margin: 4px 0px;
+        }}
+        """
+
         proxy_menu = QMenu(self)
-        proxy_menu.setFixedWidth(240)
-        proxy_menu.setStyleSheet("""
-            background-color: #1E1E1E; 
-            color: #afb1b3;
-            width: 150px;
-            border-radius: 10px;
-            font-family: inter, Arial;
-            font-size: 12px;""")
+        proxy_menu.setStyleSheet(menu_style)
 
         if proxy_index.isValid():
-            # Actions for specific files/folders
             source_index = self.proxy_model.mapToSource(proxy_index)
-            path = self.model.filePath(source_index)
+            file_path = self.model.filePath(source_index)
+            is_dir = self.model.fileInfo(source_index).isDir()
 
-            proxy_menu.addAction("Toggle Header Info", self.toggle_details)
-            rename_act = proxy_menu.addAction("Rename")
-            delete_act = proxy_menu.addAction("Delete")
+            # Open
+            open_act = QAction("Open")
+            if is_dir:
+                open_act.triggered.connect(
+                    lambda checked, idx=proxy_index: self.tree.expand(idx)
+                )
+            else:
+                open_act.triggered.connect(
+                    lambda checked, idx=proxy_index: self._open_file_in_editor(idx)
+                )
+            proxy_menu.addAction(open_act)
             proxy_menu.addSeparator()
-            copy_path_act = proxy_menu.addAction("Copy Path")
 
-            # Execute menu and capture choice
-            action = proxy_menu.exec(self.tree.viewport().mapToGlobal(position))
+            # Cut
+            cut_act = QAction("Cut")
+            cut_act.triggered.connect(lambda checked, p=file_path: self._cut_file(p))
+            proxy_menu.addAction(cut_act)
 
-            if action == delete_act:
-                self.confirm_delete(path)
-            elif action == rename_act:
-                self.tree.edit(proxy_index)
+            # Copy
+            copy_act = QAction("Copy")
+            copy_act.triggered.connect(lambda checked, p=file_path: self._copy_file(p))
+            proxy_menu.addAction(copy_act)
+
+            # Paste
+            paste_act = QAction("Paste")
+            paste_target = file_path if is_dir else os.path.dirname(file_path)
+            paste_act.setEnabled(DreamFileTreeWindow._clipboard_path is not None)
+            paste_act.triggered.connect(
+                lambda checked, target=paste_target: self._paste_file(target)
+            )
+            proxy_menu.addAction(paste_act)
+            proxy_menu.addSeparator()
+
+            # Copy Path
+            copy_path_act = QAction("Copy Path")
+            copy_path_act.triggered.connect(
+                lambda checked, p=file_path: self._copy_path(p)
+            )
+            proxy_menu.addAction(copy_path_act)
+
+            # Copy Relative Path
+            copy_rel_act = QAction("Copy Relative Path")
+            copy_rel_act.triggered.connect(
+                lambda checked, p=file_path: self._copy_relative_path(p)
+            )
+            proxy_menu.addAction(copy_rel_act)
+            proxy_menu.addSeparator()
+
+            # Delete
+            delete_act = QAction("Delete")
+            delete_act.triggered.connect(
+                lambda checked, p=file_path: self.confirm_delete(p)
+            )
+            proxy_menu.addAction(delete_act)
+
+            # Rename
+            rename_act = QAction("Rename")
+            rename_act.triggered.connect(
+                lambda checked, idx=proxy_index: self._rename_item(idx)
+            )
+            proxy_menu.addAction(rename_act)
+            proxy_menu.addSeparator()
+
+            # Toggle Header Info
+            proxy_menu.addAction("Toggle Header Info", self.toggle_details)
         else:
-            # Actions for clicking on empty space
-            new_file_act = proxy_menu.addAction("New File")
-            new_dir_act = proxy_menu.addAction("New Directory")
+            # Paste
+            paste_act = QAction("Paste")
+            paste_target = self._parent.currentDirectory
+            paste_act.setEnabled(DreamFileTreeWindow._clipboard_path is not None)
+            paste_act.triggered.connect(
+                lambda checked, target=paste_target: self._paste_file(target)
+            )
+            proxy_menu.addAction(paste_act)
+            proxy_menu.addSeparator()
 
-            action = proxy_menu.exec(self.tree.viewport().mapToGlobal(position))
+            # New File
+            new_file_act = QAction("New File")
+            new_file_act.triggered.connect(lambda checked: self._add_new_file())
+            proxy_menu.addAction(new_file_act)
+
+            # New Directory
+            new_dir_act = QAction("New Directory")
+            new_dir_act.triggered.connect(lambda checked: self._add_new_folder())
+            proxy_menu.addAction(new_dir_act)
+
+        proxy_menu.exec(self.tree.viewport().mapToGlobal(position))
 
     def toggle_details(self):
         show = not self.tree.header().isVisible()
@@ -238,7 +427,166 @@ class DreamFileTreeWindow(QFrame):
             if root.isValid():
                 self.tree.setRootIndex(root)
 
+    def _on_selection_changed(self) -> None:
+        indexes = self.tree.selectionModel().selectedIndexes()
+        if indexes:
+            index = indexes[0]
+            source_index = self.proxy_model.mapToSource(index)
+            if source_index.isValid() and self.model.fileInfo(source_index).isDir():
+                self.expand_btn.setEnabled(True)
+                return
+        self.expand_btn.setEnabled(False)
+
+    def _add_new_file(self) -> None:
+        path = self._parent.currentDirectory
+        dialog = RenameDialog(
+            self,
+            title="New File",
+            message="Enter file name:",
+            current_text="",
+            confirm_text="CREATE",
+            cancel_text="CANCEL",
+        )
+        if hasattr(self._parent, "theme_manager"):
+            dialog.retheme(self._parent.theme_manager)
+        name = dialog.get_name()
+        if name:
+            file_path = os.path.join(path, name)
+            try:
+                open(file_path, "w").close()
+            except Exception as e:
+                print(f"Error creating file: {e}")
+
+    def _add_new_folder(self) -> None:
+        path = self._parent.currentDirectory
+        dialog = RenameDialog(
+            self,
+            title="New Folder",
+            message="Enter folder name:",
+            current_text="",
+            confirm_text="CREATE",
+            cancel_text="CANCEL",
+        )
+        if hasattr(self._parent, "theme_manager"):
+            dialog.retheme(self._parent.theme_manager)
+        name = dialog.get_name()
+        if name:
+            dir_path = os.path.join(path, name)
+            try:
+                os.makedirs(dir_path, exist_ok=True)
+            except Exception as e:
+                print(f"Error creating folder: {e}")
+
+    def _refresh(self) -> None:
+        path = self._parent.currentDirectory
+        self.model.setRootPath("")
+        self.model.setRootPath(path)
+
+    def _expand_selected(self) -> None:
+        indexes = self.tree.selectionModel().selectedIndexes()
+        if indexes:
+            index = indexes[0]
+            source_index = self.proxy_model.mapToSource(index)
+            if source_index.isValid() and self.model.fileInfo(source_index).isDir():
+                self.tree.expand(index)
+
+    def _collapse_all(self) -> None:
+        self.tree.collapseAll()
+
+    def _open_file_in_editor(self, proxy_index) -> None:
+        if hasattr(self._parent, "open_file_from_treeview"):
+            self._parent.open_file_from_treeview(proxy_index)
+
+    def _cut_file(self, file_path: str) -> None:
+        DreamFileTreeWindow._clipboard_path = file_path
+        DreamFileTreeWindow._clipboard_is_cut = True
+
+    def _copy_file(self, file_path: str) -> None:
+        DreamFileTreeWindow._clipboard_path = file_path
+        DreamFileTreeWindow._clipboard_is_cut = False
+
+    def _paste_file(self, target_dir: str) -> None:
+        src = DreamFileTreeWindow._clipboard_path
+        if not src or not os.path.exists(src):
+            return
+        dst = os.path.join(target_dir, os.path.basename(src))
+        base, ext = os.path.splitext(os.path.basename(src))
+        counter = 1
+        while os.path.exists(dst):
+            dst = os.path.join(target_dir, f"{base}_{counter}{ext}")
+            counter += 1
+        try:
+            if DreamFileTreeWindow._clipboard_is_cut:
+                shutil.move(src, dst)
+                DreamFileTreeWindow._clipboard_path = None
+            else:
+                shutil.copy2(src, dst)
+        except Exception as e:
+            print(f"Error pasting: {e}")
+
+    def _copy_path(self, file_path: str) -> None:
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText(file_path)
+
+    def _copy_relative_path(self, file_path: str) -> None:
+        rel = os.path.relpath(file_path, self._parent.currentDirectory)
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText(rel)
+
+    def _rename_item(self, proxy_index) -> None:
+        source_index = self.proxy_model.mapToSource(proxy_index)
+        source_col0 = source_index.siblingAtColumn(0)
+        old_path = self.model.filePath(source_col0)
+        old_name = self.model.fileName(source_col0)
+        dialog = RenameDialog(
+            self,
+            title="Rename",
+            message="Enter new name:",
+            current_text=old_name,
+            confirm_text="RENAME",
+            cancel_text="CANCEL",
+        )
+        if hasattr(self._parent, "theme_manager"):
+            dialog.retheme(self._parent.theme_manager)
+        new_name = dialog.get_name()
+        if new_name and new_name != old_name:
+            new_path = os.path.join(os.path.dirname(old_path), new_name)
+            try:
+                os.rename(old_path, new_path)
+            except Exception as e:
+                print(f"Error renaming: {e}")
+
+    def confirm_delete(self, file_path: str) -> None:
+        dialog = ConfirmDialog(
+            self,
+            title="Confirm Delete",
+            message=f"Are you sure you want to delete '{os.path.basename(file_path)}'?",
+            confirm_text="DELETE",
+            cancel_text="CANCEL",
+            destructive=True,
+        )
+        if hasattr(self._parent, "theme_manager"):
+            dialog.retheme(self._parent.theme_manager)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Error deleting: {e}")
+
     def retheme(self, t) -> None:
+        self._menu_bg = t.color("menu.background", "#1E1E1E")
+        self._menu_fg = t.color("menu.text", "#afb1b3")
+        self._menu_border = t.color("menu.border", "#3F4145")
+        self._menu_sel_bg = t.color("menu.selection_bg", "#2E436E")
+        self._menu_sel_fg = t.color("menu.selection_fg", "#ffffff")
+        self._menu_disabled_fg = t.color("menu.disabled_fg", "#555555")
+        self._menu_sep = t.color("menu.separator", "#3F4145")
+
         bg = t.color("treeview.background")
         txt = t.color("treeview.text")
         hl = t.color("treeview.highlight")
@@ -291,6 +639,26 @@ class DreamFileTreeWindow(QFrame):
         self.search_label.setStyleSheet(
             f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
         )
+
+        btn_style = f"""
+        QPushButton {{
+            background-color: transparent;
+            border: none;
+            color: {txt};
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }}
+        QPushButton:hover {{
+            background-color: {t.color("treeview.hover")};
+            color: {t.color("window.text")};
+        }}
+        QPushButton:disabled {{
+            color: {t.color("scrollbar.bg")};
+        }}
+        """
+        for btn in self.findChildren(QPushButton):
+            btn.setStyleSheet(btn_style)
 
     def set_treeview_directory(self, path):
         self.model.setRootPath(path)

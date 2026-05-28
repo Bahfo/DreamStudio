@@ -1,21 +1,17 @@
 HELP = r"""
-────────────────────────────────────────────────────────────────────────────────────────────────
-                        DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
-                                    © EX Technologies
-────────────────────────────────────────────────────────────────────────────────────────────────
-COMMAND INDEX:
+DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
+© EXcellent TechStacks
+
 • Display help documentation:              help
 • Exit terminal environment:               quit
-────────────────────────────────────────────────────────────────────────────────────────────────
-NOTE:
-All command inputs are processed sequentially by the terminal's
-core interpreter. Invalid or malformed syntax may result in
-undefined behavior or ignored operations.
-────────────────────────────────────────────────────────────────────────────────────────────────
 
-A DreamStudio commands shell powered by command-type language 'Prompt-X'
-Prompt-X is a one-line shell command language for executing various system level commands, and 
-various input/output user commands.
+NOTE:
+All command inputs are processed sequentially by the terminal's core interpreter. Invalid or malformed syntax may
+result in undefined behavior or ignored operations.
+
+A DreamStudio commands shell powered by command-type language 'Prompt-X'.
+Prompt-X is a one-line shell command language for executing various system level commands, and various input/output 
+user commands.
 """
 
 ALL_COMMANDS = """All Available Commands:
