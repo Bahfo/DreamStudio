@@ -18,14 +18,17 @@ from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 
 from editor.lsp.runner import ProcessRunner
 from editor.terminal.PromptXEngine import CommandLine, HELP
+from editor.terminal.emulator import ShellEmulator
+from editor.terminal.terminal_display import TerminalDisplay
 
 logger = logging.getLogger(__name__)
 
 TAB_PROBLEMS = 0
 TAB_TERMINAL = 1
 TAB_PROMPTX = 2
-TAB_DEBUG = 3
-TAB_OUTPUT = 4
+TAB_SYSTEM_SHELL = 3
+TAB_DEBUG = 4
+TAB_OUTPUT = 5
 
 
 class TerminalWidget(QWidget):
@@ -395,6 +398,82 @@ class PromptXTerminalWidget(QWidget):
         self._terminal.setTextCursor(cursor)
 
 
+class SystemTerminalWidget(QWidget):
+    kill_requested = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._shell = ShellEmulator(self)
+        self._shell.raw_output_received.connect(self._on_output)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(4, 2, 4, 0)
+
+        self._display = TerminalDisplay(self)
+        self._display.send_data.connect(self._on_input)
+        self._display.resized.connect(self._shell.resize)
+
+        display_container = QWidget()
+        display_container.setObjectName("terminalDisplayContainer")
+        dc_layout = QVBoxLayout(display_container)
+        dc_layout.setContentsMargins(8, 4, 8, 8)
+        dc_layout.setSpacing(0)
+        dc_layout.addWidget(self._display)
+
+        spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        toolbar.addItem(spacer)
+
+        self._btn_kill = QPushButton("\U0001F5D1")
+        self._btn_kill.setFixedSize(22, 22)
+        self._btn_kill.setToolTip("Kill terminal session")
+        self._btn_kill.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                color: #cccccc;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #c04040;
+                border-radius: 3px;
+                color: #ffffff;
+            }
+        """)
+        self._btn_kill.clicked.connect(self._on_kill_clicked)
+        toolbar.addWidget(self._btn_kill)
+
+        layout.addLayout(toolbar)
+        layout.addWidget(display_container)
+
+        self._shell.start(cwd=os.getcwd())
+
+    def _on_output(self, text: str) -> None:
+        self._display.feed(text)
+
+    def _on_input(self, data: bytes) -> None:
+        self._shell.write(data.decode("utf-8", errors="replace"))
+
+    def _on_kill_clicked(self) -> None:
+        self.kill_requested.emit()
+
+    def kill_terminal(self) -> None:
+        self._shell.stop()
+        self._display._screen.reset()
+        self._display._scroll_offset = 0
+        self._display.update()
+
+    def closeEvent(self, event) -> None:
+        self.hide()
+        event.ignore()
+
+    def stop(self) -> None:
+        self._shell.stop()
+
+
 class TerminalPanel(QWidget):
     close_requested = pyqtSignal()
 
@@ -432,6 +511,7 @@ class TerminalPanel(QWidget):
         self.problems_tab = QWidget()
         self.terminal_tab = TerminalWidget(self)
         self.promptXShell_tab = PromptXTerminalWidget(self)
+        self.system_shell_tab = SystemTerminalWidget(self)
         self.debug_tab = QWidget()
         self.output_tab = OutputWidget(self)
 
@@ -439,6 +519,7 @@ class TerminalPanel(QWidget):
             TAB_PROBLEMS: (self.problems_tab, "PROBLEMS"),
             TAB_TERMINAL: (self.terminal_tab, "TERMINAL"),
             TAB_PROMPTX: (self.promptXShell_tab, "PROMPTX"),
+            TAB_SYSTEM_SHELL: (self.system_shell_tab, "SHELL"),
             TAB_DEBUG: (self.debug_tab, "DEBUG"),
             TAB_OUTPUT: (self.output_tab, "OUTPUT"),
         }
@@ -536,6 +617,7 @@ class TerminalPanel(QWidget):
             }}
         """)
         self.promptXShell_tab._terminal.set_theme(bg, txt, sel)
+        self.system_shell_tab._display.set_theme(bg, txt, sel)
         self.output_tab._text.setStyleSheet(f"""
             QPlainTextEdit {{
                 background-color: {bg};
