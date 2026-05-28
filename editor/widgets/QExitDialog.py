@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QLineEdit
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QPropertyAnimation, QSequentialAnimationGroup, QPoint
 
 
 class ExitDialog(QDialog):
@@ -215,6 +215,8 @@ class RenameDialog(QDialog):
         self._text = "#BBBBBB"
         self._btn_hover = "#555555"
 
+        self._error_active = False
+
         self._build_ui(title, message, current_text, confirm_text, cancel_text)
         self._apply_styles()
 
@@ -238,6 +240,7 @@ class RenameDialog(QDialog):
         self.line_edit = QLineEdit(current_text)
         self.line_edit.selectAll()
         self.line_edit.setMinimumHeight(32)
+        self.line_edit.textChanged.connect(self._on_text_changed)
         layout.addWidget(self.line_edit)
 
         button_layout = QHBoxLayout()
@@ -246,10 +249,10 @@ class RenameDialog(QDialog):
         self.confirm_btn = QPushButton(confirm_text)
         self.cancel_btn = QPushButton(cancel_text)
 
-        self.confirm_btn.clicked.connect(self.accept)
+        self.confirm_btn.clicked.connect(self._validate)
         self.cancel_btn.clicked.connect(self.reject)
 
-        self.line_edit.returnPressed.connect(self.accept)
+        self.line_edit.returnPressed.connect(self._validate)
 
         button_layout.addWidget(self.confirm_btn)
         button_layout.addWidget(self.cancel_btn)
@@ -258,6 +261,62 @@ class RenameDialog(QDialog):
         layout.addLayout(button_layout)
 
         self.line_edit.setFocus()
+
+    def _validate(self) -> None:
+        if self._error_active:
+            return
+        name = self.line_edit.text().strip()
+        if not name:
+            self._show_error()
+        else:
+            self.accept()
+
+    def _show_error(self) -> None:
+        self._error_active = True
+        self.line_edit.setText("Name cannot be Empty")
+        self.line_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {self._bg};
+                color: #FF6B6B;
+                border: 1px solid #FF6B6B;
+                border-radius: 3px;
+                padding: 6px 10px;
+                font-size: 13px;
+            }}
+        """)
+        self._shake_widget(self.line_edit)
+
+    def _on_text_changed(self, text: str) -> None:
+        if self._error_active and text != "Name cannot be Empty":
+            self._error_active = False
+            self.line_edit.setStyleSheet("")
+
+    def _shake_widget(self, widget) -> None:
+        original = widget.pos()
+        group = QSequentialAnimationGroup(self)
+        self._shake_group = group
+
+        for _ in range(3):
+            a = QPropertyAnimation(widget, b"pos")
+            a.setDuration(50)
+            a.setStartValue(original)
+            a.setEndValue(QPoint(original.x() + 8, original.y()))
+            group.addAnimation(a)
+
+            a = QPropertyAnimation(widget, b"pos")
+            a.setDuration(50)
+            a.setStartValue(QPoint(original.x() + 8, original.y()))
+            a.setEndValue(QPoint(original.x() - 8, original.y()))
+            group.addAnimation(a)
+
+        a = QPropertyAnimation(widget, b"pos")
+        a.setDuration(50)
+        a.setStartValue(QPoint(original.x() - 8, original.y()))
+        a.setEndValue(original)
+        group.addAnimation(a)
+
+        group.finished.connect(lambda: self.line_edit.setFocus())
+        group.start()
 
     def _apply_styles(self):
         self.setStyleSheet(f"""

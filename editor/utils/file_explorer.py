@@ -32,11 +32,53 @@ from editor.widgets.QExitDialog import ConfirmDialog, RenameDialog
 
 
 class DreamTreeViewProxy(QSortFilterProxyModel):
+    SORT_DEFAULT = 0
+    SORT_TYPE = 1
+    SORT_MODIFIED_NEWEST = 2
+    SORT_MODIFIED_OLDEST = 3
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._sort_mode = DreamTreeViewProxy.SORT_DEFAULT
+        self._hide_folder_names: list[str] = []
+        self._show_hidden: bool = True
+
     def flags(self, index):
         return (
             self.sourceModel().flags(self.mapToSource(index))
             | Qt.ItemFlag.ItemIsEditable
         )
+
+    def set_sort_mode(self, mode: int) -> None:
+        self._sort_mode = mode
+        self.invalidate()
+
+    def set_hide_folder_names(self, names: list[str]) -> None:
+        self._hide_folder_names = names
+        self.invalidateFilter()
+
+    def set_show_hidden(self, show: bool) -> None:
+        self._show_hidden = show
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row: int, source_parent) -> bool:
+        idx = self.sourceModel().index(source_row, 0, source_parent)
+        if not idx.isValid():
+            return super().filterAcceptsRow(source_row, source_parent)
+
+        file_path = self.sourceModel().filePath(idx)
+        parts = file_path.replace("\\", "/").split("/")
+
+        for folder_name in self._hide_folder_names:
+            if folder_name in parts:
+                return False
+
+        if not self._show_hidden:
+            for part in parts:
+                if part.startswith("."):
+                    return False
+
+        return super().filterAcceptsRow(source_row, source_parent)
 
     def lessThan(self, source_left, source_right):
         source_model = self.sourceModel()
@@ -48,13 +90,13 @@ class DreamTreeViewProxy(QSortFilterProxyModel):
             is_dot = info.fileName().startswith(".")
 
             if is_dir and is_dot:
-                return 0  # 1st: Dot Folders
+                return 0
             elif is_dir and not is_dot:
-                return 1  # 2nd: Normal Folders
+                return 1
             elif not is_dir and is_dot:
-                return 2  # 3rd: Dot Files
+                return 2
             else:
-                return 3  # 4th: Normal Files
+                return 3
 
         rank_left = get_rank(left_info)
         rank_right = get_rank(right_info)
@@ -65,13 +107,32 @@ class DreamTreeViewProxy(QSortFilterProxyModel):
             else:
                 return rank_left > rank_right
 
+        if self._sort_mode == DreamTreeViewProxy.SORT_TYPE:
+            left_ext = left_info.suffix().lower()
+            right_ext = right_info.suffix().lower()
+            if left_ext != right_ext:
+                return left_ext < right_ext
+            return left_info.fileName().lower() < right_info.fileName().lower()
+
+        if self._sort_mode in (
+            DreamTreeViewProxy.SORT_MODIFIED_NEWEST,
+            DreamTreeViewProxy.SORT_MODIFIED_OLDEST,
+        ):
+            left_time = left_info.lastModified().toSecsSinceEpoch()
+            right_time = right_info.lastModified().toSecsSinceEpoch()
+            if left_time != right_time:
+                if self._sort_mode == DreamTreeViewProxy.SORT_MODIFIED_NEWEST:
+                    return left_time > right_time
+                else:
+                    return left_time < right_time
+            return left_info.fileName().lower() < right_info.fileName().lower()
+
         name_left = left_info.fileName().lower()
         name_right = right_info.fileName().lower()
 
         if rank_left == 3:
             ext_left = left_info.suffix().lower()
             ext_right = right_info.suffix().lower()
-
             if ext_left != ext_right:
                 return ext_left < ext_right
         return name_left < name_right
@@ -146,48 +207,70 @@ class DreamFileTreeWindow(QFrame):
             color: #555555;
         }
         """
-
+        icon_size = QSize(16, 16)
         btn_size = QSize(26, 26)
 
-        self.add_file_btn = QPushButton("⊹")
+        self.add_file_btn = QPushButton()
         self.add_file_btn.setFixedSize(btn_size)
         self.add_file_btn.setStyleSheet(self._toolbar_btn_style)
+        self.add_file_btn.setIcon(QIcon("assets/menus/add.png"))
+        self.add_file_btn.setIconSize(icon_size)
         self.add_file_btn.setToolTip("Create a new file")
         self.add_file_btn.clicked.connect(self._add_new_file)
 
-        self.add_folder_btn = QPushButton("🗀")
+        self.add_folder_btn = QPushButton()
         self.add_folder_btn.setFixedSize(btn_size)
         self.add_folder_btn.setStyleSheet(self._toolbar_btn_style)
+        self.add_folder_btn.setIcon(QIcon("assets/menus/folder.png"))
+        self.add_folder_btn.setIconSize(icon_size)
         self.add_folder_btn.setToolTip("Create a new folder")
         self.add_folder_btn.clicked.connect(self._add_new_folder)
 
-        self.refresh_btn = QPushButton("🗘")
+        self.refresh_btn = QPushButton()
         self.refresh_btn.setFixedSize(btn_size)
         self.refresh_btn.setStyleSheet(self._toolbar_btn_style)
+        self.refresh_btn.setIcon(QIcon("assets/menus/refresh.png"))
+        self.refresh_btn.setIconSize(icon_size)
         self.refresh_btn.setToolTip("Refresh the file tree")
         self.refresh_btn.clicked.connect(self._refresh)
 
-        self.expand_btn = QPushButton("⮛")
+        self.expand_btn = QPushButton()
         self.expand_btn.setFixedSize(btn_size)
         self.expand_btn.setStyleSheet(self._toolbar_btn_style)
+        self.expand_btn.setIcon(QIcon("assets/menus/expand.png"))
+        self.expand_btn.setIconSize(icon_size)
         self.expand_btn.setToolTip("Expand the selected folder")
         self.expand_btn.setEnabled(False)
         self.expand_btn.clicked.connect(self._expand_selected)
 
-        self.collapse_btn = QPushButton("⮙")
+        self.collapse_btn = QPushButton()
         self.collapse_btn.setFixedSize(btn_size)
         self.collapse_btn.setStyleSheet(self._toolbar_btn_style)
+        self.collapse_btn.setIcon(QIcon("assets/menus/collapse.png"))
+        self.collapse_btn.setIconSize(icon_size)
         self.collapse_btn.setToolTip("Collapse all folders")
         self.collapse_btn.clicked.connect(self._collapse_all)
+
+        self.toolbox_btn = QPushButton("···")
+        self.toolbox_btn.setFixedSize(QSize(20, 26))
+        self.toolbox_btn.setStyleSheet(self._toolbar_btn_style)
+        self.toolbox_btn.setToolTip("More options")
+        self.toolbox_btn.clicked.connect(self._show_toolbox_menu)
 
         toolbar_layout.addWidget(self.add_file_btn)
         toolbar_layout.addWidget(self.add_folder_btn)
         toolbar_layout.addWidget(self.refresh_btn)
         toolbar_layout.addWidget(self.expand_btn)
         toolbar_layout.addWidget(self.collapse_btn)
+        toolbar_layout.addWidget(self.toolbox_btn)
         toolbar_layout.addStretch()
 
+        toolbar_layout.addSpacing(20)
+        self.maindirectory = QLabel(f"Directory: {os.path.basename(os.getcwd())}")
+        self.maindirectory.setStyleSheet("color: #969696; font-size: 13px;")
+        toolbar_layout.addWidget(self.maindirectory)
         self.treeview_layout.addWidget(self.toolbar)
+        toolbar_layout.addSpacing(10)
 
         # Search Bar
         self.searchBar = QLineEdit()
@@ -211,6 +294,8 @@ class DreamFileTreeWindow(QFrame):
 
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.proxy_model.setRecursiveFilteringEnabled(True)
+
+        self._show_hidden_files = True
 
         # Model Treeview
         self.tree = QTreeView()
@@ -285,36 +370,8 @@ class DreamFileTreeWindow(QFrame):
     def show_context_menu(self, position):
         proxy_index = self.tree.indexAt(position)
 
-        menu_style = f"""
-        QMenu {{
-            background-color: {self._menu_bg};
-            color: {self._menu_fg};
-            border: 1px solid {self._menu_border};
-            border-radius: 0px;
-            padding: 4px 0px;
-            font-family: 'Inter', Arial;
-            font-size: 13px;
-        }}
-        QMenu::item {{
-            padding: 6px 24px 6px 32px;
-            background-color: transparent;
-        }}
-        QMenu::item:selected {{
-            background-color: {self._menu_sel_bg};
-            color: {self._menu_sel_fg};
-        }}
-        QMenu::item:disabled {{
-            color: {self._menu_disabled_fg};
-        }}
-        QMenu::separator {{
-            height: 1px;
-            background-color: {self._menu_sep};
-            margin: 4px 0px;
-        }}
-        """
-
         proxy_menu = QMenu(self)
-        proxy_menu.setStyleSheet(menu_style)
+        proxy_menu.setStyleSheet(self._build_menu_style())
 
         if proxy_index.isValid():
             source_index = self.proxy_model.mapToSource(proxy_index)
@@ -577,6 +634,118 @@ class DreamFileTreeWindow(QFrame):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print(f"Error deleting: {e}")
+
+    def _build_menu_style(self) -> str:
+        return f"""
+        QMenu {{
+            background-color: {self._menu_bg};
+            color: {self._menu_fg};
+            border: 1px solid {self._menu_border};
+            border-radius: 0px;
+            padding: 4px 0px;
+            font-family: 'Inter', Arial;
+            font-size: 13px;
+        }}
+        QMenu::item {{
+            padding: 6px 24px 6px 32px;
+            background-color: transparent;
+        }}
+        QMenu::item:selected {{
+            background-color: {self._menu_sel_bg};
+            color: {self._menu_sel_fg};
+        }}
+        QMenu::item:disabled {{
+            color: {self._menu_disabled_fg};
+        }}
+        QMenu::separator {{
+            height: 1px;
+            background-color: {self._menu_sep};
+            margin: 4px 0px;
+        }}
+        """
+
+    def _show_toolbox_menu(self) -> None:
+        menu = QMenu(self)
+        menu.setStyleSheet(self._build_menu_style())
+
+        cache_act = QAction("Clear Directory Cache")
+        cache_act.triggered.connect(self._clear_cache)
+        menu.addAction(cache_act)
+
+        ai_menu = QMenu("Add to A.I Chat", menu)
+        add_file_act = QAction("Add File to Chat")
+        add_file_act.setEnabled(False)
+        add_file_act.setToolTip("Coming soon")
+        ai_menu.addAction(add_file_act)
+        menu.addMenu(ai_menu)
+
+        menu.addSeparator()
+
+        sort_menu = QMenu("Sort by", menu)
+        sort_items = [
+            ("Default", DreamTreeViewProxy.SORT_DEFAULT),
+            ("Type", DreamTreeViewProxy.SORT_TYPE),
+            (
+                "Modification Time (Newest First)",
+                DreamTreeViewProxy.SORT_MODIFIED_NEWEST,
+            ),
+            (
+                "Modification Time (Oldest First)",
+                DreamTreeViewProxy.SORT_MODIFIED_OLDEST,
+            ),
+        ]
+        for label, mode in sort_items:
+            act = QAction(label, sort_menu)
+            act.setCheckable(True)
+            act.setChecked(self.proxy_model._sort_mode == mode)
+            act.triggered.connect(lambda checked, m=mode: self._set_sort_mode(m))
+            sort_menu.addAction(act)
+        menu.addMenu(sort_menu)
+
+        menu.addSeparator()
+
+        show_hidden_act = QAction("Show Hidden Files")
+        show_hidden_act.setCheckable(True)
+        show_hidden_act.setChecked(self._show_hidden_files)
+        show_hidden_act.triggered.connect(self._toggle_hidden_files)
+        menu.addAction(show_hidden_act)
+
+        btn_pos = self.toolbox_btn.mapToGlobal(QPoint(0, self.toolbox_btn.height()))
+        menu.exec(btn_pos)
+
+    def _clear_cache(self) -> None:
+        root = self._parent.currentDirectory
+        if not root or not os.path.isdir(root):
+            return
+        deleted = 0
+        cache_dirs = {"__pycache__", ".mypy_cache", ".pytest_cache"}
+        cache_exts = (".pyc", ".pyo")
+        for dirpath, dirnames, filenames in os.walk(root):
+            for d in list(dirnames):
+                if d in cache_dirs or d.endswith(".egg-info"):
+                    full = os.path.join(dirpath, d)
+                    try:
+                        shutil.rmtree(full)
+                        deleted += 1
+                    except Exception:
+                        pass
+                    dirnames.remove(d)
+            for f in filenames:
+                if f.endswith(cache_exts):
+                    full = os.path.join(dirpath, f)
+                    try:
+                        os.remove(full)
+                        deleted += 1
+                    except Exception:
+                        pass
+        print(f"Cache clearing: deleted {deleted} items")
+
+    def _toggle_hidden_files(self) -> None:
+        self._show_hidden_files = not self._show_hidden_files
+        self.proxy_model.set_show_hidden(self._show_hidden_files)
+
+    def _set_sort_mode(self, mode: int) -> None:
+        self.proxy_model.set_sort_mode(mode)
 
     def retheme(self, t) -> None:
         self._menu_bg = t.color("menu.background", "#1E1E1E")
