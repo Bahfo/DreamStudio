@@ -46,7 +46,7 @@ from backend.dirty_tracker import DirtyTracker
 from editor.lsp.jedi_worker import JediWorker
 
 # Local Application Imports - UI Components
-from editor.animations.splash import SplashOverlay
+from editor.widgets.QSplashOverlay import SplashOverlay
 from editor.terminal.terminal_ui import TerminalPanel
 from editor.texteditor.minimap import MiniMap
 from editor.texteditor.tab_editor import (
@@ -280,9 +280,6 @@ class DreamStudio(QMainWindow):
         # Title Bar
         self.title_bar = DreamStudioTitleBar(self)
         self.options_menu = OptionsMenu(self)
-        self.options_menu.config_run_options.clicked.connect(
-            lambda: self.tab_editors.open_configurations_json()
-        )
         main_layout.addWidget(self.title_bar)
         main_layout.addWidget(self.options_menu)
 

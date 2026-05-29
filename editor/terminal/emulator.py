@@ -3,13 +3,14 @@
 Terminal Emulator Logic for DreamStudio.
 """
 
-import codecs
 import os
-import signal
-import subprocess
 import sys
-from abc import ABC, abstractmethod
+import codecs
+import signal
+import platform
+import subprocess
 
+from abc import ABC, abstractmethod
 from PyQt6.QtCore import QThread, pyqtSignal, QObject
 
 try:
@@ -130,11 +131,17 @@ class UnixPty(BasePty):
 
 
 class WinPty(BasePty):
+    """
+    Windows specific emulator behavior (Using BasePty)
+    """
+
     def __init__(self):
         self._proc = None
 
+    # Window specific code. Will not run if platform is not Windows
     def spawn(self, argv: list[str], cwd: str | None, env: dict) -> int:
-        from pywinpty import PtyProcess
+        if platform.system() == "Windows":
+            from pywinpty import PtyProcess
 
         self._proc = PtyProcess.spawn(
             argv[0],

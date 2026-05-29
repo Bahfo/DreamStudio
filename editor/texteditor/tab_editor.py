@@ -373,26 +373,6 @@ class DreamTabbedEditor(QTabWidget):
                 self.tabBar().mark_dirty(i, is_dirty)
                 break
 
-    def open_configurations_json(self):
-        key = "json_user_configs"
-        theme_mgr = getattr(self._parent, "theme_manager", None)
-        new_editor = EditConfigurationsTab(theme_manager=theme_mgr)
-        new_editor.run_text()
-
-        index = self.addTab(new_editor, "configurations")
-        self.setCurrentIndex(index)
-
-        new_editor.file_path = ""
-        new_editor.file_key = None
-        new_editor.viewer_type = "json_metadata_configs_editor"
-        self.opened_files[key] = index
-
-        self.setFocus()
-        self._parent.update_editor_visibility()
-
-        logger.debug(f"Opened files: {self.opened_files}")
-        return new_editor
-
     def set_font_size(self, value):
         main_win = self.window()
         tabs = getattr(main_win, "tab_editors", None)
@@ -410,8 +390,8 @@ class DreamTabbedEditor(QTabWidget):
         content="",
         language=None,
         file_path=None,
-        welcome: bool = False,
-    ):
+        welcome: bool = False):
+
         if welcome:
             new_editor = FastTutorialFrame(self._parent)
             key = f"__welcome_{id(new_editor)}"
@@ -662,21 +642,7 @@ class DreamTabbedEditor(QTabWidget):
         if ext in [".pdf"]:
             return "pdf"
 
-        if ext in [
-            ".txt",
-            ".py",
-            ".pyi",
-            ".pyw",
-            ".cpp",
-            ".c",
-            ".h",
-            ".hpp",
-            ".cxx",
-            ".hh",
-            ".cc",
-            ".hxx",
-            ".json",
-        ]:
+        if ext in [".py", ".pyi", ".pyw"]:
             return "code"
 
         if ext == ".md":
@@ -688,8 +654,6 @@ class DreamTabbedEditor(QTabWidget):
         match lang:
             case ".py" | ".pyi" | ".pyw":
                 return "Python"
-            case ".c" | ".h" | ".hpp" | ".cpp" | ".cxx" | ".cc" | ".hh" | ".hxx":
-                return "CPP"
             case ".txt":
                 return None
             case ".md":
@@ -925,7 +889,8 @@ class FastTutorialFrame(QFrame):
             txt = child.text()
             if txt == "DreamStudio 2026":
                 child.setStyleSheet(
-                    f"color: {t.color('welcome.title')}; font-size: 42px; font-weight: 300; font-family: montserrat, Arial; padding-left: 120px;"
+                    f"""color: {t.color('welcome.title')}; font-size: 42px; 
+                    font-weight: 300; font-family: montserrat, Arial; padding-left: 120px;"""
                 )
             elif txt == "Get Started with":
                 child.setStyleSheet(
@@ -933,7 +898,8 @@ class FastTutorialFrame(QFrame):
                 )
             elif txt == "Start":
                 child.setStyleSheet(
-                    f"color: {t.color('welcome.start_label')}; font-size: 18px; font-weight: bold; padding-left: 5px; padding-top: 20px;"
+                    f"""color: {t.color('welcome.start_label')}; font-size: 18px; 
+                    font-weight: bold; padding-left: 5px; padding-top: 20px;"""
                 )
         for child in self.findChildren(QCheckBox):
             child.setStyleSheet(f"color: {t.color('welcome.footer')}; font-size: 12px;")

@@ -1,6 +1,4 @@
 import os
-import git
-
 from git import Repo
 
 
@@ -37,8 +35,10 @@ def get_changed_files(repo: Repo) -> list[dict]:
             ctype = d.change_type
             if ctype == "D":
                 changed[path] = {
-                    "path": path, "status": "D",
-                    "additions": 0, "deletions": 0,
+                    "path": path,
+                    "status": "D",
+                    "additions": 0,
+                    "deletions": 0,
                 }
             else:
                 lines_added = 0
@@ -56,8 +56,10 @@ def get_changed_files(repo: Repo) -> list[dict]:
                 except Exception:
                     pass
                 changed[path] = {
-                    "path": path, "status": "M",
-                    "additions": lines_added, "deletions": lines_deleted,
+                    "path": path,
+                    "status": "M",
+                    "additions": lines_added,
+                    "deletions": lines_deleted,
                 }
     except Exception:
         pass
@@ -66,8 +68,10 @@ def get_changed_files(repo: Repo) -> list[dict]:
     try:
         for ut in repo.untracked_files:
             changed[ut] = {
-                "path": ut, "status": "U",
-                "additions": 0, "deletions": 0,
+                "path": ut,
+                "status": "U",
+                "additions": 0,
+                "deletions": 0,
             }
     except Exception:
         pass
@@ -95,8 +99,10 @@ def get_changed_files(repo: Repo) -> list[dict]:
             if path not in changed:
                 status = "A" if ctype == "A" else "M"
                 changed[path] = {
-                    "path": path, "status": status,
-                    "additions": lines_added, "deletions": lines_deleted,
+                    "path": path,
+                    "status": status,
+                    "additions": lines_added,
+                    "deletions": lines_deleted,
                 }
             else:
                 changed[path]["additions"] += lines_added
@@ -135,7 +141,9 @@ def commit(repo: Repo, message: str) -> tuple[bool, str]:
         return False, str(e)
 
 
-def commit_staged(repo: Repo, message: str, files: list[str] | None = None) -> tuple[bool, str]:
+def commit_staged(
+    repo: Repo, message: str, files: list[str] | None = None
+) -> tuple[bool, str]:
     try:
         if files:
             to_add = []

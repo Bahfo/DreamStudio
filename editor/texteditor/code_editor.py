@@ -13,25 +13,25 @@ This code is protected under the GPLv3 License.
 
 
 from PyQt6.Qsci import (
-    QsciScintilla,
     QsciLexerCMake,
+    QsciScintilla,
     QsciAPIs,
 )
 from PyQt6.QtCore import Qt, QTimer, QPoint
 from PyQt6.QtWidgets import (
-    QFileDialog,
-    QListWidget,
     QListWidgetItem,
     QApplication,
+    QFileDialog,
+    QListWidget,
     QToolTip,
 )
 from PyQt6.QtGui import (
     QFont,
     QIcon,
     QColor,
-    QKeyEvent,
     QPalette,
     QShortcut,
+    QKeyEvent,
     QKeySequence,
 )
 
@@ -46,13 +46,10 @@ import html as html_lib
 logger = logging.getLogger(__name__)
 
 ### LOCAL IMPORTS
-from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
-from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
-from editor.texteditor.ironica_lexer.python_jedi_highlighter import (
-    PythonJediHighlighter,
-)
-from editor.texteditor.clangd import ClangdClient
 from editor.texteditor.click_menu import ClickMenu
+from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
+from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
+from editor.texteditor.ironica_lexer.python_jedi_highlighter import PythonJediHighlighter
 
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -117,39 +114,34 @@ class CodeEditor(QsciScintilla):
         self._saved_text: str = ""
 
         #####################################
-        # ClangD
-        #####################################
-        self.clangd = ClangdClient()
-
-        #####################################
         # Configuration
         #####################################
         self.setObjectName("CodeEditor")
         self.setStyleSheet("""
-        QTabWidget::pane {
-            border: none;
-            background-color: #1E1E1E;
-        }
-        QTabBar {
-            border: none;
-            qproperty-drawBase: 0; 
-        }
-        QTabBar::tab {
-            color: #AFB1B3; 
-        }
-        QTabBar::tab:selected {
-            color: white; 
-        }
-        QTabBar::close-button {
-            image: url(assets/system/close.png);
-            background-color: transparent;
-            padding-left: 4px;
-            padding-right: 4px;
-            border-radius: 2px;
-        }
-        QTabBar::close-button:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
+            QTabWidget::pane {
+                border: none;
+                background-color: #1E1E1E;
+            }
+            QTabBar {
+                border: none;
+                qproperty-drawBase: 0; 
+            }
+            QTabBar::tab {
+                color: #AFB1B3; 
+            }
+            QTabBar::tab:selected {
+                color: white; 
+            }
+            QTabBar::close-button {
+                image: url(assets/system/close.png);
+                background-color: transparent;
+                padding-left: 4px;
+                padding-right: 4px;
+                border-radius: 2px;
+            }
+            QTabBar::close-button:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
         """)
 
         self.setEdgeMode(QsciScintilla.EdgeMode.EdgeLine)
@@ -470,8 +462,6 @@ class CodeEditor(QsciScintilla):
             return False
         if self.language == "Python" and self.jedi_enabled:
             return True
-        if self.language in ("CPP", "C", "C++") and self.clangd.is_active():
-            return True
         return False
 
     def _get_word_at(self, pos: QPoint) -> Optional[Dict[str, Any]]:
@@ -559,83 +549,11 @@ class CodeEditor(QsciScintilla):
             self._show_symbol_link(word_info)
 
     def _is_python_keyword(self, word):
-        keywords = {
-            "False",
-            "None",
-            "True",
-            "and",
-            "as",
-            "assert",
-            "async",
-            "await",
-            "break",
-            "class",
-            "continue",
-            "def",
-            "del",
-            "elif",
-            "else",
-            "except",
-            "finally",
-            "for",
-            "from",
-            "global",
-            "if",
-            "import",
-            "in",
-            "is",
-            "lambda",
-            "nonlocal",
-            "not",
-            "or",
-            "pass",
-            "raise",
-            "return",
-            "try",
-            "while",
-            "with",
-            "yield",
-        }
+        keywords = {"False","None","True","and","as","assert","async","await","break",
+            "class","continue","def","del","elif","else","except","finally","for","from",
+            "global","if","import","in","is","lambda","nonlocal","not","or","pass",
+            "raise","return","try","while","with","yield"}
         return word in keywords
-
-    def _request_cpp_definition_location(self, word, line, col):
-        self._cpp_goto_word = word
-        self._cpp_goto_line = line
-        self._cpp_goto_col = col
-        QTimer.singleShot(10, self._execute_cpp_goto)
-
-    def _execute_cpp_goto(self):
-        if not self.clangd.is_active():
-            return
-        target = self._hyperlink_target
-        if target is None:
-            return
-        result = self.clangd.goto_definition(
-            self.current_file_path,
-            self.text(),
-            self._cpp_goto_line,
-            self._cpp_goto_col,
-        )
-        if result is None:
-            return
-        file_path = result.get("file")
-        rline = result.get("line", 0)
-        if file_path:
-            target["definition"] = {
-                "file": file_path,
-                "line": rline,
-                "column": result.get("column", 0),
-                "same_file": file_path == self.current_file_path,
-            }
-            pos = self._compute_current_tooltip_pos(target)
-            if pos:
-                QToolTip.showText(
-                    pos,
-                    f'<div style="font-family: Inter, sans-serif;">'
-                    f'<span style="color:#DFE1E5;font-weight:600;">{self._cpp_goto_word}</span>'
-                    f'<br/><span style="color:#548AF7;font-size:11px;">{file_path}:{rline + 1}</span>'
-                    f"</div>",
-                )
 
     def _request_definition_location(self, word: str, line: int, index: int) -> None:
         if not self._can_hyperlink():
@@ -643,10 +561,6 @@ class CodeEditor(QsciScintilla):
 
         win = self.window()
         if not hasattr(win, "_jedi_worker"):
-            return
-
-        if self.language in ("CPP", "C", "C++"):
-            self._request_cpp_definition_location(word, line, index)
             return
 
         # Drop any stale pending requests from this editor
@@ -681,55 +595,39 @@ class CodeEditor(QsciScintilla):
         line_no = d.get("line")
 
         # JetBrains Dark Theme (New UI) Color Palette
-        text_color = "#DFE1E5"  # Crisp white/grey for symbols
-        type_color = "#868A91"  # Muted grey for types
-        link_color = "#548AF7"  # JetBrains blue for locations
-        doc_color = "#A9B7C6"  # Classic Darcula text color for docs
+        text_color = "#DFE1E5"     # Crisp white/grey for symbols
+        type_color = "#868A91"     # Muted grey for types
+        link_color = "#548AF7"     # JetBrains blue for locations
+        doc_color = "#A9B7C6"      # Classic Darcula text color for docs
         divider_color = "#43454A"  # Subtle border line
 
-        # Wrap everything in Inter
-        parts = [
-            f"<div style=\"font-family: 'Inter', sans-serif; white-space: nowrap;\">"
-        ]
-
-        # 1. Header (Name : Type)
+        parts = [f"""<div style=\"font-family: 'Inter', sans-serif; 
+                 white-space: nowrap;\">"""]
         header = []
         if name:
             header.append(
-                f'<span style="color:{text_color}; font-size:13px; font-weight:600;">{name}</span>'
-            )
+                f'''<span style="color:{text_color}; font-size:13px; font-weight:600;">
+                {name}</span>''')
         if typ:
             header.append(
-                f'<span style="color:{type_color}; font-size:12px;"> : {typ}</span>'
-            )
-
+                f'<span style="color:{type_color}; font-size:12px;"> : {typ}</span>')
         if header:
             parts.append("".join(header))
-
-        # 2. File Location
         if file_path and line_no:
             parts.append(
-                f'<div style="color:{link_color}; font-size:11px; margin-top:2px;">{file_path}:{line_no}</div>'
-            )
+                f'''<div style="color:{link_color}; font-size:11px; margin-top:2px;">
+                {file_path}:{line_no}</div>''')
 
-        # 3. Docstring (Code font)
         if doc:
             doc_short = doc.strip()[:500]
-            if len(doc.strip()) > 500:
-                doc_short += "..."
-
-            # MUST escape to prevent <dict> or <list> in docstrings from breaking Qt HTML
+            if len(doc.strip()) > 500: doc_short += "..."
             doc_escaped = html_lib.escape(doc_short)
-
-            # Divider line
             parts.append(
-                f'<div style="margin-top:8px; margin-bottom:8px; border-top:1px solid {divider_color};"></div>'
-            )
-
-            # JetBrains Mono for the docstring block
+                f'''<div style="margin-top:8px; margin-bottom:8px; 
+                border-top:1px solid {divider_color};"></div>''')
             parts.append(
-                f"<pre style=\"font-family: 'JetBrains Mono', monospace; font-size:12px; color:{doc_color}; margin:0;\">"
-                f"{doc_escaped}</pre>"
+                f"""<pre style=\"font-family: 'JetBrains Mono', monospace; 
+                font-size:12px; color:{doc_color}; margin:0;\">""{doc_escaped}</pre>"""
             )
 
         parts.append("</div>")
@@ -739,8 +637,6 @@ class CodeEditor(QsciScintilla):
         win = self.window()
         if win is None or not win.isVisible():
             return
-
-        # Clean up pending requests for this editor
         if hasattr(win, "_pending_jedi_requests"):
             to_remove = [
                 rid
@@ -751,8 +647,6 @@ class CodeEditor(QsciScintilla):
                 win._pending_jedi_requests.pop(rid, None)
 
         self._goto_request_id = None
-
-        # Check if this was a direct navigation request (right-click / keyboard)
         if self._pending_navigate_request_id is not None:
             self._pending_navigate_request_id = None
             best = self._pick_best_definition(definitions)
@@ -760,7 +654,6 @@ class CodeEditor(QsciScintilla):
                 self._perform_goto_navigation(best)
             return
 
-        # Otherwise, this is a hover result - update tooltip
         target = self._hyperlink_target
         if target is None:
             return
@@ -1030,28 +923,12 @@ class CodeEditor(QsciScintilla):
             stripped = line_text.strip()
             is_header = False
             if stripped and not stripped.startswith(
-                ("#", "//", "/*", "*", '"""', "'''")
-            ):
+                ("#", "//", "/*", "*", '"""', "'''")):
                 is_header = any(
                     stripped.startswith(kw)
-                    for kw in (
-                        "def ",
-                        "class ",
-                        "if ",
-                        "elif ",
-                        "else:",
-                        "for ",
-                        "while ",
-                        "try:",
-                        "except ",
-                        "finally:",
-                        "with ",
-                        "async def ",
-                        "async for ",
-                        "async with ",
-                        "@",
-                    )
-                )
+                    for kw in ("def ", "class ", "if ", "elif ", "else:", "for ",
+                        "while ", "try:", "except ", "finally:", "with ", "async def ",
+                        "async for ", "async with ", "@"))
 
             level = indent_level + 0x400
             if is_header:
@@ -1174,9 +1051,8 @@ class CodeEditor(QsciScintilla):
         current_line = self._get_line_text(line)
         text_before_cursor = current_line[:index]
 
-        object_match = re.search(
-            r"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z0-9_]*)$", text_before_cursor
-        )
+        object_match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z0-9_]*)$", 
+            text_before_cursor)
         if object_match:
             obj, prefix = object_match.groups()
             return {
@@ -1193,8 +1069,7 @@ class CodeEditor(QsciScintilla):
                 "type": "global",
                 "prefix": global_match.group(1),
                 "line": line,
-                "index": index,
-            }
+                "index": index}
 
         m = re.search(r"self\.([A-Za-z_]\w*)$", text_before_cursor)
         if m:
@@ -1204,12 +1079,10 @@ class CodeEditor(QsciScintilla):
                 "prefix": m.group(1),
                 "object": "self",
                 "line": line,
-                "index": index,
-            }
+                "index": index}
 
         cpp_scope_match = re.search(
-            r"([A-Za-z_]\w*(?:::\w+)*)::([A-Za-z0-9_]*)$", text_before_cursor
-        )
+            r"([A-Za-z_]\w*(?:::\w+)*)::([A-Za-z0-9_]*)$", text_before_cursor)
         if cpp_scope_match:
             obj, prefix = cpp_scope_match.groups()
             return {
@@ -1217,8 +1090,7 @@ class CodeEditor(QsciScintilla):
                 "object": obj,
                 "prefix": prefix,
                 "line": line,
-                "index": index,
-            }
+                "index": index}
 
         return None
 
@@ -1309,81 +1181,61 @@ class CodeEditor(QsciScintilla):
         if context_type != "attribute":
             for word, word_type in self.keyword_map.items():
                 if word.lower().startswith(prefix.lower()):
-                    add(
-                        {
-                            "label": word,
-                            "type": word_type,
-                            "source": "keywords",
-                            "score": 20,
-                        }
-                    )
+                    add({
+                        "label": word,
+                        "type": word_type,
+                        "source": "keywords",
+                        "score": 20})
 
         for func_name in self.document_symbols["functions"]:
             if func_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": func_name,
-                        "type": "function",
-                        "source": "local",
-                        "score": 80,
-                    }
-                )
+                add({
+                    "label": func_name,
+                    "type": "function",
+                    "source": "local",
+                    "score": 80})
 
         for class_name in self.document_symbols["classes"]:
             if class_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": class_name,
-                        "type": "class",
-                        "source": "local",
-                        "score": 75,
-                    }
-                )
+                add({
+                    "label": class_name,
+                    "type": "class",
+                    "source": "local",
+                    "score": 75})
 
         for variable_name in self.document_symbols["variables"]:
             if variable_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": variable_name,
-                        "type": "variable",
-                        "source": "local",
-                        "score": 70,
-                    }
-                )
+                add({
+                    "label": variable_name,
+                    "type": "variable",
+                    "source": "local",
+                    "score": 70})
 
         for module_name in self.imported_modules:
             if module_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": module_name,
-                        "type": "module",
-                        "source": "imported",
-                        "score": 72,
-                        "signature": f"module {module_name}",
-                        "doc": "",
-                    }
-                )
+                add({
+                    "label": module_name,
+                    "type": "module",
+                    "source": "imported",
+                    "score": 72,
+                    "signature": f"module {module_name}",
+                    "doc": ""})
 
         for symbol_name in self.imported_symbols:
             if symbol_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": symbol_name,
-                        "type": "imported_symbol",
-                        "source": "imported",
-                        "score": 74,
-                    }
-                )
+                add({
+                    "label": symbol_name,
+                    "type": "imported_symbol",
+                    "source": "imported",
+                    "score": 74})
 
         items = list(items_by_label.values())
         items.sort(
             key=lambda x: (
                 self.score_item(x, context),
                 x.get("score", 0),
-                x["label"].lower(),
-            ),
-            reverse=True,
-        )
+                x["label"].lower()),
+            reverse=True)
         return items
 
     def insert_completion(self, completion_text):
@@ -1552,11 +1404,10 @@ class CodeEditor(QsciScintilla):
 
     def keyPressEvent(self, e: QKeyEvent):
 
-        if (
-            e.modifiers() & Qt.KeyboardModifier.ControlModifier
+        if (e.modifiers() & Qt.KeyboardModifier.ControlModifier
             and e.modifiers() & Qt.KeyboardModifier.ShiftModifier
-            and e.key() == Qt.Key.Key_T
-        ):
+            and e.key() == Qt.Key.Key_T):
+
             self._parent.add_new_editor()
             return
 

@@ -140,7 +140,6 @@ class WelcomeWindow(QWidget):
         if not self.background_img.isNull():
             painter.drawPixmap(-1, 50, self.background_img)
 
-
 class AppController:
     """
     This class orchestrates the flow of the application.

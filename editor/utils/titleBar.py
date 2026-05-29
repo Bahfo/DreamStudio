@@ -57,49 +57,43 @@ class DreamStudioTitleBar(QWidget):
             background-color: transparent;
             color: #D1D1D1;
             font-size: 13px;
-            border: none;
-        }
+            border: none;}
+
         QMenuBar::item {
             background: transparent;
             padding: 7px 5px;
             margin: 0px 2px;
-            border-radius: 4px;
-        }
+            border-radius: 4px;}
+
         QMenuBar::item:selected {
             background-color: rgba(63, 65, 69, 0.2);
-            color: white;
-        }
+            color: white;}
 
         QMenu {
             background-color: #2B2D30;
             color: #D1D1D1;
             border: 1px solid #3F4145;
-            padding: 4px 6px;
-        }
+            padding: 4px 6px;}
 
         QMenu::item {
             min-width: 300px; 
             padding: 8px 15px 8px 32px;
             background-color: transparent;
-            margin: 0px;
-        }
+            margin: 0px;}
 
         QMenu::item:selected {
             background-color: #2E436E; 
-            color: white;
-        }
+            color: white;}
 
         QMenu::icon {
             position: absolute;
-            left: 7px;
-        }
+            left: 7px;}
 
         QMenu::separator {
             height: 1px;
             background-color: #3F4145;
             margin: 4px 0px;
-        }
-        """)
+        }""")
 
         layout.addWidget(self.menubar, alignment=Qt.AlignmentFlag.AlignVCenter)
         layout.addSpacing(40)
@@ -113,18 +107,17 @@ class DreamStudioTitleBar(QWidget):
         self.studioSearch.setFixedWidth(400)
         self.studioSearch.setFixedHeight(24)
         self.studioSearch.setStyleSheet("""
-        QLineEdit{
-        background-color:transparent;
-        color: #D1D1D1;
-        font-size:13px;
-        font-style:normal;
-        border:0.5px solid #9D9D9D;
-        padding-left:15px;
-        border-radius:5px;}
-        
-        QLineEdit:placeholder{
-        font-style:italic;
-        }""")
+            QLineEdit{
+                background-color:transparent;
+                color: #D1D1D1;
+                font-size:13px;
+                font-style:normal;
+                border:0.5px solid #9D9D9D;
+                padding-left:15px;
+                border-radius:5px;}
+            
+            QLineEdit:placeholder{font-style:italic;}""")
+
         layout.addWidget(self.studioSearch)
         layout.addSpacing(10)
 
@@ -509,14 +502,16 @@ class DreamStudioTitleBar(QWidget):
                 self.sync_titlebar_state()
         return super().eventFilter(obj, event)
 
-    _gradient_colors = ["#004073", "#11324E", "#1E2E3B", "#24292D", "#25272B"]
+    _gradient_colors = ["#004073", "#11324E", 
+        "#1E2E3B", "#24292D", "#25272B"]
 
     def paintEvent(self, a0):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         stops = [0.85, 0.7, 0.5, 0.3, 0.1]
         gradient = QLinearGradient(0, 0, self.width(), 0)
-        colors = getattr(self, "_gradient_colors", ["#004073", "#11324E", "#1E2E3B", "#24292D", "#25272B"])
+        colors = getattr(self, "_gradient_colors", ["#004073", "#11324E", 
+            "#1E2E3B", "#24292D", "#25272B"])
         for stop, color in zip(stops, colors):
             gradient.setColorAt(stop, QColor(color))
         painter.fillRect(self.rect(), gradient)
@@ -673,30 +668,68 @@ class DreamStudioTitleBar(QWidget):
             t.color("titlebar.gradient_1"),
             t.color("titlebar.gradient_2"),
             t.color("titlebar.gradient_3"),
-            t.color("titlebar.gradient_4"),
-        ]
+            t.color("titlebar.gradient_4")]
+
         self.setStyleSheet(f"background-color: {tb_bg};")
         self.icon_btn.setStyleSheet(
             f"""
-            QPushButton{{color: {tb_text}; background-color: transparent; border: none; border-radius: 4px; font-size: 13px;}}"""
-        )
+            QPushButton{{
+                color: {tb_text}; 
+                background-color: transparent; 
+                border: none; 
+                border-radius: 4px; 
+                font-size: 13px;}}""")
+        
         self.menubar.setStyleSheet(
             f"""
-            QMenuBar {{background-color: transparent; color: {t.color("menubar.text")}; font-size: 13px; border: none;}}
-            QMenuBar::item {{background: transparent; padding: 7px 5px; margin: 0px 2px; border-radius: 4px;}}
-            QMenuBar::item:selected {{background-color: {t.color("menubar.selected")}; color: {t.color("menubar.text_bright")};}}
-            QMenu {{background-color: {t.color("menu.background")}; color: {t.color("menu.text")}; border: 1px solid {t.color("menu.border")}; padding: 4px 6px;}}
-            QMenu::item {{min-width: 300px; padding: 8px 15px 8px 32px; background-color: transparent; margin: 0px;}}
-            QMenu::item:selected {{background-color: {t.color("menu.selected")}; color: {t.color("menubar.text_bright")};}}
+            QMenuBar {{background-color: transparent; 
+                color: {t.color("menubar.text")};
+                font-size: 13px; border: none;}}
+
+            QMenuBar::item {{background: transparent; 
+                padding: 7px 5px; margin: 0px 2px; 
+                border-radius: 4px;}}
+
+            QMenuBar::item:selected {{background-color: {t.color("menubar.selected")}; 
+                color: {t.color("menubar.text_bright")};}}
+
+            QMenu {{background-color: {t.color("menu.background")}; 
+                color: {t.color("menu.text")}; 
+                border: 1px solid {t.color("menu.border")}; 
+                padding: 4px 6px;}}
+
+            QMenu::item {{min-width: 300px; 
+                padding: 8px 15px 8px 32px; 
+                background-color: transparent; 
+                margin: 0px;}}
+
+            QMenu::item:selected {{background-color: {t.color("menu.selected")}; 
+                color: {t.color("menubar.text_bright")};}}
+
             QMenu::icon {{position: absolute; left: 7px;}}
-            QMenu::separator {{height: 1px; background-color: {t.color("menu.separator")}; margin: 4px 0px;}}"""
-        )
+
+            QMenu::separator {{height: 1px; 
+                background-color: {t.color("menu.separator")}; 
+                margin: 4px 0px;}}""")
+
         self.studioSearch.setStyleSheet(f"""
-            QLineEdit{{background-color: transparent; color: {tb_text}; font-size:13px; font-style:normal; border:0.5px solid #9D9D9D; padding-left:15px; border-radius:5px;}}
+            QLineEdit{{background-color: transparent; color: {tb_text}; 
+                font-size:13px; 
+                font-style:normal; 
+                border:0.5px solid #9D9D9D; 
+                padding-left:15px; 
+                border-radius:5px;}}
+
             QLineEdit:placeholder{{font-style:italic;}}""")
+
         win_btn_style = f"""
-            QPushButton{{color: {tb_text}; background-color: transparent; border: none; border-radius: 4px; font-size: 12px;}}
+            QPushButton{{color: {tb_text}; 
+                background-color: transparent; 
+                border: none; 
+                border-radius: 4px; 
+                font-size: 12px;}}
             QPushButton:hover{{background-color: {btn_hover};}}"""
+
         self.accountBtn.setStyleSheet(win_btn_style)
         self.btn_minimize.setStyleSheet(win_btn_style)
         self.btn_maximize.setStyleSheet(win_btn_style)

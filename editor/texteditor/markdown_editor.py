@@ -113,13 +113,15 @@ class MarkdownViewer(QWidget):
     def _base_html(self, body_html: str) -> str:
         return f"""<html>
             <head><style>
-            body {{ font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 14px; line-height: 1.6; padding: 22px; margin: 0; }}
+            body {{ font-family: 'JetBrains Mono', 'Consolas', monospace; 
+            font-size: 14px; line-height: 1.6; padding: 22px; margin: 0; }}
             h1, h2, h3 {{ color: #ffffff; border-bottom: 1px solid #3c3f41; padding-bottom: 6px; }}
             h1 {{ font-size: 24px; }} h2 {{ font-size: 20px; }} h3 {{ font-size: 17px; }}
             code {{ background: #2b2d30; color: #dcdcaa; padding: 2px 6px; border-radius: 4px; }}
             pre {{ background: #26292c; border: 1px solid #3c3f41; padding: 12px; border-radius: 8px; }}
             pre code {{ background: none; }}
-            blockquote {{ border-left: 4px solid #4fc1ff; padding: 8px 12px; margin: 12px 0; color: #9aa0a6; background: #222427; }}
+            blockquote {{ border-left: 4px solid #4fc1ff; padding: 8px 12px; margin: 12px 0; 
+            color: #9aa0a6; background: #222427; }}
             a {{ color: #4fc1ff; text-decoration: none; }}
             a:hover {{ text-decoration: underline; }}
             table {{ border-collapse: collapse; width: 100%; }}
