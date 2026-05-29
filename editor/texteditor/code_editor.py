@@ -323,24 +323,38 @@ class CodeEditor(QsciScintilla):
             scrollbar.setStyleSheet(f"""
                 QScrollBar:vertical {{
                     background: {bg};
-                    width: 10px;
+                    width: 8px;
                     margin: 0;
                     border: none;
                 }}
                 QScrollBar::handle:vertical {{
                     background: {fg};
                     min-height: 24px;
-                    border-radius: 4px;
-                    margin: 0 2px;
                 }}
                 QScrollBar::handle:vertical:hover {{
                     background: {hover};
                 }}
-                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                    height: 0;
+                QScrollBar:horizontal {{
+                    background: {bg};
+                    height: 8px;
+                    margin: 0;
                     border: none;
                 }}
-                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                QScrollBar::handle:horizontal {{
+                    background: {fg};
+                    min-width: 24px;
+                }}
+                QScrollBar::handle:horizontal:hover {{
+                    background: {hover};
+                }}
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                    height: 0;
+                    width: 0;
+                    border: none;
+                }}
+                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+                QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
                     background: none;
                     border: none;
                 }}

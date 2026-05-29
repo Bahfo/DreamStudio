@@ -124,6 +124,9 @@
     "syntax.exception": "#F44747",
     "syntax.warning": "#FFCC66",
     "syntax.execution_logic": "#DCDCAA",
-    "syntax.logic": "#569CD6"
+    "syntax.logic": "#569CD6",
+    "git.added": "#6bbf6b",
+    "git.deleted": "#e06b6b",
+    "git.modified": "#d4872c"
   }
 }

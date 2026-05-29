@@ -141,16 +141,11 @@ class SourceControl(QFrame):
         self.commit_input = QLineEdit()
         self.commit_input.setMinimumHeight(32)
         self.commit_input.setPlaceholderText("Commit message (Enter to commit)")
-        self.commit_input.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #444444;
-                border-radius: 4px;
-                padding: 4px 8px;
-                color: #ffffff;
-                background-color: #1E1E1E;
-            }
-            QLineEdit:focus {border: 1px solid #007acc;}
-        """)
+        self._input_bg = "#1E1E1E"
+        self._input_txt = "#ffffff"
+        self._input_border = "#444444"
+        self._input_focus_border = "#007acc"
+        self._update_commit_input_style()
         self.commit_input.returnPressed.connect(self._do_commit)
         self.commit_input.textChanged.connect(self._on_input_text_changed)
         commit_input_layout.addWidget(self.commit_input)
@@ -266,16 +261,40 @@ class SourceControl(QFrame):
             }
             QScrollBar:vertical {
                 background: #1E1E1E;
-                width: 10px;
+                width: 8px;
                 margin: 0px;
+                border: none;
             }
             QScrollBar::handle:vertical {
                 background: #3A3A3A;
                 min-height: 20px;
-                border-radius: 4px;
             }
             QScrollBar::handle:vertical:hover {
                 background: #4A4A4A;
+            }
+            QScrollBar:horizontal {
+                background: #1E1E1E;
+                height: 8px;
+                margin: 0px;
+                border: none;
+            }
+            QScrollBar::handle:horizontal {
+                background: #3A3A3A;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #4A4A4A;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                height: 0px;
+                width: 0px;
+                border: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
+                border: none;
             }
         """)
 
@@ -415,6 +434,20 @@ class SourceControl(QFrame):
         item.setData(0, Qt.ItemDataRole.UserRole, path)
         item.setData(0, Qt.ItemDataRole.UserRole + 1, file_info["status"])
 
+    def _update_commit_input_style(self, border: str | None = None):
+        b = border or self._input_border
+        c = self._input_txt if border is None else border
+        self.commit_input.setStyleSheet(f"""
+            QLineEdit {{
+                border: 1px solid {b};
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: {c};
+                background-color: {self._input_bg};
+            }}
+            QLineEdit:focus {{border: 1px solid {self._input_focus_border};}}
+        """)
+
     def _do_commit(self):
         message = self.commit_input.text().strip()
         if not message:
@@ -463,15 +496,7 @@ class SourceControl(QFrame):
 
     def _shake_error(self, message: str = ""):
         self._error_active = True
-        self.commit_input.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #FF6B6B;
-                border-radius: 4px;
-                padding: 4px 8px;
-                color: #FF6B6B;
-                background-color: #1E1E1E;
-            }
-        """)
+        self._update_commit_input_style(border="#FF6B6B")
         if message:
             self.commit_input.setText(message)
         self._shake_widget(self.commit_input)
@@ -510,16 +535,7 @@ class SourceControl(QFrame):
             )
             if text not in err_msgs:
                 self._error_active = False
-                self.commit_input.setStyleSheet("""
-                    QLineEdit {
-                        border: 1px solid #444444;
-                        border-radius: 4px;
-                        padding: 4px 8px;
-                        color: #ffffff;
-                        background-color: #1E1E1E;
-                    }
-                    QLineEdit:focus {border: 1px solid #007acc;}
-                """)
+                self._update_commit_input_style()
 
     def _open_long_message_editor(self):
         if self._parent is None:
@@ -707,16 +723,40 @@ class SourceControl(QFrame):
             }}
             QScrollBar:vertical {{
                 background: {t.color("scrollbar.bg", "#1E1E1E")};
-                width: 10px;
+                width: 8px;
                 margin: 0px;
+                border: none;
             }}
             QScrollBar::handle:vertical {{
                 background: {t.color("scrollbar.fg", "#3A3A3A")};
                 min-height: 20px;
-                border-radius: 4px;
             }}
             QScrollBar::handle:vertical:hover {{
                 background: {t.color("scrollbar.hover", "#4A4A4A")};
+            }}
+            QScrollBar:horizontal {{
+                background: {t.color("scrollbar.bg", "#1E1E1E")};
+                height: 8px;
+                margin: 0px;
+                border: none;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {t.color("scrollbar.fg", "#3A3A3A")};
+                min-width: 20px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {t.color("scrollbar.hover", "#4A4A4A")};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                height: 0px;
+                width: 0px;
+                border: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: none;
+                border: none;
             }}
         """)
 
@@ -756,9 +796,19 @@ class SourceControl(QFrame):
                 continue
             btn.setStyleSheet(btn_style)
 
+        self._input_bg = t.color("input.background", "#1E1E1E")
+        self._input_txt = t.color("input.text", "#ffffff")
+        self._input_border = t.color("input.border", "#444444")
+        self._input_focus_border = t.color("input.focus_border", "#007acc")
+        if not self._error_active:
+            self._update_commit_input_style()
+
+        accent = t.color("widget.accent", hl)
+        disabled_bg = t.color("input.background", "#1a1a1a")
+        disabled_txt = t.color("input.placeholder", "#555555")
         self.commit_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {hl};
+                background-color: {accent};
                 border: none;
                 color: white;
                 border-radius: 4px;
@@ -770,8 +820,8 @@ class SourceControl(QFrame):
                 background-color: {t.color("button.hover", "#3a5a8a")};
             }}
             QPushButton:disabled {{
-                background-color: #1a1a1a;
-                color: #555555;
+                background-color: {disabled_bg};
+                color: {disabled_txt};
             }}
         """)
 

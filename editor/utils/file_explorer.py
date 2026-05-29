@@ -329,19 +329,42 @@ class DreamFileTreeWindow(QFrame):
             }
 
             QScrollBar:vertical {
-            background: #1E1E1E;
-            width: 10px;
-            margin: 0px;
+                background: #1E1E1E;
+                width: 8px;
+                margin: 0px;
+                border: none;
             }
 
             QScrollBar::handle:vertical {
                 background: #3A3A3A;
                 min-height: 20px;
-                border-radius: 4px;
             }
 
             QScrollBar::handle:vertical:hover {
                 background: #4A4A4A;
+            }
+
+            QScrollBar:horizontal {
+                background: #1E1E1E;
+                height: 8px;
+                margin: 0px;
+                border: none;
+            }
+
+            QScrollBar::handle:horizontal {
+                background: #3A3A3A;
+                min-width: 20px;
+            }
+
+            QScrollBar::handle:horizontal:hover {
+                background: #4A4A4A;
+            }
+
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                height: 0px;
+                width: 0px;
+                border: none;
             }""")
 
         self.tree.setUniformRowHeights(True)
@@ -793,21 +816,61 @@ class DreamFileTreeWindow(QFrame):
             }}
             QScrollBar:vertical {{
                 background: {t.color("scrollbar.bg")};
-                width: 10px;
+                width: 8px;
                 margin: 0px;
+                border: none;
             }}
             QScrollBar::handle:vertical {{
                 background: {t.color("scrollbar.fg")};
                 min-height: 20px;
-                border-radius: 4px;
             }}
             QScrollBar::handle:vertical:hover {{
                 background: {t.color("scrollbar.hover")};
+            }}
+            QScrollBar:horizontal {{
+                background: {t.color("scrollbar.bg")};
+                height: 8px;
+                margin: 0px;
+                border: none;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {t.color("scrollbar.fg")};
+                min-width: 20px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {t.color("scrollbar.hover")};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                height: 0px;
+                width: 0px;
+                border: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: none;
+                border: none;
             }}
         """)
         self.search_label.setStyleSheet(
             f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
         )
+        self.maindirectory.setStyleSheet(f"color: {txt}; font-size: 13px;")
+
+        ibg = t.color("input.background", bg)
+        itxt = t.color("input.text", txt)
+        iborder = t.color("input.border", "#444444")
+        ifocus = t.color("input.focus_border", "#007acc")
+        self.searchBar.setStyleSheet(f"""
+            QLineEdit {{
+                border: 1px solid {iborder};
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: {itxt};
+                background-color: {ibg};
+            }}
+            QLineEdit:focus {{border: 1px solid {ifocus};}}
+        """)
 
         btn_style = f"""
         QPushButton {{

@@ -90,22 +90,40 @@ class _TerminalView(QWidget):
         self._scrollbar.setStyleSheet("""
             QScrollBar:vertical {
                 background: #1e1e1e;
-                width: 5px;
+                width: 8px;
                 margin: 0;
+                border: none;
             }
             QScrollBar::handle:vertical {
                 background: #424242;
                 min-height: 20px;
-                border-radius: 2px;
             }
             QScrollBar::handle:vertical:hover {
                 background: #555555;
             }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0;
+            QScrollBar:horizontal {
+                background: #1e1e1e;
+                height: 8px;
+                margin: 0;
+                border: none;
             }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+            QScrollBar::handle:horizontal {
+                background: #424242;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #555555;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                height: 0;
+                width: 0;
+                border: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
                 background: none;
+                border: none;
             }
         """)
         layout.addWidget(self._scrollbar)
@@ -135,22 +153,40 @@ class _TerminalView(QWidget):
         self._scrollbar.setStyleSheet(f"""
             QScrollBar:vertical {{
                 background: {bg};
-                width: 10px;
+                width: 8px;
                 margin: 0;
+                border: none;
             }}
             QScrollBar::handle:vertical {{
                 background: {handle};
                 min-height: 20px;
-                border-radius: 4px;
             }}
             QScrollBar::handle:vertical:hover {{
                 background: {handle_hover};
             }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0;
+            QScrollBar:horizontal {{
+                background: {bg};
+                height: 8px;
+                margin: 0;
+                border: none;
             }}
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+            QScrollBar::handle:horizontal {{
+                background: {handle};
+                min-width: 20px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {handle_hover};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                height: 0;
+                width: 0;
+                border: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
                 background: none;
+                border: none;
             }}
         """)
 

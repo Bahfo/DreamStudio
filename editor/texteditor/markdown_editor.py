@@ -46,13 +46,13 @@ class MarkdownViewer(QWidget):
 
             QScrollBar:vertical {
                 background: #2b2b2b;
-                width: 10px;
+                width: 8px;
                 margin: 0px;
+                border: none;
             }
 
             QScrollBar::handle:vertical {
                 background: #555;
-                border-radius: 4px;
                 min-height: 25px;
             }
 
@@ -60,9 +60,27 @@ class MarkdownViewer(QWidget):
                 background: #6a6a6a;
             }
 
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical {
+            QScrollBar:horizontal {
+                background: #2b2b2b;
+                height: 8px;
+                margin: 0px;
+                border: none;
+            }
+
+            QScrollBar::handle:horizontal {
+                background: #555;
+                min-width: 25px;
+            }
+
+            QScrollBar::handle:horizontal:hover {
+                background: #6a6a6a;
+            }
+
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 height: 0px;
+                width: 0px;
+                border: none;
             }
         """)
 

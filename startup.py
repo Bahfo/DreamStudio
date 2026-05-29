@@ -327,29 +327,39 @@ class NewsAndArticles(QFrame):
             QScrollBar:vertical {
                 border: none;
                 background: #1e1e2e;
-                width: 10px;
-                margin: 0px 0px 0px 0px;
+                width: 8px;
+                margin: 0px;
             }
 
             QScrollBar::handle:vertical {
                 background: #45475a;
                 min-height: 30px;
-                border-radius: 5px;
-                margin: 2px;
             }
 
             QScrollBar::handle:vertical:hover {
                 background: #38bdf8;
             }
 
-            QScrollBar::sub-line:vertical {
-                height: 0px;
+            QScrollBar:horizontal {
                 border: none;
-                background: none;
+                background: #1e1e2e;
+                height: 8px;
+                margin: 0px;
             }
 
-            QScrollBar::add-line:vertical {
+            QScrollBar::handle:horizontal {
+                background: #45475a;
+                min-width: 30px;
+            }
+
+            QScrollBar::handle:horizontal:hover {
+                background: #38bdf8;
+            }
+
+            QScrollBar::sub-line:vertical, QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:horizontal, QScrollBar::add-line:horizontal {
                 height: 0px;
+                width: 0px;
                 border: none;
                 background: none;
             }
