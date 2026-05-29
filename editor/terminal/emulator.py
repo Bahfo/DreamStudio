@@ -1,194 +1,77 @@
+"""
+(C) COPYRIGHT 2026 EXcellent TechStacks
+Terminal Emulator Logic for DreamStudio.
+"""
+
 import codecs
 import os
-import sys
-import re
-import select
 import signal
 import subprocess
-import threading
+import sys
+from abc import ABC, abstractmethod
 
 from PyQt6.QtCore import QThread, pyqtSignal, QObject
 
 try:
     import pty
+
     _HAVE_PTY = True
 except ImportError:
     _HAVE_PTY = False
 
 
-_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\][0-9;]*[^\x1b]*\x1b\\|\x1b[\\\]_].*?\x1b\\|\x1b[N-Z]|[\x00-\x08\x0e-\x1f]")
+class BasePty(ABC):
+    """Abstract pseudo-terminal backend. Implementations: UnixPty, WinPty."""
+
+    @abstractmethod
+    def spawn(self, argv: list[str], cwd: str | None, env: dict) -> int:
+        """Spawn a child process connected to the PTY. Returns pid."""
+
+    @abstractmethod
+    def read(self, size: int = 65536) -> bytes:
+        """Read from PTY master. May raise OSError if fd was closed."""
+
+    @abstractmethod
+    def write(self, data: bytes) -> int:
+        """Write to PTY master."""
+
+    @abstractmethod
+    def setwinsize(self, rows: int, cols: int) -> None:
+        """Inform the kernel of new terminal dimensions."""
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the PTY master fd only (idempotent). Does NOT kill child."""
+
+    @abstractmethod
+    def killpg(self, sig: int = signal.SIGKILL) -> None:
+        """Send a signal to the child's process group."""
+
+    @abstractmethod
+    def poll(self) -> int | None:
+        """Non-blocking: return child returncode or None if still alive."""
+
+    @property
+    @abstractmethod
+    def fd(self) -> int:
+        """PTY master file descriptor. -1 if closed."""
+
+    @property
+    @abstractmethod
+    def pid(self) -> int:
+        """Child process pid. -1 if not spawned."""
 
 
-def strip_ansi(text: str) -> str:
-    return _ANSI_ESCAPE_RE.sub("", text)
-
-
-def _clean_output(text: str) -> str:
-    text = strip_ansi(text)
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    return text
-
-
-class PtyReader(QThread):
-    output_received = pyqtSignal(str)
-    raw_output_received = pyqtSignal(str)
-
-    def __init__(self, fd: int, pid: int, parent=None):
-        super().__init__(parent)
-        self._fd = fd
-        self._pid = pid
-        self._running = True
-        self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
-
-    def run(self) -> None:
-        try:
-            while self._running:
-                r, _, _ = select.select([self._fd], [], [], 0.15)
-                if r:
-                    try:
-                        data = os.read(self._fd, 65536)
-                    except OSError:
-                        break
-                    if not data:
-                        break
-                    decoded = self._decoder.decode(data)
-                    if decoded:
-                        self.raw_output_received.emit(decoded)
-                    text = _clean_output(decoded)
-                    if text:
-                        self.output_received.emit(text)
-        except (OSError, ValueError):
-            pass
-        finally:
-            try:
-                os.close(self._fd)
-            except OSError:
-                pass
-            try:
-                os.waitpid(self._pid, 0)
-            except ChildProcessError:
-                pass
-
-    def stop(self) -> None:
-        self._running = False
-
-
-class PipeReader(QThread):
-    output_received = pyqtSignal(str)
-    raw_output_received = pyqtSignal(str)
-    error_received = pyqtSignal(str)
-
-    def __init__(self, process: subprocess.Popen, parent=None):
-        super().__init__(parent)
-        self._process = process
-        self._running = True
-        self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
-
-    def run(self) -> None:
-        try:
-            while self._running:
-                data = self._process.stdout.read(65536)
-                if not data:
-                    break
-                if isinstance(data, bytes):
-                    decoded = self._decoder.decode(data)
-                else:
-                    decoded = data
-                if decoded:
-                    self.raw_output_received.emit(decoded)
-                    cleaned = _clean_output(decoded)
-                    if cleaned:
-                        self.output_received.emit(cleaned)
-        except (OSError, ValueError):
-            pass
-        finally:
-            self._drain_stderr()
-            self._process.wait()
-
-    def _drain_stderr(self):
-        try:
-            remaining = self._process.stderr.read()
-            if remaining:
-                if isinstance(remaining, bytes):
-                    remaining = remaining.decode("utf-8", errors="replace")
-                cleaned = _clean_output(remaining)
-                if cleaned:
-                    self.error_received.emit(cleaned)
-        except (OSError, ValueError):
-            pass
-
-    def stop(self) -> None:
-        self._running = False
-
-
-class StderrReader(QThread):
-    error_received = pyqtSignal(str)
-
-    def __init__(self, pipe, parent=None):
-        super().__init__(parent)
-        self._pipe = pipe
-        self._running = True
-        self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
-
-    def run(self) -> None:
-        try:
-            while self._running:
-                data = self._pipe.read(65536)
-                if not data:
-                    break
-                if isinstance(data, bytes):
-                    decoded = self._decoder.decode(data)
-                else:
-                    decoded = data
-                if decoded:
-                    cleaned = _clean_output(decoded)
-                    if cleaned:
-                        self.error_received.emit(cleaned)
-        except (OSError, ValueError):
-            pass
-
-    def stop(self) -> None:
-        self._running = False
-
-
-class ShellEmulator(QObject):
-    output_received = pyqtSignal(str)
-    raw_output_received = pyqtSignal(str)
-    process_started = pyqtSignal()
-    process_finished = pyqtSignal(int)
-    process_errored = pyqtSignal(str)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._master_fd: int | None = None
+class UnixPty(BasePty):
+    def __init__(self):
+        self._master_fd = -1
         self._process: subprocess.Popen | None = None
-        self._reader: PtyReader | PipeReader | None = None
-        self._stderr_reader: StderrReader | None = None
-        self._running = False
 
-    def start(self, cwd: str | None = None) -> None:
-        if sys.platform == "win32":
-            self._start_windows(cwd)
-        else:
-            self._start_unix(cwd)
-
-    def _start_unix(self, cwd: str | None = None) -> None:
-        shell = os.environ.get("SHELL", "/bin/bash")
-        if "zsh" in shell:
-            shell_args = [shell, "-i", "+Z", "+zle"]
-        else:
-            shell_args = [shell, "-i"]
-
+    def spawn(self, argv: list[str], cwd: str | None, env: dict) -> int:
         master_fd, slave_fd = pty.openpty()
         self._master_fd = master_fd
-
-        env = os.environ.copy()
-        env.setdefault("TERM", "xterm-256color")
-        if cwd:
-            env["PWD"] = cwd
-
         self._process = subprocess.Popen(
-            shell_args,
+            argv,
             stdin=slave_fd,
             stdout=slave_fd,
             stderr=slave_fd,
@@ -198,112 +81,240 @@ class ShellEmulator(QObject):
             preexec_fn=os.setsid,
         )
         os.close(slave_fd)
+        return self._process.pid
 
-        self._running = True
-        self.process_started.emit()
+    def read(self, size: int = 65536) -> bytes:
+        return os.read(self._master_fd, size)
 
-        self._reader = PtyReader(master_fd, self._process.pid)
-        self._reader.output_received.connect(self.output_received.emit)
-        self._reader.raw_output_received.connect(self.raw_output_received.emit)
-        self._reader.finished.connect(self._on_reader_finished)
-        self._reader.start()
+    def write(self, data: bytes) -> int:
+        return os.write(self._master_fd, data)
 
-    def _start_windows(self, cwd: str | None = None) -> None:
-        self._process = subprocess.Popen(
-            ["powershell.exe"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=cwd,
-        )
-        self._running = True
-        self.process_started.emit()
+    def setwinsize(self, rows: int, cols: int) -> None:
+        import struct
+        import fcntl
+        import termios
 
-        self._reader = PipeReader(self._process)
-        self._reader.output_received.connect(self.output_received.emit)
-        self._reader.raw_output_received.connect(self.raw_output_received.emit)
-        self._reader.finished.connect(self._on_reader_finished)
-        self._reader.start()
+        size = struct.pack("HHHH", rows, cols, 0, 0)
+        fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, size)
 
-        self._stderr_reader = StderrReader(self._process.stderr)
-        self._stderr_reader.error_received.connect(self._on_windows_stderr)
-        self._stderr_reader.start()
-
-    def _on_windows_stderr(self, text: str) -> None:
-        self.raw_output_received.emit(text)
-
-    def write(self, text: str) -> None:
-        if sys.platform == "win32":
-            self._write_windows(text)
-        else:
-            self._write_unix(text)
-
-    def _write_unix(self, text: str) -> None:
-        if self._master_fd is not None and self._running:
+    def close(self) -> None:
+        if self._master_fd >= 0:
             try:
-                os.write(self._master_fd, text.encode("utf-8"))
+                os.close(self._master_fd)
             except OSError:
                 pass
+            self._master_fd = -1
 
-    def _write_windows(self, text: str) -> None:
-        if self._process and self._process.stdin and not self._process.stdin.closed:
-            try:
-                self._process.stdin.write(text.encode("utf-8"))
-                self._process.stdin.flush()
-            except (BrokenPipeError, OSError):
-                pass
-
-    def resize(self, rows: int, cols: int) -> None:
-        if self._master_fd is None:
+    def killpg(self, sig: int = signal.SIGKILL) -> None:
+        if self._process is None:
             return
-        try:
-            import fcntl
-            import termios
-            import struct
-
-            size = struct.pack("HHHH", rows, cols, 0, 0)
-            fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, size)
-        except (ImportError, OSError):
-            pass
-
-    def stop(self) -> None:
-        self._running = False
-        if self._reader:
-            self._reader.stop()
-        if self._process:
-            self._terminate_process()
-        if self._reader:
-            self._reader.wait(3000)
-        if self._stderr_reader:
-            self._stderr_reader.stop()
-            self._stderr_reader.wait(1000)
-
-    def _terminate_process(self) -> None:
         try:
             pgid = os.getpgid(self._process.pid)
             if pgid != os.getpgid(0):
-                os.killpg(pgid, signal.SIGTERM)
+                os.killpg(pgid, sig)
             else:
-                self._process.terminate()
+                os.kill(self._process.pid, sig)
         except (ProcessLookupError, OSError):
-            self._process.terminate()
-        try:
-            self._process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
+            pass
+
+    def poll(self) -> int | None:
+        return self._process.poll() if self._process else None
+
+    @property
+    def fd(self) -> int:
+        return self._master_fd
+
+    @property
+    def pid(self) -> int:
+        return self._process.pid if self._process else -1
+
+
+class WinPty(BasePty):
+    def __init__(self):
+        self._proc = None
+
+    def spawn(self, argv: list[str], cwd: str | None, env: dict) -> int:
+        from pywinpty import PtyProcess
+
+        self._proc = PtyProcess.spawn(
+            argv[0],
+            cwd=cwd,
+            env=env,
+            cols=80,
+            rows=24,
+        )
+        return self._proc.pid
+
+    def read(self, size: int = 65536) -> bytes:
+        return self._proc.read(size)
+
+    def write(self, data: bytes) -> int:
+        text = data.decode("utf-8", errors="replace")
+        self._proc.write(text)
+        return len(data)
+
+    def setwinsize(self, rows: int, cols: int) -> None:
+        self._proc.setwinsize(rows, cols)
+
+    def close(self) -> None:
+        if self._proc is not None:
             try:
-                pgid = os.getpgid(self._process.pid)
-                if pgid != os.getpgid(0):
-                    os.killpg(pgid, signal.SIGKILL)
-                else:
-                    self._process.kill()
-            except (ProcessLookupError, OSError):
-                self._process.kill()
-            self._process.wait(timeout=2)
+                self._proc.close()
+            except OSError:
+                pass
+            self._proc = None
+
+    def killpg(self, sig: int = signal.SIGKILL) -> None:
+        if self._proc is not None:
+            try:
+                self._proc.terminate()
+            except OSError:
+                pass
+
+    def poll(self) -> int | None:
+        return None
+
+    @property
+    def fd(self) -> int:
+        return getattr(self._proc, "fd", -1) if self._proc else -1
+
+    @property
+    def pid(self) -> int:
+        return self._proc.pid if self._proc else -1
+
+
+class PtyReader(QThread):
+    raw_output_received = pyqtSignal(str)
+
+    def __init__(self, pty: BasePty, parent=None):
+        super().__init__(parent)
+        self._pty = pty
+        self._running = True
+        self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
+
+    def run(self) -> None:
+        if sys.platform == "win32":
+            self._run_windows()
+        else:
+            self._run_unix()
+
+    def _run_unix(self) -> None:
+        import select
+
+        try:
+            while self._running:
+                r, _, _ = select.select([self._pty.fd], [], [], 0.15)
+                if r:
+                    try:
+                        data = self._pty.read()
+                    except OSError:
+                        break
+                    if not data:
+                        break
+                    self._emit_data(data)
+        except (OSError, ValueError):
+            pass
+        finally:
+            self._pty.close()
+
+    def _run_windows(self) -> None:
+        try:
+            while self._running:
+                data = self._pty.read()
+                if not data:
+                    break
+                self._emit_data(data)
+        except Exception:
+            pass
+        finally:
+            self._pty.close()
+
+    def _emit_data(self, data: bytes) -> None:
+        decoded = self._decoder.decode(data)
+        if decoded:
+            self.raw_output_received.emit(decoded)
+
+    def stop(self) -> None:
+        self._running = False
+
+
+class ShellEmulator(QObject):
+    raw_output_received = pyqtSignal(str)
+    process_started = pyqtSignal()
+    process_finished = pyqtSignal(int)
+    process_errored = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pty: BasePty | None = None
+        self._reader: PtyReader | None = None
+        self._running = False
+
+    def start(self, cwd: str | None = None) -> None:
+        if sys.platform == "win32":
+            self._pty = WinPty()
+        else:
+            self._pty = UnixPty()
+
+        shell = os.environ.get("SHELL", "/bin/bash")
+        if "zsh" in shell:
+            shell_args = [shell, "-i", "+Z", "+zle"]
+        else:
+            shell_args = [shell, "-i"]
+
+        env = os.environ.copy()
+        env.setdefault("TERM", "xterm-256color")
+        if cwd:
+            env["PWD"] = cwd
+
+        self._pty.spawn(shell_args, cwd, env)
+        self._running = True
+        self.process_started.emit()
+
+        self._reader = PtyReader(self._pty)
+        self._reader.raw_output_received.connect(self.raw_output_received.emit)
+        self._reader.finished.connect(self._on_reader_finished)
+        self._reader.start()
+
+    def write(self, text: str) -> None:
+        if self._pty is not None and self._running:
+            try:
+                self._pty.write(text.encode("utf-8"))
+            except OSError:
+                pass
+
+    def resize(self, rows: int, cols: int) -> None:
+        if self._pty is not None:
+            try:
+                self._pty.setwinsize(rows, cols)
+            except OSError:
+                pass
+
+    def stop(self) -> None:
+        """Graceful stop: close fd, send SIGTERM, do not block."""
+        self._running = False
+        if self._reader:
+            self._reader.stop()
+        if self._pty is not None:
+            self._pty.close()
+            self._pty.killpg(signal.SIGTERM)
+
+    def kill(self) -> None:
+        """Brutal kill: close fd first to unblock reader, then SIGKILL."""
+        self._running = False
+        if self._reader:
+            self._reader.stop()
+        if self._pty is not None:
+            self._pty.close()
+            self._pty.killpg(signal.SIGKILL)
 
     def _on_reader_finished(self) -> None:
         self._running = False
-        returncode = self._process.poll() if self._process else -1
-        self.process_finished.emit(returncode if returncode is not None else -1)
+        rc = self._pty.poll() if self._pty is not None else None
+        self.process_finished.emit(rc if rc is not None else -1)
+        if self._reader is not None:
+            self._reader.deleteLater()
+            self._reader = None
 
     def is_running(self) -> bool:
         return self._running
