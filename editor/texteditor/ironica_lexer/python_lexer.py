@@ -58,7 +58,7 @@ _TOKEN_RE = re.compile(
 )
 
 
-class CustomPythonLexer(QsciLexerCustom):
+class DreamPythonLexer(QsciLexerCustom):
     def __init__(self, parent, json_data):
         super().__init__(parent)
         self.json_data = json_data

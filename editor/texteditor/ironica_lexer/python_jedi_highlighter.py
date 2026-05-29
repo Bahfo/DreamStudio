@@ -174,7 +174,7 @@ class _JediAnalyzer(QThread):
         self.wait(2000)
 
 
-class PythonJediHighlighter(QsciLexerCustom):
+class DreamPythonHighlighter(QsciLexerCustom):
     def __init__(self, parent, json_data: Optional[dict] = None) -> None:
         super().__init__(parent)
         self.json_data = json_data or self._load_defaults()

@@ -5,8 +5,7 @@ from PyQt6.QtGui import QFont, QColor, QPainter
 from PyQt6.QtCore import Qt, QRect, QTimer
 from PyQt6.QtWidgets import QWidget
 
-from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
-from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
+from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
 
 if TYPE_CHECKING:
     from editor.texteditor.code_editor import CodeEditor
@@ -80,7 +79,7 @@ class MiniMap(QsciScintilla):
 
     def _clone_lexer(self, editor: "CodeEditor") -> bool:
         lexer_cls = type(editor._lexer)
-        if lexer_cls in (CustomPythonLexer, CustomCppLexer):
+        if lexer_cls == DreamPythonLexer:
             json_data = editor._lexer.json_data
             try:
                 self._lexer = lexer_cls(self, json_data)

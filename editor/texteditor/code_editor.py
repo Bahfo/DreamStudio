@@ -15,16 +15,16 @@ This code is protected under the GPLv3 License.
 from PyQt6.Qsci import (
     QsciLexerCMake,
     QsciScintilla,
-    QsciAPIs,
-)
+    QsciAPIs)
+
 from PyQt6.QtCore import Qt, QTimer, QPoint
 from PyQt6.QtWidgets import (
     QListWidgetItem,
     QApplication,
     QFileDialog,
     QListWidget,
-    QToolTip,
-)
+    QToolTip)
+
 from PyQt6.QtGui import (
     QFont,
     QIcon,
@@ -32,8 +32,7 @@ from PyQt6.QtGui import (
     QPalette,
     QShortcut,
     QKeyEvent,
-    QKeySequence,
-)
+    QKeySequence)
 
 import ast
 import re
@@ -47,9 +46,8 @@ logger = logging.getLogger(__name__)
 
 ### LOCAL IMPORTS
 from editor.texteditor.click_menu import ClickMenu
-from editor.texteditor.ironica_lexer.cpp_lexer import CustomCppLexer
-from editor.texteditor.ironica_lexer.python_lexer import CustomPythonLexer
-from editor.texteditor.ironica_lexer.python_jedi_highlighter import PythonJediHighlighter
+from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
+from editor.texteditor.ironica_lexer.python_jedi_highlighter import DreamPythonHighlighter
 
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -1627,10 +1625,7 @@ class CodeEditor(QsciScintilla):
     def load_language_keywords(self, lang: str):
         lang_key = "CPP" if lang in ("C", "CPP", "C++") else lang
 
-        configs = {
-            "Python": ("editor/texteditor/keywords/python.json", CustomPythonLexer),
-            "CPP": ("editor/texteditor/keywords/cpp.json", CustomCppLexer),
-        }
+        configs = {"Python": ("editor/texteditor/keywords/python.json", DreamPythonLexer)}
 
         if lang_key not in configs:
             return None
@@ -1663,7 +1658,7 @@ class CodeEditor(QsciScintilla):
         self.keyword_map = classification_map
         return lexer
 
-    def load_jedi_highlighter(self) -> Optional[PythonJediHighlighter]:
+    def load_jedi_highlighter(self) -> Optional[DreamPythonHighlighter]:
         path = "editor/texteditor/keywords/python_highlights.json"
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -1671,7 +1666,7 @@ class CodeEditor(QsciScintilla):
         except Exception:
             return None
 
-        lexer = PythonJediHighlighter(self, data)
+        lexer = DreamPythonHighlighter(self, data)
 
         if self.api is not None and hasattr(self.api, "clear"):
             self.api.clear()
