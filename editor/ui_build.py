@@ -330,7 +330,7 @@ class DreamStudio(QMainWindow):
 
         #### Some PlaceHolders
         self.search_menu = GlobalFileSearchEngine()
-        self.git_menu = SourceControl()
+        self.git_menu = SourceControl(self)
         self.extns_menu = ExtensionsTab()
 
         self.sidebar_frame.addWidget(self.treeview)

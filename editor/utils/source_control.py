@@ -28,6 +28,9 @@ class SourceControl(QFrame):
         self._repo = None
         self._commit_done = False
         self._syncing_text = False
+        self._error_active = False
+        self._disabled_shortcuts = []
+        self._prev_shortcut_enabled = {}
 
         self.setFrameShape(QFrame.Shape.Panel)
         self.setStyleSheet("background-color: #171717; border: none;")
@@ -86,6 +89,15 @@ class SourceControl(QFrame):
         self.show_diff_btn.setIconSize(icon_size)
         self.show_diff_btn.setToolTip("Show Diff")
 
+        self.check_all_btn = QPushButton()
+        self.check_all_btn.setFixedSize(btn_size)
+        self.check_all_btn.setStyleSheet(self._toolbar_btn_style)
+        self.check_all_btn.setIcon(QIcon("assets/menus/refresh.png"))
+        self.check_all_btn.setIconSize(icon_size)
+        self.check_all_btn.setToolTip("Check / Uncheck All")
+        self.check_all_btn.clicked.connect(self._toggle_check_all)
+        self._all_checked = True
+
         self.expand_btn = QPushButton()
         self.expand_btn.setFixedSize(btn_size)
         self.expand_btn.setStyleSheet(self._toolbar_btn_style)
@@ -109,6 +121,7 @@ class SourceControl(QFrame):
 
         toolbar_layout.addWidget(self.refresh_btn)
         toolbar_layout.addWidget(self.show_diff_btn)
+        toolbar_layout.addWidget(self.check_all_btn)
         toolbar_layout.addWidget(self.expand_btn)
         toolbar_layout.addWidget(self.collapse_btn)
         toolbar_layout.addWidget(self.toolbox_btn)
@@ -126,7 +139,7 @@ class SourceControl(QFrame):
         commit_input_layout.setSpacing(5)
 
         self.commit_input = QLineEdit()
-        self.commit_input.setMinimumHeight(30)
+        self.commit_input.setMinimumHeight(32)
         self.commit_input.setPlaceholderText("Commit message (Enter to commit)")
         self.commit_input.setStyleSheet("""
             QLineEdit {
@@ -139,6 +152,7 @@ class SourceControl(QFrame):
             QLineEdit:focus {border: 1px solid #007acc;}
         """)
         self.commit_input.returnPressed.connect(self._do_commit)
+        self.commit_input.textChanged.connect(self._on_input_text_changed)
         commit_input_layout.addWidget(self.commit_input)
 
         # Long message & commit row
@@ -146,17 +160,19 @@ class SourceControl(QFrame):
         msg_btn_layout.setSpacing(4)
 
         self.long_msg_btn = QPushButton("Long Message")
+        self.long_msg_btn.setMinimumHeight(32)
         self.long_msg_btn.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
-                border: 1px solid #444444;
+                border: 2px solid #444444;
                 color: #afb1b3;
                 border-radius: 4px;
                 padding: 4px 8px;
-                font-size: 11px;
+                font-size: 12px;
             }
             QPushButton:hover {
                 background-color: #323232;
+                border-color: #007acc;
                 color: #ffffff;
             }
             QPushButton:disabled {
@@ -168,6 +184,7 @@ class SourceControl(QFrame):
         msg_btn_layout.addWidget(self.long_msg_btn)
 
         self.commit_btn = QPushButton("Commit")
+        self.commit_btn.setMinimumHeight(32)
         self.commit_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2d476d;
@@ -225,9 +242,9 @@ class SourceControl(QFrame):
         # TreeView for changed files
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-        self.tree.setRootIsDecorated(False)
+        self.tree.setRootIsDecorated(True)
         self.tree.setAnimated(True)
-        self.tree.setIndentation(18)
+        self.tree.setIndentation(20)
         self.tree.setStyleSheet("""
             QTreeWidget {
                 background-color: #171717;
@@ -276,6 +293,15 @@ class SourceControl(QFrame):
     def _refresh(self):
         self._load_changed_files()
 
+    def _toggle_check_all(self):
+        self._all_checked = not self._all_checked
+        state = Qt.CheckState.Checked if self._all_checked else Qt.CheckState.Unchecked
+        for i in range(self.tree.topLevelItemCount()):
+            parent = self.tree.topLevelItem(i)
+            for j in range(parent.childCount()):
+                child = parent.child(j)
+                child.setCheckState(0, state)
+
     def _load_changed_files(self):
         self.tree.clear()
         if self._repo is None:
@@ -318,36 +344,54 @@ class SourceControl(QFrame):
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
 
-        for f in files:
-            self._add_file_item(f)
+        modified = [f for f in files if f["status"] in ("M", "S", "R")]
+        deleted = [f for f in files if f["status"] == "D"]
+        added = [f for f in files if f["status"] in ("U", "A")]
 
-    def _add_file_item(self, file_info: dict):
-        item = QTreeWidgetItem(self.tree)
+        if modified:
+            mod_parent = QTreeWidgetItem(self.tree)
+            mod_parent.setText(0, f"Changes ({len(modified)})")
+            mod_parent.setForeground(0, QColor("#afb1b3"))
+            mod_parent.setFlags(mod_parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
+            mod_parent.setExpanded(True)
+            for f in modified:
+                self._add_file_child(mod_parent, f, "#d4872c")
+
+        if deleted:
+            del_parent = QTreeWidgetItem(self.tree)
+            del_parent.setText(0, f"Deleted ({len(deleted)})")
+            del_parent.setForeground(0, QColor("#afb1b3"))
+            del_parent.setFlags(del_parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
+            del_parent.setExpanded(True)
+            for f in deleted:
+                self._add_file_child(del_parent, f, "#e06b6b")
+
+        if added:
+            add_parent = QTreeWidgetItem(self.tree)
+            add_parent.setText(0, f"Added ({len(added)})")
+            add_parent.setForeground(0, QColor("#afb1b3"))
+            add_parent.setFlags(add_parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
+            add_parent.setExpanded(True)
+            for f in added:
+                self._add_file_child(add_parent, f, "#6bbf6b")
+
+    def _add_file_child(self, parent: QTreeWidgetItem, file_info: dict, color_hex: str):
+        item = QTreeWidgetItem(parent)
         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-        item.setCheckState(0, Qt.CheckState.Unchecked)
+        item.setCheckState(0, Qt.CheckState.Checked)
 
         path = file_info["path"]
-        status = file_info.get("status", "M")
         additions = file_info.get("additions", 0)
         deletions = file_info.get("deletions", 0)
 
-        status_icons = {
-            "M": "assets/menus/refresh.png",
-            "U": "assets/menus/add.png",
-        }
-        icon_path = status_icons.get(status, "assets/menus/refresh.png")
-        if os.path.exists(icon_path):
-            item.setIcon(0, QIcon(icon_path))
-
         name = os.path.basename(path)
         dir_part = os.path.dirname(path)
-
         display_text = name
         if dir_part:
             display_text += f"  [{dir_part}]"
 
         item.setText(0, display_text)
-        item.setForeground(0, QColor("#afb1b3"))
+        item.setForeground(0, QColor(color_hex))
 
         changes_text = ""
         if additions > 0:
@@ -356,21 +400,20 @@ class SourceControl(QFrame):
             if changes_text:
                 changes_text += " "
             changes_text += f"-{deletions}"
-
         if changes_text:
             item.setText(1, changes_text)
             item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-            if additions > 0 and deletions > 0:
-                pass
-            elif additions > 0:
+            if additions > 0 and deletions == 0:
                 item.setForeground(1, QColor("#6BBF6B"))
-            elif deletions > 0:
+            elif deletions > 0 and additions == 0:
                 item.setForeground(1, QColor("#E06B6B"))
+            else:
+                item.setForeground(1, QColor("#afb1b3"))
         else:
             item.setText(1, "")
 
         item.setData(0, Qt.ItemDataRole.UserRole, path)
+        item.setData(0, Qt.ItemDataRole.UserRole + 1, file_info["status"])
 
     def _do_commit(self):
         message = self.commit_input.text().strip()
@@ -409,14 +452,17 @@ class SourceControl(QFrame):
     def _get_checked_files(self) -> list[str]:
         files = []
         for i in range(self.tree.topLevelItemCount()):
-            item = self.tree.topLevelItem(i)
-            if item.checkState(0) == Qt.CheckState.Checked:
-                path = item.data(0, Qt.ItemDataRole.UserRole)
-                if path:
-                    files.append(path)
+            parent = self.tree.topLevelItem(i)
+            for j in range(parent.childCount()):
+                child = parent.child(j)
+                if child.checkState(0) == Qt.CheckState.Checked:
+                    path = child.data(0, Qt.ItemDataRole.UserRole)
+                    if path:
+                        files.append(path)
         return files
 
     def _shake_error(self, message: str = ""):
+        self._error_active = True
         self.commit_input.setStyleSheet("""
             QLineEdit {
                 border: 1px solid #FF6B6B;
@@ -452,28 +498,28 @@ class SourceControl(QFrame):
         a.setEndValue(original)
         group.addAnimation(a)
 
-        group.finished.connect(self._restore_commit_input_style)
         group.start()
 
-    def _restore_commit_input_style(self):
-        err_msgs = (
-            "Please enter a commit message",
-            "Select at least one file to commit",
-            "No git repository found",
-            "Git not available",
-        )
-        if self.commit_input.text() in err_msgs:
-            self.commit_input.clear()
-        self.commit_input.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #444444;
-                border-radius: 4px;
-                padding: 4px 8px;
-                color: #ffffff;
-                background-color: #1E1E1E;
-            }
-            QLineEdit:focus {border: 1px solid #007acc;}
-        """)
+    def _on_input_text_changed(self, text: str):
+        if self._error_active:
+            err_msgs = (
+                "Please enter a commit message",
+                "Select at least one file to commit",
+                "No git repository found",
+                "Git not available",
+            )
+            if text not in err_msgs:
+                self._error_active = False
+                self.commit_input.setStyleSheet("""
+                    QLineEdit {
+                        border: 1px solid #444444;
+                        border-radius: 4px;
+                        padding: 4px 8px;
+                        color: #ffffff;
+                        background-color: #1E1E1E;
+                    }
+                    QLineEdit:focus {border: 1px solid #007acc;}
+                """)
 
     def _open_long_message_editor(self):
         if self._parent is None:
@@ -511,7 +557,38 @@ class SourceControl(QFrame):
         self._close_interceptor_ref = interceptor
         self._connected_tab_editors = tab_editors
 
+        # Disable editor shortcuts
+        self._disable_editor_shortcuts(True)
+
         self.commit_status_label.setText("Commit message: editing in tab ...")
+
+    def _disable_editor_shortcuts(self, disable: bool):
+        if self._parent is None:
+            return
+
+        shortcuts = []
+        tab_editors = getattr(self._parent, "tab_editors", None)
+        if tab_editors:
+            for attr in ("_save_shortcut", "_save_as_shortcut", "_save_all_shortcut"):
+                s = getattr(tab_editors, attr, None)
+                if s:
+                    shortcuts.append(s)
+
+        for attr in ("new_tab_shortcut", "close_tab_shortcut",
+                      "open_file_shortcut", "open_directory_shortcut"):
+            s = getattr(self._parent, attr, None)
+            if s:
+                shortcuts.append(s)
+
+        if disable:
+            for s in shortcuts:
+                self._prev_shortcut_enabled[id(s)] = s.isEnabled()
+                s.setEnabled(False)
+        else:
+            for s in shortcuts:
+                prev = self._prev_shortcut_enabled.get(id(s), True)
+                s.setEnabled(prev)
+            self._prev_shortcut_enabled.clear()
 
     def _on_editor_text_changed(self, editor):
         if self._syncing_text:
@@ -530,6 +607,8 @@ class SourceControl(QFrame):
             return None
         if widget is not SourceControl._commit_msg_editor_ref:
             return None
+
+        self._disable_editor_shortcuts(False)
 
         try:
             is_dirty = widget.is_dirty()
@@ -563,6 +642,7 @@ class SourceControl(QFrame):
                 )
                 return True
             else:
+                self._disable_editor_shortcuts(True)
                 return False
         else:
             SourceControl._commit_msg_file_key = None
@@ -589,12 +669,16 @@ class SourceControl(QFrame):
                         break
         SourceControl._commit_msg_file_key = None
         SourceControl._commit_msg_editor_ref = None
+        self._disable_editor_shortcuts(False)
 
     def retheme(self, t):
         bg = t.color("sidebar.background", "#171717")
         txt = t.color("sidebar.text", "#afb1b3")
         hl = t.color("treeview.highlight", "#2d476d")
         hover = t.color("treeview.hover", "#323232")
+        added_color = t.color("git.added", "#6bbf6b")
+        deleted_color = t.color("git.deleted", "#e06b6b")
+        modified_color = t.color("git.modified", "#d4872c")
 
         self.setStyleSheet(f"background-color: {bg}; border: none;")
         self._source_control_label.setStyleSheet(
@@ -636,6 +720,20 @@ class SourceControl(QFrame):
             }}
         """)
 
+        # Re-color tree items
+        for i in range(self.tree.topLevelItemCount()):
+            parent = self.tree.topLevelItem(i)
+            label = parent.text(0)
+            if label.startswith("Changes"):
+                for j in range(parent.childCount()):
+                    parent.child(j).setForeground(0, QColor(modified_color))
+            elif label.startswith("Deleted"):
+                for j in range(parent.childCount()):
+                    parent.child(j).setForeground(0, QColor(deleted_color))
+            elif label.startswith("Added"):
+                for j in range(parent.childCount()):
+                    parent.child(j).setForeground(0, QColor(added_color))
+
         btn_style = f"""
         QPushButton {{
             background-color: transparent;
@@ -654,6 +752,8 @@ class SourceControl(QFrame):
         }}
         """
         for btn in self.findChildren(QPushButton):
+            if btn is self.commit_btn or btn is self.long_msg_btn:
+                continue
             btn.setStyleSheet(btn_style)
 
         self.commit_btn.setStyleSheet(f"""
@@ -672,5 +772,27 @@ class SourceControl(QFrame):
             QPushButton:disabled {{
                 background-color: #1a1a1a;
                 color: #555555;
+            }}
+        """)
+
+        btn_border = t.color("widget.border", "#444444")
+        btn_border_hover = t.color("button.hover", "#007acc")
+        self.long_msg_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: 2px solid {btn_border};
+                color: {txt};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {hover};
+                border-color: {btn_border_hover};
+                color: {t.color("window.text", "#ffffff")};
+            }}
+            QPushButton:disabled {{
+                color: {t.color("scrollbar.bg", "#555555")};
+                border-color: #333333;
             }}
         """)
