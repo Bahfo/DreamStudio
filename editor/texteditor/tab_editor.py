@@ -352,7 +352,8 @@ class DreamTabbedEditor(QTabWidget):
         }}"""
         self._apply_tab_style("white")
 
-        self.tabCloseRequested.connect(self.close_editor)
+        self._close_interceptors = []
+        self.tabCloseRequested.connect(self._on_close_requested)
         self._save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         self._save_shortcut.activated.connect(self.save_current_file)
         self._save_as_shortcut = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
@@ -533,6 +534,24 @@ class DreamTabbedEditor(QTabWidget):
         self.return_file_info()
 
         return new_editor
+
+    def add_close_interceptor(self, callback):
+        self._close_interceptors.append(callback)
+
+    def remove_close_interceptor(self, callback):
+        if callback in self._close_interceptors:
+            self._close_interceptors.remove(callback)
+
+    def _on_close_requested(self, index):
+        editor = self.widget(index)
+        for cb in self._close_interceptors:
+            try:
+                result = cb(index, editor)
+                if result is False:
+                    return
+            except Exception as e:
+                logger.debug(f"Close interceptor error: {e}")
+        self.close_editor(index)
 
     def close_editor(self, index):
         editor = self.widget(index)
