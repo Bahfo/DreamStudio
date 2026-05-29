@@ -256,13 +256,6 @@ class OptionsMenu(QFrame):
         }
         QPushButton:hover{background-color:#333}
 
-        QToolTip{
-        color: #F5F5F5; 
-        font-family: inter;
-        padding: 6px 5px;
-        font-size: 12px;
-        background-color: #25272B; 
-        border: none;}
         """
 
         btn.setStyleSheet(custom_css if custom_css else default_css)
@@ -320,6 +313,7 @@ class OptionsMenu(QFrame):
         bg = t.color("optionsbar.background")
         hover = t.color("button.hover")
         fg = t.color("button.text")
+        tooltip_bg = t.color("tooltip.background")
         self.setStyleSheet(f"""
         QFrame{{border: 0px; border-radius: 0px; background-color: {bg};}}""")
         for sep in self.findChildren(VSeparator):
@@ -331,12 +325,15 @@ class OptionsMenu(QFrame):
                 )
             elif widget.property("_default_styled") is None:
                 widget.setProperty("_default_styled", True)
-            widget.setStyleSheet(
-                f"""
-            QPushButton{{background-color: transparent; border: none; color: {fg}; border-radius: 10px; padding-top:4px; padding-left:2px; padding-right:2px;}}
-            QPushButton:hover{{background-color: {hover};}}
-            QToolTip{{color: {fg}; font-family: inter; padding: 6px 5px; font-size: 12px; background-color: {bg}; border: none;}}"""
-            )
+            widget.setStyleSheet(f"""
+                QPushButton{{background-color: transparent; 
+                    border: none; color: {fg}; border-radius: 10px; 
+                    padding-top:4px; padding-left:2px; padding-right:2px;}}
+                QPushButton:hover{{background-color: {hover};}}
+                QToolTip{{color: {fg}; font-family: inter; padding: 6px 5px; 
+                    font-size: 12px; background-color: {tooltip_bg}; 
+                    border: none;}}
+            """)
 
     def _on_search(self):
         if hasattr(self.master, "toggle_find_replace"):

@@ -378,12 +378,12 @@ class NewsAndArticles(QFrame):
 
 TOOLTIP_STYLE = """
 QToolTip {
-    background-color: #252526;
-    color: #CCCCCC;
-    border: 1px solid #3C3C3C;
-    padding: 4px 8px;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
+    background-color: #25272B;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 5px;
+    font-family: inter;
+    font-size: 12px;
 }
 """
 

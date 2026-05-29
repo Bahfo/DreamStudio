@@ -100,10 +100,11 @@ class DreamStudio(QMainWindow):
             venv_path = None
         self._jedi_worker.set_virtual_environment(venv_path)
 
+        self.setup_layout()
+
         self.theme_manager = ThemeManager(self)
         self.theme_manager.theme_changed.connect(self._on_theme_changed)
-
-        self.setup_layout()
+        self._on_theme_changed(self.theme_manager.name)
 
         # Keybindings and shortcutsof editor tabs management:
         # Find them in keybindings_reference.md
@@ -146,7 +147,7 @@ class DreamStudio(QMainWindow):
             f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter;"
             f" padding: 6px 5px; font-size: 12px;"
             f" background-color: {t.color('tooltip.background')};"
-            f" border: 1px solid {t.color('tooltip.border')};}}"
+            f" border: none;}}"
         )
 
         app = QApplication.instance()
@@ -154,10 +155,10 @@ class DreamStudio(QMainWindow):
             app.setStyleSheet(
                 f"QToolTip{{background-color: {t.color('tooltip.background')};"
                 f" color: {t.color('tooltip.text')};"
-                f" border: 1px solid {t.color('tooltip.border')};"
-                f" padding: 4px 8px;"
-                f' font-family: "JetBrains Mono", monospace;'
-                f" font-size: 11px;}}"
+                f" border: none;"
+                f" padding: 6px 5px;"
+                f" font-family: inter;"
+                f" font-size: 12px;}}"
             )
 
         self.setStyleSheet(

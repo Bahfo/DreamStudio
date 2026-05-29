@@ -107,7 +107,7 @@
     "minimap.border": "#E0E0E0",
     "tooltip.background": "#E8E8E8",
     "tooltip.text": "#333333",
-    "tooltip.border": "#CCCCCC",
+    "tooltip.border": "#E8E8E8",
     "syntax.string": "#A31515",
     "syntax.comment": "#008000",
     "syntax.number": "#098658",

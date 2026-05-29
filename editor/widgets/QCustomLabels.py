@@ -81,18 +81,4 @@ class AnimatedGradientLabel(QLabel):
         )
 
 
-class CustomTooltip(QLabel):
-    def __init__(self, parent=None):
-        super().__init__(parent, flags=Qt.WindowType.ToolTip)
-        self.setStyleSheet("""
-            QLabel {
-                color: #e0e0e0;
-                background-color: #1e1e1e;
-                border: 1px solid #555;
-                padding: 6px 10px;
-                border-radius: 6px;
-                font-family: "JetBrains Mono";
-                font-size: 12px;
-            }
-        """)
-        self.hide()
+

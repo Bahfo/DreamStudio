@@ -77,7 +77,7 @@ class CodeEditor(QsciScintilla):
         self.imported_symbols = set()
 
         self._font_size = 11
-        self._font = QFont("Consolas", self._font_size)
+        self._font = QFont("Jetbrains Mono", self._font_size)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
@@ -100,8 +100,8 @@ class CodeEditor(QsciScintilla):
         self.fold_color = QColor("#A0A0A0")
 
         self._palette = self.palette()
-        self._palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#2B2D30"))
-        self._palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#DFE1E5"))
+        self._palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#25272B"))
+        self._palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#FFFFFF"))
         self.setPalette(self._palette)
 
         #####################################
@@ -149,13 +149,6 @@ class CodeEditor(QsciScintilla):
         }
         QTabBar::close-button:hover {
             background-color: rgba(255, 255, 255, 0.1);
-        }
-        QToolTip {
-        background-color: #2B2D30;
-        color: #DFE1E5;
-        border: 1px solid #43454A;
-        border-radius: 4px;
-        padding: 4px;
         }
         """)
 
@@ -1725,18 +1718,12 @@ class CodeEditor(QsciScintilla):
         if t is not None:
             tip_bg = QColor(t.color("tooltip.background"))
             tip_fg = QColor(t.color("tooltip.text"))
-            tip_border = t.color("tooltip.border")
         else:
-            tip_bg = QColor("#2B2D30")
-            tip_fg = QColor("#DFE1E5")
-            tip_border = "#43454A"
+            tip_bg = QColor("#25272B")
+            tip_fg = QColor("#FFFFFF")
         self._palette.setColor(QPalette.ColorRole.ToolTipBase, tip_bg)
         self._palette.setColor(QPalette.ColorRole.ToolTipText, tip_fg)
         self.setPalette(self._palette)
-        self.setStyleSheet(
-            f"QToolTip{{background-color: {tip_bg.name()}; color: {tip_fg.name()};"
-            f" border: 1px solid {tip_border}; border-radius: 4px; padding: 4px;}}"
-        )
 
         self._apply_scrollbar_style(t is not None, t)
         self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 3)

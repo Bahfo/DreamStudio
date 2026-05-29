@@ -330,7 +330,7 @@ class DreamFileTreeWindow(QFrame):
 
             QScrollBar:vertical {
             background: #1E1E1E;
-            width: 12px;
+            width: 10px;
             margin: 0px;
             }
 
@@ -793,7 +793,7 @@ class DreamFileTreeWindow(QFrame):
             }}
             QScrollBar:vertical {{
                 background: {t.color("scrollbar.bg")};
-                width: 12px;
+                width: 10px;
                 margin: 0px;
             }}
             QScrollBar::handle:vertical {{
