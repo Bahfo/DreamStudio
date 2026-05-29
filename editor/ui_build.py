@@ -143,11 +143,13 @@ class DreamStudio(QMainWindow):
 
     def _on_theme_changed(self, theme_name: str):
         t = self.theme_manager
+        border_c = t.color("widget.border", "#3F4145")
         tip_css = (
-            f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter;"
-            f" padding: 6px 5px; font-size: 12px;"
+            f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter, sans-serif;"
+            f" padding: 8px 8px; font-size: 12px; line-height: 1.5;"
             f" background-color: {t.color('tooltip.background')};"
-            f" border: none;}}"
+            f" border: 1px solid {border_c};"
+            f" border-radius: 8px;}}"
         )
 
         app = QApplication.instance()
@@ -155,10 +157,12 @@ class DreamStudio(QMainWindow):
             app.setStyleSheet(
                 f"QToolTip{{background-color: {t.color('tooltip.background')};"
                 f" color: {t.color('tooltip.text')};"
-                f" border: none;"
-                f" padding: 6px 5px;"
-                f" font-family: inter;"
-                f" font-size: 12px;}}"
+                f" border: 1px solid {border_c};"
+                f" border-radius: 8px;"
+                f" padding: 8px 8px;"
+                f" font-family: inter, sans-serif;"
+                f" font-size: 12px;"
+                f" line-height: 1.5;}}"
             )
 
         self.setStyleSheet(

@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QSize, QPoint, QDateTime, QPropertyAnimation, QSequentialAnimationGroup
-from PyQt6.QtGui import QColor, QIcon
+from PyQt6.QtGui import QColor, QIcon, QFont, QCursor
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -20,28 +20,55 @@ import os
 
 
 class GitCommitHistory(QFrame):
+    _PAGE_SIZE = 25
+    _MAX_COMMITS = 500
+    _ITEM_HEIGHT = 28
+
     def __init__(self, _parent=None):
         super().__init__(_parent)
         self._parent = _parent
         self._repo = None
         self._branch = "main"
+        self._head_sha = None
+        self._all_commits = []
+        self._display_start = 0
+        self._display_end = 0
+        self._loading = False
+
+        self._hash_color = "#569CD6"
         self._head_color = "#C586C0"
+        self._text_color = "#afb1b3"
+
+        self._mono_font = QFont("monospace")
+        self._mono_font.setStyleHint(QFont.StyleHint.Monospace)
+        self._mono_font.setFixedPitch(True)
 
         self.setFrameShape(QFrame.Shape.Panel)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        self._main_layout = QVBoxLayout(self)
+        self._main_layout.setContentsMargins(0, 8, 0, 0)
 
         self.label = QLabel("COMMIT HISTORY")
-        self.label.setStyleSheet("color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 8px;")
-        layout.addWidget(self.label)
+        self.label.setStyleSheet(
+            "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 8px;"
+        )
+        self._main_layout.addWidget(self.label)
 
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-        self.tree.setIndentation(8)
         self.tree.setColumnCount(2)
+        self.tree.setIndentation(4)
         self.tree.setRootIsDecorated(False)
         self.tree.setAnimated(True)
         self.tree.setMouseTracking(True)
+        self.tree.setTextElideMode(Qt.TextElideMode.ElideNone)
+        self.tree.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        hdr = self.tree.header()
+        hdr.setStretchLastSection(False)
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        hdr.resizeSection(1, 100)
+
         self.tree.setStyleSheet("""
             QTreeWidget {
                 background-color: #171717;
@@ -51,8 +78,9 @@ class GitCommitHistory(QFrame):
                 font-size: 12px;
             }
             QTreeWidget::item {
-                height: 24px;
-                padding-left: 4px;
+                height: 28px;
+                padding-left: 12px;
+                padding-right: 8px;
             }
             QTreeWidget::item:hover {
                 background-color: #323232;
@@ -99,12 +127,20 @@ class GitCommitHistory(QFrame):
                 border: none;
             }
         """)
-        layout.addWidget(self.tree)
+        self._main_layout.addWidget(self.tree)
 
+        self.tree.verticalScrollBar().valueChanged.connect(self._on_scroll)
+
+        self._loading = True
         self._load_history()
+        self._loading = False
 
     def _load_history(self):
         self.tree.clear()
+        self._all_commits = []
+        self._display_start = 0
+        self._display_end = 0
+
         if self._parent is None:
             return
         repo = getattr(self._parent, "_repo", None) or getattr(self._parent, "_git_repo", None)
@@ -125,7 +161,7 @@ class GitCommitHistory(QFrame):
 
         try:
             from backend.git.fetch_info import get_commit_history
-            data = get_commit_history(repo, 50)
+            data = get_commit_history(repo, self._MAX_COMMITS)
         except Exception:
             item = QTreeWidgetItem(self.tree)
             item.setText(0, "Failed to load history")
@@ -133,7 +169,7 @@ class GitCommitHistory(QFrame):
             return
 
         commits = data.get("commits", [])
-        head_sha = data.get("head_sha")
+        self._head_sha = data.get("head_sha")
         self._branch = data.get("branch", "main")
 
         if not commits:
@@ -142,26 +178,37 @@ class GitCommitHistory(QFrame):
             item.setForeground(0, QColor("#969696"))
             return
 
-        for i, c in enumerate(commits):
-            item = QTreeWidgetItem(self.tree)
-            short_hash = c.hexsha[:7]
-            msg = c.message.split("\n")[0] if c.message else "(no message)"
+        self._all_commits = commits[:self._MAX_COMMITS]
+        self._display_start = 0
+        self._display_end = min(self._PAGE_SIZE, len(self._all_commits))
 
-            is_head = c.hexsha == head_sha
-            marker = "◉" if is_head else "○"
-            display = f"{marker} {short_hash}  {msg}"
-            item.setText(0, display)
-            item.setForeground(0, QColor("#afb1b3"))
-            item.setData(0, Qt.ItemDataRole.UserRole, c.hexsha)
-            item.setToolTip(0, self._build_tooltip(c))
+        for i in range(self._display_start, self._display_end):
+            c = self._all_commits[i]
+            item = self._create_item(c, i)
+            self.tree.addTopLevelItem(item)
 
-            if is_head:
-                branch_text = f"({self._branch})"
-                item.setText(1, branch_text)
-                item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                item.setForeground(1, QColor(self._head_color))
+    def _create_item(self, c: object, idx: int) -> QTreeWidgetItem:
+        item = QTreeWidgetItem()
+        short_hash = c.hexsha[:7]
+        msg = c.message.split("\n")[0] if c.message else "(no message)"
+        is_head = c.hexsha == self._head_sha
 
-    def _build_tooltip(self, commit) -> str:
+        marker = "◉" if is_head else "○"
+        display = f"{marker}  {short_hash}  {msg}"
+        item.setText(0, display)
+        item.setFont(0, self._mono_font)
+        item.setForeground(0, QColor(self._text_color))
+        item.setData(0, Qt.ItemDataRole.UserRole, c.hexsha)
+        item.setToolTip(0, self._build_rich_tooltip(c))
+
+        if is_head:
+            item.setText(1, f"({self._branch})")
+            item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setForeground(1, QColor(self._head_color))
+
+        return item
+
+    def _build_rich_tooltip(self, commit) -> str:
         author = commit.author.name if commit.author else "unknown"
         email = commit.author.email if commit.author else ""
         auth_date = QDateTime.fromSecsSinceEpoch(commit.authored_date).toString("yyyy-MM-dd hh:mm:ss")
@@ -169,27 +216,72 @@ class GitCommitHistory(QFrame):
         sha = commit.hexsha
         parents_str = ", ".join(p.hexsha[:7] for p in commit.parents) if commit.parents else "(none)"
 
+        lines = msg.split("\n")
+        shown = lines[:5]
+        remaining = len(lines) - 5
+        msg_html = "<br>".join(shown)
+        if remaining > 0:
+            msg_html += f"<br><span style='color: #888; font-style: italic;'>(+{remaining} lines more)</span>"
+
         return (
-            f"Commit: {sha}\n"
-            f"Author: {author} <{email}>\n"
-            f"Date:   {auth_date}\n"
-            f"Parents: {parents_str}\n"
-            f"\n"
-            f"{msg}"
+            f"<div style='font-family: inter, sans-serif; font-size: 12px; line-height: 1.6;'>"
+            f"<b>Commit:</b> <span style='font-family: monospace; color: {self._hash_color};'>{sha}</span><br>"
+            f"<b style='color: {self._hash_color};'>Author:</b> {author} &lt;{email}&gt;<br>"
+            f"<b>Date:</b>   {auth_date}<br>"
+            f"<b>Parents:</b> <span style='font-family: monospace;'>{parents_str}</span><br>"
+            f"<hr style='border: none; border-top: 1px solid #555; margin: 4px 0;'>"
+            f"<div style='color: #d4d4d4;'>{msg_html}</div>"
+            f"</div>"
         )
 
+    def _on_scroll(self, value):
+        if self._loading:
+            return
+        self._loading = True
+
+        sb = self.tree.verticalScrollBar()
+        near_bottom = sb.maximum() - value < 40
+        near_top = value - sb.minimum() < 40
+
+        if near_bottom and self._display_end < len(self._all_commits):
+            self._load_next_batch(sb)
+        elif near_top and self._display_start > 0:
+            self._load_prev_batch(sb)
+
+        self._loading = False
+
+    def _load_next_batch(self, sb):
+        count = min(self._PAGE_SIZE, len(self._all_commits) - self._display_end)
+        for i in range(self._display_end, self._display_end + count):
+            self.tree.addTopLevelItem(self._create_item(self._all_commits[i], i))
+        self._display_end += count
+
+    def _load_prev_batch(self, sb):
+        count = min(self._PAGE_SIZE, self._display_start)
+        for i in range(self._display_start - 1, self._display_start - count - 1, -1):
+            self.tree.insertTopLevelItem(0, self._create_item(self._all_commits[i], i))
+        self._display_start -= count
+
+        sb.blockSignals(True)
+        new_val = max(sb.minimum(), sb.value() - count * self._ITEM_HEIGHT)
+        sb.setValue(new_val)
+        sb.blockSignals(False)
+
     def refresh(self):
+        self._loading = True
         self._load_history()
+        self._loading = False
 
     def retheme(self, t):
-        bg = t.color("sidebar.background", "#171717")
         txt = t.color("sidebar.text", "#afb1b3")
         hl = t.color("treeview.highlight", "#2d476d")
         hover = t.color("treeview.hover", "#323232")
 
         self._head_color = t.color("syntax.import", "#C586C0")
+        self._hash_color = t.color("syntax.function", "#DCDCAA")
+        self._text_color = txt
 
-        self.setStyleSheet(f"background-color: transparent; border: none;")
+        self.setStyleSheet("background-color: transparent; border: none;")
         self.label.setStyleSheet(
             f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 8px;"
         )
@@ -203,8 +295,9 @@ class GitCommitHistory(QFrame):
                 font-size: 12px;
             }}
             QTreeWidget::item {{
-                height: 24px;
-                padding-left: 4px;
+                height: 28px;
+                padding-left: 12px;
+                padding-right: 8px;
             }}
             QTreeWidget::item:hover {{
                 background-color: {hover};
@@ -254,6 +347,7 @@ class GitCommitHistory(QFrame):
 
         for i in range(self.tree.topLevelItemCount()):
             item = self.tree.topLevelItem(i)
+            item.setForeground(0, QColor(self._text_color))
             if item.text(1):
                 item.setForeground(1, QColor(self._head_color))
 
@@ -1027,14 +1121,19 @@ class SourceControl(QFrame):
             parent = self.tree.topLevelItem(i)
             label = parent.text(0)
             if label.startswith("Changes"):
+                parent.setForeground(0, QColor(txt))
                 for j in range(parent.childCount()):
                     parent.child(j).setForeground(0, QColor(modified_color))
             elif label.startswith("Deleted"):
+                parent.setForeground(0, QColor(txt))
                 for j in range(parent.childCount()):
                     parent.child(j).setForeground(0, QColor(deleted_color))
             elif label.startswith("Added"):
+                parent.setForeground(0, QColor(txt))
                 for j in range(parent.childCount()):
                     parent.child(j).setForeground(0, QColor(added_color))
+            else:
+                parent.setForeground(0, QColor(txt))
 
         btn_style = f"""
         QPushButton {{
