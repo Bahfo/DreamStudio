@@ -169,6 +169,20 @@ def commit_staged(
         return False, str(e)
 
 
+def get_commit_history(repo: Repo, count: int = 50) -> dict:
+    try:
+        commits = list(repo.iter_commits(all=True, max_count=count))
+        head_sha = repo.head.commit.hexsha
+        branch = repo.active_branch.name
+        return {
+            "commits": commits,
+            "head_sha": head_sha,
+            "branch": branch,
+        }
+    except Exception as e:
+        return {"commits": [], "head_sha": None, "branch": "unknown", "error": str(e)}
+
+
 if __name__ == "__main__":
     repo = return_repository(None)
     commits, tree = check_last_commits(repo, 5)

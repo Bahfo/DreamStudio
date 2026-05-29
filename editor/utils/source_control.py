@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, QSize, QPoint, QPropertyAnimation, QSequentialAnimationGroup
+from PyQt6.QtCore import Qt, QSize, QPoint, QDateTime, QPropertyAnimation, QSequentialAnimationGroup
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import (
     QVBoxLayout,
@@ -11,11 +11,251 @@ from PyQt6.QtWidgets import (
     QLabel,
     QDialog,
     QHeaderView,
+    QSplitter,
 )
 
 from editor.widgets.QExitDialog import ConfirmDialog
 
 import os
+
+
+class GitCommitHistory(QFrame):
+    def __init__(self, _parent=None):
+        super().__init__(_parent)
+        self._parent = _parent
+        self._repo = None
+        self._branch = "main"
+        self._head_color = "#C586C0"
+
+        self.setFrameShape(QFrame.Shape.Panel)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.label = QLabel("COMMIT HISTORY")
+        self.label.setStyleSheet("color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 8px;")
+        layout.addWidget(self.label)
+
+        self.tree = QTreeWidget()
+        self.tree.setHeaderHidden(True)
+        self.tree.setIndentation(8)
+        self.tree.setColumnCount(2)
+        self.tree.setRootIsDecorated(False)
+        self.tree.setAnimated(True)
+        self.tree.setMouseTracking(True)
+        self.tree.setStyleSheet("""
+            QTreeWidget {
+                background-color: #171717;
+                color: #afb1b3;
+                border: none;
+                outline: 0;
+                font-size: 12px;
+            }
+            QTreeWidget::item {
+                height: 24px;
+                padding-left: 4px;
+            }
+            QTreeWidget::item:hover {
+                background-color: #323232;
+            }
+            QTreeWidget::item:selected {
+                background-color: #2d476d;
+                color: white;
+            }
+            QScrollBar:vertical {
+                background: #1E1E1E;
+                width: 8px;
+                margin: 0px;
+                border: none;
+            }
+            QScrollBar::handle:vertical {
+                background: #3A3A3A;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #4A4A4A;
+            }
+            QScrollBar:horizontal {
+                background: #1E1E1E;
+                height: 8px;
+                margin: 0px;
+                border: none;
+            }
+            QScrollBar::handle:horizontal {
+                background: #3A3A3A;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #4A4A4A;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                height: 0px;
+                width: 0px;
+                border: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
+                border: none;
+            }
+        """)
+        layout.addWidget(self.tree)
+
+        self._load_history()
+
+    def _load_history(self):
+        self.tree.clear()
+        if self._parent is None:
+            return
+        repo = getattr(self._parent, "_repo", None) or getattr(self._parent, "_git_repo", None)
+        if repo is None:
+            try:
+                from backend.git.fetch_info import return_repository
+                repo = return_repository(None)
+                if isinstance(repo, Exception):
+                    repo = None
+            except Exception:
+                repo = None
+        self._repo = repo
+        if repo is None:
+            item = QTreeWidgetItem(self.tree)
+            item.setText(0, "No git repository")
+            item.setForeground(0, QColor("#969696"))
+            return
+
+        try:
+            from backend.git.fetch_info import get_commit_history
+            data = get_commit_history(repo, 50)
+        except Exception:
+            item = QTreeWidgetItem(self.tree)
+            item.setText(0, "Failed to load history")
+            item.setForeground(0, QColor("#969696"))
+            return
+
+        commits = data.get("commits", [])
+        head_sha = data.get("head_sha")
+        self._branch = data.get("branch", "main")
+
+        if not commits:
+            item = QTreeWidgetItem(self.tree)
+            item.setText(0, "No commits found")
+            item.setForeground(0, QColor("#969696"))
+            return
+
+        for i, c in enumerate(commits):
+            item = QTreeWidgetItem(self.tree)
+            short_hash = c.hexsha[:7]
+            msg = c.message.split("\n")[0] if c.message else "(no message)"
+
+            is_head = c.hexsha == head_sha
+            marker = "◉" if is_head else "○"
+            display = f"{marker} {short_hash}  {msg}"
+            item.setText(0, display)
+            item.setForeground(0, QColor("#afb1b3"))
+            item.setData(0, Qt.ItemDataRole.UserRole, c.hexsha)
+            item.setToolTip(0, self._build_tooltip(c))
+
+            if is_head:
+                branch_text = f"({self._branch})"
+                item.setText(1, branch_text)
+                item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                item.setForeground(1, QColor(self._head_color))
+
+    def _build_tooltip(self, commit) -> str:
+        author = commit.author.name if commit.author else "unknown"
+        email = commit.author.email if commit.author else ""
+        auth_date = QDateTime.fromSecsSinceEpoch(commit.authored_date).toString("yyyy-MM-dd hh:mm:ss")
+        msg = commit.message.strip() if commit.message else "(no message)"
+        sha = commit.hexsha
+        parents_str = ", ".join(p.hexsha[:7] for p in commit.parents) if commit.parents else "(none)"
+
+        return (
+            f"Commit: {sha}\n"
+            f"Author: {author} <{email}>\n"
+            f"Date:   {auth_date}\n"
+            f"Parents: {parents_str}\n"
+            f"\n"
+            f"{msg}"
+        )
+
+    def refresh(self):
+        self._load_history()
+
+    def retheme(self, t):
+        bg = t.color("sidebar.background", "#171717")
+        txt = t.color("sidebar.text", "#afb1b3")
+        hl = t.color("treeview.highlight", "#2d476d")
+        hover = t.color("treeview.hover", "#323232")
+
+        self._head_color = t.color("syntax.import", "#C586C0")
+
+        self.setStyleSheet(f"background-color: transparent; border: none;")
+        self.label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 8px;"
+        )
+
+        self.tree.setStyleSheet(f"""
+            QTreeWidget {{
+                background-color: transparent;
+                color: {txt};
+                border: none;
+                outline: 0;
+                font-size: 12px;
+            }}
+            QTreeWidget::item {{
+                height: 24px;
+                padding-left: 4px;
+            }}
+            QTreeWidget::item:hover {{
+                background-color: {hover};
+            }}
+            QTreeWidget::item:selected {{
+                background-color: {hl};
+                color: white;
+            }}
+            QScrollBar:vertical {{
+                background: {t.color("scrollbar.bg", "#1E1E1E")};
+                width: 8px;
+                margin: 0px;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {t.color("scrollbar.fg", "#3A3A3A")};
+                min-height: 20px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {t.color("scrollbar.hover", "#4A4A4A")};
+            }}
+            QScrollBar:horizontal {{
+                background: {t.color("scrollbar.bg", "#1E1E1E")};
+                height: 8px;
+                margin: 0px;
+                border: none;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {t.color("scrollbar.fg", "#3A3A3A")};
+                min-width: 20px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {t.color("scrollbar.hover", "#4A4A4A")};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                height: 0px;
+                width: 0px;
+                border: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: none;
+                border: none;
+            }}
+        """)
+
+        for i in range(self.tree.topLevelItemCount()):
+            item = self.tree.topLevelItem(i)
+            if item.text(1):
+                item.setForeground(1, QColor(self._head_color))
 
 
 class SourceControl(QFrame):
@@ -298,7 +538,25 @@ class SourceControl(QFrame):
             }
         """)
 
-        self.main_layout.addWidget(self.tree)
+        # Splitter: top = files tree, bottom = commit history graph
+        self.splitter = QSplitter(Qt.Orientation.Vertical)
+        self.splitter.setHandleWidth(3)
+        self.splitter.setChildrenCollapsible(False)
+
+        self.tree_container = QFrame()
+        self.tree_container.setStyleSheet("background-color: transparent; border: none;")
+        tree_container_layout = QVBoxLayout(self.tree_container)
+        tree_container_layout.setContentsMargins(0, 0, 0, 0)
+        tree_container_layout.addWidget(self.tree)
+
+        self.splitter.addWidget(self.tree_container)
+        self.commit_history = GitCommitHistory(self)
+        self.splitter.addWidget(self.commit_history)
+
+        self.splitter.setStretchFactor(0, 3)
+        self.splitter.setStretchFactor(1, 2)
+
+        self.main_layout.addWidget(self.splitter)
 
         # Initial load
         self._refresh()
@@ -311,6 +569,8 @@ class SourceControl(QFrame):
 
     def _refresh(self):
         self._load_changed_files()
+        if hasattr(self, "commit_history"):
+            self.commit_history.refresh()
 
     def _toggle_check_all(self):
         self._all_checked = not self._all_checked
@@ -479,6 +739,8 @@ class SourceControl(QFrame):
             self.commit_input.clear()
             self.commit_status_label.setText("Commit message: committed successfully")
             self._load_changed_files()
+            if hasattr(self, "commit_history"):
+                self.commit_history.refresh()
         else:
             self._shake_error(f"Commit failed: {msg}")
 
@@ -846,3 +1108,20 @@ class SourceControl(QFrame):
                 border-color: #333333;
             }}
         """)
+
+        if hasattr(self, "splitter"):
+            splitter_bg = t.color("sidebar.background", "#171717")
+            handle = t.color("splitter.handle", "#2a2a2a")
+            self.splitter.setStyleSheet(f"""
+                QSplitter {{
+                    background-color: {splitter_bg};
+                }}
+                QSplitter::handle {{
+                    background-color: {handle};
+                    height: 3px;
+                }}
+            """)
+        if hasattr(self, "tree_container"):
+            self.tree_container.setStyleSheet(f"background-color: {bg}; border: none;")
+        if hasattr(self, "commit_history"):
+            self.commit_history.retheme(t)
