@@ -1,16 +1,16 @@
 import time
 import psutil
 
-from PyQt6.QtCore import Qt, QTimer, QPointF
-from PyQt6.QtGui import (
-    QPainter, QColor, QPen, QFont, QPainterPath, 
-    QLinearGradient, QBrush
-)
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QPainter, QColor, QFont,QLinearGradient
 from PyQt6.QtWidgets import (
-    QFrame, QVBoxLayout, QHBoxLayout, QWidget, QGridLayout,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-    QLabel, QProgressBar
+    QLabel, QProgressBar, QPushButton
 )
+
+# Local Imports
+from editor.widgets.QGraphWidget import GraphWidget
 
 _CORE_COLORS = [
     "#E06C75", "#61AFEF", "#98C379", "#E5C07B",
@@ -19,167 +19,115 @@ _CORE_COLORS = [
     "#F78C6C", "#89DDFF", "#C3E88D", "#FF9CAC",
 ]
 
-_PLOT_HEIGHT = 140
+_WINDOW_WIDTH = 780
+_WINDOW_HEIGHT = 760
 
 
-class _GraphWidget(QWidget):
-    """Upgraded GraphWidget with Antialiasing, Smooth Paths, and Gradients."""
-    def __init__(self, parent=None, title="", unit="%", min_y=0, max_y=100):
+class _SysMonitorTitleBar(QWidget):
+    """Custom title bar for System Monitor, matching main IDE title bar structure."""
+
+    def __init__(self, parent, title="System Monitor"):
         super().__init__(parent)
-        self._title = title
-        self._unit = unit
-        self._min_y = min_y
-        self._max_y = max_y
-        self._series = {}
-        self._colors = {}
-        self._max_points = 60
-        self._show_legend = True
+        self.parent = parent
+        self.setFixedHeight(40)
+        self.offset = None
 
-        self.bg = QColor("#1E1E1E")
-        self.grid_color = QColor("#2A2D30")
-        self.text_color = QColor("#999999")
-        self.border_color = QColor("#3F4145")
+        self._gradient_colors = [
+            "#004073", "#11324E", "#1E2E3B", "#24292D", "#25272B",
+        ]
 
-        self.setMinimumHeight(_PLOT_HEIGHT)
-        self.setMaximumHeight(_PLOT_HEIGHT * 2)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setSpacing(10)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-    def add_series(self, name, color=None):
-        self._series[name] = []
-        if color is not None:
-            self._colors[name] = QColor(color)
-        else:
-            idx = len(self._series)
-            self._colors[name] = QColor(_CORE_COLORS[idx % len(_CORE_COLORS)])
+        self.title_btn = QPushButton(title)
+        self.title_btn.setStyleSheet("""
+            QPushButton{
+                color: white;
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+                font-size: 13px;
+            }
+        """)
+        layout.addWidget(self.title_btn)
 
-    def append(self, name, value):
-        if name not in self._series:
-            self.add_series(name)
-        self._series[name].append(value)
-        if len(self._series[name]) > self._max_points:
-            self._series[name].pop(0)
+        layout.addStretch()
 
-    def set_range(self, min_y, max_y):
-        self._min_y = min_y
-        self._max_y = max_y
+        self.btn_minimize = QPushButton("\u2014")
+        self.btn_minimize.setFixedSize(30, 30)
+        self.btn_minimize.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_minimize.setStyleSheet("""
+            QPushButton{
+                color: white;
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+            QPushButton:hover{
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+        """)
+        layout.addWidget(self.btn_minimize)
+
+        self.btn_close = QPushButton("\u2715")
+        self.btn_close.setFixedSize(30, 30)
+        self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_close.setStyleSheet("""
+            QPushButton{
+                color: white;
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+                font-size: 16px;
+            }
+            QPushButton:hover{
+                background-color: #E81123;
+                color: white;
+            }
+        """)
+        layout.addWidget(self.btn_close)
+
+        self.btn_minimize.clicked.connect(self.parent.showMinimized)
+        self.btn_close.clicked.connect(self.parent.close)
+
+    def mousePressEvent(self, event):
+        win = self.window()
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.offset = event.globalPosition().toPoint() - win.pos()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        win = self.window()
+        if self.offset is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            win.move(event.globalPosition().toPoint() - self.offset)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self.offset = None
+        super().mouseReleaseEvent(event)
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        w = self.width()
-        h = self.height()
-
-        painter.fillRect(self.rect(), self.bg)
-
-        ml, mr, mt, mb = 50, 15, 25, 25
-        px = ml
-        py = mt
-        pw = w - ml - mr
-        ph = h - mt - mb
-
-        if pw <= 0 or ph <= 0:
-            painter.end()
-            return
-
-        painter.setPen(QPen(self.border_color, 1))
-        painter.drawRect(px, py, pw, ph)
-
-        painter.setPen(QPen(self.grid_color, 1, Qt.PenStyle.DashLine))
-        for i in range(1, 4):
-            y = py + int(ph * i / 4)
-            painter.drawLine(px, y, px + pw, y)
-
-        painter.setPen(self.text_color)
-        f = QFont("JetBrains Mono", 8)
-        painter.setFont(f)
-        for i in range(5):
-            y = py + ph - int(ph * i / 4)
-            val = self._min_y + (self._max_y - self._min_y) * i / 4
-            painter.drawText(2, y - 6, ml - 6, 12,
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                             f"{val:.0f}")
-
-        tf = QFont("Inter", 10, QFont.Weight.Bold)
-        painter.setFont(tf)
-        painter.setPen(self.text_color)
-        painter.drawText(px, 2, pw, 18,
-                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                         f"{self._title} ({self._unit})")
-
-        if not self._series:
-            painter.end()
-            return
-
-        max_len = max((len(v) for v in self._series.values()), default=0)
-        if max_len < 2:
-            painter.end()
-            return
-
-        painter.save()
-        painter.setClipRect(px, py, pw, ph)
-
-        for name, values in self._series.items():
-            if len(values) < 2:
-                continue
-            
-            color = self._colors.get(name, QColor("#FFFFFF"))
-            path = QPainterPath()
-            
-            rng = max(self._max_y - self._min_y, 1)
-            
-            # Build continuous smooth path
-            for i, val in enumerate(values):
-                x = px + (i * pw / max(self._max_points - 1, 1))
-                ratio = (val - self._min_y) / rng
-                y = py + ph - int(ratio * ph)
-                
-                if i == 0:
-                    path.moveTo(x, y)
-                else:
-                    path.lineTo(x, y)
-
-            # Draw Gradient Fill
-            fill_path = QPainterPath(path)
-            fill_path.lineTo(px + pw, py + ph)
-            fill_path.lineTo(px, py + ph)
-            fill_path.closeSubpath()
-
-            gradient = QLinearGradient(0, py, 0, py + ph)
-            gradient.setColorAt(0.0, QColor(color.red(), color.green(), color.blue(), 100))
-            gradient.setColorAt(1.0, QColor(color.red(), color.green(), color.blue(), 0))
-            
-            painter.fillPath(fill_path, QBrush(gradient))
-
-            # Draw Line Segment
-            painter.setPen(QPen(color, 2))
-            painter.drawPath(path)
-
-        painter.restore()
-
-        # Legend
-        if self._show_legend and len(self._series) <= 8:
-            lx = px + 6
-            ly = py + 4
-            for name, color in self._colors.items():
-                if name not in self._series or not self._series[name]:
-                    continue
-                painter.setPen(QPen(color, 2.5))
-                painter.drawLine(lx, ly + 5, lx + 14, ly + 5)
-                painter.setPen(self.text_color)
-                lf = QFont("JetBrains Mono", 7)
-                painter.setFont(lf)
-                painter.drawText(lx + 18, ly + 8, name)
-                ly += 14
-
-        painter.end()
+        stops = [0.85, 0.7, 0.5, 0.3, 0.1]
+        gradient = QLinearGradient(0, 0, self.width(), 0)
+        for stop, color in zip(stops, self._gradient_colors):
+            gradient.setColorAt(stop, QColor(color))
+        painter.fillRect(self.rect(), gradient)
+        super().paintEvent(event)
 
 
 class SystemMonitorPanel(QWidget):
 
-    def __init__(self, parent=None):
-        super().__init__(parent, Qt.WindowType.Window)
+    def __init__(self, parent=None, theme_manager=None):
+        super().__init__(parent, Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setWindowTitle("System Monitor")
-        self.resize(780, 720) # Slightly larger to fit table and progress bars
+        self.setFixedSize(_WINDOW_WIDTH, _WINDOW_HEIGHT)
+
+        self._theme_manager = theme_manager
 
         self._prev_net = None
         self._prev_disk = None
@@ -188,66 +136,75 @@ class SystemMonitorPanel(QWidget):
         self._first_net = True
         self._first_disk = True
 
+        if theme_manager:
+            self._bg_color = theme_manager.color("editor.background", "#1E1E1E")
+            self._grid_color = theme_manager.color("widget.border", "#2A2D30")
+            self._text_color = theme_manager.color("editor.text", "#999999")
+            self._window_bg = theme_manager.color("window.background", "#1E1E1E")
+        else:
+            self._bg_color = "#1E1E1E"
+            self._grid_color = "#2A2D30"
+            self._text_color = "#999999"
+            self._window_bg = "#1E1E1E"
+
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Base Styling for Tabs
-        self._bg_color = "#1E1E1E"
-        self._grid_color = "#2A2D30"
-        self._text_color = "#999999"
+        self.title_bar = _SysMonitorTitleBar(self, "System Monitor")
+        main_layout.addWidget(self.title_bar)
+
+        self.content_widget = QWidget()
+        self.content_widget.setStyleSheet(f"background-color: {self._window_bg};")
+        content_layout = QVBoxLayout(self.content_widget)
+        content_layout.setContentsMargins(5, 5, 5, 5)
 
         self.tabs = QTabWidget()
-        self.tabs.setStyleSheet(f"""
-            QTabWidget::pane {{ border: none; }}
-            QTabBar::tab {{ background: {self._bg_color}; color: {self._text_color}; padding: 8px 20px; border-bottom: 2px solid transparent; }}
-            QTabBar::tab:selected {{ color: #FFFFFF; border-bottom: 2px solid #61AFEF; }}
-        """)
-        main_layout.addWidget(self.tabs)
+        self._apply_tab_styling()
+        content_layout.addWidget(self.tabs)
 
-        # --- TAB 1: PERFORMANCE ---
         self.perf_tab = QWidget()
+        self.perf_tab.setStyleSheet(f"background-color: {self._window_bg};")
         perf_layout = QVBoxLayout(self.perf_tab)
         perf_layout.setContentsMargins(5, 5, 5, 5)
 
-        # CPU Section (Graph + Progress Bars)
-        self._cpu_graph = _GraphWidget(title="Total CPU Usage", unit="%", max_y=100)
+        self._cpu_graph = GraphWidget(title="Total CPU Usage", unit="%", max_y=100)
         self._cpu_graph.add_series("Total", "#61AFEF")
         perf_layout.addWidget(self._cpu_graph)
 
         self._core_layout = QGridLayout()
         self._core_bars = []
+        self._core_labels = []
         self._num_cores = psutil.cpu_count(logical=True) or 1
         cols = 4 if self._num_cores >= 8 else 2
 
         for i in range(self._num_cores):
             lbl = QLabel(f"Core {i}")
             lbl.setFont(QFont("JetBrains Mono", 8))
-            lbl.setStyleSheet(f"color: {self._text_color};")
-            
+            lbl.setStyleSheet(f"color: {self._text_color}; background-color: transparent;")
+
             bar = QProgressBar()
             bar.setTextVisible(False)
             bar.setFixedHeight(6)
-            
-            # Dynamic Core colors from your original palette
+
             bar_color = _CORE_COLORS[i % len(_CORE_COLORS)]
             bar.setStyleSheet(f"""
-                QProgressBar {{ background-color: {self._grid_color}; border-radius: 3px; }}
+                QProgressBar {{ background-color: {self._grid_color}; border-radius: 3px; border: none; }}
                 QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; }}
             """)
-            
+
             row = i // cols
             col = (i % cols) * 2
             self._core_layout.addWidget(lbl, row, col)
             self._core_layout.addWidget(bar, row, col + 1)
             self._core_bars.append(bar)
+            self._core_labels.append(lbl)
 
         perf_layout.addLayout(self._core_layout)
 
-        # RAM, NET, DISK
-        self._ram_graph = _GraphWidget(title="Memory Usage", unit="%", max_y=100)
-        self._net_graph = _GraphWidget(title="Network", unit="KB/s", max_y=100)
-        self._disk_graph = _GraphWidget(title="Disk", unit="MB/s", max_y=50)
+        self._ram_graph = GraphWidget(title="Memory Usage", unit="%", max_y=100)
+        self._net_graph = GraphWidget(title="Network", unit="KB/s", max_y=100)
+        self._disk_graph = GraphWidget(title="Disk", unit="MB/s", max_y=50)
 
         perf_layout.addWidget(self._ram_graph)
         perf_layout.addWidget(self._net_graph)
@@ -259,8 +216,8 @@ class SystemMonitorPanel(QWidget):
         self._disk_graph.add_series("Read", "#C678DD")
         self._disk_graph.add_series("Write", "#E5C07B")
 
-        # --- TAB 2: PROCESSES ---
         self.proc_tab = QWidget()
+        self.proc_tab.setStyleSheet(f"background-color: {self._window_bg};")
         proc_layout = QVBoxLayout(self.proc_tab)
         proc_layout.setContentsMargins(5, 5, 5, 5)
 
@@ -273,6 +230,7 @@ class SystemMonitorPanel(QWidget):
         self.process_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.process_table.setShowGrid(False)
         self.process_table.setFont(QFont("JetBrains Mono", 9))
+        self._apply_table_styling()
         proc_layout.addWidget(self.process_table)
 
         self._process_items = {}
@@ -280,19 +238,38 @@ class SystemMonitorPanel(QWidget):
         self.tabs.addTab(self.perf_tab, "Performance")
         self.tabs.addTab(self.proc_tab, "Processes")
 
-        # Timer setup
+        main_layout.addWidget(self.content_widget)
+
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._collect)
         self._timer.start(1000)
 
         QTimer.singleShot(100, self._collect)
 
+    def _apply_tab_styling(self):
+        self.tabs.setStyleSheet(f"""
+            QTabWidget::pane {{ border: none; background-color: {self._window_bg}; }}
+            QTabBar::tab {{ background: {self._bg_color}; color: {self._text_color};
+            padding: 8px 20px; border-bottom: 2px solid transparent; }}
+            QTabBar::tab:selected {{ color: #FFFFFF; border-bottom: 2px solid #61AFEF; }}
+        """)
+
+    def _apply_table_styling(self):
+        self.process_table.setStyleSheet(f"""
+            QTableWidget {{ background-color: {self._window_bg}; 
+            color: {self._text_color}; border: 1px solid {self._grid_color}; }}
+            QHeaderView::section {{ background-color: {self._grid_color}; 
+            color: {self._text_color}; padding: 4px; border: none; 
+            border-right: 1px solid {self._bg_color}; 
+            border-bottom: 1px solid {self._bg_color}; }}
+        """)
+
     def retheme(self, t):
-        """Preserves your original theming mechanism for the parent system."""
         self._bg_color = t.color("editor.background", "#1E1E1E")
         self._grid_color = t.color("widget.border", "#2A2D30")
         self._text_color = t.color("editor.text", "#999999")
         border = t.color("widget.border", "#3F4145")
+        self._window_bg = t.color("window.background", "#1E1E1E")
 
         bg_qcol = QColor(self._bg_color)
         grid_qcol = QColor(self._grid_color)
@@ -305,12 +282,51 @@ class SystemMonitorPanel(QWidget):
             g.text_color = text_qcol
             g.border_color = border_qcol
 
-        # Update Table Theme
-        self.process_table.setStyleSheet(f"""
-            QTableWidget {{ background-color: {self._bg_color}; color: {self._text_color}; border: 1px solid {self._grid_color}; }}
-            QHeaderView::section {{ background-color: {self._grid_color}; color: {self._text_color}; padding: 4px; border: none; border-right: 1px solid {self._bg_color}; border-bottom: 1px solid {self._bg_color}; }}
+        self.content_widget.setStyleSheet(f"background-color: {self._window_bg};")
+        self._apply_tab_styling()
+        self.perf_tab.setStyleSheet(f"background-color: {self._window_bg};")
+        self.proc_tab.setStyleSheet(f"background-color: {self._window_bg};")
+        self._apply_table_styling()
+
+        for i in range(self._num_cores):
+            self._core_labels[i].setStyleSheet(
+                f"color: {self._text_color}; background-color: transparent;"
+            )
+            bar_color = _CORE_COLORS[i % len(_CORE_COLORS)]
+            self._core_bars[i].setStyleSheet(f"""
+                QProgressBar {{ background-color: {self._grid_color}; border-radius: 3px; border: none; }}
+                QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; }}
+            """)
+
+        tb_text = t.color("titlebar.text", "#FFFFFF")
+        btn_hover = t.color("titlebar.btn_hover", "rgba(255, 255, 255, 0.1)")
+        self.title_bar.title_btn.setStyleSheet(f"""
+            QPushButton{{
+                color: {tb_text};
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+                font-size: 13px;
+            }}
         """)
-        
+        win_btn_style = f"""
+            QPushButton{{color: {tb_text}; background-color: transparent; 
+            border: none; border-radius: 4px; font-size: 12px;}}
+            QPushButton:hover{{background-color: {btn_hover};}}
+        """
+        self.title_bar.btn_minimize.setStyleSheet(win_btn_style)
+        self.title_bar.btn_close.setStyleSheet(win_btn_style + """
+            QPushButton:hover{background-color: #E81123; color: white;}
+        """)
+
+        self.title_bar._gradient_colors = [
+            t.color("titlebar.gradient_0", "#004073"),
+            t.color("titlebar.gradient_1", "#11324E"),
+            t.color("titlebar.gradient_2", "#1E2E3B"),
+            t.color("titlebar.gradient_3", "#24292D"),
+            t.color("titlebar.gradient_4", "#25272B"),
+        ]
+
         self.update()
 
     def _collect(self):
@@ -318,18 +334,16 @@ class SystemMonitorPanel(QWidget):
         self._collect_ram()
         self._collect_net()
         self._collect_disk()
-        
+
         if self.tabs.currentIndex() == 1:
             self._collect_processes()
-            
+
         self.update()
 
     def _collect_cpu(self):
-        # Line Graph updates with Total CPU
         total_cpu = psutil.cpu_percent()
         self._cpu_graph.append("Total", total_cpu)
-        
-        # Progress Bars update with per-core CPU
+
         per_core = psutil.cpu_percent(percpu=True)
         for i in range(min(len(per_core), self._num_cores)):
             self._core_bars[i].setValue(int(per_core[i]))
@@ -375,19 +389,20 @@ class SystemMonitorPanel(QWidget):
     def _collect_processes(self):
         self.process_table.setSortingEnabled(False)
         current_pids = set()
-        
-        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info', 'io_counters']):
+
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 
+            'memory_info', 'io_counters']):
             try:
                 pid = proc.info['pid']
                 current_pids.add(pid)
-                
+
                 name = proc.info['name'] or ""
                 cpu = f"{proc.info['cpu_percent']:.1f}" if proc.info['cpu_percent'] is not None else "0.0"
-                
+
                 ram = "0.0"
                 if proc.info['memory_info']:
                     ram = f"{(proc.info['memory_info'].rss / (1024**2)):.1f}"
-                
+
                 disk = "N/A"
                 if proc.info['io_counters']:
                     reads = proc.info['io_counters'].read_bytes / (1024**2)
@@ -407,7 +422,7 @@ class SystemMonitorPanel(QWidget):
                     self.process_table.setItem(row, 2, QTableWidgetItem(cpu))
                     self.process_table.setItem(row, 3, QTableWidgetItem(ram))
                     self.process_table.setItem(row, 4, QTableWidgetItem(disk))
-                    self.process_table.setItem(row, 5, QTableWidgetItem("N/A")) # Per-process net requires root
+                    self.process_table.setItem(row, 5, QTableWidgetItem("N/A"))
                     self._process_items[pid] = row
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
@@ -418,7 +433,7 @@ class SystemMonitorPanel(QWidget):
             self.process_table.removeRow(row)
             del self._process_items[pid]
             self._process_items = {
-                int(self.process_table.item(r, 0).text()): r 
+                int(self.process_table.item(r, 0).text()): r
                 for r in range(self.process_table.rowCount())
             }
 
