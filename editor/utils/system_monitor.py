@@ -30,6 +30,7 @@ class _SysMonitorTitleBar(QWidget):
         super().__init__(parent)
         self.parent = parent
         self.setFixedHeight(40)
+        self.setStyleSheet("font: 'inter';")
         self.offset = None
 
         self._gradient_colors = [
@@ -49,6 +50,7 @@ class _SysMonitorTitleBar(QWidget):
                 border: none;
                 border-radius: 4px;
                 font-size: 13px;
+                font-family: 'Inter';
             }
         """)
         layout.addWidget(self.title_btn)
@@ -180,7 +182,7 @@ class SystemMonitorPanel(QWidget):
 
         for i in range(self._num_cores):
             lbl = QLabel(f"Core {i}")
-            lbl.setFont(QFont("JetBrains Mono", 8))
+            lbl.setFont(QFont("Inter", 8))
             lbl.setStyleSheet(f"color: {self._text_color}; background-color: transparent;")
 
             bar = QProgressBar()
@@ -200,6 +202,10 @@ class SystemMonitorPanel(QWidget):
             self._core_bars.append(bar)
             self._core_labels.append(lbl)
 
+        self._core_layout.setContentsMargins(50, 0, 15, 0)
+        for i in range(cols):
+            self._core_layout.setColumnStretch(i * 2, 0)
+            self._core_layout.setColumnStretch(i * 2 + 1, 1)
         perf_layout.addLayout(self._core_layout)
 
         self._ram_graph = GraphWidget(title="Memory Usage", unit="%", max_y=100)
@@ -229,7 +235,7 @@ class SystemMonitorPanel(QWidget):
         self.process_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.process_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.process_table.setShowGrid(False)
-        self.process_table.setFont(QFont("JetBrains Mono", 9))
+        self.process_table.setFont(QFont("Inter", 9))
         self._apply_table_styling()
         proc_layout.addWidget(self.process_table)
 
@@ -261,7 +267,8 @@ class SystemMonitorPanel(QWidget):
             QHeaderView::section {{ background-color: {self._grid_color}; 
             color: {self._text_color}; padding: 4px; border: none; 
             border-right: 1px solid {self._bg_color}; 
-            border-bottom: 1px solid {self._bg_color}; }}
+            border-bottom: 1px solid {self._bg_color};
+            font-family: 'Inter'; }}
         """)
 
     def retheme(self, t):
@@ -307,6 +314,7 @@ class SystemMonitorPanel(QWidget):
                 border: none;
                 border-radius: 4px;
                 font-size: 13px;
+                font-family: 'Inter';
             }}
         """)
         win_btn_style = f"""
