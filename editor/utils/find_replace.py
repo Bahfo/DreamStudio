@@ -606,5 +606,9 @@ class GlobalFileSearchEngine(QFrame):
             }}
         """)
         self.search_label.setStyleSheet(
-            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px; background-color: transparent;"
+            f"""color: {txt}; 
+            font-size: 11px; 
+            font-weight: bold; 
+            letter-spacing: 1px; 
+            background-color: transparent;"""
         )

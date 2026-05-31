@@ -146,7 +146,7 @@ class GitCommitHistory(QFrame):
         repo = getattr(self._parent, "_repo", None) or getattr(self._parent, "_git_repo", None)
         if repo is None:
             try:
-                from backend.git.fetch_info import return_repository
+                from backend.fetch_info import return_repository
                 repo = return_repository(None)
                 if isinstance(repo, Exception):
                     repo = None
@@ -160,7 +160,7 @@ class GitCommitHistory(QFrame):
             return
 
         try:
-            from backend.git.fetch_info import get_commit_history
+            from backend.fetch_info import get_commit_history
             data = get_commit_history(repo, self._MAX_COMMITS)
         except Exception:
             item = QTreeWidgetItem(self.tree)
@@ -679,7 +679,7 @@ class SourceControl(QFrame):
         self.tree.clear()
         if self._repo is None:
             try:
-                from backend.git.fetch_info import return_repository
+                from backend.fetch_info import return_repository
                 self._repo = return_repository(None)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -697,7 +697,7 @@ class SourceControl(QFrame):
                 return
 
         try:
-            from backend.git.fetch_info import get_changed_files
+            from backend.fetch_info import get_changed_files
             files = get_changed_files(self._repo)
         except Exception:
             item = QTreeWidgetItem(self.tree)
@@ -815,7 +815,7 @@ class SourceControl(QFrame):
 
         if self._repo is None:
             try:
-                from backend.git.fetch_info import return_repository
+                from backend.fetch_info import return_repository
                 self._repo = return_repository(None)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -825,7 +825,7 @@ class SourceControl(QFrame):
                 self._shake_error("Git not available")
                 return
 
-        from backend.git.fetch_info import commit_staged
+        from backend.fetch_info import commit_staged
         success, msg = commit_staged(self._repo, message, checked_files)
         if success:
             self._commit_done = True
