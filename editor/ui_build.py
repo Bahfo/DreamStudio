@@ -60,6 +60,7 @@ from editor.utils.file_explorer import DreamFileTreeWindow
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.utils.source_control import SourceControl
 from editor.utils.theme_manager import ThemeManager, SyntaxThemeManager
+from editor.utils.system_monitor import SystemMonitorPanel
 from editor.utils.marketplace import ExtensionsTab
 from editor.utils.optionsBar import OptionsMenu
 from editor.utils.statusBar import StatusBar
@@ -211,6 +212,7 @@ class DreamStudio(QMainWindow):
         self.title_bar.retheme(t)
 
         self.minimap.retheme(t)
+        self.system_monitor.retheme(t)
 
         for w in (self.search_menu, self.git_menu, self.extns_menu, self.infoBtn):
             if hasattr(w, "retheme"):
@@ -240,6 +242,15 @@ class DreamStudio(QMainWindow):
                 editor.apply_syntax_only(t)
             elif hasattr(editor, "apply_syntax_only"):
                 editor.apply_syntax_only(t)
+
+    def flash_button(self, button: QPushButton, color: str = "#4A6FA5", duration: int = 400):
+        original = button.styleSheet()
+        flash_css = (
+            f"QPushButton{{background-color: {color}; border: none; border-radius: 10px;}}"
+            f"QPushButton:hover{{background-color: {color};}}"
+        )
+        button.setStyleSheet(flash_css)
+        QTimer.singleShot(duration, lambda: button.setStyleSheet(original))
 
     def toggle_find_replace(self):
         editor = self._get_current_editor()
@@ -465,6 +476,8 @@ class DreamStudio(QMainWindow):
         self.etherAIScreen.setMinimumWidth(0)
         self.etherAIScreen.setMaximumWidth(500)
 
+        self.system_monitor = SystemMonitorPanel()
+
         self.workspace_splitter.addWidget(self.sidebar_frame)
         self.workspace_splitter.addWidget(self.main_editor_area)
         self.workspace_splitter.addWidget(self.minimap_wrapper)
@@ -501,6 +514,12 @@ class DreamStudio(QMainWindow):
         self._jedi_worker.start()
         self.sync_changes_on_tab_switch(self.tab_editors.currentIndex())
         self.tab_editors.currentChanged.connect(self.sync_changes_on_tab_switch)
+        self.tab_editors.currentChanged.connect(
+            lambda idx: self.title_bar._update_file_menu_states()
+        )
+        self.tab_editors.currentChanged.connect(
+            lambda idx: self.title_bar._update_edit_menu_states()
+        )
         self.title_bar.setStyleSheet("background-color: #00438A;")
 
     def create_bar_option(
@@ -764,6 +783,13 @@ class DreamStudio(QMainWindow):
             self.hero_splitter.setSizes([workspace_h, 0])
             self.terminal_collapsed = True
             self.terminalWidget.switch_tab(0)
+
+    def toggle_system_monitor(self):
+        if self.system_monitor.isVisible():
+            self.system_monitor.hide()
+        else:
+            self.system_monitor.show()
+            self.system_monitor.raise_()
 
     def ui_build_add_new_editor(self):
         """A higher heirarchy call for adding a new editor tab instead

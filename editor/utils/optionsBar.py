@@ -154,6 +154,7 @@ class OptionsMenu(QFrame):
             btn_size=QSize(150, 28),
             custom_css=text_btn_css,
             tooltip="Monitor hardware behavior while running your solution",
+            function=self._on_open_monitor,
         )
         self.monitor.setProperty("_custom_text_btn", True)
 
@@ -334,6 +335,10 @@ class OptionsMenu(QFrame):
                     font-size: 12px; background-color: {tooltip_bg}; 
                     border: none;}}
             """)
+
+    def _on_open_monitor(self):
+        if hasattr(self.master, "toggle_system_monitor"):
+            self.master.toggle_system_monitor()
 
     def _on_search(self):
         if hasattr(self.master, "toggle_find_replace"):

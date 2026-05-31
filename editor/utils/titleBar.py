@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QLineEdit,
     QMenuBar,
+    QMenu,
 )
 
 
@@ -84,6 +85,9 @@ class DreamStudioTitleBar(QWidget):
         QMenu::item:selected {
             background-color: #2E436E; 
             color: white;}
+
+        QMenu::item:disabled {
+            color: #5F6165;}
 
         QMenu::icon {
             position: absolute;
@@ -202,7 +206,13 @@ class DreamStudioTitleBar(QWidget):
         self.btn_maximize.clicked.connect(self.toggle_maximize)
         self.btn_close.clicked.connect(self.parent.close)
 
+        self._menus = {}
+        self._file_actions = {}
+        self._edit_actions = {}
+
         self.setup_menus()
+        self._update_file_menu_states()
+        self._update_edit_menu_states()
 
     def setup_menus(self):
         menus_config = {
@@ -287,7 +297,7 @@ class DreamStudioTitleBar(QWidget):
                 ("Change Editor Layout", None, self.generic_callback),
                 ("Appearance", "assets/menus/appearance.png", self.generic_callback),
                 None,
-                ("File Explorer", "assets/menus/explorer.png", self.generic_callback),
+                ("File Explorer", "assets/menus/explorer.png", self.set_file_explorer),
                 ("Search Explorer", None, self.generic_callback),
                 (
                     "Unit Testing Window",
@@ -395,7 +405,7 @@ class DreamStudioTitleBar(QWidget):
                 (
                     "Open Marketplace",
                     "assets/menus/manage_ext.png",
-                    self.generic_callback,
+                    self.set_open_marketplace,
                 ),
                 (
                     "Refresh Extensions",
@@ -414,7 +424,8 @@ class DreamStudioTitleBar(QWidget):
         }
 
         for menu_name, items in menus_config.items():
-            menu = self.menubar.addMenu(menu_name)
+            menu: QMenu = self.menubar.addMenu(menu_name)
+            self._menus[menu_name] = menu
 
             for item in items:
                 if item is None:
@@ -431,6 +442,18 @@ class DreamStudioTitleBar(QWidget):
                             action.triggered.connect(callback)
 
                     menu.addAction(action)
+
+                    if menu_name == "File":
+                        self._file_actions[text] = action
+                    elif menu_name == "Edit":
+                        self._edit_actions[text] = action
+
+        file_menu = self._menus.get("File")
+        if file_menu:
+            file_menu.aboutToShow.connect(self._update_file_menu_states)
+        edit_menu = self._menus.get("Edit")
+        if edit_menu:
+            edit_menu.aboutToShow.connect(self._update_edit_menu_states)
 
     def generic_callback(self, action_name):
         print(f"Action Triggered: {action_name}")
@@ -570,6 +593,8 @@ class DreamStudioTitleBar(QWidget):
         return
 
     def _get_current_editor(self):
+        if not hasattr(self.parent, "options_menu"):
+            return None
         editor = self.parent.options_menu._get_current_editor()
         return editor
 
@@ -659,6 +684,66 @@ class DreamStudioTitleBar(QWidget):
 
             editor.endUndoAction()
 
+    def _editor_count(self) -> int:
+        return getattr(self.parent, "tab_editors", None) and self.parent.tab_editors.count() or 0
+
+    def _has_editor(self) -> bool:
+        return self._editor_count() > 0
+
+    def _current_code_editor(self):
+        editor = self._get_current_editor()
+        if editor is not None:
+            from editor.texteditor.code_editor import CodeEditor
+            if isinstance(editor, CodeEditor):
+                return editor
+        return None
+
+    def _update_file_menu_states(self):
+        editor = self._current_code_editor()
+        has_editors = self._has_editor()
+        is_dirty = editor is not None and editor.is_dirty()
+
+        fa = self._file_actions
+        fa.get("Save Current File", None) and fa["Save Current File"].setEnabled(is_dirty)
+        fa.get("Save File As...", None) and fa["Save File As..."].setEnabled(editor is not None)
+        fa.get("Save All Files", None) and fa["Save All Files"].setEnabled(has_editors)
+        fa.get("Save All and Close Window", None) and fa["Save All and Close Window"].setEnabled(has_editors)
+
+    def _update_edit_menu_states(self):
+        editor = self._current_code_editor()
+        has_editors = self._has_editor()
+        has_sel = editor is not None and editor.hasSelectedText()
+        can_u = editor is not None and editor.isUndoAvailable()
+        can_r = editor is not None and editor.isRedoAvailable()
+
+        ea = self._edit_actions
+        ea.get("Undo", None) and ea["Undo"].setEnabled(can_u)
+        ea.get("Redo", None) and ea["Redo"].setEnabled(can_r)
+        for name in ("Cut Selection", "Copy Selection", "Copy Selection as Plain Text", "Delete Selection"):
+            ea.get(name, None) and ea[name].setEnabled(has_sel)
+        ea.get("Paste Clipboard", None) and ea["Paste Clipboard"].setEnabled(editor is not None)
+        ea.get("Search in Selected Text", None) and ea["Search in Selected Text"].setEnabled(has_sel)
+        ea.get("Find and Replace", None) and ea["Find and Replace"].setEnabled(editor is not None)
+        ea.get("Find and Replace in Files", None) and ea["Find and Replace in Files"].setEnabled(True)
+        for name in ("Select All", "Unselect All", "Manage Indentation"):
+            ea.get(name, None) and ea[name].setEnabled(editor is not None)
+        for name in ("Indent Selection", "Unindent Selection"):
+            ea.get(name, None) and ea[name].setEnabled(has_sel)
+
+    def set_file_explorer(self):
+        parent = self.parent
+        if hasattr(parent, "sidebar_frame"):
+            parent.sidebar_frame.setCurrentIndex(0)
+        if hasattr(parent, "explorerBtn") and hasattr(parent, "flash_button"):
+            parent.flash_button(parent.explorerBtn)
+
+    def set_open_marketplace(self):
+        parent = self.parent
+        if hasattr(parent, "sidebar_frame"):
+            parent.sidebar_frame.setCurrentIndex(3)
+        if hasattr(parent, "extensionsBtn") and hasattr(parent, "flash_button"):
+            parent.flash_button(parent.extensionsBtn)
+
     def retheme(self, t) -> None:
         tb_bg = t.color("titlebar.background")
         tb_text = t.color("titlebar.text")
@@ -705,6 +790,8 @@ class DreamStudioTitleBar(QWidget):
 
             QMenu::item:selected {{background-color: {t.color("menu.selected")}; 
                 color: {t.color("menubar.text_bright")};}}
+
+            QMenu::item:disabled {{color: {t.color("menu.disabled_fg")};}}
 
             QMenu::icon {{position: absolute; left: 7px;}}
 
