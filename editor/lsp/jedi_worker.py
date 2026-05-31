@@ -37,11 +37,11 @@ class JediWorker(QThread):
             self._jedi_env = jedi.get_default_environment()
 
     def _enqueue(self, cmd, source, path, line, col, request_id):
-        key = (cmd, path, line, col)
+        key = (cmd, path)
         self._mutex.lock()
         try:
             for i, existing in enumerate(self._queue):
-                if (existing[0], existing[2], existing[3], existing[4]) == key:
+                if (existing[0], existing[2]) == key:
                     self._queue[i] = (cmd, source, path, line, col, request_id)
                     break
             else:
@@ -81,6 +81,22 @@ class JediWorker(QThread):
                 while self._running and not self._queue:
                     self._cond.wait(self._mutex, 50)
                 if not self._running or not self._queue:
+                    self._mutex.unlock()
+                    continue
+                # Drain stale items: if a newer request with the same (cmd,path)
+                # is already queued, skip this one
+                while self._queue:
+                    candidate = self._queue[0]
+                    stale = False
+                    if len(self._queue) > 1:
+                        for later in list(self._queue)[1:]:
+                            if (later[0], later[2]) == (candidate[0], candidate[2]):
+                                self._queue.popleft()
+                                stale = True
+                                break
+                    if not stale:
+                        break
+                if not self._queue:
                     self._mutex.unlock()
                     continue
                 item = self._queue.popleft()

@@ -133,7 +133,9 @@ class DreamStudioIDETabBar(QTabBar):
                 button.raise_()
 
         self._is_syncing = False
-        self._parent._parent.update_editor_visibility()
+        win = self.window()
+        if win is not None and hasattr(win, "update_editor_visibility"):
+            win.update_editor_visibility()
 
     def _on_current_changed(self):
         QTimer.singleShot(0, self._sync_close_buttons)
@@ -485,6 +487,13 @@ class DreamTabbedEditor(QTabWidget):
             elif hasattr(new_editor, "retheme"):
                 new_editor.retheme(t)
 
+        st = getattr(self._parent, "syntax_theme_manager", None)
+        if st is not None and isinstance(new_editor, CodeEditor):
+            new_editor.apply_syntax_only(st)
+
+        if isinstance(new_editor, CodeEditor):
+            new_editor.position_changed.connect(self._parent.update_position_status)
+
         if not key:
             key = f"__untitled_{id(new_editor)}"
 
@@ -547,12 +556,6 @@ class DreamTabbedEditor(QTabWidget):
             except (TypeError, RuntimeError):
                 pass
 
-        if hasattr(editor, "clangd") and hasattr(editor.clangd, "shutdown"):
-            try:
-                editor.clangd.shutdown()
-            except Exception:
-                pass
-
         lexer = getattr(editor, "_lexer", None)
         if lexer is not None and hasattr(lexer, "shutdown"):
             try:
@@ -587,10 +590,8 @@ class DreamTabbedEditor(QTabWidget):
             self,
             "Open File",
             self.currentDirectory,
-            "All Supported Files (*.py *.pyw *.pyi *.c *.h *.cpp *.cc *.cxx *.hpp *.hh *.hxx);;"
+            "All Supported Files (*.py *.pyw *.pyi *.txt *.json *.xml *.yaml *.yml *.md);;"
             "Python Files (*.py *.pyw *.pyi);;"
-            "C Files (*.c *.h);;"
-            "C++ Files (*.cpp *.cc *.cxx *.hpp *.hh *.hxx);;"
             "Text/Config Files (*.txt *.json *.xml *.yaml *.yml);;"
             "All Files (*)",
         )

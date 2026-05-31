@@ -59,7 +59,7 @@ from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
 from editor.utils.file_explorer import DreamFileTreeWindow
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.utils.source_control import SourceControl
-from editor.utils.theme_manager import ThemeManager
+from editor.utils.theme_manager import ThemeManager, SyntaxThemeManager
 from editor.utils.marketplace import ExtensionsTab
 from editor.utils.optionsBar import OptionsMenu
 from editor.utils.statusBar import StatusBar
@@ -105,6 +105,9 @@ class DreamStudio(QMainWindow):
         self.theme_manager = ThemeManager(self)
         self.theme_manager.theme_changed.connect(self._on_theme_changed)
         self._on_theme_changed(self.theme_manager.name)
+
+        self.syntax_theme_manager = SyntaxThemeManager(self.theme_manager, self)
+        self.syntax_theme_manager.theme_changed.connect(self._on_syntax_theme_changed)
 
         # Keybindings and shortcutsof editor tabs management:
         # Find them in keybindings_reference.md
@@ -228,6 +231,15 @@ class DreamStudio(QMainWindow):
             self.preferencesBtn,
         ):
             btn.setStyleSheet(btn_css)
+
+    def _on_syntax_theme_changed(self, theme_name: str):
+        t = self.syntax_theme_manager
+        for i in range(self.tab_editors.count()):
+            editor = self.tab_editors.widget(i)
+            if isinstance(editor, CodeEditor):
+                editor.apply_syntax_only(t)
+            elif hasattr(editor, "apply_syntax_only"):
+                editor.apply_syntax_only(t)
 
     def toggle_find_replace(self):
         editor = self._get_current_editor()
@@ -675,6 +687,34 @@ class DreamStudio(QMainWindow):
             theme_menu.addAction(action)
 
         menu.addMenu(theme_menu)
+
+        # Syntax Theme submenu
+        syntax_theme_menu = QMenu("Syntax Theme", self)
+
+        syntax_theme_menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {self.theme_manager.color("menu.background")};
+                color: {self.theme_manager.color("menu.text")};
+                border: 1px solid {self.theme_manager.color("menu.border")};
+            }}
+
+            QMenu::item {{
+                padding: 8px 28px 8px 18px;
+            }}
+
+            QMenu::item:selected {{
+                background-color: {self.theme_manager.color("menu.selected")};
+            }}
+        """)
+
+        for theme_key, theme_label in THEMES:
+            action = QAction(theme_label, self)
+            action.triggered.connect(
+                lambda checked, t=theme_key: self.syntax_theme_manager.switch_to(t)
+            )
+            syntax_theme_menu.addAction(action)
+
+        menu.addMenu(syntax_theme_menu)
 
         # Font size submenu
         font_menu = QMenu("Font Size", self)

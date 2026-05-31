@@ -3,7 +3,7 @@
 
 Ironica Code Editor - The Base Code and Texteditor for DreamStudio.
 Ironica is a self contained code editor that operates on a modern level by
-utilizing Ironica lexer: The base lexer behind Python and C++ Ironica lexical
+utilizing Ironica lexer: The base lexer behind Python Ironica lexical
 analysis.
 
 This code is protected under the GPLv3 License.
@@ -17,7 +17,7 @@ from PyQt6.Qsci import (
     QsciScintilla,
     QsciAPIs)
 
-from PyQt6.QtCore import Qt, QTimer, QPoint
+from PyQt6.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt6.QtWidgets import (
     QListWidgetItem,
     QApplication,
@@ -34,7 +34,6 @@ from PyQt6.QtGui import (
     QKeyEvent,
     QKeySequence)
 
-import ast
 import re
 import json
 import logging
@@ -53,6 +52,8 @@ _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 class CodeEditor(QsciScintilla):
+    position_changed = pyqtSignal(int, int)
+
     def __init__(self, _parent=None, language=None):
         super().__init__(_parent)
 
@@ -102,14 +103,14 @@ class CodeEditor(QsciScintilla):
         #####################################
         # Lines and Columns
         #####################################
-        self.cursorPositionChanged.connect(self._parent._parent.update_position_status)
+        self.cursorPositionChanged.connect(self._emit_position)
 
         #####################################
         # JEDI
         #####################################
         self.jedi_enabled = True
         self.current_file_path = None
-        self._saved_text: str = ""
+        self.setModified(False)
 
         #####################################
         # Configuration
@@ -296,6 +297,9 @@ class CodeEditor(QsciScintilla):
         self._find_usages_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
         self._find_usages_shortcut.activated.connect(self.find_usages)
         self._find_usages_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
+
+    def _emit_position(self, line, col):
+        self.position_changed.emit(line, col)
 
     def show_context_menu(self, point):
         self.menu = ClickMenu(self)
@@ -509,7 +513,9 @@ class CodeEditor(QsciScintilla):
                 )
             except RuntimeError:
                 pass
-            QToolTip.hideText()
+            if getattr(self, '_tooltip_shown', False):
+                QToolTip.hideText()
+                self._tooltip_shown = False
 
         word_sci_pos = self.positionFromLineIndex(word_info["line"], word_info["start"])
         x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, word_sci_pos)
@@ -553,7 +559,9 @@ class CodeEditor(QsciScintilla):
             except RuntimeError:
                 pass
             self._hyperlink_target = None
-        QToolTip.hideText()
+        if getattr(self, '_tooltip_shown', False):
+            QToolTip.hideText()
+            self._tooltip_shown = False
 
     def _execute_hover_request(self):
         word_info = self._hover_debounce_word_info
@@ -698,6 +706,7 @@ class CodeEditor(QsciScintilla):
             if pos:
                 html = self._format_definition_tooltip(display_def)
                 QToolTip.showText(pos, html)
+                self._tooltip_shown = True
         else:
             pos = self._compute_current_tooltip_pos(target)
             if pos:
@@ -706,6 +715,7 @@ class CodeEditor(QsciScintilla):
                     f"<b>{target.get('word', 'Symbol')}</b><br/>"
                     f'<span style="color:#888;">no definition found</span>',
                 )
+                self._tooltip_shown = True
 
     def _pick_best_definition(self, definitions):
         if not definitions:
@@ -747,6 +757,7 @@ class CodeEditor(QsciScintilla):
                 pos = self._compute_current_tooltip_pos(target)
                 if pos:
                     QToolTip.showText(pos, html)
+                    self._tooltip_shown = True
             return
 
         file_path = definition.get("file")
@@ -800,15 +811,6 @@ class CodeEditor(QsciScintilla):
                 return
 
     def _request_goto_navigation(self, word, line, col):
-        if self.language in ("CPP", "C", "C++"):
-            result = self.clangd.goto_definition(
-                self.current_file_path, self.text(), line, col
-            )
-            if result:
-                result["line"] = (result.get("line") or 0) + 1
-                self._perform_goto_navigation(result)
-            return
-
         win = self.window()
         if not hasattr(win, "_jedi_worker"):
             return
@@ -894,8 +896,14 @@ class CodeEditor(QsciScintilla):
         self.setIndicatorForegroundColor(QColor("#D18616"), USAGE_INDICATOR)
         self.setIndicatorDrawUnder(True, USAGE_INDICATOR)
 
+        first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+        lines_on_screen = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+        last_visible = first_visible + lines_on_screen
+
         for ref in refs:
             rline = ref.get("line", 1) - 1
+            if rline < first_visible or rline > last_visible + 1:
+                continue
             rcol = ref.get("column", 0)
             name = ref.get("name", "")
             if rline >= 0 and name:
@@ -919,40 +927,11 @@ class CodeEditor(QsciScintilla):
         except RuntimeError:
             pass
 
-    def _update_folding(self):
-        total = self.lines()
-        if total == 0:
-            return
-        text = self.text()
-        lines = text.split("\n")
-        indent_unit = self.indentationWidth() or 4
-
-        for line_num in range(total):
-            line_text = lines[line_num] if line_num < len(lines) else ""
-            indent = len(line_text) - len(line_text.lstrip())
-            indent_level = indent // indent_unit
-
-            stripped = line_text.strip()
-            is_header = False
-            if stripped and not stripped.startswith(
-                ("#", "//", "/*", "*", '"""', "'''")):
-                is_header = any(
-                    stripped.startswith(kw)
-                    for kw in ("def ", "class ", "if ", "elif ", "else:", "for ",
-                        "while ", "try:", "except ", "finally:", "with ", "async def ",
-                        "async for ", "async with ", "@"))
-
-            level = indent_level + 0x400
-            if is_header:
-                level |= 0x2000
-
-            self.SendScintilla(QsciScintilla.SCI_SETFOLDLEVEL, line_num, level)
-
     def _schedule_document_symbol_update(self):
         self._symbol_update_timer.start(150)
 
     def _schedule_completion(self):
-        self._completion_timer.start(25)
+        self._completion_timer.start(150)
 
     def _get_line_text(self, line):
         lines = self.text().splitlines()
@@ -961,8 +940,6 @@ class CodeEditor(QsciScintilla):
         return ""
 
     def update_document_symbols(self):
-        self._update_folding()
-
         self.imported_modules.clear()
         self.imported_symbols.clear()
         self.document_symbols["variables"] = set()
@@ -973,30 +950,20 @@ class CodeEditor(QsciScintilla):
             return
 
         source = self.text()
-        try:
-            tree = ast.parse(source)
-        except SyntaxError:
-            return
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                self.document_symbols["functions"].add(node.name)
-            elif isinstance(node, ast.AsyncFunctionDef):
-                self.document_symbols["functions"].add(node.name)
-            elif isinstance(node, ast.ClassDef):
-                self.document_symbols["classes"].add(node.name)
-            elif isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        self.document_symbols["variables"].add(target.id)
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    self.imported_modules.add(alias.name.split(".")[0])
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    self.imported_modules.add(node.module.split(".")[0])
-                for alias in node.names:
-                    self.imported_symbols.add(alias.name)
+        # Use regex-based extraction that works even during typing (invalid syntax)
+        for m in re.finditer(r'^(?:async\s+)?def\s+(\w+)\s*\(', source, re.MULTILINE):
+            self.document_symbols["functions"].add(m.group(1))
+        for m in re.finditer(r'^class\s+(\w+)\s*[\(:]', source, re.MULTILINE):
+            self.document_symbols["classes"].add(m.group(1))
+        for m in re.finditer(r'^(\w+)\s*=', source, re.MULTILINE):
+            self.document_symbols["variables"].add(m.group(1))
+        for m in re.finditer(r'^import\s+(\w+(?:\.\w+)*)', source, re.MULTILINE):
+            self.imported_modules.add(m.group(1).split('.')[0])
+        for m in re.finditer(r'^from\s+(\w+(?:\.\w+)*)\s+import', source, re.MULTILINE):
+            self.imported_modules.add(m.group(1).split('.')[0])
+        for m in re.finditer(r'^from\s+\S+\s+import\s+(\w+)', source, re.MULTILINE):
+            self.imported_symbols.add(m.group(1))
 
     def show_completion_popup(self, items):
         self.completion_popup.clear()
@@ -1063,14 +1030,16 @@ class CodeEditor(QsciScintilla):
         current_line = self._get_line_text(line)
         text_before_cursor = current_line[:index]
 
-        object_match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z0-9_]*)$", 
-            text_before_cursor)
-        if object_match:
-            obj, prefix = object_match.groups()
+        # Handle chained calls: obj.method().attr or dict["key"].attr
+        attr_match = re.search(
+            r'((?:[A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*(?:\s*\([^)]*\)\s*|\s*\[[^\]]*\]\s*))*)\s*\.\s*([A-Za-z_]\w*)$',
+            text_before_cursor
+        )
+        if attr_match:
             return {
                 "type": "attribute",
-                "object": obj,
-                "prefix": prefix,
+                "object": attr_match.group(1).strip(),
+                "prefix": attr_match.group(2),
                 "line": line,
                 "index": index,
             }
@@ -1080,27 +1049,6 @@ class CodeEditor(QsciScintilla):
             return {
                 "type": "global",
                 "prefix": global_match.group(1),
-                "line": line,
-                "index": index}
-
-        m = re.search(r"self\.([A-Za-z_]\w*)$", text_before_cursor)
-        if m:
-            return {
-                "type": "attribute",
-                "scope": "class",
-                "prefix": m.group(1),
-                "object": "self",
-                "line": line,
-                "index": index}
-
-        cpp_scope_match = re.search(
-            r"([A-Za-z_]\w*(?:::\w+)*)::([A-Za-z0-9_]*)$", text_before_cursor)
-        if cpp_scope_match:
-            obj, prefix = cpp_scope_match.groups()
-            return {
-                "type": "attribute",
-                "object": obj,
-                "prefix": prefix,
                 "line": line,
                 "index": index}
 
@@ -1383,11 +1331,7 @@ class CodeEditor(QsciScintilla):
 
         with open(file_path, "r", encoding="utf-8") as f:
             self.setText(f.read())
-        self.clear_dirty()
-        self._update_folding()
-
-        if self.language in ("CPP", "C", "C++"):
-            self.clangd.did_open(file_path, self.text())
+        self.setModified(False)
 
     def set_editor_font(self, font):
         if isinstance(font, QFont):
@@ -1505,15 +1449,6 @@ class CodeEditor(QsciScintilla):
                     self.apply_theme()
                     self._schedule_document_symbol_update()
 
-        elif lang in ("CPP", "C", "C++"):
-            self._disconnect_jedi_analysis()
-            self._lexer = self.load_language_keywords("CPP")
-            if self._lexer:
-                self._lexer.apply_font(self._font)
-                self.setLexer(self._lexer)
-                self.apply_theme()
-                self._schedule_document_symbol_update()
-
         elif lang == "CMAKE":
             self._disconnect_jedi_analysis()
             self._lexer = QsciLexerCMake()
@@ -1622,15 +1557,25 @@ class CodeEditor(QsciScintilla):
                 for style in range(128):
                     self._lexer.setPaper(QColor(bg), style)
 
-    def load_language_keywords(self, lang: str):
-        lang_key = "CPP" if lang in ("C", "CPP", "C++") else lang
+    def apply_syntax_only(self, t) -> None:
+        if not self._lexer or t is None:
+            return
+        if hasattr(self._lexer, "apply_syntax_theme"):
+            self._lexer.apply_syntax_theme(t)
+        else:
+            fg = t.color("editor.text", "#D4D4D4")
+            bg = t.color("editor.background", "#1E1E1E")
+            self._lexer.setDefaultColor(QColor(fg))
+            for style in range(128):
+                self._lexer.setPaper(QColor(bg), style)
 
+    def load_language_keywords(self, lang: str):
         configs = {"Python": ("editor/texteditor/keywords/python.json", DreamPythonLexer)}
 
-        if lang_key not in configs:
+        if lang not in configs:
             return None
 
-        path, lexer_class = configs[lang_key]
+        path, lexer_class = configs[lang]
 
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -1702,10 +1647,10 @@ class CodeEditor(QsciScintilla):
             self._lexer.schedule_analysis()
 
     def clear_dirty(self):
-        self._saved_text = self.text()
+        self.setModified(False)
 
     def is_dirty(self):
-        return self._saved_text != self.text()
+        return self.isModified()
 
     def save(self):
         if self.current_file_path:
@@ -1728,7 +1673,7 @@ class CodeEditor(QsciScintilla):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(self.text())
             self.current_file_path = file_path
-            self.clear_dirty()
+            self.setModified(False)
             return True
         except Exception as e:
             logger.error(f"Save failed: {e}")

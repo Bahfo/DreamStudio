@@ -1,6 +1,7 @@
 import re
 
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.Qsci import QsciScintilla
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
@@ -191,19 +192,26 @@ class FindReplaceWidget(QFrame):
 
     # Indicator operations
     def _clear_indicators(self, editor):
-        length = editor.length()
-        end_line, end_index = editor.lineIndexFromPosition(length)
+        first_visible = editor.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+        lines_on_screen = editor.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+        end_line = first_visible + lines_on_screen + 1
         for indicator in (
             self.FIND_ALL_INDICATOR,
             self.CURRENT_MATCH_INDICATOR,
             self.NO_MATCH_INDICATOR,
         ):
-            editor.clearIndicatorRange(0, 0, end_line, end_index, indicator)
+            editor.clearIndicatorRange(0, 0, end_line, 0, indicator)
 
     def _fill_indicator(self, editor, start, end, indicator):
         s_line, s_idx = editor.lineIndexFromPosition(start)
         e_line, e_idx = editor.lineIndexFromPosition(end)
         editor.fillIndicatorRange(s_line, s_idx, e_line, e_idx, indicator)
+
+    def _is_visible(self, editor, pos):
+        line, _ = editor.lineIndexFromPosition(pos)
+        first = editor.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+        lines = editor.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+        return first <= line <= first + lines + 1
 
     # Match building
     def _build_matches(self, editor):
@@ -247,7 +255,8 @@ class FindReplaceWidget(QFrame):
         self.result_label.setStyleSheet("color: #C5C5C5;")
         self.result_label.setText(f"{len(self._matches)} matches")
         for s, e in self._matches:
-            self._fill_indicator(editor, s, e, self.FIND_ALL_INDICATOR)
+            if self._is_visible(editor, s):
+                self._fill_indicator(editor, s, e, self.FIND_ALL_INDICATOR)
         self._current_match = -1
 
     # Navigation
@@ -279,7 +288,8 @@ class FindReplaceWidget(QFrame):
         self._current_match = next_index
         self._clear_indicators(editor)
         for s, e in self._matches:
-            self._fill_indicator(editor, s, e, self.FIND_ALL_INDICATOR)
+            if self._is_visible(editor, s):
+                self._fill_indicator(editor, s, e, self.FIND_ALL_INDICATOR)
         s, e = self._matches[next_index]
         self._fill_indicator(editor, s, e, self.CURRENT_MATCH_INDICATOR)
         self._set_selection(editor, s, e)
