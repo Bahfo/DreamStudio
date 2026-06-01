@@ -224,45 +224,17 @@ class DreamStudioTitleBar(QWidget):
                 ("Open...", "assets/menus/open.png", self.set_open_file),
                 ("Open Recent Project", None, self.set_open_recent_project),
                 None,
-                (
-                    "Save Current File",
-                    "assets/menus/save.png",
-                    self.set_save_current_file,
-                ),
+                ("Save Current File", "assets/menus/save.png", self.set_save_current_file),
                 ("Save File As...", None, self.set_save_file_as),
                 ("Save All Files", None, self.set_save_all_files),
-                (
-                    "Save All and Close Window",
-                    None,
-                    self.set_save_all_and_close,
-                ),
+                ("Save All and Close Window", None, self.set_save_all_and_close),
                 None,
-                (
-                    "Close Editor",
-                    "assets/menus/close_editor.png",
-                    self.set_close_editor,
-                ),
-                (
-                    "Close DreamStudio",
-                    None,
-                    self.set_close_dreamstudio,
-                ),
+                ("Close Editor", "assets/menus/close_editor.png", self.set_close_editor),
+                ("Close DreamStudio", None, self.set_close_dreamstudio),
                 None,
-                (
-                    "Import...",
-                    "assets/menus/import.png",
-                    self.set_import_configurations,
-                ),
-                (
-                    "Export...",
-                    "assets/menus/export.png",
-                    self.set_export_configurations,
-                ),
-                (
-                    "Settings and Preferences",
-                    "assets/menus/settings.png",
-                    self.set_open_settings,
-                ),
+                ("Import...", "assets/menus/import.png", self.set_import_configurations),
+                ("Export...", "assets/menus/export.png", self.set_export_configurations),
+                ("Settings and Preferences", "assets/menus/settings.png", self.set_open_settings),
                 ("Exit", None, self.parent.close),
             ],
             "Edit": [
@@ -271,20 +243,12 @@ class DreamStudioTitleBar(QWidget):
                 None,
                 ("Cut Selection", "assets/menus/cut.png", self.set_cut),
                 ("Copy Selection", "assets/menus/copy.png", self.set_copy),
-                (
-                    "Copy Selection as Plain Text",
-                    "assets/menus/copy_text.png",
-                    self.set_copy_as_plain_text,
-                ),
+                ("Copy Selection as Plain Text", "assets/menus/copy_text.png", self.set_copy_as_plain_text),
                 ("Paste Clipboard", "assets/menus/paste.png", self.set_paste),
                 ("Delete Selection", None, self.set_delete_selection),
                 None,
                 ("Find and Replace", "assets/menus/find.png", self.set_find_replace),
-                (
-                    "Search in Selected Text",
-                    "assets/menus/search_sel.png",
-                    self.set_search_in_selected,
-                ),
+                ("Search in Selected Text", "assets/menus/search_sel.png", self.set_search_in_selected),
                 ("Find and Replace in Files", None, self.set_find_replace_in_files),
                 None,
                 ("Select All", None, self.set_select_all),
@@ -294,58 +258,59 @@ class DreamStudioTitleBar(QWidget):
                 ("Manage Indentation", None, self.set_manage_indentation),
             ],
             "View": [
-                ("Change Editor Layout", None, self.generic_callback),
-                ("Appearance", "assets/menus/appearance.png", self.generic_callback),
+                ("Appearance", "assets/menus/appearance.png", [
+                    ("Full Screen", None, self.generic_callback),
+                    ("Zen Mode", None, self.generic_callback),
+                    None,
+                    ("Show Left Bar", None, self.generic_callback),
+                    ("Show Terminals", None, self.generic_callback),
+                    ("Show Services Right Bar", None, self.generic_callback),
+                    None,
+                    ("Move Sidebar to Right", None, self.generic_callback),
+                    ("Hide Options Bar", None, self.generic_callback),
+                ]),
+                ("Themes", None, self.generic_callback),
                 None,
-                ("File Explorer", "assets/menus/explorer.png", self.set_file_explorer),
-                ("Search Explorer", None, self.generic_callback),
-                (
-                    "Unit Testing Window",
-                    "assets/menus/testing.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Ether AI Chat Window",
-                    "assets/menus/ai_chat.png",
-                    self.generic_callback,
-                ),
-                ("Change Visibility Settings", None, self.generic_callback),
-                ("Reset Font Size", None, self.generic_callback),
+                ("Recent Action", None, self.generic_callback),
+                ("Recent Opened File", None, self.generic_callback),
+                ("Recent Edited File", None, self.generic_callback),
+                None,
+                ("Show Appearance Settings", None, self.generic_callback),
+                ("Reset Appearance Settings", None, self.generic_callback),
             ],
             "Tools": [
                 ("Command Window", "assets/menus/command.png", self.generic_callback),
-                (
-                    "Ether AI Chat Window",
-                    "assets/menus/ai_chat.png",
-                    self.generic_callback,
-                ),
-                ("Server Explorer", None, self.generic_callback),
-                ("Web Browser", "assets/menus/browser.png", self.generic_callback),
-                ("Object Window Viewer", None, self.generic_callback),
+                ("Tasks TODO List", "assets/menus/todo.png", self.generic_callback),
+                ("Bookmarks Manager", None, self.generic_callback),
+                ("Notifications", "assets/menus/notifications.png", self.generic_callback),
+                None,
+                ("Ether AI Chat Window", "assets/menus/ai_chat.png", self.generic_callback),
+                None,
+                ("Python Console", None, self.generic_callback),
+                ("Python Packages", None, self.generic_callback),
+                ("Python Process Output", None, self.generic_callback),
+                None,
+                ("Code Analysis Manager", "assets/menus/analysis.png", self.generic_callback),
+                ("Code Snippets Manager", None, self.generic_callback),
                 ("Code Definition Window Browser", None, self.generic_callback),
                 ("Errors List", "assets/menus/errors.png", self.generic_callback),
+                None,
+                ("Database Manager", None, self.generic_callback),
+                ("Data Manager", None, self.generic_callback),
+                ("Graphs Manager", None, self.generic_callback),
+                ("Object Window Viewer", None, self.generic_callback),
                 ("Outputs Window", None, self.generic_callback),
-                ("Tasks TODO List", "assets/menus/todo.png", self.generic_callback),
-                (
-                    "Notifications",
-                    "assets/menus/notifications.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Code Analysis Manager",
-                    "assets/menus/analysis.png",
-                    self.generic_callback,
-                ),
-                ("Code Snippets Manager", None, self.generic_callback),
+                ("System Monitor", None, self.generic_callback),
+                None,
+                ("Version Control", None, self.generic_callback),
+                ("Server Explorer", None, self.generic_callback),
+                ("SSH Connection Manager", None, self.generic_callback),
+                ("Web Browser", "assets/menus/browser.png", self.generic_callback),
             ],
             "Code": [
                 ("Format Code", "assets/menus/format.png", self.generic_callback),
                 ("Minify Code in Current File", None, self.generic_callback),
-                (
-                    "Comment Current Line",
-                    "assets/menus/comment.png",
-                    self.generic_callback,
-                ),
+                ("Comment Current Line", "assets/menus/comment.png", self.generic_callback),
                 None,
                 ("Comment Current Selection", None, self.generic_callback),
                 ("Uncomment Current Line", None, self.generic_callback),
@@ -357,61 +322,57 @@ class DreamStudioTitleBar(QWidget):
                 ("Go to Definition", None, self.generic_callback),
                 ("Go to Declaration", None, self.generic_callback),
                 ("Go to Implementation", None, self.generic_callback),
-                (
-                    "Find Usages and References in Current File",
-                    None,
-                    self.generic_callback,
-                ),
+                ("Find Usages and References in Current File", None, self.generic_callback),
                 ("Go to Symbol", None, self.generic_callback),
+                None,
+                ("Analyze Code", None, [
+                    ("Find Duplicated Names", None, self.generic_callback),
+                    ("Delete Duplications", None, self.generic_callback),
+                    ("Analyze Behavior", None, self.generic_callback),
+                    ("Silent Code Cleanup", None, self.generic_callback),
+                ]),
+                ("Folding", None, [
+                    ("Expand Current", None, self.generic_callback),
+                    ("Expand All", None, self.generic_callback),
+                    None,
+                    ("Collapse Current", None, self.generic_callback),
+                    ("Collapse All", None, self.generic_callback),
+                ]),
+                None,
+                ("Add a copyright", None, self.generic_callback),
+                ("Update copyright", None, self.generic_callback),
             ],
             "Run": [
                 ("Run Current File", "assets/menus/run.png", self.generic_callback),
-                (
-                    "Run Current File with Configured Arguments",
-                    "assets/menus/run_args.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Run Current File without Debugging",
-                    "assets/menus/run_no_debug.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Stop Current Execution",
-                    "assets/menus/stop.png",
-                    self.generic_callback,
-                ),
-                (
-                    "Restart Debugging",
-                    "assets/menus/restart.png",
-                    self.generic_callback,
-                ),
+                ("Run Current File with Configured Arguments", "assets/menus/run_args.png", self.generic_callback),
+                ("Debug Current File", "assets/menus/testing.png", self.generic_callback),
+                ("Run Current File without Debugging", "assets/menus/run_no_debug.png", self.generic_callback),
+                ("Stop Current Execution", "assets/menus/stop.png", self.generic_callback),
+                ("Restart Debugging", "assets/menus/restart.png", self.generic_callback),
                 None,
                 ("Step Over", None, self.generic_callback),
                 ("Step Into", None, self.generic_callback),
                 ("Step Out", None, self.generic_callback),
                 ("Continue", None, self.generic_callback),
                 None,
-                (
-                    "Add New Breakpoint at Current File",
-                    "assets/menus/breakpoint.png",
-                    self.generic_callback,
-                ),
+                ("Add New Breakpoint at Current File", "assets/menus/breakpoint.png", self.generic_callback),
                 ("Enable All Breakpoints", None, self.generic_callback),
                 ("Disable All Breakpoints", None, self.generic_callback),
                 ("Remove All Breakpoints", None, self.generic_callback),
+                None,
+                ("Start Testing", "assets/menus/testing.png", self.generic_callback),
+                ("Import Tests from a File", "assets/menus/import.png", self.generic_callback),
+                ("Manage Reports", "assets/menus/settings.png", self.generic_callback),
             ],
             "Marketplace": [
-                (
-                    "Open Marketplace",
-                    "assets/menus/manage_ext.png",
-                    self.set_open_marketplace,
-                ),
-                (
-                    "Refresh Extensions",
-                    "assets/menus/refresh_ext.png",
-                    self.generic_callback,
-                ),
+                ("Open Marketplace", "assets/menus/manage_ext.png", self.set_open_marketplace),
+                ("Refresh Extensions", "assets/menus/refresh_ext.png", self.generic_callback),
+                None,
+                ("Check for Extensions Updates", None, self.generic_callback),
+                ("Show Running Extensions", None, self.generic_callback),
+                None,
+                ("Backup Current Installed Extensions", None, self.generic_callback),
+                ("Uninstall All Extensions", None, self.generic_callback),
             ],
             "Help": [
                 ("Welcome", None, self.show_welcome),
@@ -423,34 +384,52 @@ class DreamStudioTitleBar(QWidget):
             ],
         }
 
+        # Passing top_level_name allows us to map actions into your state dictionaries
+        def build_menu(parent_menu: QMenu, items: list, top_level_name: str):
+            for item in items:
+                if item is None:
+                    parent_menu.addSeparator()
+                else:
+                    text, icon_path, target = item
+                    
+                    if isinstance(target, list):
+                        if icon_path:
+                            sub_menu = parent_menu.addMenu(QIcon(icon_path), text)
+                        else:
+                            sub_menu = parent_menu.addMenu(text)
+                        
+                        build_menu(sub_menu, target, top_level_name)
+                    
+                    else:
+                        if icon_path:
+                            action = QAction(QIcon(icon_path), text, self)
+                        else:
+                            action = QAction(text, self)
+                            
+                        if target:
+                            if target == self.generic_callback:
+                                action.triggered.connect(lambda checked, t=text: target(t))
+                            else:
+                                action.triggered.connect(target)
+                        
+                        parent_menu.addAction(action)
+
+                        # Track the parsed actions for dynamic state updates 
+                        if top_level_name == "File":
+                            self._file_actions[text] = action
+                        elif top_level_name == "Edit":
+                            self._edit_actions[text] = action
+
+        # This loop is now correctly pulled OUTSIDE of build_menu
         for menu_name, items in menus_config.items():
             menu: QMenu = self.menubar.addMenu(menu_name)
             self._menus[menu_name] = menu
-
-            for item in items:
-                if item is None:
-                    menu.addSeparator()
-                else:
-                    text, icon_path, callback = item
-                    action = QAction(QIcon(icon_path), text, self)
-                    if callback:
-                        if callback == self.generic_callback:
-                            action.triggered.connect(
-                                lambda checked, t=text: callback(t)
-                            )
-                        else:
-                            action.triggered.connect(callback)
-
-                    menu.addAction(action)
-
-                    if menu_name == "File":
-                        self._file_actions[text] = action
-                    elif menu_name == "Edit":
-                        self._edit_actions[text] = action
+            build_menu(menu, items, menu_name)
 
         file_menu = self._menus.get("File")
         if file_menu:
             file_menu.aboutToShow.connect(self._update_file_menu_states)
+            
         edit_menu = self._menus.get("Edit")
         if edit_menu:
             edit_menu.aboutToShow.connect(self._update_edit_menu_states)
