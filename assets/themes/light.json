@@ -128,6 +128,9 @@
     "syntax.logic": "#0000FF",
     "git.added": "#2e8b2e",
     "git.deleted": "#c04040",
-    "git.modified": "#b8700a"
+    "git.modified": "#b8700a",
+    "diff.added_bg": "#E6FFE6",
+    "diff.deleted_bg": "#FFE6E6",
+    "diff.modified_bg": "#FFFFE0"
   }
 }

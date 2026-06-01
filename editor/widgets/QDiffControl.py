@@ -102,48 +102,61 @@ class _DiffEditor(QsciScintilla):
         self.SendScintilla(SCI_MARKERDEFINE, MARKER_MODIFIED, SC_MARK_BACKGROUND)
         self.SendScintilla(SCI_MARKERSETBACK, MARKER_MODIFIED, QColor(_LINE_MODIFIED_BG))
 
-    def _apply_scrollbar_style(self):
+    def _apply_scrollbar_style(self, t=None):
         try:
-            sb = self.verticalScrollBar()
-            sb.setStyleSheet("""
-                QScrollBar:vertical {
-                    background: #1E1E1E;
+            if t is not None:
+                bg = t.color("scrollbar.bg", "#1E1E1E")
+                fg = t.color("scrollbar.fg", "#424242")
+                hover = t.color("scrollbar.hover", "#555555")
+            else:
+                bg = "#1E1E1E"
+                fg = "#424242"
+                hover = "#555555"
+            css = f"""
+                QScrollBar:vertical {{
+                    background: {bg};
                     width: 8px;
                     margin: 0;
                     border: none;
-                }
-                QScrollBar::handle:vertical {
-                    background: #424242;
+                }}
+                QScrollBar::handle:vertical {{
+                    background: {fg};
                     min-height: 24px;
-                }
-                QScrollBar::handle:vertical:hover {
-                    background: #555555;
-                }
-                QScrollBar:horizontal {
-                    background: #1E1E1E;
+                }}
+                QScrollBar::handle:vertical:hover {{
+                    background: {hover};
+                }}
+                QScrollBar:horizontal {{
+                    background: {bg};
                     height: 8px;
                     margin: 0;
                     border: none;
-                }
-                QScrollBar::handle:horizontal {
-                    background: #424242;
+                }}
+                QScrollBar::handle:horizontal {{
+                    background: {fg};
                     min-width: 24px;
-                }
-                QScrollBar::handle:horizontal:hover {
-                    background: #555555;
-                }
+                }}
+                QScrollBar::handle:horizontal:hover {{
+                    background: {hover};
+                }}
                 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
                     height: 0;
                     width: 0;
                     border: none;
-                }
+                }}
                 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-                QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
                     background: none;
                     border: none;
-                }
-            """)
+                }}
+            """
+            vsb = self.verticalScrollBar()
+            if vsb:
+                vsb.setStyleSheet(css)
+            hsb = self.horizontalScrollBar()
+            if hsb:
+                hsb.setStyleSheet(css)
         except RuntimeError:
             pass
 
@@ -171,7 +184,23 @@ class _DiffEditor(QsciScintilla):
         self.setMarginsBackgroundColor(QColor(bg))
         self.setMarginsForegroundColor(QColor(fg))
         self.setFoldMarginColors(QColor(bg), QColor(bg))
-        self._apply_scrollbar_style()
+        self._apply_scrollbar_style(t)
+
+        added_bg = t.color("diff.added_bg", _LINE_ADDED_BG)
+        deleted_bg = t.color("diff.deleted_bg", _LINE_DELETED_BG)
+        modified_bg = t.color("diff.modified_bg", _LINE_MODIFIED_BG)
+        self.SendScintilla(SCI_MARKERSETBACK, MARKER_ADDED, QColor(added_bg))
+        self.SendScintilla(SCI_MARKERSETBACK, MARKER_DELETED, QColor(deleted_bg))
+        self.SendScintilla(SCI_MARKERSETBACK, MARKER_MODIFIED, QColor(modified_bg))
+        self.update()
+
+        if self._lexer is not None:
+            if hasattr(self._lexer, "apply_syntax_theme"):
+                self._lexer.apply_syntax_theme(t)
+            else:
+                self._lexer.setDefaultColor(QColor(fg))
+                for style in range(128):
+                    self._lexer.setPaper(QColor(bg), style)
 
     def set_language(self, lang: str):
         if not lang or lang != "Python":
@@ -289,7 +318,7 @@ class QDiffControl(QFrame):
         layout.setSpacing(0)
 
         header = QFrame()
-        header.setStyleSheet("background-color: #1E1E1E; border-bottom: 1px solid #333333;")
+        header.setStyleSheet("background-color: #1E1E1E;")
         header.setFixedHeight(36)
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(12, 0, 12, 0)
@@ -449,7 +478,7 @@ class QDiffControl(QFrame):
 
         hdr_bg = t.color("titlebar.background", "#1E1E1E")
         header = self.layout().itemAt(0).widget()
-        header.setStyleSheet(f"background-color: {hdr_bg}; border-bottom: 1px solid {t.color('widget.border', '#333333')};")
+        header.setStyleSheet(f"background-color: {hdr_bg};")
 
         old_fg = t.color("git.deleted", _OLD_LABEL_FG)
         new_fg = t.color("git.added", _NEW_LABEL_FG)

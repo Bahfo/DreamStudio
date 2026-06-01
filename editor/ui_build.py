@@ -201,6 +201,8 @@ class DreamStudio(QMainWindow):
                 editor.retheme(t)
             elif hasattr(editor, "apply_theme"):
                 editor.apply_theme(t)
+            elif hasattr(editor, "retheme"):
+                editor.retheme(t)
         self.tab_editors.tabBar().retheme(t)
         self.tab_editors.retheme(t)
 
@@ -242,6 +244,8 @@ class DreamStudio(QMainWindow):
                 editor.apply_syntax_only(t)
             elif hasattr(editor, "apply_syntax_only"):
                 editor.apply_syntax_only(t)
+            elif hasattr(editor, "retheme"):
+                editor.retheme(t)
 
     def flash_button(self, button: QPushButton, color: str = "#4A6FA5", duration: int = 400):
         original = button.styleSheet()

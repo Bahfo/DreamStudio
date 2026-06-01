@@ -311,9 +311,6 @@ class CodeEditor(QsciScintilla):
 
     def _apply_scrollbar_style(self, themed=True, t=None):
         try:
-            scrollbar = self.verticalScrollBar()
-            if not scrollbar:
-                return
             if themed and t is not None:
                 bg = t.color("scrollbar.bg", "#1E1E1E")
                 fg = t.color("scrollbar.fg", "#424242")
@@ -322,7 +319,7 @@ class CodeEditor(QsciScintilla):
                 bg = "#1E1E1E"
                 fg = "#424242"
                 hover = "#555555"
-            scrollbar.setStyleSheet(f"""
+            css = f"""
                 QScrollBar:vertical {{
                     background: {bg};
                     width: 8px;
@@ -360,7 +357,13 @@ class CodeEditor(QsciScintilla):
                     background: none;
                     border: none;
                 }}
-            """)
+            """
+            vsb = self.verticalScrollBar()
+            if vsb:
+                vsb.setStyleSheet(css)
+            hsb = self.horizontalScrollBar()
+            if hsb:
+                hsb.setStyleSheet(css)
         except RuntimeError:
             pass
 
