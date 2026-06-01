@@ -104,7 +104,7 @@ class CardButton(QWidget):
         """)
 
     def retheme(self, t) -> None:
-        bg = t.color("widget.background")
+        bg = t.color("card.background")
         hover_bg = t.color("widget.border")
         title_fg = t.color("widget.text_bright")
         desc_fg = t.color("widget.text")

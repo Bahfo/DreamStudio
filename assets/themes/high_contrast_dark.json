@@ -9,6 +9,7 @@
     "widget.text": "#FFFFFF",
     "widget.text_bright": "#FFFFFF",
     "widget.accent": "#FFFF00",
+    "card.background":"#000000",
     "tab.background": "#000000",
     "tab.selected_bg": "#1A1AFF",
     "tab.selected_border": "#FFFFFF",

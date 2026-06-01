@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 )
 
 # Local Imports
-from editor.widgets.QGraphWidget import GraphWidget
+from editor.widgets.QSystemGraphWidget import SystemGraphUtil
 
 _CORE_COLORS = [
     "#E06C75", "#61AFEF", "#98C379", "#E5C07B",
@@ -170,7 +170,7 @@ class SystemMonitorPanel(QWidget):
         perf_layout = QVBoxLayout(self.perf_tab)
         perf_layout.setContentsMargins(5, 5, 5, 5)
 
-        self._cpu_graph = GraphWidget(title="Total CPU Usage", unit="%", max_y=100)
+        self._cpu_graph = SystemGraphUtil(title="Total CPU Usage", unit="%", max_y=100)
         self._cpu_graph.add_series("Total", "#61AFEF")
         perf_layout.addWidget(self._cpu_graph)
 
@@ -208,9 +208,9 @@ class SystemMonitorPanel(QWidget):
             self._core_layout.setColumnStretch(i * 2 + 1, 1)
         perf_layout.addLayout(self._core_layout)
 
-        self._ram_graph = GraphWidget(title="Memory Usage", unit="%", max_y=100)
-        self._net_graph = GraphWidget(title="Network", unit="KB/s", max_y=100)
-        self._disk_graph = GraphWidget(title="Disk", unit="MB/s", max_y=50)
+        self._ram_graph = SystemGraphUtil(title="Memory Usage", unit="%", max_y=100)
+        self._net_graph = SystemGraphUtil(title="Network", unit="KB/s", max_y=100)
+        self._disk_graph = SystemGraphUtil(title="Disk", unit="MB/s", max_y=50)
 
         perf_layout.addWidget(self._ram_graph)
         perf_layout.addWidget(self._net_graph)

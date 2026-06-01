@@ -300,6 +300,7 @@ class DreamFileTreeWindow(QFrame):
         # Model Treeview
         self.tree = QTreeView()
         self.tree.setModel(self.proxy_model)
+        self.tree.setIconSize(QSize(17,17))
         self.tree.setStyleSheet("""
             QTreeView {
                 background-color: #171717;

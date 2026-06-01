@@ -1,0 +1,54 @@
+{
+  "marketplace": [
+    {
+      "title": "Composer Studio",
+      "desc": "Make your applications come to live with excellent tools for designers.",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    },
+    {
+      "title": "Bash Commands Pack",
+      "desc": "Unlock next capabilities of Bash with powerful set of automation commands.",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    },
+    {
+      "title": "IronKinter",
+      "desc": "A GUI framework built on top of CustomTkinter to add more powerful widgets.",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    },
+    {
+      "title": "Developer Support Tools Pack",
+      "desc": "Install a handful of tools that everyday's developer uses.",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    },
+    {
+      "title": "Ether AI Assistant",
+      "desc": "EXcellent TechStacks A.I for DreamStudio Developers.",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    },
+    {
+      "title": "DreamStudio Themes Pack",
+      "desc": "Set of more themes for DreamStudio.",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    },
+    {
+      "title": "AI Playground",
+      "desc": "Use any agent you like inside a chat window in DreamStudio.",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    }
+  ],
+  "installed": [
+    {
+      "title": "Python Support",
+      "desc": "Rich support for Python language features",
+      "publisher": "EXcellent TechStacks",
+      "icon": "path/to/icon.png"
+    }
+  ]
+}

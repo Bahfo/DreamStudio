@@ -5,6 +5,7 @@
     "window.background": "#F5EDE3",
     "window.text": "#3C2A1E",
     "widget.background": "#FFFFFF",
+    "card.background":"#FFFFFF",
     "widget.border": "#D4C5B5",
     "widget.text": "#3C2A1E",
     "widget.text_bright": "#1A110C",

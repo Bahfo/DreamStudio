@@ -1,3 +1,5 @@
+import json
+import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
@@ -12,6 +14,9 @@ from PyQt6.QtWidgets import (
 
 from editor.widgets.QCardButton import CardButton
 
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+json_path = os.path.abspath(os.path.join(current_dir, "..", "data", "marketplace.json"))
 
 class ExtensionsTab(QFrame):
     def __init__(self, _parent=None):
@@ -61,45 +66,21 @@ class ExtensionsTab(QFrame):
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setContentsMargins(0, 0, 0, 0)
         scroll_layout.setSpacing(15)
+        data = self.load_data_from_json(json_path)
 
-        marketplace_data = [
-            (
-                "Composer Studio",
-                "Make your applications come to live with excellent tools for designers.",
-                "EXcellent TechStacks",
-            ),
-            (
-                "Bash Commands Pack",
-                "Unlock next capabilities of Bash with powerful set of automation commands.",
-                "EXcellent TechStacks",
-            ),
-            (
-                "IronKinter",
-                """A powerful GUI framework built on top of CustomTkinter to add more responsiveness,
-more powerful widgets, and more.""",
-                "EXcellent TechStacks",
-            ),
-            (
-                "Developer Support Tools Pack",
-                "Install a handful of tools that everyday's developer uses.",
-                "EXcellent TechStacks",
-            ),
-        ]
-
-        installed_data = [
-            (
-                "Python Support",
-                "Rich support for Python language features",
-                "EXcellent TechStacks",
-            ),
-        ]
-
+        # 1. Populate Marketplace
         self.marketplace_container = QVBoxLayout()
         self.marketplace_container.setSpacing(2)
-        for title, desc, pub in marketplace_data:
-            card = CardButton("path/to/icon.png", title, desc, pub)
+        
+        for item in data.get("marketplace", []):
+            card = CardButton(
+                item.get("icon", "path/to/icon.png"), 
+                item.get("title", "Unknown"), 
+                item.get("desc", ""), 
+                item.get("publisher", "Unknown")
+            )
             self.marketplace_container.addWidget(card)
-            self.marketplace_cards.append((title.lower(), card))
+            self.marketplace_cards.append((item.get("title", "").lower(), card))
 
         scroll_layout.addLayout(self.marketplace_container)
 
@@ -115,14 +96,33 @@ more powerful widgets, and more.""",
 
         self.installed_container = QVBoxLayout()
         self.installed_container.setSpacing(2)
-        for title, desc, pub in installed_data:
-            card = CardButton("path/to/icon.png", title, desc, pub)
+        
+        for item in data.get("installed", []):
+            card = CardButton(
+                item.get("icon", "path/to/icon.png"), 
+                item.get("title", "Unknown"), 
+                item.get("desc", ""), 
+                item.get("publisher", "Unknown")
+            )
             self.installed_container.addWidget(card)
 
         scroll_layout.addLayout(self.installed_container)
         scroll_layout.addStretch()
         scroll_area.setWidget(scroll_content)
         self.main_layout.addWidget(scroll_area)
+
+    def load_data_from_json(self, filepath: str) -> dict:
+        """Helper method to load and parse json configuration safely."""
+        try:
+            if os.path.exists(filepath):
+                with open(filepath, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            else:
+                print(f"Warning: Configuration file not found at {filepath}")
+        except Exception as e:
+            print(f"Error loading JSON configuration: {e}")
+        
+        return {"marketplace": [], "installed": []}
 
     def retheme(self, t) -> None:
         bg = t.color("sidebar.background")

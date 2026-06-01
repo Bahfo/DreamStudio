@@ -14,8 +14,8 @@ _CORE_COLORS = [
 ]
 
 
-class GraphWidget(QWidget):
-    """GraphWidget with Antialiasing, Smooth Bezier Paths, and Gradients."""
+class SystemGraphUtil(QWidget):
+    """SystemGraphUtil with Antialiasing, Smooth Bezier Paths, and Gradients."""
     def __init__(self, parent=None, title="", unit="%", min_y=0, max_y=100, 
         _PLOT_HEIGHT = 140, _WINDOW_WIDTH = 780, _WINDOW_HEIGHT = 760):
         super().__init__(parent)
