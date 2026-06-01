@@ -104,7 +104,7 @@
     "notifications.button_hover": "#333333",
     "terminal.prompt": "#569CD6",
     "leftmost.background": "#25272B",
-    "minimap.background": "#252526",
+    "minimap.background": "#1E1E1E",
     "minimap.border": "#2A2A2A",
     "tooltip.background": "#25272B",
     "tooltip.text": "#FFFFFF",

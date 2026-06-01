@@ -169,6 +169,45 @@ def commit_staged(
         return False, str(e)
 
 
+def get_blame_info(repo: Repo, file_path: str, line_number: int) -> dict | None:
+    try:
+        blame_result = repo.blame("HEAD", file_path)
+        current_line = 0
+        for commit, lines in blame_result:
+            current_line += len(lines)
+            if current_line > line_number:
+                return {
+                    "author": commit.author.name,
+                    "email": commit.author.email,
+                    "date": commit.authored_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                    "summary": commit.message.strip().split("\n")[0],
+                    "hexsha": commit.hexsha[:7],
+                }
+    except Exception:
+        pass
+    return None
+
+
+def get_file_diff(repo: Repo, file_path: str) -> dict:
+    try:
+        old_content = repo.git.show(f"HEAD:{file_path}")
+    except Exception:
+        old_content = ""
+
+    new_content = ""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            new_content = f.read()
+    except Exception:
+        pass
+
+    return {
+        "old": old_content,
+        "new": new_content,
+        "path": file_path,
+    }
+
+
 def get_commit_history(repo: Repo, count: int = 50) -> dict:
     try:
         commits = list(repo.iter_commits(all=True, max_count=count))

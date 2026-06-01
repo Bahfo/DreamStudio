@@ -422,6 +422,7 @@ class SourceControl(QFrame):
         self.show_diff_btn.setIcon(QIcon("assets/menus/refresh.png"))
         self.show_diff_btn.setIconSize(icon_size)
         self.show_diff_btn.setToolTip("Show Diff")
+        self.show_diff_btn.clicked.connect(self._show_diff)
 
         self.check_all_btn = QPushButton()
         self.check_all_btn.setFixedSize(btn_size)
@@ -632,6 +633,8 @@ class SourceControl(QFrame):
             }
         """)
 
+        self.tree.itemDoubleClicked.connect(self._show_diff)
+
         # Splitter: top = files tree, bottom = commit history graph
         self.splitter = QSplitter(Qt.Orientation.Vertical)
         self.splitter.setHandleWidth(3)
@@ -787,6 +790,60 @@ class SourceControl(QFrame):
 
         item.setData(0, Qt.ItemDataRole.UserRole, path)
         item.setData(0, Qt.ItemDataRole.UserRole + 1, file_info["status"])
+
+    def _show_diff(self):
+        selected = self.tree.selectedItems()
+        if not selected:
+            return
+        item = selected[0]
+        file_path = item.data(0, Qt.ItemDataRole.UserRole)
+        if not file_path:
+            return
+
+        if self._repo is None:
+            try:
+                from backend.fetch_info import return_repository
+                self._repo = return_repository(None)
+                if isinstance(self._repo, Exception):
+                    self._repo = None
+                    return
+            except Exception:
+                return
+
+        from backend.fetch_info import get_file_diff
+        diff_data = get_file_diff(self._repo, file_path)
+
+        from editor.widgets.QDiffControl import QDiffControl
+        diff_widget = QDiffControl(
+            file_path=file_path,
+            old_content=diff_data["old"],
+            new_content=diff_data["new"],
+            repo=self._repo,
+        )
+
+        import pathlib
+        file_name = pathlib.Path(file_path).name
+
+        tab_editors = getattr(self._parent, "tab_editors", None)
+        if tab_editors is not None:
+            key = f"__diff_{file_path}"
+            if key in tab_editors.opened_files:
+                idx = tab_editors.opened_files[key]
+                tab_editors.setCurrentIndex(idx)
+                existing = tab_editors.widget(idx)
+                if hasattr(existing, "set_content"):
+                    existing.set_content(file_path, diff_data["old"], diff_data["new"], repo=self._repo)
+                return
+
+            index = tab_editors.addTab(diff_widget, f"Diff: {file_name}")
+            tab_editors.setCurrentIndex(index)
+            diff_widget.file_key = key
+            diff_widget.viewer_type = "diff"
+            tab_editors.opened_files[key] = index
+
+            t = getattr(self._parent, "theme_manager", None)
+            if t is not None and hasattr(diff_widget, "retheme"):
+                diff_widget.retheme(t)
 
     def _update_commit_input_style(self, border: str | None = None):
         b = border or self._input_border
