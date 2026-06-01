@@ -6,18 +6,19 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QColor, QFontMetrics
 
 import difflib
+import json
 import pathlib
+import logging
+
+from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
+from editor.texteditor.ironica_lexer.python_jedi_highlighter import DreamPythonHighlighter
+
+logger = logging.getLogger(__name__)
 
 
-_LINE_ADDED_BG = "#2A4A2A"
-_LINE_DELETED_BG = "#4A2A2A"
+_LINE_ADDED_BG = "#1E3A1E"
+_LINE_DELETED_BG = "#3A1E1E"
 _LINE_MODIFIED_BG = "#3A3A1A"
-_CHAR_ADDED_BG = "#3A6A3A"
-_CHAR_DELETED_BG = "#6A3A3A"
-
-_GUTTER_ADDED_BG = "#1B4A1B"
-_GUTTER_DELETED_BG = "#4A1B1B"
-_GUTTER_MODIFIED_BG = "#4A4A1B"
 
 _OLD_LABEL_BG = "#3D1A1A"
 _OLD_LABEL_FG = "#FF6B6B"
@@ -26,23 +27,13 @@ _NEW_LABEL_FG = "#4ECF4E"
 
 SCI_MARKERDEFINE = 2040
 SCI_MARKERSETBACK = 2042
-SCI_MARKERSETFORE = 2041
 SCI_MARKERADD = 2043
-SCI_MARKERDELETE = 2044
 SCI_MARKERDELETEALL = 2045
 SC_MARK_BACKGROUND = 33
-SC_MARK_CHARACTER = 10000
 
 MARKER_ADDED = 0
 MARKER_DELETED = 1
 MARKER_MODIFIED = 2
-MARKER_GUTTER_ADD = 3
-MARKER_GUTTER_DEL = 4
-MARKER_GUTTER_MOD = 5
-
-INDIC_CHAR_ADD = 15
-INDIC_CHAR_DEL = 16
-INDIC_CHAR_MOD = 17
 
 
 class _DiffEditor(QsciScintilla):
@@ -50,6 +41,7 @@ class _DiffEditor(QsciScintilla):
         super().__init__(_parent)
         self._side = side
         self._parent_widget = _parent
+        self._lexer = None
         self._blame_timer = QTimer(self)
         self._blame_timer.setSingleShot(True)
         self._blame_timer.setInterval(3000)
@@ -68,7 +60,7 @@ class _DiffEditor(QsciScintilla):
         self.setIndentationWidth(4)
         self.setIndentationsUseTabs(False)
         self.setTabWidth(4)
-        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 3)
+        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 0)
 
         self.setMarginType(0, QsciScintilla.MarginType.NumberMargin)
         self.setMarginWidth(0, "000000")
@@ -96,7 +88,6 @@ class _DiffEditor(QsciScintilla):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         self._setup_markers()
-        self._setup_indicators()
         self._apply_scrollbar_style()
 
         self.setMouseTracking(True)
@@ -106,37 +97,10 @@ class _DiffEditor(QsciScintilla):
     def _setup_markers(self):
         self.SendScintilla(SCI_MARKERDEFINE, MARKER_ADDED, SC_MARK_BACKGROUND)
         self.SendScintilla(SCI_MARKERSETBACK, MARKER_ADDED, QColor(_LINE_ADDED_BG))
-
         self.SendScintilla(SCI_MARKERDEFINE, MARKER_DELETED, SC_MARK_BACKGROUND)
         self.SendScintilla(SCI_MARKERSETBACK, MARKER_DELETED, QColor(_LINE_DELETED_BG))
-
         self.SendScintilla(SCI_MARKERDEFINE, MARKER_MODIFIED, SC_MARK_BACKGROUND)
         self.SendScintilla(SCI_MARKERSETBACK, MARKER_MODIFIED, QColor(_LINE_MODIFIED_BG))
-
-        self.SendScintilla(SCI_MARKERDEFINE, MARKER_GUTTER_ADD, SC_MARK_CHARACTER + ord('+'))
-        self.SendScintilla(SCI_MARKERSETBACK, MARKER_GUTTER_ADD, QColor(_GUTTER_ADDED_BG))
-        self.SendScintilla(SCI_MARKERSETFORE, MARKER_GUTTER_ADD, QColor("#4ECF4E"))
-
-        self.SendScintilla(SCI_MARKERDEFINE, MARKER_GUTTER_DEL, SC_MARK_CHARACTER + ord('-'))
-        self.SendScintilla(SCI_MARKERSETBACK, MARKER_GUTTER_DEL, QColor(_GUTTER_DELETED_BG))
-        self.SendScintilla(SCI_MARKERSETFORE, MARKER_GUTTER_DEL, QColor("#FF6B6B"))
-
-        self.SendScintilla(SCI_MARKERDEFINE, MARKER_GUTTER_MOD, SC_MARK_CHARACTER + ord('~'))
-        self.SendScintilla(SCI_MARKERSETBACK, MARKER_GUTTER_MOD, QColor(_GUTTER_MODIFIED_BG))
-        self.SendScintilla(SCI_MARKERSETFORE, MARKER_GUTTER_MOD, QColor("#DCDC4A"))
-
-    def _setup_indicators(self):
-        self.indicatorDefine(QsciScintilla.IndicatorStyle.StraightBoxIndicator, INDIC_CHAR_ADD)
-        self.setIndicatorForegroundColor(QColor(_CHAR_ADDED_BG), INDIC_CHAR_ADD)
-        self.setIndicatorDrawUnder(True, INDIC_CHAR_ADD)
-
-        self.indicatorDefine(QsciScintilla.IndicatorStyle.StraightBoxIndicator, INDIC_CHAR_DEL)
-        self.setIndicatorForegroundColor(QColor(_CHAR_DELETED_BG), INDIC_CHAR_DEL)
-        self.setIndicatorDrawUnder(True, INDIC_CHAR_DEL)
-
-        self.indicatorDefine(QsciScintilla.IndicatorStyle.StraightBoxIndicator, INDIC_CHAR_MOD)
-        self.setIndicatorForegroundColor(QColor("#6B6B2B"), INDIC_CHAR_MOD)
-        self.setIndicatorDrawUnder(True, INDIC_CHAR_MOD)
 
     def _apply_scrollbar_style(self):
         try:
@@ -187,21 +151,9 @@ class _DiffEditor(QsciScintilla):
         self.SendScintilla(SCI_MARKERDELETEALL, MARKER_ADDED)
         self.SendScintilla(SCI_MARKERDELETEALL, MARKER_DELETED)
         self.SendScintilla(SCI_MARKERDELETEALL, MARKER_MODIFIED)
-        self.SendScintilla(SCI_MARKERDELETEALL, MARKER_GUTTER_ADD)
-        self.SendScintilla(SCI_MARKERDELETEALL, MARKER_GUTTER_DEL)
-        self.SendScintilla(SCI_MARKERDELETEALL, MARKER_GUTTER_MOD)
 
     def add_line_marker(self, line, marker_type):
         self.SendScintilla(SCI_MARKERADD, line, marker_type)
-
-    def clear_indicators(self):
-        self.SendScintilla(2072)
-
-    def add_char_indicator(self, line, start, end, indic_type):
-        try:
-            self.fillIndicatorRange(line, start, line, end, indic_type)
-        except RuntimeError:
-            pass
 
     def apply_theme_colors(self, bg="#1E1E1E", fg="#D4D4D4"):
         self.setPaper(QColor(bg))
@@ -220,6 +172,51 @@ class _DiffEditor(QsciScintilla):
         self.setMarginsForegroundColor(QColor(fg))
         self.setFoldMarginColors(QColor(bg), QColor(bg))
         self._apply_scrollbar_style()
+
+    def set_language(self, lang: str):
+        if not lang or lang != "Python":
+            self._lexer = None
+            self.setLexer(None)
+            return
+
+        path = "editor/texteditor/keywords/python_highlights.json"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            logger.debug("Failed to load python_highlights.json, falling back to keyword lexer")
+            self._lexer = self._load_keyword_lexer()
+            if self._lexer:
+                self._lexer.apply_font(self._font)
+                self.setLexer(self._lexer)
+            return
+
+        lexer = DreamPythonHighlighter(self, data)
+        lexer.apply_font(self._font)
+        self._lexer = lexer
+        self.setLexer(lexer)
+
+    def _load_keyword_lexer(self):
+        path = "editor/texteditor/keywords/python.json"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return None
+
+        from PyQt6.Qsci import QsciAPIs
+        lexer = DreamPythonLexer(self, data)
+        api = QsciAPIs(lexer)
+        for word in data.get("words", {}):
+            api.add(word)
+        for word in data.get("types", {}):
+            api.add(word)
+        for word in data.get("iterators", {}):
+            api.add(word)
+        for word in data.get("exceptions", {}):
+            api.add(word)
+        api.prepare()
+        return lexer
 
     def _on_dwell_start(self, pos, x, y):
         line, index = self.lineIndexFromPosition(pos)
@@ -359,8 +356,12 @@ class QDiffControl(QFrame):
     def _load_content(self, old_content, new_content):
         self.old_editor.clear_markers()
         self.new_editor.clear_markers()
-        self.old_editor.clear_indicators()
-        self.new_editor.clear_indicators()
+
+        lang = None
+        if self.file_path and self.file_path.endswith(".py"):
+            lang = "Python"
+        self.old_editor.set_language(lang)
+        self.new_editor.set_language(lang)
 
         self.old_editor.setText(old_content)
         self.new_editor.setText(new_content)
@@ -377,35 +378,14 @@ class QDiffControl(QFrame):
             elif tag == "delete":
                 for i in range(i1, i2):
                     self.old_editor.add_line_marker(i, MARKER_DELETED)
-                    self.old_editor.add_line_marker(i, MARKER_GUTTER_DEL)
             elif tag == "insert":
                 for j in range(j1, j2):
                     self.new_editor.add_line_marker(j, MARKER_ADDED)
-                    self.new_editor.add_line_marker(j, MARKER_GUTTER_ADD)
             elif tag == "replace":
                 for i in range(i1, i2):
                     self.old_editor.add_line_marker(i, MARKER_MODIFIED)
-                    self.old_editor.add_line_marker(i, MARKER_GUTTER_MOD)
                 for j in range(j1, j2):
                     self.new_editor.add_line_marker(j, MARKER_MODIFIED)
-                    self.new_editor.add_line_marker(j, MARKER_GUTTER_MOD)
-
-                if i2 - i1 == 1 and j2 - j1 == 1:
-                    old_line = old_lines[i1].rstrip("\n\r")
-                    new_line = new_lines[j1].rstrip("\n\r")
-                    char_matcher = difflib.SequenceMatcher(None, old_line, new_line)
-                    for ctag, ci1, ci2, cj1, cj2 in char_matcher.get_opcodes():
-                        if ctag == "replace":
-                            if ci2 - ci1 > 0:
-                                self.old_editor.add_char_indicator(i1, ci1, ci2, INDIC_CHAR_MOD)
-                            if cj2 - cj1 > 0:
-                                self.new_editor.add_char_indicator(j1, cj1, cj2, INDIC_CHAR_MOD)
-                        elif ctag == "delete":
-                            if ci2 - ci1 > 0:
-                                self.old_editor.add_char_indicator(i1, ci1, ci2, INDIC_CHAR_DEL)
-                        elif ctag == "insert":
-                            if cj2 - cj1 > 0:
-                                self.new_editor.add_char_indicator(j1, cj1, cj2, INDIC_CHAR_ADD)
 
         old_line_count = len(old_lines)
         new_line_count = len(new_lines)
