@@ -1035,8 +1035,10 @@ class CodeEditor(QsciScintilla):
 
         # Handle chained calls: obj.method().attr or dict["key"].attr
         attr_match = re.search(
-            r'((?:[A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*(?:\s*\([^)]*\)\s*|\s*\[[^\]]*\]\s*))*)\s*\.\s*([A-Za-z_]\w*)$',
-            text_before_cursor
+            r"""((?:[A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*(?:\s*\([^)]*\)\s*
+                |\s*\[[^\]]*\]\s*))*))\s*\.\s*([A-Za-z_]\w*)$""",
+            text_before_cursor,
+            re.VERBOSE,
         )
         if attr_match:
             return {
