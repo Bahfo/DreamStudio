@@ -10,6 +10,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QTimer, Qt
 
+import re
+
 import markdown
 
 
@@ -212,6 +214,19 @@ class MarkdownViewer(QWidget):
         if path:
             self.load_file(path)
 
+    @staticmethod
+    def _sanitize_html(html: str) -> str:
+        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r'\bon\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
+        html = re.sub(r"\bon\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
+        html = re.sub(r'\bon\w+\s*=\s*\w+', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'href\s*=\s*"javascript:[^"]*"', 'href="#"', html, flags=re.IGNORECASE)
+        html = re.sub(r"href\s*=\s*'javascript:[^']*'", "href='#'", html, flags=re.IGNORECASE)
+        html = re.sub(r'src\s*=\s*"javascript:[^"]*"', 'src="#"', html, flags=re.IGNORECASE)
+        html = re.sub(r"src\s*=\s*'javascript:[^']*'", "src='#'", html, flags=re.IGNORECASE)
+        return html
+
     def schedule_updates(self):
         self.timer.start()
 
@@ -221,7 +236,8 @@ class MarkdownViewer(QWidget):
             self.preview.setHtml(self._base_html(""))
             return
         try:
-            html = markdown.markdown(text, extensions=["fenced_code", "tables"])
-            self.preview.setHtml(self._base_html(html))
+            raw_html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+            safe_html = self._sanitize_html(raw_html)
+            self.preview.setHtml(self._base_html(safe_html))
         except Exception as e:
             self.preview.setPlainText(f"Render error: {e}")

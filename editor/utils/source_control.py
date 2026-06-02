@@ -911,7 +911,8 @@ class SourceControl(QFrame):
         self._error_active = True
         self._update_commit_input_style(border="#FF6B6B")
         if message:
-            self.commit_input.setText(message)
+            self.commit_status_label.setText(message)
+            self.commit_status_label.setStyleSheet("color: #FF6B6B; font-size: 11px; padding: 0px;")
         self._shake_widget(self.commit_input)
 
     def _shake_widget(self, widget):
@@ -940,15 +941,9 @@ class SourceControl(QFrame):
 
     def _on_input_text_changed(self, text: str):
         if self._error_active:
-            err_msgs = (
-                "Please enter a commit message",
-                "Select at least one file to commit",
-                "No git repository found",
-                "Git not available",
-            )
-            if text not in err_msgs:
-                self._error_active = False
-                self._update_commit_input_style()
+            self._error_active = False
+            self.commit_status_label.setText("")
+            self._update_commit_input_style()
 
     def _open_long_message_editor(self):
         if self._parent is None:

@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QTabBar, QStyleOptionTab, QStyle
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
 
 
-class DreamStudioIDETabBar(QTabBar):
+class CompactTabBar(QTabBar):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setDrawBase(False)

@@ -146,7 +146,9 @@ class DreamStudio(QMainWindow):
         self.replace_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
     def _on_theme_changed(self, theme_name: str):
-        t = self.theme_manager
+        self._apply_theme_colors(self.theme_manager)
+
+    def _apply_theme_colors(self, t):
         border_c = t.color("widget.border", "#3F4145")
         tip_css = (
             f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter, sans-serif;"
@@ -304,30 +306,141 @@ class DreamStudio(QMainWindow):
         overlay.show()
 
     def setup_layout(self):
+        main_layout = self._build_main_layout()
+        self._build_title_bar(main_layout)
+        self._build_sidebars()
+        self._build_editor_area()
+        self._build_splitters()
+        self._build_terminal(main_layout)
+        self._connect_signals()
+
+    def _build_main_layout(self) -> QVBoxLayout:
         main_layout = QVBoxLayout(self.central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-
-        # Title Bar
-        self.title_bar = DreamStudioTitleBar(self)
-        self.options_menu = OptionsMenu(self)
-        main_layout.addWidget(self.title_bar)
-        main_layout.addWidget(self.options_menu)
-
-        #### Status Bar Creation
-        self.status_bar = StatusBar(self)
 
         self.body_layout = QHBoxLayout()
         self.body_layout.setContentsMargins(0, 0, 0, 0)
         self.body_layout.setSpacing(0)
         main_layout.addLayout(self.body_layout, stretch=1)
 
+        self.status_bar = StatusBar(self)
+        main_layout.addWidget(self.status_bar)
+        return main_layout
+
+    def _build_title_bar(self, main_layout: QVBoxLayout) -> None:
+        self.title_bar = DreamStudioTitleBar(self)
+        self.options_menu = OptionsMenu(self)
+        main_layout.insertWidget(0, self.title_bar)
+        main_layout.insertWidget(1, self.options_menu)
+
+    def _build_sidebars(self) -> None:
         self.leftmost_bar = QFrame()
         self.leftmost_bar.setFixedWidth(50)
         self.leftmost_bar.setStyleSheet("background-color: #25272B; border: none;")
         self.body_layout.addWidget(self.leftmost_bar)
+        self._build_leftmost_buttons()
 
-        ##### THE HERO SECTION
+        self.sidebar_frame = QStackedWidget()
+        self.sidebar_frame.setStyleSheet("background-color: #171717; border: none;")
+        self.sidebar_frame.setMinimumWidth(150)
+
+        self.treeview = DreamFileTreeWindow(self)
+        self.treeview.tree.doubleClicked.connect(
+            lambda idx: self.open_file_from_treeview(idx)
+        )
+
+        self.search_menu = GlobalFileSearchEngine()
+        self.git_menu = SourceControl(self)
+        self.extns_menu = ExtensionsTab()
+
+        self.sidebar_frame.addWidget(self.treeview)
+        self.sidebar_frame.addWidget(self.search_menu)
+        self.sidebar_frame.addWidget(self.git_menu)
+        self.sidebar_frame.addWidget(self.extns_menu)
+        self.sidebar_frame.setCurrentIndex(0)
+
+    def _build_leftmost_buttons(self) -> None:
+        self.leftmost_layout = QVBoxLayout(self.leftmost_bar)
+        self.leftmost_layout.setContentsMargins(5, 5, 5, 5)
+        self.leftmost_layout.setSpacing(10)
+        self.leftmost_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        btn_cfg = [
+            ("explorerBtn", "assets/system/folder.png", QSize(30, 30),
+             lambda: self.sidebar_frame.setCurrentIndex(0), "File Explorer"),
+            ("searchBtn", "assets/system/find.png", QSize(30, 30),
+             lambda: self.sidebar_frame.setCurrentIndex(1), "Find and Replace"),
+            ("gitChangesBtn", "assets/system/git.png", QSize(30, 30),
+             lambda: self.sidebar_frame.setCurrentIndex(2), "Manage Changes"),
+            ("extensionsBtn", "assets/system/extensions.png", QSize(26, 26),
+             lambda: self.sidebar_frame.setCurrentIndex(3), "Open Marketplace"),
+        ]
+        for name, icon, size, cb, tip in btn_cfg:
+            btn = self.create_bar_option(text=None, image=icon, image_size=size, function=cb)
+            btn.setToolTip(tip)
+            setattr(self, name, btn)
+            self.leftmost_layout.addWidget(btn)
+
+        self.leftmost_layout.addStretch()
+
+        self.infoBtn = self.create_bar_option(
+            text=None, image="assets/system/info.png", image_size=QSize(26, 26)
+        )
+        self.infoBtn.setToolTip("Manage Code Quality")
+        self.leftmost_layout.addWidget(self.infoBtn)
+
+        self.terminalBtn = self.create_bar_option(
+            text=None, image="assets/system/terminal.png", image_size=QSize(26, 26),
+            function=lambda: self.toggle_terminal(),
+        )
+        self.terminalBtn.setToolTip("Open Terminals")
+        self.leftmost_layout.addWidget(self.terminalBtn)
+
+        self.preferencesBtn = self.create_bar_option(
+            text=None, image="assets/system/version_control.png", image_size=QSize(26, 26),
+            function=lambda: self._show_preferences_menu(self.preferencesBtn),
+        )
+        self.preferencesBtn.setToolTip("Set Preferences")
+        self.leftmost_layout.addWidget(self.preferencesBtn)
+
+    def _build_editor_area(self) -> None:
+        self.main_editor_area = QStackedWidget()
+        self.background_window = BackgroundHintsFrame(self)
+
+        editor_container = QWidget()
+        editor_layout = QVBoxLayout(editor_container)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setSpacing(0)
+
+        self._dirty_tracker = DirtyTracker(self)
+        self.tab_editors = DreamTabbedEditor(self, dirty_tracker=self._dirty_tracker)
+        self._dirty_tracker.start()
+        editor_layout.addWidget(self.tab_editors)
+
+        self.find_replace_widget = FindReplaceWidget(editor_container, self.tab_editors)
+        self.find_replace_widget.hide()
+
+        self.main_editor_area.addWidget(self.background_window)
+        self.main_editor_area.addWidget(editor_container)
+
+        self.minimap = MiniMap(self)
+        self.minimap_wrapper = QWidget()
+        self.minimap_wrapper.setMinimumWidth(100)
+        self.minimap_wrapper.setMaximumWidth(120)
+        wrapper_layout = QVBoxLayout(self.minimap_wrapper)
+        wrapper_layout.setContentsMargins(4, 4, 4, 4)
+        wrapper_layout.addWidget(self.minimap)
+
+        self.tab_editors.installEventFilter(self)
+
+        self.etherAIScreen = QFrame()
+        self.etherAIScreen.setMinimumWidth(0)
+        self.etherAIScreen.setMaximumWidth(500)
+
+        self.system_monitor = SystemMonitorPanel()
+
+    def _build_splitters(self) -> None:
         self.hero_splitter = QSplitter(Qt.Orientation.Vertical)
         self.hero_splitter.setHandleWidth(4)
         self.hero_splitter.setOpaqueResize(True)
@@ -342,145 +455,6 @@ class DreamStudio(QMainWindow):
         self.workspace_splitter.setStyleSheet(
             "QSplitter::handle { background-color: #1a1a1a; }"
         )
-
-        ####################################################
-        # Left Panel Stacked Widgets
-        ####################################################
-        # Services Sidebar
-        self.sidebar_frame = QStackedWidget()
-        self.sidebar_frame.setStyleSheet("background-color: #171717; border: none;")
-        self.sidebar_frame.setMinimumWidth(150)
-
-        self.treeview = DreamFileTreeWindow(self)
-        self.treeview.tree.doubleClicked.connect(
-            lambda idx: self.open_file_from_treeview(idx)
-        )
-
-        #### Some PlaceHolders
-        self.search_menu = GlobalFileSearchEngine()
-        self.git_menu = SourceControl(self)
-        self.extns_menu = ExtensionsTab()
-
-        self.sidebar_frame.addWidget(self.treeview)
-        self.sidebar_frame.addWidget(self.search_menu)
-        self.sidebar_frame.addWidget(self.git_menu)
-        self.sidebar_frame.addWidget(self.extns_menu)
-
-        self.sidebar_frame.setCurrentIndex(0)
-
-        #### Leftmost Layout Buttons
-        # Leftmost bar
-        self.leftmost_layout = QVBoxLayout(self.leftmost_bar)
-        self.leftmost_layout.setContentsMargins(5, 5, 5, 5)
-        self.leftmost_layout.setSpacing(10)
-        self.leftmost_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        self.explorerBtn = self.create_bar_option(
-            text=None,
-            image="assets/system/folder.png",
-            image_size=QSize(30, 30),
-            function=lambda: self.sidebar_frame.setCurrentIndex(0),
-        )
-        self.leftmost_layout.addWidget(self.explorerBtn)
-        self.explorerBtn.setToolTip("File Explorer")
-
-        self.searchBtn = self.create_bar_option(
-            text=None,
-            image="assets/system/find.png",
-            image_size=QSize(30, 30),
-            function=lambda: self.sidebar_frame.setCurrentIndex(1),
-        )
-        self.leftmost_layout.addWidget(self.searchBtn)
-        self.searchBtn.setToolTip("Find and Replace")
-
-        self.gitChangesBtn = self.create_bar_option(
-            text=None,
-            image="assets/system/git.png",
-            image_size=QSize(30, 30),
-            function=lambda: self.sidebar_frame.setCurrentIndex(2),
-        )
-        self.leftmost_layout.addWidget(self.gitChangesBtn)
-        self.gitChangesBtn.setToolTip("Manage Changes")
-
-        self.extensionsBtn = self.create_bar_option(
-            text=None,
-            image="assets/system/extensions.png",
-            image_size=QSize(26, 26),
-            function=lambda: self.sidebar_frame.setCurrentIndex(3),
-        )
-        self.leftmost_layout.addWidget(self.extensionsBtn)
-        self.extensionsBtn.setToolTip("Open Marketplace")
-
-        self.leftmost_layout.addStretch()
-
-        self.infoBtn = self.create_bar_option(
-            text=None, image="assets/system/info.png", image_size=QSize(26, 26)
-        )
-        self.leftmost_layout.addWidget(self.infoBtn)
-        self.infoBtn.setToolTip("Manage Code Quality")
-
-        self.terminalBtn = self.create_bar_option(
-            text=None,
-            image="assets/system/terminal.png",
-            image_size=QSize(26, 26),
-            function=lambda: self.toggle_terminal(),
-        )
-        self.leftmost_layout.addWidget(self.terminalBtn)
-        self.terminalBtn.setToolTip("Open Terminals")
-
-        self.preferencesBtn = self.create_bar_option(
-            text=None,
-            image="assets/system/version_control.png",
-            image_size=QSize(26, 26),
-            function=lambda: self._show_preferences_menu(self.preferencesBtn),
-        )
-        self.leftmost_layout.addWidget(self.preferencesBtn)
-        self.preferencesBtn.setToolTip("Set Preferences")
-
-        ####################################################
-        # Main Editor
-        ####################################################
-        # Editor, Background screen, and other stacked layout widgets
-        self.main_editor_area = QStackedWidget()
-
-        self.background_window = BackgroundHintsFrame(self)
-
-        # main editor area
-        editor_container = QWidget()
-
-        editor_layout = QVBoxLayout(editor_container)
-        editor_layout.setContentsMargins(0, 0, 0, 0)
-        editor_layout.setSpacing(0)
-
-        self._dirty_tracker = DirtyTracker(self)
-        self.tab_editors = DreamTabbedEditor(self, dirty_tracker=self._dirty_tracker)
-        self._dirty_tracker.start()
-
-        editor_layout.addWidget(self.tab_editors)
-
-        self.find_replace_widget = FindReplaceWidget(editor_container, self.tab_editors)
-        self.find_replace_widget.hide()
-
-        self.main_editor_area.addWidget(self.background_window)
-        self.main_editor_area.addWidget(editor_container)
-
-        # Minimap
-        self.minimap = MiniMap(self)
-        self.minimap_wrapper = QWidget()
-        self.minimap_wrapper.setMinimumWidth(100)
-        self.minimap_wrapper.setMaximumWidth(120)
-        wrapper_layout = QVBoxLayout(self.minimap_wrapper)
-        wrapper_layout.setContentsMargins(4, 4, 4, 4)
-        wrapper_layout.addWidget(self.minimap)
-
-        self.tab_editors.installEventFilter(self)
-
-        # Ether AI Main Screen
-        self.etherAIScreen = QFrame()
-        self.etherAIScreen.setMinimumWidth(0)
-        self.etherAIScreen.setMaximumWidth(500)
-
-        self.system_monitor = SystemMonitorPanel()
 
         self.workspace_splitter.addWidget(self.sidebar_frame)
         self.workspace_splitter.addWidget(self.main_editor_area)
@@ -502,18 +476,16 @@ class DreamStudio(QMainWindow):
         )
 
         self.hero_splitter.addWidget(self.workspace_splitter)
+        self.hero_splitter.setCollapsible(1, True)
+        self.hero_splitter.setSizes([800, 0])
 
-        # Terminal, Console, Debugger, and Output Services
+    def _build_terminal(self, main_layout: QVBoxLayout) -> None:
         self.terminalWidget = TerminalPanel(self)
         self.hero_splitter.addWidget(self.terminalWidget)
         self.hero_splitter.setOpaqueResize(True)
         self.terminalWidget.close_requested.connect(self.toggle_terminal)
 
-        self.hero_splitter.setCollapsible(1, True)
-        self.hero_splitter.setSizes([800, 0])
-
-        main_layout.addWidget(self.status_bar)
-
+    def _connect_signals(self) -> None:
         self.installEventFilter(self)
         self._jedi_worker.start()
         self.sync_changes_on_tab_switch(self.tab_editors.currentIndex())
@@ -614,154 +586,100 @@ class DreamStudio(QMainWindow):
         return super().eventFilter(obj, event)
 
     def _show_preferences_menu(self, button: QPushButton):
-        THEMES = [
-            ("dark", "Dark"),
-            ("light", "Light"),
-            ("ocean", "Ocean"),
-            ("solarized_dark", "Solarized Dark"),
-            ("solarized_light", "Solarized Light"),
-            ("Moses", "Moses"),
-            ("hacker_blue", "Hacker Blue"),
-            ("davy", "Davy"),
-            ("high_contrast_dark", "High Contrast Dark"),
-            ("coffee_dark", "Coffee Dark"),
-            ("coffee_light", "Coffee Light"),
-        ]
+        menu = self._build_preferences_menu()
+        pos = button.mapToGlobal(button.rect().bottomRight())
+        pos += QPoint(-180, -360)
+        menu.exec(pos)
 
+    def _build_preferences_menu(self) -> QMenu:
         menu = QMenu(self)
+        menu.setStyleSheet(self._pref_menu_css())
 
-        menu.setStyleSheet(f"""
+        header = QAction("General Settings", self)
+        header.setEnabled(False)
+        menu.addAction(header)
+        menu.addSeparator()
+
+        for label in ("Enable Auto-Save", "Minimap Enabled",
+                       "Enable Sound Effects", "Show Line Numbers"):
+            menu.addAction(QAction(label, self))
+        menu.addSeparator()
+
+        menu.addMenu(self._build_theme_submenu())
+        menu.addMenu(self._build_syntax_theme_submenu())
+        menu.addMenu(self._build_font_submenu())
+        menu.addSeparator()
+        menu.addAction(QAction("Close", self))
+        return menu
+
+    def _pref_menu_css(self) -> str:
+        t = self.theme_manager
+        return f"""
             QMenu {{
-                background-color: {self.theme_manager.color("menu.background")};
-                color: {self.theme_manager.color("menu.text")};
-                border: 1px solid {self.theme_manager.color("menu.border")};
+                background-color: {t.color("menu.background")};
+                color: {t.color("menu.text")};
+                border: 1px solid {t.color("menu.border")};
                 padding: 6px 0px;
                 font-family: Inter, Arial;
                 font-size: 13px;
             }}
+            QMenu::item {{ padding: 8px 28px 8px 18px; background: transparent; }}
+            QMenu::item:selected {{ background-color: {t.color("menu.selected")}; }}
+            QMenu::separator {{ height: 1px; background: {t.color("menu.separator")}; margin: 6px 10px; }}
+            QMenu::right-arrow {{ image: none; }}
+        """
 
-            QMenu::item {{
-                padding: 8px 28px 8px 18px;
-                background: transparent;
-            }}
-
-            QMenu::item:selected {{
-                background-color: {self.theme_manager.color("menu.selected")};
-            }}
-
-            QMenu::separator {{
-                height: 1px;
-                background: {self.theme_manager.color("menu.separator")};
-                margin: 6px 10px;
-            }}
-
-            QMenu::right-arrow {{
-                image: none;
-            }}
-        """)
-
-        # Header (disabled action)
-        header = QAction("General Settings", self)
-        header.setEnabled(False)
-        menu.addAction(header)
-
-        menu.addSeparator()
-
-        # Toggle actions
-        auto_save = QAction("Enable Auto-Save", self)
-        menu.addAction(auto_save)
-
-        minimap = QAction("Minimap Enabled", self)
-        menu.addAction(minimap)
-
-        sound = QAction("Enable Sound Effects", self)
-        menu.addAction(sound)
-
-        line_numbers = QAction("Show Line Numbers", self)
-        menu.addAction(line_numbers)
-
-        menu.addSeparator()
-
-        # Theme submenu
-        theme_menu = QMenu("Theme", self)
-
-        theme_menu.setStyleSheet(f"""
+    def _menu_theme_css(self) -> str:
+        t = self.theme_manager
+        return f"""
             QMenu {{
-                background-color: {self.theme_manager.color("menu.background")};
-                color: {self.theme_manager.color("menu.text")};
-                border: 1px solid {self.theme_manager.color("menu.border")};
+                background-color: {t.color("menu.background")};
+                color: {t.color("menu.text")};
+                border: 1px solid {t.color("menu.border")};
             }}
+            QMenu::item {{ padding: 8px 28px 8px 18px; }}
+            QMenu::item:selected {{ background-color: {t.color("menu.selected")}; }}
+        """
 
-            QMenu::item {{
-                padding: 8px 28px 8px 18px;
-            }}
+    def _build_theme_submenu(self) -> QMenu:
+        THEMES = [
+            ("dark", "Dark"), ("light", "Light"), ("ocean", "Ocean"),
+            ("solarized_dark", "Solarized Dark"), ("solarized_light", "Solarized Light"),
+            ("Moses", "Moses"), ("hacker_blue", "Hacker Blue"), ("davy", "Davy"),
+            ("high_contrast_dark", "High Contrast Dark"),
+            ("coffee_dark", "Coffee Dark"), ("coffee_light", "Coffee Light"),
+        ]
+        sub = QMenu("Theme", self)
+        sub.setStyleSheet(self._menu_theme_css())
+        for key, label in THEMES:
+            a = QAction(label, self)
+            a.triggered.connect(lambda checked, t=key: self.theme_manager.switch_to(t))
+            sub.addAction(a)
+        return sub
 
-            QMenu::item:selected {{
-                background-color: {self.theme_manager.color("menu.selected")};
-            }}
-        """)
+    def _build_syntax_theme_submenu(self) -> QMenu:
+        THEMES = [
+            ("dark", "Dark"), ("light", "Light"), ("ocean", "Ocean"),
+            ("solarized_dark", "Solarized Dark"), ("solarized_light", "Solarized Light"),
+            ("Moses", "Moses"), ("hacker_blue", "Hacker Blue"), ("davy", "Davy"),
+            ("high_contrast_dark", "High Contrast Dark"),
+            ("coffee_dark", "Coffee Dark"), ("coffee_light", "Coffee Light"),
+        ]
+        sub = QMenu("Syntax Theme", self)
+        sub.setStyleSheet(self._menu_theme_css())
+        for key, label in THEMES:
+            a = QAction(label, self)
+            a.triggered.connect(lambda checked, t=key: self.syntax_theme_manager.switch_to(t))
+            sub.addAction(a)
+        return sub
 
-        for theme_key, theme_label in THEMES:
-            action = QAction(theme_label, self)
-            action.triggered.connect(
-                lambda checked, t=theme_key: self.theme_manager.switch_to(t)
-            )
-
-            theme_menu.addAction(action)
-
-        menu.addMenu(theme_menu)
-
-        # Syntax Theme submenu
-        syntax_theme_menu = QMenu("Syntax Theme", self)
-
-        syntax_theme_menu.setStyleSheet(f"""
-            QMenu {{
-                background-color: {self.theme_manager.color("menu.background")};
-                color: {self.theme_manager.color("menu.text")};
-                border: 1px solid {self.theme_manager.color("menu.border")};
-            }}
-
-            QMenu::item {{
-                padding: 8px 28px 8px 18px;
-            }}
-
-            QMenu::item:selected {{
-                background-color: {self.theme_manager.color("menu.selected")};
-            }}
-        """)
-
-        for theme_key, theme_label in THEMES:
-            action = QAction(theme_label, self)
-            action.triggered.connect(
-                lambda checked, t=theme_key: self.syntax_theme_manager.switch_to(t)
-            )
-            syntax_theme_menu.addAction(action)
-
-        menu.addMenu(syntax_theme_menu)
-
-        # Font size submenu
-        font_menu = QMenu("Font Size", self)
-
-        for size in [10, 12, 14, 16, 18]:
-            action = QAction(str(size), self)
-
-            action.triggered.connect(
-                lambda checked, s=size: self.tab_editors.set_font_size(s)
-            )
-
-            font_menu.addAction(action)
-
-        menu.addMenu(font_menu)
-
-        menu.addSeparator()
-
-        close_action = QAction("Close", self)
-        menu.addAction(close_action)
-
-        # Position menu relative to edge button, offset upward for clarity
-        pos = button.mapToGlobal(button.rect().bottomRight())
-        pos += QPoint(-180, -360)
-        menu.exec(pos)
+    def _build_font_submenu(self) -> QMenu:
+        sub = QMenu("Font Size", self)
+        for size in (10, 12, 14, 16, 18):
+            a = QAction(str(size), self)
+            a.triggered.connect(lambda checked, s=size: self.tab_editors.set_font_size(s))
+            sub.addAction(a)
+        return sub
 
     def update_editor_visibility(self):
         if not hasattr(self, "minimap") or not hasattr(self, "main_editor_area"):

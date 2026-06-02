@@ -10,6 +10,7 @@ import json
 import pathlib
 import logging
 
+from editor.texteditor import keywords_path
 from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
 from editor.texteditor.ironica_lexer.python_jedi_highlighter import DreamPythonHighlighter
 
@@ -208,7 +209,7 @@ class _DiffEditor(QsciScintilla):
             self.setLexer(None)
             return
 
-        path = "editor/texteditor/keywords/python_highlights.json"
+        path = keywords_path("python_highlights.json")
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -226,7 +227,7 @@ class _DiffEditor(QsciScintilla):
         self.setLexer(lexer)
 
     def _load_keyword_lexer(self):
-        path = "editor/texteditor/keywords/python.json"
+        path = keywords_path("python.json")
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)

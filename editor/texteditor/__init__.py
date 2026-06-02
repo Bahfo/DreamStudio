@@ -1,7 +1,7 @@
-"""
-(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved.
+import os
 
-DreamStudio Texteditor is a highly customizied QScintilla Text editor that is 
-driven for Python. Alongside some other essential tools such as lexers and 
-highlighters.
-"""
+_KEYWORDS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "keywords")
+
+
+def keywords_path(filename: str) -> str:
+    return os.path.join(_KEYWORDS_DIR, filename)

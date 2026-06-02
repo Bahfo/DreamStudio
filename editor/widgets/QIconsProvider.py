@@ -31,7 +31,7 @@ class DreamStudioIconProvider(QFileIconProvider):
         elif extension == "docker":
             return QIcon("assets/types/docker.png")
         elif extension == "docx":
-            QIcon("assets/types/docx.png")
+            return QIcon("assets/types/docx.png")
         elif extension == "html":
             return QIcon("assets/types/html.png")
         elif extension == "ipynb":
@@ -55,7 +55,7 @@ class DreamStudioIconProvider(QFileIconProvider):
         elif extension == "svg":
             return QIcon("assets/types/svg.png")
         elif extension == "sql":
-            QIcon("assets/types/data.png")
+            return QIcon("assets/types/data.png")
         elif extension == "ts":
             return QIcon("assets/types/typescript.png")
 

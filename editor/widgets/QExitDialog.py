@@ -243,6 +243,13 @@ class RenameDialog(QDialog):
         self.line_edit.textChanged.connect(self._on_text_changed)
         layout.addWidget(self.line_edit)
 
+        self._error_label = QLabel("")
+        self._error_label.setStyleSheet(
+            "color: #FF6B6B; font-size: 11px; padding: 0; background: transparent;"
+        )
+        self._error_label.hide()
+        layout.addWidget(self._error_label)
+
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
 
@@ -273,7 +280,8 @@ class RenameDialog(QDialog):
 
     def _show_error(self) -> None:
         self._error_active = True
-        self.line_edit.setText("Name cannot be Empty")
+        self._error_label.setText("Name cannot be Empty")
+        self._error_label.show()
         self.line_edit.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {self._bg};
@@ -287,8 +295,9 @@ class RenameDialog(QDialog):
         self._shake_widget(self.line_edit)
 
     def _on_text_changed(self, text: str) -> None:
-        if self._error_active and text != "Name cannot be Empty":
+        if self._error_active:
             self._error_active = False
+            self._error_label.hide()
             self.line_edit.setStyleSheet("")
 
     def _shake_widget(self, widget) -> None:
