@@ -476,12 +476,12 @@ class DreamStudio(QMainWindow):
         )
 
         self.hero_splitter.addWidget(self.workspace_splitter)
-        self.hero_splitter.setCollapsible(1, True)
-        self.hero_splitter.setSizes([800, 0])
 
     def _build_terminal(self, main_layout: QVBoxLayout) -> None:
         self.terminalWidget = TerminalPanel(self)
         self.hero_splitter.addWidget(self.terminalWidget)
+        self.hero_splitter.setCollapsible(1, True)
+        self.hero_splitter.setSizes([800, 0])
         self.hero_splitter.setOpaqueResize(True)
         self.terminalWidget.close_requested.connect(self.toggle_terminal)
 

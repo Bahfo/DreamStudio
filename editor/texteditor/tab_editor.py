@@ -936,7 +936,6 @@ class BackgroundHintsFrame(QFrame):
     BINDINGS = [
         ("Ctrl + Alt + T", "Open New File"),
         ("Ctrl + Alt + O", "Open Folder"),
-        ("Ctrl + O", "Select Directory"),
         ("Ctrl + Alt + W", "Close Tab"),
         ("Ctrl + S", "Save File"),
         ("Ctrl + Alt + S", "Save All"),
