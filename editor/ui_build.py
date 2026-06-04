@@ -19,26 +19,26 @@ Supervised by EXcellent TechStacks Co.
 
 # Main Imports
 import logging
-import os
 import pathlib
+import os
 
 # Third-Party Imports (GUI)
 from PyQt6.QtCore import QDir, QEvent, QPoint, QSize, Qt, QTimer
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
+    QStackedWidget,
     QApplication,
-    QDialog,
     QFileDialog,
-    QFrame,
+    QVBoxLayout,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
-    QMenu,
     QPushButton,
     QSplitter,
-    QStackedWidget,
-    QVBoxLayout,
     QWidget,
+    QDialog,
+    QFrame,
+    QLabel,
+    QMenu,
 )
 
 # Local Application Imports - Backend
@@ -56,11 +56,11 @@ from editor.texteditor.tab_editor import (
     BackgroundHintsFrame,
 )
 from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
+from editor.utils.theme_manager import ThemeManager, SyntaxThemeManager
 from editor.utils.file_explorer import DreamFileTreeWindow
+from editor.utils.system_monitor import SystemMonitorPanel
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.utils.source_control import SourceControl
-from editor.utils.theme_manager import ThemeManager, SyntaxThemeManager
-from editor.utils.system_monitor import SystemMonitorPanel
 from editor.utils.marketplace import ExtensionsTab
 from editor.utils.optionsBar import OptionsMenu
 from editor.utils.statusBar import StatusBar
