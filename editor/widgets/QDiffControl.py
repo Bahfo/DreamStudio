@@ -268,7 +268,7 @@ class _DiffEditor(QsciScintilla):
         repo = getattr(self._parent_widget, "_repo", None)
         if repo is None:
             return
-        from backend.fetch_info import get_blame_info
+        from backend.git_control import get_blame_info
         info = get_blame_info(repo, file_path, self._hover_line)
         if info is None:
             return

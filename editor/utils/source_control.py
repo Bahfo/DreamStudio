@@ -1,4 +1,11 @@
-from PyQt6.QtCore import Qt, QSize, QPoint, QDateTime, QPropertyAnimation, QSequentialAnimationGroup
+from PyQt6.QtCore import (
+    Qt, 
+    QSize, 
+    QPoint, 
+    QDateTime, 
+    QPropertyAnimation, 
+    QSequentialAnimationGroup
+)
 from PyQt6.QtGui import QColor, QIcon, QFont, QCursor
 from PyQt6.QtWidgets import (
     QVBoxLayout,
@@ -49,7 +56,9 @@ class GitCommitHistory(QFrame):
 
         self.label = QLabel("COMMIT HISTORY")
         self.label.setStyleSheet(
-            "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 8px;"
+            """color: #969696; font-size: 11px; 
+            font-weight: bold; letter-spacing: 1px; 
+            padding: 4px 8px;"""
         )
         self._main_layout.addWidget(self.label)
 
@@ -143,10 +152,11 @@ class GitCommitHistory(QFrame):
 
         if self._parent is None:
             return
-        repo = getattr(self._parent, "_repo", None) or getattr(self._parent, "_git_repo", None)
+        repo = getattr(self._parent, "_repo", None) or getattr(self._parent, 
+            "_git_repo", None)
         if repo is None:
             try:
-                from backend.fetch_info import return_repository
+                from backend.git_control import return_repository
                 repo = return_repository(None)
                 if isinstance(repo, Exception):
                     repo = None
@@ -160,7 +170,7 @@ class GitCommitHistory(QFrame):
             return
 
         try:
-            from backend.fetch_info import get_commit_history
+            from backend.git_control import get_commit_history
             data = get_commit_history(repo, self._MAX_COMMITS)
         except Exception:
             item = QTreeWidgetItem(self.tree)
@@ -203,7 +213,8 @@ class GitCommitHistory(QFrame):
 
         if is_head:
             item.setText(1, f"({self._branch})")
-            item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight 
+                | Qt.AlignmentFlag.AlignVCenter)
             item.setForeground(1, QColor(self._head_color))
 
         return item
@@ -211,10 +222,12 @@ class GitCommitHistory(QFrame):
     def _build_rich_tooltip(self, commit) -> str:
         author = commit.author.name if commit.author else "unknown"
         email = commit.author.email if commit.author else ""
-        auth_date = QDateTime.fromSecsSinceEpoch(commit.authored_date).toString("yyyy-MM-dd hh:mm:ss")
+        auth_date = QDateTime.fromSecsSinceEpoch(
+            commit.authored_date).toString("yyyy-MM-dd hh:mm:ss")
         msg = commit.message.strip() if commit.message else "(no message)"
         sha = commit.hexsha
-        parents_str = ", ".join(p.hexsha[:7] for p in commit.parents) if commit.parents else "(none)"
+        parents_str = ", ".join(p.hexsha[:7] for p in 
+            commit.parents) if commit.parents else "(none)"
 
         lines = msg.split("\n")
         shown = lines[:5]
@@ -283,7 +296,8 @@ class GitCommitHistory(QFrame):
 
         self.setStyleSheet("background-color: transparent; border: none;")
         self.label.setStyleSheet(
-            f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 8px;"
+            f"""color: {txt}; font-size: 11px; font-weight: bold; 
+            letter-spacing: 1px; padding: 4px 8px;"""
         )
 
         self.tree.setStyleSheet(f"""
@@ -682,7 +696,7 @@ class SourceControl(QFrame):
         self.tree.clear()
         if self._repo is None:
             try:
-                from backend.fetch_info import return_repository
+                from backend.git_control import return_repository
                 self._repo = return_repository(None)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -700,7 +714,7 @@ class SourceControl(QFrame):
                 return
 
         try:
-            from backend.fetch_info import get_changed_files
+            from backend.git_control import get_changed_files
             files = get_changed_files(self._repo)
         except Exception:
             item = QTreeWidgetItem(self.tree)
@@ -802,7 +816,7 @@ class SourceControl(QFrame):
 
         if self._repo is None:
             try:
-                from backend.fetch_info import return_repository
+                from backend.git_control import return_repository
                 self._repo = return_repository(None)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -810,7 +824,7 @@ class SourceControl(QFrame):
             except Exception:
                 return
 
-        from backend.fetch_info import get_file_diff
+        from backend.git_control import get_file_diff
         diff_data = get_file_diff(self._repo, file_path)
 
         from editor.widgets.QDiffControl import QDiffControl
@@ -872,7 +886,7 @@ class SourceControl(QFrame):
 
         if self._repo is None:
             try:
-                from backend.fetch_info import return_repository
+                from backend.git_control import return_repository
                 self._repo = return_repository(None)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -882,7 +896,7 @@ class SourceControl(QFrame):
                 self._shake_error("Git not available")
                 return
 
-        from backend.fetch_info import commit_staged
+        from backend.git_control import commit_staged
         success, msg = commit_staged(self._repo, message, checked_files)
         if success:
             self._commit_done = True

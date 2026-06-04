@@ -137,6 +137,7 @@ class MiniMap(QsciScintilla):
             self._editor = None
         self._lexer = None
         self.setLexer(None)
+        self.setText("")
 
     def _on_editor_text_changed(self) -> None:
         self._text_sync_timer.start()
