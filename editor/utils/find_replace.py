@@ -441,26 +441,29 @@ class GlobalFileSearchEngine(QFrame):
         self._layout.addWidget(self.search_label)
         self._layout.addSpacing(10)
 
-        find_row = QHBoxLayout()
-        find_row.setSpacing(4)
         self.find_input = QLineEdit()
         self.find_input.setPlaceholderText("Find")
+        self._layout.addWidget(self.find_input)
+
+        find_row = QHBoxLayout()
+        find_row.setSpacing(4)
+        self.result_label = QLabel("")
         self.btn_case = QPushButton("Aa")
         self.btn_case.setCheckable(True)
         self.btn_word = QPushButton("ab")
         self.btn_word.setCheckable(True)
         self.btn_regex = QPushButton(".*")
         self.btn_regex.setCheckable(True)
-        self.result_label = QLabel("")
         self.btn_prev = QPushButton("↑")
         self.btn_next = QPushButton("↓")
         self.btn_close = QPushButton("✕")
 
-        find_row.addWidget(self.find_input)
+        find_row.addStretch()
+        find_row.setAlignment(Qt.AlignmentFlag.AlignRight)
+        find_row.addWidget(self.result_label)
         find_row.addWidget(self.btn_case)
         find_row.addWidget(self.btn_word)
         find_row.addWidget(self.btn_regex)
-        find_row.addWidget(self.result_label)
         find_row.addWidget(self.btn_prev)
         find_row.addWidget(self.btn_next)
         find_row.addWidget(self.btn_close)
@@ -494,23 +497,24 @@ class GlobalFileSearchEngine(QFrame):
         options_row.setSpacing(4)
         self.btn_inProject = QPushButton("In Project")
         self.btn_inProject.setCheckable(True)
-        self.btn_inProject.setFixedWidth(90)
+        self.btn_inProject.setFixedWidth(75)
         self.btn_Directory = QPushButton("Directory")
         self.btn_Directory.setCheckable(True)
-        self.btn_Directory.setFixedWidth(90)
+        self.btn_Directory.setFixedWidth(75)
         self.btn_Module = QPushButton("Module")
         self.btn_Module.setCheckable(True)
-        self.btn_Module.setFixedWidth(90)
+        self.btn_Module.setFixedWidth(75)
         self.btn_Scope = QPushButton("Scope")
         self.btn_Scope.setCheckable(True)
-        self.btn_Scope.setFixedWidth(90)
+        self.btn_Scope.setFixedWidth(75)
 
+        options_row.addStretch()
+        options_row.setAlignment(Qt.AlignmentFlag.AlignRight)
         options_row.addWidget(self.btn_inProject)
         options_row.addWidget(self.btn_Directory)
         options_row.addWidget(self.btn_Module)
         options_row.addWidget(self.btn_Scope)
 
-        options_row.addStretch()
         self._layout.addLayout(options_row)
 
         self.setStyleSheet("""
@@ -520,15 +524,13 @@ class GlobalFileSearchEngine(QFrame):
                 border-radius: 4px;
             }
 
-            QLineEdit {
+            QLineEdit {{
+                border: 1px solid #007043;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: #888888;
                 background-color: #3C3C3C;
-                color: #D4D4D4;
-                border: 1px solid #3C3C3C;
-                border-radius: 2px;
-                padding: 4px;
-                font-family: "JetBrains Mono";
-                font-size: 12px;
-            }
+            }}
 
             QLineEdit:focus {
                 border: 1px solid #007ACC;

@@ -69,7 +69,7 @@ class MiniMap(QsciScintilla):
 
         self._text_sync_timer = QTimer(self)
         self._text_sync_timer.setSingleShot(True)
-        self._text_sync_timer.setInterval(50)
+        self._text_sync_timer.setInterval(400)
         self._text_sync_timer.timeout.connect(self._sync_text)
 
         self._update_timer = QTimer(self)
@@ -144,7 +144,10 @@ class MiniMap(QsciScintilla):
     def _sync_text(self) -> None:
         editor = self._editor
         if editor is not None:
-            self.setText(editor.text())
+            new_text = editor.text()
+            if self.text() != new_text:
+                self.setText(new_text)
+                self._overlay.update()
 
     def _get_viewport_rect(self) -> Optional[QRect]:
         editor = self._editor
@@ -207,8 +210,7 @@ class MiniMap(QsciScintilla):
             self._scroll_syncing = True
             self.SendScintilla(QsciScintilla.SCI_SETFIRSTVISIBLELINE, first_doc)
             self._scroll_syncing = False
-
-        self._overlay.update()
+            self._overlay.update()
 
     def _scroll_to_line(self, doc_line: int) -> None:
         editor = self._editor
