@@ -19,12 +19,6 @@ build/
 .vscode/
 .idea/
 
-# OS-specific
-.DS_Store        # macOS
-*.swp            # Vim swap files
-*.swo
-*~
-
 # Misc / temp
 *.log
 *.tmp
@@ -33,8 +27,6 @@ tools.txt
 .fake
 redundant
 
-debounce_state.json
-
 # Config files
 config.json
 
@@ -42,10 +34,8 @@ config.json
 *.cpython-*.pyc
 *.cpython-*.pyo
 
-# OS-specific
-Thumbs.db
-.DS_Store
-
 # Test directories
 /tests/
 .pytest_cache/
+
+/additional/consoles_emulators/

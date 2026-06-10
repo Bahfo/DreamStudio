@@ -178,7 +178,7 @@ class DreamStudioTitleBar(QWidget):
             font-size: 12px;}
             QPushButton:hover{
             background-color:#444;}
-            
+
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 0.1);}""")
         layout.addWidget(self.btn_maximize)

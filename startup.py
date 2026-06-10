@@ -366,7 +366,7 @@ class NewsAndArticles(QFrame):
         """)
 
         file_path = os.path.abspath(
-            os.path.join(BASE_DIR, "internet", "techNews", "news.html")
+            os.path.join(BASE_DIR, "additional", "techNews", "news.html")
         )
         self.view.setUrl(QUrl.fromLocalFile(file_path))
 
@@ -374,12 +374,12 @@ class NewsAndArticles(QFrame):
         main_layout.addWidget(self.view)
 
     def inject_data_and_ui(self):
-        json_path = os.path.join(BASE_DIR, "internet", "techNews", "news.json")
+        json_path = os.path.join(BASE_DIR, "additional", "techNews", "news.json")
         with open(json_path, "r") as f:
             news_json = f.read()
 
         self.view.page().runJavaScript(f"window.INJECTED_NEWS = {news_json};")
-        js_path = os.path.join(BASE_DIR, "internet", "techNews", "news.js")
+        js_path = os.path.join(BASE_DIR, "additional", "techNews", "news.js")
         with open(js_path, "r") as f:
             app_js = f.read()
 
