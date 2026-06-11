@@ -87,16 +87,16 @@ void drawCustomPanel()
     writeln("┌──────────────────┬───────────────────┐");
 
     moveCursor(3, width - 40);
-    writeln("│ FIND HOT-TOPICS: │ STUDIO'S VERSION  │");
+    writeln("│ UTILITY MANAGER  │ STUDIO'S VERSION  │");
 
     moveCursor(4, width - 40);
-    writeln("│ - help           │ VERSION 1.0.0 B   │");
+    writeln("│ - help           │ VERSION 1.0.0     │");
 
     moveCursor(5, width - 40);
-    writeln("│ - get-commands   │                   │");
+    writeln("│ - list           │                   │");
 
     moveCursor(6, width - 40);
-    writeln("│ - search-topic   │                   │");
+    writeln("│ - install <tool> │                   │");
 
     moveCursor(7, width - 40);
     writeln("└──────────────────┴───────────────────┘");
