@@ -147,7 +147,6 @@ void main()
         write("DSUTILS>>> ");
         string user_input = readln();
         if (user_input.length == 0) continue;
-        writeln("");
         parseUserInput(user_input);
     }
 }
