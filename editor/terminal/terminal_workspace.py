@@ -96,7 +96,7 @@ class _TerminalView(QWidget):
             }
             QScrollBar::handle:vertical {
                 background: #424242;
-                min-height: 20px;
+                min-height: 24px;
             }
             QScrollBar::handle:vertical:hover {
                 background: #555555;
@@ -109,7 +109,7 @@ class _TerminalView(QWidget):
             }
             QScrollBar::handle:horizontal {
                 background: #424242;
-                min-width: 20px;
+                min-width: 24px;
             }
             QScrollBar::handle:horizontal:hover {
                 background: #555555;
@@ -159,7 +159,7 @@ class _TerminalView(QWidget):
             }}
             QScrollBar::handle:vertical {{
                 background: {handle};
-                min-height: 20px;
+                min-height: 24px;
             }}
             QScrollBar::handle:vertical:hover {{
                 background: {handle_hover};
@@ -172,7 +172,7 @@ class _TerminalView(QWidget):
             }}
             QScrollBar::handle:horizontal {{
                 background: {handle};
-                min-width: 20px;
+                min-width: 24px;
             }}
             QScrollBar::handle:horizontal:hover {{
                 background: {handle_hover};

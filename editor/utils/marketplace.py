@@ -58,9 +58,50 @@ class ExtensionsTab(QFrame):
         """)
         self.main_layout.addWidget(self.search_bar)
 
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("background: transparent;")
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+            }
+            QScrollBar:vertical {
+                background: #1E1E1E;
+                width: 8px;
+                margin: 0;
+                border: none;
+            }
+            QScrollBar::handle:vertical {
+                background: #424242;
+                min-height: 24px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #555555;
+            }
+            QScrollBar:horizontal {
+                background: #1E1E1E;
+                height: 8px;
+                margin: 0;
+                border: none;
+            }
+            QScrollBar::handle:horizontal {
+                background: #424242;
+                min-width: 24px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #555555;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                height: 0;
+                width: 0;
+                border: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
+                border: none;
+            }
+        """)
 
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
@@ -108,8 +149,8 @@ class ExtensionsTab(QFrame):
 
         scroll_layout.addLayout(self.installed_container)
         scroll_layout.addStretch()
-        scroll_area.setWidget(scroll_content)
-        self.main_layout.addWidget(scroll_area)
+        self.scroll_area.setWidget(scroll_content)
+        self.main_layout.addWidget(self.scroll_area)
 
     def load_data_from_json(self, filepath: str) -> dict:
         """Helper method to load and parse json configuration safely."""
@@ -149,6 +190,48 @@ class ExtensionsTab(QFrame):
             }}
             QLineEdit:focus {{
                 border: 1px solid {input_focus};
+            }}
+        """)
+        self.scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                background: transparent;
+            }}
+            QScrollBar:vertical {{
+                background: {t.color("scrollbar.bg", "#1E1E1E")};
+                width: 8px;
+                margin: 0;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {t.color("scrollbar.fg", "#424242")};
+                min-height: 24px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {t.color("scrollbar.hover", "#555555")};
+            }}
+            QScrollBar:horizontal {{
+                background: {t.color("scrollbar.bg", "#1E1E1E")};
+                height: 8px;
+                margin: 0;
+                border: none;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {t.color("scrollbar.fg", "#424242")};
+                min-width: 24px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {t.color("scrollbar.hover", "#555555")};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                height: 0;
+                width: 0;
+                border: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: none;
+                border: none;
             }}
         """)
         for card in self.findChildren(CardButton):

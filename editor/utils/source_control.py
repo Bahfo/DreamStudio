@@ -105,11 +105,11 @@ class GitCommitHistory(QFrame):
                 border: none;
             }
             QScrollBar::handle:vertical {
-                background: #3A3A3A;
-                min-height: 20px;
+                background: #424242;
+                min-height: 24px;
             }
             QScrollBar::handle:vertical:hover {
-                background: #4A4A4A;
+                background: #555555;
             }
             QScrollBar:horizontal {
                 background: #1E1E1E;
@@ -118,11 +118,11 @@ class GitCommitHistory(QFrame):
                 border: none;
             }
             QScrollBar::handle:horizontal {
-                background: #3A3A3A;
-                min-width: 20px;
+                background: #424242;
+                min-width: 24px;
             }
             QScrollBar::handle:horizontal:hover {
-                background: #4A4A4A;
+                background: #555555;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
@@ -327,11 +327,11 @@ class GitCommitHistory(QFrame):
                 border: none;
             }}
             QScrollBar::handle:vertical {{
-                background: {t.color("scrollbar.fg", "#3A3A3A")};
-                min-height: 20px;
+                background: {t.color("scrollbar.fg", "#424242")};
+                min-height: 24px;
             }}
             QScrollBar::handle:vertical:hover {{
-                background: {t.color("scrollbar.hover", "#4A4A4A")};
+                background: {t.color("scrollbar.hover", "#555555")};
             }}
             QScrollBar:horizontal {{
                 background: {t.color("scrollbar.bg", "#1E1E1E")};
@@ -340,11 +340,11 @@ class GitCommitHistory(QFrame):
                 border: none;
             }}
             QScrollBar::handle:horizontal {{
-                background: {t.color("scrollbar.fg", "#3A3A3A")};
-                min-width: 20px;
+                background: {t.color("scrollbar.fg", "#424242")};
+                min-width: 24px;
             }}
             QScrollBar::handle:horizontal:hover {{
-                background: {t.color("scrollbar.hover", "#4A4A4A")};
+                background: {t.color("scrollbar.hover", "#555555")};
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
@@ -358,7 +358,7 @@ class GitCommitHistory(QFrame):
                 border: none;
             }}
         """)
-
+        
         for i in range(self.tree.topLevelItemCount()):
             item = self.tree.topLevelItem(i)
             item.setForeground(0, QColor(self._text_color))
@@ -615,11 +615,11 @@ class SourceControl(QFrame):
                 border: none;
             }
             QScrollBar::handle:vertical {
-                background: #3A3A3A;
-                min-height: 20px;
+                background: #424242;
+                min-height: 24px;
             }
             QScrollBar::handle:vertical:hover {
-                background: #4A4A4A;
+                background: #555555;
             }
             QScrollBar:horizontal {
                 background: #1E1E1E;
@@ -628,11 +628,11 @@ class SourceControl(QFrame):
                 border: none;
             }
             QScrollBar::handle:horizontal {
-                background: #3A3A3A;
-                min-width: 20px;
+                background: #424242;
+                min-width: 24px;
             }
             QScrollBar::handle:horizontal:hover {
-                background: #4A4A4A;
+                background: #555555;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
@@ -646,9 +646,9 @@ class SourceControl(QFrame):
                 border: none;
             }
         """)
-
+        
         self.tree.itemDoubleClicked.connect(self._show_diff)
-
+        
         # Splitter: top = files tree, bottom = commit history graph
         self.splitter = QSplitter(Qt.Orientation.Vertical)
         self.splitter.setHandleWidth(3)
@@ -1150,11 +1150,11 @@ class SourceControl(QFrame):
                 border: none;
             }}
             QScrollBar::handle:vertical {{
-                background: {t.color("scrollbar.fg", "#3A3A3A")};
-                min-height: 20px;
+                background: {t.color("scrollbar.fg", "#424242")};
+                min-height: 24px;
             }}
             QScrollBar::handle:vertical:hover {{
-                background: {t.color("scrollbar.hover", "#4A4A4A")};
+                background: {t.color("scrollbar.hover", "#555555")};
             }}
             QScrollBar:horizontal {{
                 background: {t.color("scrollbar.bg", "#1E1E1E")};
@@ -1163,11 +1163,11 @@ class SourceControl(QFrame):
                 border: none;
             }}
             QScrollBar::handle:horizontal {{
-                background: {t.color("scrollbar.fg", "#3A3A3A")};
-                min-width: 20px;
+                background: {t.color("scrollbar.fg", "#424242")};
+                min-width: 24px;
             }}
             QScrollBar::handle:horizontal:hover {{
-                background: {t.color("scrollbar.hover", "#4A4A4A")};
+                background: {t.color("scrollbar.hover", "#555555")};
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{

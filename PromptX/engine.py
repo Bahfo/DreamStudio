@@ -1,6 +1,6 @@
 HELP = r"""
-DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL                 
-© EXcellent TechStacks
+DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL
+(c) EXcellent TechStacks
 
 • Display help documentation:              help
 • Exit terminal environment:               quit
@@ -10,7 +10,7 @@ All command inputs are processed sequentially by the terminal's core interpreter
 result in undefined behavior or ignored operations.
 
 A DreamStudio commands shell powered by command-type language 'Prompt-X'.
-Prompt-X is a one-line shell command language for executing various system level commands, and various input/output 
+Prompt-X is a one-line shell command language for executing various system level commands, and various input/output
 user commands.
 """
 
@@ -34,11 +34,13 @@ head            Shows first N lines of a file
 help            Displays documentation for commands and topics
 here            Shows the current working directory
 history         Displays command history
+ip_scan         Scans the local network for connected devices
 kill            Terminates a process by PID
 makedir         Creates a new directory
 me              Shows the current username
 meminfo         Shows memory usage information
 mybox           Shows the system hostname
+netlist         Retrieves information about the current network
 newbie          Creates a new file with optional content
 pacman          Universal package manager for development languages
 peek            Lists the contents of a directory
@@ -253,10 +255,18 @@ class CommandLine(cmd.Cmd):
     # -------------------- All Commands --------------------
     def do_commands(self, arg):
         """
-        Help: allcommands -- display all PromptX commands
+        Help: commands    Displays all available PromptX commands
+        Usage:
+            commands
+        Output:
+            Lists all commands with a brief description of each
+        Errors:
+            Error 0: Invalid usage (command takes no arguments)
+        Hot-topic commands:
+            help
         """
-        if arg != 0:
-            return "Error 0: Usage: commands"
+        if arg:
+            return "Error 0: Usage: commands (no arguments allowed)"
         return ALL_COMMANDS
 
     # -------------------- Changedir --------------------
@@ -856,7 +866,7 @@ class CommandLine(cmd.Cmd):
             updated_content = content.replace(old_string, new_string)
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(updated_content)
-            return f"Shifted '{old_string}' → '{new_string}' in '{file_path}'."
+            return f"Shifted '{old_string}' -> '{new_string}' in '{file_path}'."
         except Exception as e:
             return f"Error 35: {e}"
 
@@ -1298,3 +1308,76 @@ class CommandLine(cmd.Cmd):
             me, mybox, help
         """
         return getpass.getuser()
+
+    # -------------------- Ip Scan --------------------
+    def do_ip_scan(self, arg):
+        """
+        Help: ip_scan    Scans the local network and shows all connected devices
+        Usage:
+            ip_scan [--interface=<name>]
+        Parameters:
+            --interface    Optional. Network interface to scan. Default is auto-detected
+        Output:
+            Displays a list of connected devices with their IP and MAC addresses
+            from the local network's ARP table
+        Errors:
+            Error 70: No ARP entries found or network unavailable
+            Error 71: Network scan failed due to an exception
+        Examples:
+            ip_scan
+            ip_scan --interface=eth0
+        Hot-topic commands:
+            netlist, ping, help
+        """
+        try:
+            if not os.path.exists("/proc/net/arp"):
+                return "Error 70: Network scanning is not supported on this platform."
+            with open("/proc/net/arp") as f:
+                lines = f.readlines()
+            if len(lines) < 2:
+                return "Error 70: No ARP entries found. The network may be unavailable."
+            result = ["IP Address         MAC Address"]
+            for line in lines[1:]:
+                parts = line.split()
+                if len(parts) >= 4:
+                    ip = parts[0]
+                    mac = parts[3]
+                    if mac and mac != "00:00:00_00:00:00" and "(incomplete)" not in mac:
+                        result.append(f"{ip:18s} {mac}")
+            if len(result) == 1:
+                return "Error 70: No devices found on the local network."
+            return "\n".join(result)
+        except Exception as e:
+            return f"Error 71: Network scan failed: {e}"
+
+    # -------------------- Netlist --------------------
+    def do_netlist(self, arg):
+        """
+        Help: netlist    Retrieves information about the current network
+        Usage:
+            netlist
+        Output:
+            Displays network interfaces, IP addresses, and hostname
+        Errors:
+            Error 72: No network interfaces found
+            Error 73: Exception occurred while fetching network data
+        Examples:
+            netlist
+        Hot-topic commands:
+            ip_scan, ping, help
+        """
+        try:
+            hostname = socket.gethostname()
+            lines = [f"Hostname: {hostname}"]
+
+            interfaces = psutil.net_if_addrs()
+            for name, addrs in interfaces.items():
+                for addr in addrs:
+                    if addr.family == socket.AF_INET:
+                        lines.append(f"Interface {name}: {addr.address}")
+                        if addr.netmask:
+                            lines.append(f"  Netmask: {addr.netmask}")
+
+            return "\n".join(lines) if len(lines) > 1 else "Error 72: No network interfaces found."
+        except Exception as e:
+            return f"Error 73: Failed to retrieve network information: {e}"

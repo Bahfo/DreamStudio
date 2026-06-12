@@ -138,6 +138,14 @@ class DreamTreeViewProxy(QSortFilterProxyModel):
         return name_left < name_right
 
 
+class DreamTreeView(QTreeView):
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        if not self.indexAt(event.pos()).isValid():
+            self.clearSelection()
+            self.selectionModel().clearCurrentIndex()
+
+
 class DreamFileTreeWindow(QFrame):
     _clipboard_path: str | None = None
     _clipboard_is_cut: bool = False
@@ -298,7 +306,7 @@ class DreamFileTreeWindow(QFrame):
         self._show_hidden_files = True
 
         # Model Treeview
-        self.tree = QTreeView()
+        self.tree = DreamTreeView()
         self.tree.setModel(self.proxy_model)
         self.tree.setIconSize(QSize(17,17))
         self.tree.setStyleSheet("""
@@ -337,12 +345,12 @@ class DreamFileTreeWindow(QFrame):
             }
 
             QScrollBar::handle:vertical {
-                background: #3A3A3A;
-                min-height: 20px;
+                background: #424242;
+                min-height: 24px;
             }
 
             QScrollBar::handle:vertical:hover {
-                background: #4A4A4A;
+                background: #555555;
             }
 
             QScrollBar:horizontal {
@@ -353,18 +361,23 @@ class DreamFileTreeWindow(QFrame):
             }
 
             QScrollBar::handle:horizontal {
-                background: #3A3A3A;
-                min-width: 20px;
+                background: #424242;
+                min-width: 24px;
             }
 
             QScrollBar::handle:horizontal:hover {
-                background: #4A4A4A;
+                background: #555555;
             }
 
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 height: 0px;
                 width: 0px;
+                border: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
                 border: none;
             }""")
 
@@ -823,7 +836,7 @@ class DreamFileTreeWindow(QFrame):
             }}
             QScrollBar::handle:vertical {{
                 background: {t.color("scrollbar.fg")};
-                min-height: 20px;
+                min-height: 24px;
             }}
             QScrollBar::handle:vertical:hover {{
                 background: {t.color("scrollbar.hover")};
@@ -836,7 +849,7 @@ class DreamFileTreeWindow(QFrame):
             }}
             QScrollBar::handle:horizontal {{
                 background: {t.color("scrollbar.fg")};
-                min-width: 20px;
+                min-width: 24px;
             }}
             QScrollBar::handle:horizontal:hover {{
                 background: {t.color("scrollbar.hover")};

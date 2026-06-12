@@ -22,7 +22,8 @@ from PyQt6.QtGui import QFont, QTextCursor
 from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 
 from editor.lsp.runner import ProcessRunner
-from editor.terminal.PromptXEngine import CommandLine, HELP
+from PromptX import CommandLine, HELP
+from PromptX.highlight import PromptXHighlighter
 from editor.terminal.terminal_workspace import TerminalWorkspace
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,43 @@ class TerminalEdit(QPlainTextEdit):
                 font-family: "JetBrains Mono", "Consolas", "monospace";
                 font-size: {self._font_size}px;
                 selection-background-color: {self._sel};
+            }}
+            QScrollBar:vertical {{
+                background: #1E1E1E;
+                width: 8px;
+                margin: 0;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #424242;
+                min-height: 24px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: #555555;
+            }}
+            QScrollBar:horizontal {{
+                background: #1E1E1E;
+                height: 8px;
+                margin: 0;
+                border: none;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: #424242;
+                min-width: 24px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: #555555;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                height: 0;
+                width: 0;
+                border: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: none;
+                border: none;
             }}
         """)
 
@@ -221,11 +259,13 @@ class PromptXTerminalWidget(QWidget):
         self._engine = CommandLine(os.getcwd())
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(0)
 
         self._terminal = TerminalEdit(self)
         layout.addWidget(self._terminal)
+
+        self._highlighter = PromptXHighlighter(self._terminal.document())
 
         self._input_pos = 0
         self._saved_input = ""
@@ -297,6 +337,15 @@ class PromptXTerminalWidget(QWidget):
         if result is not None:
             self._terminal.insertPlainText(str(result) + "\n")
         self._show_prompt()
+
+    def retheme(self, t) -> None:
+        self._highlighter.retheme({
+            "error": t.color("terminal.highlight_error", "#FF5252"),
+            "command": t.color("terminal.highlight_command", "#FFD740"),
+            "number": t.color("terminal.highlight_number", "#69F0AE"),
+            "success": t.color("terminal.highlight_success", "#40C4FF"),
+            "prompt": t.color("terminal.prompt", "#888888"),
+        })
 
     def focus_input(self) -> None:
         self._terminal.setFocus()
@@ -427,6 +476,7 @@ class TerminalPanel(QWidget):
             }}
         """)
         self.promptXShell_tab._terminal.set_theme(bg, txt, sel)
+        self.promptXShell_tab.retheme(t)
         self.system_shell_tab.set_theme(bg, txt, sel)
         self.output_tab._text.setStyleSheet(f"""
             QPlainTextEdit {{
