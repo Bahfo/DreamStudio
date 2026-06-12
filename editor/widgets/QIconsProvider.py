@@ -46,6 +46,8 @@ class DreamStudioIconProvider(QFileIconProvider):
             return QIcon("assets/types/md.png")
         elif extension == "pdf":
             return QIcon("assets/types/pdf.png")
+        elif extension == "poly":
+            return QIcon("assets/types/poly.png")
         elif extension in ["pyc", "pyx", "pyz"]:
             return QIcon("assets/types/pyc.png")
         elif extension == "py":
