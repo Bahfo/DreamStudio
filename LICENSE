@@ -1,45 +1,86 @@
-Copyright (c) 2026 EXcellent TechStacks - All Rights Reserved
+(C) COPYRIGHT 2026 EXcellent TechStacks. All Rights Reserved.
 
-This program (the "IDE") is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 3 as published by
-the Free Software Foundation.
+This Master License Agreement governs the use, modification, and distribution 
+of the IDE software package. Due to the distinct nature of the underlying source 
+code and the proprietary visual/branding assets, this software is dual-licensed 
+under the terms outlined below.
 
-This IDE is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+PART 1: SOURCE CODE LICENSE (GNU GPLv3)
+1.1 Scope of GPLv3 License
+This portion of the license applies exclusively to:
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-------------------------------------------------------------
-
-ADDITIONAL ATTRIBUTION REQUIREMENTS (IDE-SPECIFIC NOTICE)
-
-When distributing this IDE or any modified version:
-
-1. You must retain all original copyright notices in source files.
-2. You must preserve this LICENSE file in all distributions.
-3. You must clearly indicate any modified versions of the IDE.
-4. You must retain attribution to the original author in:
-   - source code headers
-   - ABOUT / INFO sections (if present)
-   - documentation shipped with the software
-
-------------------------------------------------------------
-
-SCOPE OF LICENSE
-
-This license applies to:
 - The IDE source code
 - Core editor engine
 - Plugin system (if included in this repository)
 - Build scripts and tooling within this repository
 
-This license does NOT override separate terms that may apply to:
-- Third-party plugins
-- External libraries
-- UI/UX themes distributed separately under different licenses
+This IDE is free software: you can redistribute it and/or modify it under the 
+terms of the GNU General Public License version 3 as published by the Free 
+Software Foundation.
 
-------------------------------------------------------------
+This IDE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
+PARTICULAR PURPOSE. You should have received a copy of the GNU General Public 
+License along with this program. If not, see https://www.gnu.org/licenses/.
 
-END OF TERMS AND CONDITIONS
+1.2 Additional Attribution Requirements (IDE-Specific Notice)
+When distributing this IDE or any modified version of the source code governed 
+by the GPLv3, the following conditions must be met:
+
+- You must retain all original copyright notices in source files.
+- You must preserve this LICENSE file in all distributions.
+- You must clearly indicate any modified versions of the IDE.
+- You must retain attribution to the original author in source code headers, 
+ABOUT / INFO sections (if present), and documentation shipped with the software.
+
+PART 2: UI/UX, MEDIA, AND BRANDING LICENSE (PROPRIETARY)
+This section of the license does NOT override separate terms that may apply to 
+third-party plugins or external libraries, but establishes strict proprietary 
+rules for the visual and experiential assets of the IDE.
+
+2.1 Scope of Proprietary License
+This license applies to all non-code assets of the IDE.  Specific covered assets 
+include:
+- User Interface (UI) design.
+- User Experience (UX) flows and interaction patterns.
+- Layout structure and visual arrangement of components.
+- Icons, logos, and branding elements.
+- Themes, stylesheets, and visual design systems.
+- Images, animations, audio, and other media assets.
+- Documentation graphics and visual illustrations (if created by the Author). 
+
+2.2 Restrictions
+- No part of the UI/UX or media assets may be copied.
+- Assets may not be reproduced.
+- Assets may not be modified.
+- Assets may not be distributed.
+- Assets may not be published.
+- Assets may not be transmitted.
+- Assets may not be reverse engineered.
+- Assets may not be used in derivative works.
+- Assets may not be recreated in substantially similar form.
+- These restrictions apply in any medium or format, without prior written 
+  permission from the Author.
+
+2.3 Permitted Use
+You may use this software only as part of the official IDE distribution for its 
+intended purpose. No rights are granted to extract or reuse UI/UX or media 
+components 
+outside the original software package
+
+2.4 Forked or Modified Versions
+If the source code (licensed separately under GPL) is modified or forked, the
+UI/UX design and media assets remain EXCLUSIVELY owned by the Author. Forks must 
+NOT reuse original UI layouts, icons, themes, or branding. 
+
+Any redistribution must replace all UI/UX and media assets with original designs.
+
+2.5 Trademark and BrandingAll names, logos, and branding associated with the 
+IDE are  protected. They may not be used in any forked or derivative product 
+without permission.
+
+PART 3: NO WARRANTY
+These assets are provided "AS IS", without warranty of any kind, express or implied, 
+including but not limited to fitness for a particular purpose.
+
+END OF LICENSE   
