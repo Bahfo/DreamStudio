@@ -23,7 +23,9 @@ from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
     QListWidget,
-    QToolTip)
+    QToolTip,
+    QPushButton,
+    QSizePolicy)
 
 from PyQt6.QtGui import (
     QFont,
@@ -47,6 +49,8 @@ logger = logging.getLogger(__name__)
 from editor.texteditor.click_menu import ClickMenu
 from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
 from editor.texteditor.ironica_lexer.python_jedi_highlighter import DreamPythonHighlighter
+from editor.texteditor.analyzer.complexity_analyzer import analyze_python_complexity
+from editor.texteditor.analyzer.complexity_popup import ComplexityPopup
 
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -250,6 +254,34 @@ class CodeEditor(QsciScintilla):
         self.setMarginWidth(1, 12)
         self.setMarginSensitivity(1, True)
 
+        ###############################
+        # Complexity Analysis
+        ###############################
+        self._complexity_results = None
+        self._complexity_popup = ComplexityPopup(self)
+
+        self._info_btn = QPushButton("\u24d8", self)
+        self._info_btn.setFixedSize(18, 18)
+        self._info_btn.setToolTip("Complexity Analysis")
+        self._info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._info_btn.setFlat(True)
+        self._info_btn.clicked.connect(self._show_complexity_popup)
+        self._info_btn.hide()
+        self._info_btn.setStyleSheet("""
+            QPushButton {
+                color: #569CD6;
+                background: transparent;
+                border: none;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                color: #75BEFF;
+            }
+        """)
+        self._reposition_info_btn()
+
         self.setMarkerForegroundColor(
             QColor("#B0B0B0"), QsciScintilla.SC_MARKNUM_FOLDER
         )
@@ -300,6 +332,50 @@ class CodeEditor(QsciScintilla):
 
     def _emit_position(self, line, col):
         self.position_changed.emit(line, col)
+
+    def _reposition_info_btn(self):
+        margin0_w = self.marginWidth(0)
+        x = margin0_w + 4
+        self._info_btn.move(x, 2)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._reposition_info_btn()
+
+    def _run_complexity_analysis(self):
+        if self.language != "Python":
+            self._info_btn.hide()
+            self._complexity_results = None
+            return
+        if not self.current_file_path:
+            self._info_btn.hide()
+            self._complexity_results = None
+            return
+        source = self.text()
+        if not source.strip():
+            self._info_btn.hide()
+            self._complexity_results = None
+            return
+        self._complexity_results = analyze_python_complexity(
+            source, self.current_file_path
+        )
+        self._info_btn.show()
+        self._reposition_info_btn()
+
+    def _show_complexity_popup(self):
+        if not self._complexity_results:
+            return
+        if self._complexity_popup.isVisible():
+            self._complexity_popup.hide()
+            return
+        self._complexity_popup.set_results(self._complexity_results)
+        self._complexity_popup.adjustSize()
+        
+        btn_pos = self._info_btn.mapToGlobal(
+            self._info_btn.rect().bottomLeft())
+        popup_pos = btn_pos + QPoint(0, 4)
+
+        self._complexity_popup.show_at(popup_pos)
 
     def show_context_menu(self, point):
         self.menu = ClickMenu(self)
@@ -452,6 +528,7 @@ class CodeEditor(QsciScintilla):
         self._hover_debounce_word_info = None
 
     def mousePressEvent(self, event):
+        self._complexity_popup.hide()
         if event.button() == Qt.MouseButton.LeftButton:
             mods = QApplication.keyboardModifiers()
             has_ctrl = bool(
@@ -1337,6 +1414,7 @@ class CodeEditor(QsciScintilla):
         with open(file_path, "r", encoding="utf-8") as f:
             self.setText(f.read())
         self.setModified(False)
+        self._run_complexity_analysis()
 
     def set_editor_font(self, font):
         if isinstance(font, QFont):
@@ -1436,6 +1514,7 @@ class CodeEditor(QsciScintilla):
                 self.api.clear()
             self.api = None
             self.apply_theme()
+            self._run_complexity_analysis()
             return
 
         if lang == "Python":
@@ -1446,6 +1525,7 @@ class CodeEditor(QsciScintilla):
                 self._connect_jedi_analysis()
                 self.apply_theme()
                 self._schedule_document_symbol_update()
+                self._run_complexity_analysis()
             else:
                 self._lexer = self.load_language_keywords("Python")
                 if self._lexer:
@@ -1453,14 +1533,7 @@ class CodeEditor(QsciScintilla):
                     self.setLexer(self._lexer)
                     self.apply_theme()
                     self._schedule_document_symbol_update()
-
-        elif lang == "CMAKE":
-            self._disconnect_jedi_analysis()
-            self._lexer = QsciLexerCMake()
-            self._lexer.setDefaultFont(self._font)
-            self.setLexer(self._lexer)
-            self.apply_theme()
-            self._schedule_document_symbol_update()
+                    self._run_complexity_analysis()
 
         else:
             self._disconnect_jedi_analysis()
@@ -1471,6 +1544,7 @@ class CodeEditor(QsciScintilla):
                 self.api.clear()
             self.api = None
             self.apply_theme()
+            self._run_complexity_analysis()
             return
 
     def apply_theme(self, t=None):

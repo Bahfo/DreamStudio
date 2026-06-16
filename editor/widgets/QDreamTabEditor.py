@@ -180,6 +180,17 @@ class DreamStudioIDETabBar(QTabBar):
                 r.top(),
             )
 
+        if index in self._dirty_indices:
+            dot_color = getattr(self, "_dirty_dot", QColor("#EAB308"))
+            painter.save()
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(dot_color)
+            dot_r = 4
+            cx = r.left() + 5
+            cy = r.center().y()
+            painter.drawEllipse(QPoint(cx, cy), dot_r, dot_r)
+            painter.restore()
+
         text_sel = getattr(self, "_text_selected", QColor("white"))
         text_inactive = getattr(self, "_text_inactive", QColor("#AFB1B3"))
         option.palette.setColor(

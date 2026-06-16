@@ -1,4 +1,4 @@
-module ddocs.manual;
+module d_lang.shell;
 
 import std.stdio;
 import std.string;
