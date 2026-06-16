@@ -62,7 +62,7 @@ class ComplexityPopup(QFrame):
         issues = (
             len(results.get("security_warnings", []))
             + len(results.get("missing_docstrings", []))
-            + results.get("bare_except_warnings", 0)
+            + len(results.get("bare_except_warnings", []))
         )
 
         if issues > 0:
