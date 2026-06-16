@@ -25,6 +25,7 @@ from editor.lsp.runner import ProcessRunner
 from PromptX import CommandLine, HELP
 from PromptX.highlight import PromptXHighlighter
 from editor.terminal.terminal_workspace import TerminalWorkspace
+from editor.utils.problems_view import ComplexityWidget
 
 logger = logging.getLogger(__name__)
 
@@ -390,7 +391,7 @@ class TerminalPanel(QWidget):
 
         self.promptXShell_tab = PromptXTerminalWidget(self)
         self.system_shell_tab = TerminalWorkspace(self)
-        self.problems_tab = QWidget()
+        self.problems_tab = ComplexityWidget(self.parent())
         self.debug_tab = QWidget()
         self.output_tab = OutputWidget(self)
 
@@ -478,6 +479,8 @@ class TerminalPanel(QWidget):
         self.promptXShell_tab._terminal.set_theme(bg, txt, sel)
         self.promptXShell_tab.retheme(t)
         self.system_shell_tab.set_theme(bg, txt, sel)
+        if hasattr(self.problems_tab, "retheme"):
+            self.problems_tab.retheme(t)
         self.output_tab._text.setStyleSheet(f"""
             QPlainTextEdit {{
                 background-color: {bg};

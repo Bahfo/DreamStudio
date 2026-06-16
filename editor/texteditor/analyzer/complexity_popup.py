@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
 
+
 class ComplexityPopup(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -35,11 +36,13 @@ class ComplexityPopup(QFrame):
 
         header_layout = QHBoxLayout()
         self.file_label = QLabel("File")
-        self.file_label.setStyleSheet(f"color: {self._accent}; font-size: 12px; font-weight: bold;")
-        
+        self.file_label.setStyleSheet(
+            f"color: {self._accent}; font-size: 12px; font-weight: bold;"
+        )
+
         self.status_label = QLabel("✓ Clean")
         self.status_label.setStyleSheet(f"color: {self._ok_color}; font-size: 11px;")
-        
+
         header_layout.addWidget(self.file_label)
         header_layout.addStretch()
         header_layout.addWidget(self.status_label)
@@ -51,28 +54,53 @@ class ComplexityPopup(QFrame):
 
     def set_results(self, results: dict):
         self.file_label.setText(results.get("file", "<input>"))
-        
+
         cc = results.get("cyclomatic_complexity", 1)
         nd = results.get("max_nesting_depth", 0)
         self.metrics_label.setText(f"Complexity: {cc}  |  Nesting Depth: {nd}")
 
         issues = (
-            len(results.get("security_warnings", [])) + 
-            len(results.get("missing_docstrings", [])) + 
-            results.get("bare_except_warnings", 0)
+            len(results.get("security_warnings", []))
+            + len(results.get("missing_docstrings", []))
+            + results.get("bare_except_warnings", 0)
         )
 
         if issues > 0:
             self.status_label.setText(f"⚠️ {issues} Issues")
-            self.status_label.setStyleSheet(f"color: {self._err_color}; font-size: 11px; font-weight: bold;")
+            self.status_label.setStyleSheet(
+                f"color: {self._err_color}; font-size: 11px; font-weight: bold;"
+            )
         else:
             self.status_label.setText("✓ Clean")
-            self.status_label.setStyleSheet(f"color: {self._ok_color}; font-size: 11px; font-weight: bold;")
+            self.status_label.setStyleSheet(
+                f"color: {self._ok_color}; font-size: 11px; font-weight: bold;"
+            )
 
         self.adjustSize()
+
+    def retheme(self, t) -> None:
+        self._bg = t.color("tooltip.background", self._bg)
+        self._border = t.color("widget.border", self._border)
+        self._fg = t.color("tooltip.text", self._fg)
+        self._accent = t.color("widget.accent", self._accent)
+        self._err_color = t.color("terminal.error", self._err_color)
+        self._ok_color = t.color("terminal.success", self._ok_color)
+
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {self._bg};
+                border: 1px solid {self._border};
+                border-radius: 4px;
+            }}
+            QLabel {{ border: none; font-family: 'Segoe UI', sans-serif; }}
+        """)
+        self.file_label.setStyleSheet(
+            f"color: {self._accent}; font-size: 12px; font-weight: bold;"
+        )
+        self.metrics_label.setStyleSheet(f"color: {self._fg}; font-size: 11px;")
 
     def show_at(self, point: QPoint):
-        self.show()
         self.adjustSize()
         self.move(point)
+        self.show()
         self.raise_()

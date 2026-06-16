@@ -361,6 +361,21 @@ class CodeEditor(QsciScintilla):
         )
         self._info_btn.show()
         self._reposition_info_btn()
+        self._populate_problems_view()
+
+    def _populate_problems_view(self):
+        if not self._complexity_results:
+            return
+        win = self.window()
+        if not win:
+            return
+        terminal = getattr(win, "terminalWidget", None)
+        if not terminal:
+            return
+        problems_tab = getattr(terminal, "problems_tab", None)
+        if not problems_tab or not hasattr(problems_tab, "set_results"):
+            return
+        problems_tab.set_results(self._complexity_results)
 
     def _show_complexity_popup(self):
         if not self._complexity_results:
@@ -1595,6 +1610,8 @@ class CodeEditor(QsciScintilla):
         if t is not None:
             tip_bg = QColor(t.color("tooltip.background"))
             tip_fg = QColor(t.color("tooltip.text"))
+            if hasattr(self, "_complexity_popup"):
+                self._complexity_popup.retheme(t)
         else:
             tip_bg = QColor("#25272B")
             tip_fg = QColor("#FFFFFF")
