@@ -64,6 +64,7 @@ from editor.utils.source_control import SourceControl
 from editor.utils.marketplace import ExtensionsTab
 from editor.utils.optionsBar import OptionsMenu
 from editor.utils.statusBar import StatusBar
+from editor.utils.tools.tools_manager import ToolsManager
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +193,9 @@ class DreamStudio(QMainWindow):
         self.workspace_splitter.setStyleSheet(
             f"QSplitter::handle {{ background-color: {t.color('workspace_splitter')}; }}"
         )
+        self.center_splitter.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {t.color('workspace_splitter')}; }}"
+        )
 
         self.background_window.retheme(t)
 
@@ -217,6 +221,7 @@ class DreamStudio(QMainWindow):
 
         self.minimap.retheme(t)
         self.system_monitor.retheme(t)
+        self.tools_manager.retheme_tools(t)
 
         for w in (self.search_menu, self.git_menu, self.extns_menu, self.infoBtn):
             if hasattr(w, "retheme"):
@@ -434,10 +439,6 @@ class DreamStudio(QMainWindow):
 
         self.tab_editors.installEventFilter(self)
 
-        self.etherAIScreen = QFrame()
-        self.etherAIScreen.setMinimumWidth(0)
-        self.etherAIScreen.setMaximumWidth(500)
-
         self.system_monitor = SystemMonitorPanel()
 
     def _build_splitters(self) -> None:
@@ -450,6 +451,17 @@ class DreamStudio(QMainWindow):
         )
         self.body_layout.addWidget(self.hero_splitter)
 
+        self.center_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.center_splitter.setHandleWidth(1)
+        self.center_splitter.setChildrenCollapsible(False)
+        self.center_splitter.addWidget(self.main_editor_area)
+        self.center_splitter.addWidget(self.minimap_wrapper)
+        self.center_splitter.setStretchFactor(0, 1)
+        self.center_splitter.setStretchFactor(1, 0)
+        self.center_splitter.setSizes([800, 100])
+
+        self.tools_manager = ToolsManager(self)
+
         self.workspace_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.workspace_splitter.setHandleWidth(1)
         self.workspace_splitter.setStyleSheet(
@@ -457,22 +469,19 @@ class DreamStudio(QMainWindow):
         )
 
         self.workspace_splitter.addWidget(self.sidebar_frame)
-        self.workspace_splitter.addWidget(self.main_editor_area)
-        self.workspace_splitter.addWidget(self.minimap_wrapper)
-        self.workspace_splitter.addWidget(self.etherAIScreen)
+        self.workspace_splitter.addWidget(self.center_splitter)
+        self.workspace_splitter.addWidget(self.tools_manager)
 
         self.workspace_splitter.setStretchFactor(0, 0)
         self.workspace_splitter.setStretchFactor(1, 1)
         self.workspace_splitter.setStretchFactor(2, 0)
-        self.workspace_splitter.setStretchFactor(3, 0)
 
         self.workspace_splitter.setCollapsible(0, True)
-        self.workspace_splitter.setCollapsible(1, True)
-        self.workspace_splitter.setCollapsible(2, False)
-        self.workspace_splitter.setCollapsible(3, True)
+        self.workspace_splitter.setCollapsible(1, False)
+        self.workspace_splitter.setCollapsible(2, True)
 
         self.workspace_splitter.setSizes(
-            [450, self.workspace_splitter.width() - 450, 100, 0]
+            [450, self.workspace_splitter.width() - 450, 0]
         )
 
         self.hero_splitter.addWidget(self.workspace_splitter)
@@ -712,6 +721,13 @@ class DreamStudio(QMainWindow):
         else:
             self.system_monitor.show()
             self.system_monitor.raise_()
+
+    def open_tools_panel(self, tool_name: str) -> None:
+        """Opens the tools panel and switches to the requested tool."""
+        self.tools_manager._on_click_open(tool_name)
+        sizes = self.workspace_splitter.sizes()
+        if sizes[2] == 0:
+            self.workspace_splitter.setSizes([sizes[0], sizes[1], 400])
 
     def ui_build_add_new_editor(self):
         """A higher heirarchy call for adding a new editor tab instead

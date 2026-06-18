@@ -280,7 +280,7 @@ class DreamStudioTitleBar(QWidget):
             ],
             "Tools": [
                 ("Command Window", "assets/menus/command.png", self.generic_callback),
-                ("Tasks TODO List", "assets/menus/todo.png", self.generic_callback),
+                ("Tasks TODO List", "assets/menus/todo.png", self.set_tasks_todo),
                 ("Bookmarks Manager", None, self.generic_callback),
                 ("Notifications", "assets/menus/notifications.png", self.generic_callback),
                 None,
@@ -722,6 +722,10 @@ class DreamStudioTitleBar(QWidget):
             parent.sidebar_frame.setCurrentIndex(3)
         if hasattr(parent, "extensionsBtn") and hasattr(parent, "flash_button"):
             parent.flash_button(parent.extensionsBtn)
+
+    def set_tasks_todo(self):
+        if hasattr(self.parent, "open_tools_panel"):
+            self.parent.open_tools_panel("todo")
 
     def retheme(self, t) -> None:
         tb_bg = t.color("titlebar.background")
