@@ -52,8 +52,6 @@ tensorflow-hub==0.12.0
 tensorflowjs==3.18.0
 termcolor==3.3.0
 tinycss2==1.5.1
-tomli @
-tomlkit @
 tornado==6.5.6
 tqdm
 traitlets==5.15.1
