@@ -41,6 +41,12 @@ class ToolsManager(QFrame):
             if hasattr(widget, "retheme"):
                 widget.retheme(t)
 
+    def get_tool(self, name: str):
+        index = self._tools.get(name)
+        if index is not None:
+            return self.stacked_widget.widget(index)
+        return None
+
     def _on_click_open(self, tool_name: str) -> None:
         """Switch to the requested tool by name."""
         index = self._tools.get(tool_name)

@@ -274,7 +274,7 @@ class DreamFileTreeWindow(QFrame):
         toolbar_layout.addStretch()
 
         toolbar_layout.addSpacing(20)
-        self.maindirectory = QLabel(f"Directory: {os.path.basename(os.getcwd())}")
+        self.maindirectory = QLabel("Directory: --")
         self.maindirectory.setStyleSheet("color: #969696; font-size: 13px;")
         toolbar_layout.addWidget(self.maindirectory)
         self.treeview_layout.addWidget(self.toolbar)
@@ -910,3 +910,4 @@ class DreamFileTreeWindow(QFrame):
         self.model.setRootPath(path)
         self.source_index = self.model.index(path)
         self.tree.setRootIndex(self.proxy_model.mapFromSource(self.source_index))
+        self.maindirectory.setText(f"Directory: {os.path.basename(path)}")

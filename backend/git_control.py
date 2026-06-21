@@ -2,20 +2,12 @@ import os
 from git import Repo
 
 
-def return_repository(path: str | None = None) -> Repo | Exception:
-    if path is not None:
-        try:
-            repo = Repo(path)
-            return repo
-        except Exception as e:
-            return e
-    else:
-        try:
-            _dir = os.getcwd()
-            repo = Repo(_dir)
-            return repo
-        except Exception as e:
-            return e
+def return_repository(path: str) -> Repo | Exception:
+    try:
+        repo = Repo(path)
+        return repo
+    except Exception as e:
+        return e
 
 
 def check_last_commits(git_repo: Repo, count: int):

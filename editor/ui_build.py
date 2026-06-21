@@ -22,6 +22,8 @@ import logging
 import pathlib
 import os
 
+from typing import Optional
+
 # Third-Party Imports (GUI)
 from PyQt6.QtCore import QDir, QEvent, QPoint, QSize, Qt, QTimer
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
@@ -94,13 +96,7 @@ class DreamStudio(QMainWindow):
         self._jedi_worker.error_occurred.connect(self._on_jedi_error)
         self._pending_jedi_requests = {}
         self._jedi_request_counter = 0
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        venv_path = os.path.join(project_root, "venv", "bin", "python3")
-        if not os.path.isfile(venv_path):
-            venv_path = os.path.join(project_root, "venv", "bin", "python")
-        if not os.path.isfile(venv_path):
-            venv_path = None
-        self._jedi_worker.set_virtual_environment(venv_path)
+        self._update_jedi_venv(None)
 
         self.setup_layout()
 
@@ -330,6 +326,7 @@ class DreamStudio(QMainWindow):
         main_layout.addLayout(self.body_layout, stretch=1)
 
         self.status_bar = StatusBar(self)
+        self.status_bar.statusBtn.clicked.connect(self.status_bar.show_bootstrap_details)
         main_layout.addWidget(self.status_bar)
         return main_layout
 
@@ -804,6 +801,12 @@ class DreamStudio(QMainWindow):
         from editor.init.project_bootstrap import ProjectBootstrap
 
         self._project_target_path = target_path
+        self.currentDirectory = target_path
+        self.treeview.set_treeview_directory(target_path)
+        if hasattr(self, "git_menu"):
+            self.git_menu.update_workspace(target_path)
+        self.status_bar.clear_bootstrap_log()
+
         self._project_bootstrap = ProjectBootstrap(
             manifest_path=manifest_path,
             target_path=target_path,
@@ -814,6 +817,53 @@ class DreamStudio(QMainWindow):
         self._project_bootstrap.step_failed.connect(self._on_bootstrap_failed)
         self._project_bootstrap.finished.connect(self._on_bootstrap_finished)
         self._project_bootstrap.start()
+
+    def _find_ide_root(self) -> str:
+        path = os.path.abspath(__file__)
+        for _ in range(3):
+            path = os.path.dirname(path)
+        return path
+
+    def _update_jedi_venv(self, project_path: Optional[str]) -> None:
+        if project_path:
+            candidates = [
+                os.path.join(project_path, ".venv", "bin", "python3"),
+                os.path.join(project_path, ".venv", "bin", "python"),
+                os.path.join(project_path, "venv", "bin", "python3"),
+                os.path.join(project_path, "venv", "bin", "python"),
+                os.path.join(project_path, ".venv", "Scripts", "python.exe"),
+                os.path.join(project_path, "venv", "Scripts", "python.exe"),
+            ]
+            for c in candidates:
+                if os.path.isfile(c):
+                    self._jedi_worker.set_virtual_environment(
+                        os.path.dirname(os.path.dirname(c))
+                    )
+                    return
+        ide_root = self._find_ide_root()
+        fallbacks = [
+            os.path.join(ide_root, "venv", "bin", "python3"),
+            os.path.join(ide_root, "venv", "bin", "python"),
+        ]
+        for fb in fallbacks:
+            if os.path.isfile(fb):
+                self._jedi_worker.set_virtual_environment(
+                    os.path.dirname(os.path.dirname(fb))
+                )
+                return
+        self._jedi_worker.set_virtual_environment(None)
+
+    def refresh_project_environment(self, path: str) -> None:
+        self.treeview.set_treeview_directory(path)
+        self._update_jedi_venv(path)
+
+        if hasattr(self, "git_menu"):
+            self.git_menu.update_workspace(path)
+
+        if hasattr(self, "tools_manager"):
+            todo_tool = self.tools_manager.get_tool("todo")
+            if todo_tool is not None and hasattr(todo_tool, "set_base_dir"):
+                todo_tool.set_base_dir(path)
 
     def _on_bootstrap_step(self, step_name: str, description: str) -> None:
         self.status_bar.set_bootstrap_status(step_name, description)
@@ -828,7 +878,4 @@ class DreamStudio(QMainWindow):
     def _on_bootstrap_finished(self, success: bool) -> None:
         self.status_bar.set_bootstrap_finished(success)
         if success and hasattr(self, "_project_target_path"):
-            path = self._project_target_path
-            self.currentDirectory = path
-            self.tab_editors.open_new_workspace(path)
-            self.treeview.set_treeview_directory(path)
+            self.refresh_project_environment(self._project_target_path)

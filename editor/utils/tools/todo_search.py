@@ -193,6 +193,11 @@ class TODOSearch(QWidget):
         ".egg-info", " eggs", ".eggs",
     })
 
+    def set_base_dir(self, path: str) -> None:
+        self._base_dir = os.path.normpath(path)
+        self.path_input.setText(self._base_dir)
+        self.table.setRowCount(0)
+
     def execute_search(self):
         root_dir = os.path.normpath(self.path_input.text().strip())
         base_dir = os.path.normpath(self._base_dir)

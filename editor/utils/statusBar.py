@@ -4,9 +4,42 @@ from PyQt6.QtWidgets import (
     QFrame,
     QPushButton,
     QHBoxLayout,
+    QVBoxLayout,
     QComboBox,
-    QLabel
+    QLabel,
+    QProgressBar,
+    QDialog,
+    QListWidget,
 )
+
+
+class BootstrapDetailDialog(QDialog):
+    def __init__(self, messages, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Bootstrap Progress Details")
+        self.resize(500, 350)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1E1E1E;
+                color: white;
+            }
+            QListWidget {
+                background-color: #25272B;
+                color: #CCCCCC;
+                border: 1px solid #3C3C3C;
+                font-size: 12px;
+                font-family: monospace;
+            }
+        """)
+        layout = QVBoxLayout(self)
+        title = QLabel("Bootstrap Steps:")
+        title.setStyleSheet("color: white; font-size: 14px; font-weight: bold;")
+        layout.addWidget(title)
+        self.list_widget = QListWidget()
+        for msg in messages:
+            self.list_widget.addItem(msg)
+        self.list_widget.scrollToBottom()
+        layout.addWidget(self.list_widget)
 
 
 class StatusBar(QFrame):
@@ -27,9 +60,6 @@ class StatusBar(QFrame):
         )
         statusbar_layout.setContentsMargins(5, 0, 5, 0)
 
-        #################################
-        # BUTTONS AND OPTIONS
-        #################################
         self.zoomBtn = QComboBox()
         self.zoomBtn.setFixedSize(40, 28)
         self.zoomBtn.addItems(["75%", "100%", "110%", "125%"])
@@ -52,7 +82,7 @@ class StatusBar(QFrame):
 
             QComboBox::drop-down {
                 border: none;
-                width: 0px; 
+                width: 0px;
             }
 
             QAbstractItemView {
@@ -163,7 +193,7 @@ class StatusBar(QFrame):
         statusbar_layout.addWidget(self.terminalWindow)
 
         self.statusBtn = QPushButton("   Ready")
-        self.statusBtn.setFixedSize(80, 28)
+        self.statusBtn.setFixedSize(200, 28)
         self.statusBtn.setIcon(QIcon("assets/system/status.png"))
         self.statusBtn.setIconSize(QSize(17, 17))
         self.statusBtn.setStyleSheet("""
@@ -182,6 +212,28 @@ class StatusBar(QFrame):
         }""")
         statusbar_layout.addWidget(self.statusBtn)
 
+        self.bootstrap_progress_container = QFrame()
+        self.bootstrap_progress_container.setFixedSize(120, 16)
+        progress_container_layout = QHBoxLayout(self.bootstrap_progress_container)
+        progress_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.bootstrap_progress = QProgressBar()
+        self.bootstrap_progress.setTextVisible(False)
+        self.bootstrap_progress.setRange(0, 0)
+        self.bootstrap_progress.hide()
+        self.bootstrap_progress.setStyleSheet("""
+            QProgressBar {
+                background-color: #3C3C3C;
+                border: none;
+                border-radius: 3px;
+            }
+            QProgressBar::chunk {
+                background-color: #4A6FA5;
+                border-radius: 3px;
+            }
+        """)
+        progress_container_layout.addWidget(self.bootstrap_progress)
+        statusbar_layout.addWidget(self.bootstrap_progress_container)
+
         self.notificationBtn = QPushButton("")
         self.notificationBtn.setFixedSize(30, 28)
         self.notificationBtn.setIcon(QIcon("assets/system/notificaiton.png"))
@@ -197,6 +249,8 @@ class StatusBar(QFrame):
         }
         QPushButton:hover{background-color: #333}""")
         statusbar_layout.addWidget(self.notificationBtn)
+
+        self._bootstrap_log: list[str] = []
 
     def retheme(self, t) -> None:
         bg = t.color("statusbar.background")
@@ -230,6 +284,18 @@ class StatusBar(QFrame):
         self.statusBtn.setStyleSheet(f"""
         QPushButton{{background-color: transparent; font-size:12px; font-family: Arial; border: none; color: {text}; border-radius: 0px; padding-left: 5px; padding-right: 5px;}}
         QPushButton:hover{{background-color: {t.color("notifications.button_hover")};}}""")
+        self.bootstrap_progress_container.setStyleSheet("background: transparent; border: none;")
+        self.bootstrap_progress.setStyleSheet(f"""
+            QProgressBar {{
+                background-color: {t.color("widget.border", "#3C3C3C")};
+                border: none;
+                border-radius: 3px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {t.color("widget.accent", "#4A6FA5")};
+                border-radius: 3px;
+            }}
+        """)
         self.notificationBtn.setStyleSheet(f"""
         QPushButton{{background-color: transparent; border: none; color: {text}; border-radius: 0px; padding-left: 5px; padding-right: 10px;}}
         QPushButton:hover{{background-color: {t.color("notifications.button_hover")};}}""")
@@ -247,16 +313,28 @@ class StatusBar(QFrame):
             print(f"Zoom error: {e}")
 
     def set_bootstrap_status(self, step_name: str, message: str) -> None:
+        self._bootstrap_log.append(f"[{step_name}] {message}")
         self.statusBtn.setText(f"  {message}")
         self.statusBtn.setToolTip(f"Step: {step_name}")
+        self.bootstrap_progress.show()
 
     def set_bootstrap_finished(self, success: bool) -> None:
+        self.bootstrap_progress.hide()
         if success:
             self.statusBtn.setText("  Ready")
             self.statusBtn.setToolTip("Project initialized successfully")
         else:
             self.statusBtn.setText("  Failed")
             self.statusBtn.setToolTip("Project initialization failed")
+
+    def show_bootstrap_details(self) -> None:
+        if not self._bootstrap_log:
+            return
+        dialog = BootstrapDetailDialog(self._bootstrap_log, self.window())
+        dialog.exec()
+
+    def clear_bootstrap_log(self) -> None:
+        self._bootstrap_log.clear()
 
     def text_zoom_toggle(self, zoom_level: int):
         main_win = self.window()

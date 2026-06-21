@@ -157,16 +157,14 @@ class GitCommitHistory(QFrame):
         if repo is None:
             try:
                 from backend.git_control import return_repository
-                repo = return_repository(None)
+                repo = return_repository(self._parent._parent.currentDirectory)
                 if isinstance(repo, Exception):
                     repo = None
             except Exception:
                 repo = None
         self._repo = repo
         if repo is None:
-            item = QTreeWidgetItem(self.tree)
-            item.setText(0, "No git repository")
-            item.setForeground(0, QColor("#969696"))
+            self.tree.clear()
             return
 
         try:
@@ -477,7 +475,7 @@ class SourceControl(QFrame):
         toolbar_layout.addStretch()
 
         toolbar_layout.addSpacing(20)
-        self.maindirectory = QLabel(f"Directory: {os.path.basename(os.getcwd())}")
+        self.maindirectory = QLabel("Directory: --")
         self.maindirectory.setStyleSheet("color: #969696; font-size: 13px;")
         toolbar_layout.addWidget(self.maindirectory)
         self.main_layout.addWidget(self.toolbar)
@@ -678,6 +676,13 @@ class SourceControl(QFrame):
     def _collapse_all(self):
         self.tree.collapseAll()
 
+    def update_workspace(self, new_directory: str):
+        if hasattr(self._parent, "currentDirectory"):
+            self._parent.currentDirectory = new_directory
+        self._repo = None
+        self.maindirectory.setText(f"Directory: {new_directory}")
+        self._refresh()
+
     def _refresh(self):
         self._load_changed_files()
         if hasattr(self, "commit_history"):
@@ -697,19 +702,15 @@ class SourceControl(QFrame):
         if self._repo is None:
             try:
                 from backend.git_control import return_repository
-                self._repo = return_repository(None)
+                self._repo = return_repository(self._parent.currentDirectory)
                 if isinstance(self._repo, Exception):
                     self._repo = None
-                    item = QTreeWidgetItem(self.tree)
-                    item.setText(0, "Not a git repository")
-                    item.setForeground(0, QColor("#969696"))
+                    self.tree.clear()
                     self.tree.setColumnCount(1)
                     return
             except Exception:
                 self._repo = None
-                item = QTreeWidgetItem(self.tree)
-                item.setText(0, "Git not available")
-                item.setForeground(0, QColor("#969696"))
+                self.tree.clear()
                 self.tree.setColumnCount(1)
                 return
 
@@ -817,7 +818,7 @@ class SourceControl(QFrame):
         if self._repo is None:
             try:
                 from backend.git_control import return_repository
-                self._repo = return_repository(None)
+                self._repo = return_repository(self._parent.currentDirectory)
                 if isinstance(self._repo, Exception):
                     self._repo = None
                     return
