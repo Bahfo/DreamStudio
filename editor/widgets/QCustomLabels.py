@@ -79,6 +79,3 @@ class AnimatedGradientLabel(QLabel):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
             self.text(),
         )
-
-
-
