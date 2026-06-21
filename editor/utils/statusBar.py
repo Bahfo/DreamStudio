@@ -246,6 +246,18 @@ class StatusBar(QFrame):
         except Exception as e:
             print(f"Zoom error: {e}")
 
+    def set_bootstrap_status(self, step_name: str, message: str) -> None:
+        self.statusBtn.setText(f"  {message}")
+        self.statusBtn.setToolTip(f"Step: {step_name}")
+
+    def set_bootstrap_finished(self, success: bool) -> None:
+        if success:
+            self.statusBtn.setText("  Ready")
+            self.statusBtn.setToolTip("Project initialized successfully")
+        else:
+            self.statusBtn.setText("  Failed")
+            self.statusBtn.setToolTip("Project initialization failed")
+
     def text_zoom_toggle(self, zoom_level: int):
         main_win = self.window()
         tabs = getattr(main_win, "tab_editors", None)

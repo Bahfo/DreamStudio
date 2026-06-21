@@ -799,3 +799,36 @@ class DreamStudio(QMainWindow):
 
     def ui_build_show_welcome(self):
         self.tab_editors.add_new_editor(welcome=True)
+
+    def bootstrap_project(self, manifest_path: str, target_path: str, project_type: str) -> None:
+        from editor.init.project_bootstrap import ProjectBootstrap
+
+        self._project_target_path = target_path
+        self._project_bootstrap = ProjectBootstrap(
+            manifest_path=manifest_path,
+            target_path=target_path,
+            requested_project_type=project_type,
+        )
+        self._project_bootstrap.step_changed.connect(self._on_bootstrap_step)
+        self._project_bootstrap.step_progress.connect(self._on_bootstrap_progress)
+        self._project_bootstrap.step_failed.connect(self._on_bootstrap_failed)
+        self._project_bootstrap.finished.connect(self._on_bootstrap_finished)
+        self._project_bootstrap.start()
+
+    def _on_bootstrap_step(self, step_name: str, description: str) -> None:
+        self.status_bar.set_bootstrap_status(step_name, description)
+
+    def _on_bootstrap_progress(self, message: str) -> None:
+        self.status_bar.set_bootstrap_status("progress", message)
+
+    def _on_bootstrap_failed(self, step_name: str, error: str) -> None:
+        logger.error("Bootstrap failed at step '%s': %s", step_name, error)
+        self.status_bar.set_bootstrap_status("failed", f"Failed: {step_name}")
+
+    def _on_bootstrap_finished(self, success: bool) -> None:
+        self.status_bar.set_bootstrap_finished(success)
+        if success and hasattr(self, "_project_target_path"):
+            path = self._project_target_path
+            self.currentDirectory = path
+            self.tab_editors.open_new_workspace(path)
+            self.treeview.set_treeview_directory(path)

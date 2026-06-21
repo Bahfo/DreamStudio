@@ -1,25 +1,4 @@
-"""
-(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
-Supervised by EXcellent TechStacks Co.
-
-DreamStudio is an Integrated Development Environment Developed Mainly for C++,
-and Python.
-
-The main purpose of DreamStudio is mainly to maintain and develop Excellent
-Technologies Applications and Software. It is mainly established as a software
-to complete the BlueSea Operating System EcoSystem.
-
-DreamStudio is a software written by its original author Bahaa Nofal. His idea is
-to establish a personal EcoSystem for usage separated from tracking and stay in
-a comfort zone for daily users.
-"""
-
-# Written by Bahaa Nofal 2-2026
-
-import os, sys
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+import os, sys, logging
 
 from PyQt6.QtWidgets import (
     QStackedWidget,
@@ -32,14 +11,273 @@ from PyQt6.QtWidgets import (
     QWidget,
     QFrame,
     QLabel,
+    QLineEdit,
+    QFileDialog,
+    QMessageBox,
 )
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import Qt, QSize
 
-### Local Imports
 from editor.widgets.QTitleBar import TitleBar
 from editor.widgets.QExitDialog import ExitDialog
-from editor.widgets.QActivityButton import ActivityButton
+
+logger = logging.getLogger(__name__)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MANIFEST_DIR = os.path.join(BASE_DIR, "project_manifests")
+
+PYTHON_PROJECT_TYPES = [
+    {
+        "type": "empty_python_project",
+        "name": "Empty Python Project",
+        "desc": "A bare, structured Python baseline",
+        "manifest": os.path.join(MANIFEST_DIR, "empty_python_project.yaml"),
+    },
+    {
+        "type": "tensorflow_ml_project",
+        "name": "TensorFlow ML",
+        "desc": "Deep learning infrastructure with TensorFlow",
+        "manifest": os.path.join(MANIFEST_DIR, "machine_learning_tensorflow.yaml"),
+    },
+    {
+        "type": "pytorch_ml_project",
+        "name": "PyTorch ML",
+        "desc": "Deep learning with the PyTorch ecosystem",
+        "manifest": os.path.join(MANIFEST_DIR, "machine_learning_pytorch.yaml"),
+    },
+    {
+        "type": "fastapi_api_project",
+        "name": "FastAPI Web API",
+        "desc": "Async backend engine powered by FastAPI",
+        "manifest": os.path.join(MANIFEST_DIR, "fast_api_python.yaml"),
+    },
+    {
+        "type": "pyqt6_ui_project",
+        "name": "PyQt6 Desktop UI",
+        "desc": "Desktop application boilerplate with PyQt6",
+        "manifest": os.path.join(MANIFEST_DIR, "user_interface_pyqt.yaml"),
+    },
+    {
+        "type": "flask_server_project",
+        "name": "Flask Server",
+        "desc": "Server project powered by the Flask framework",
+        "manifest": os.path.join(MANIFEST_DIR, "server_flask.yaml"),
+    },
+]
+
+
+class ProjectCard(QPushButton):
+    def __init__(self, project_info, parent=None):
+        super().__init__(parent)
+        self._info = project_info
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedSize(210, 160)
+        self.setFlat(True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(6)
+        self.setLayout(layout)
+
+        icon_label = QLabel("  ".join(w[0].upper() for w in project_info["name"].split()[:2]))
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setFixedHeight(80)
+        icon_label.setStyleSheet("""
+            font-size: 28px;
+            font-weight: bold;
+            color: #4A6FA5;
+            background: transparent;
+        """)
+
+        name_label = QLabel(project_info["name"])
+        name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name_label.setWordWrap(True)
+        name_label.setStyleSheet("""
+            color: #A9B7C6;
+            font-size: 12px;
+            font-weight: bold;
+            background: transparent;
+            padding: 2px 4px;
+        """)
+
+        desc_label = QLabel(project_info["desc"])
+        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet("""
+            color: #8A8A8A;
+            font-size: 10px;
+            background: transparent;
+            padding: 0px 4px;
+        """)
+
+        layout.addWidget(icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(name_label)
+        layout.addWidget(desc_label)
+
+        self.setStyleSheet("""
+            ProjectCard, ProjectCard:focus, ProjectCard:pressed, ProjectCard:checked {
+                background: transparent;
+                border: 1px solid #3C3C3C;
+                border-radius: 8px;
+            }
+            ProjectCard:hover {
+                border: 1px solid #4A6FA5;
+                background: rgba(74, 111, 165, 0.08);
+            }
+            ProjectCard:checked {
+                border: 1px solid #4A6FA5;
+                background: rgba(74, 111, 165, 0.15);
+            }
+        """)
+
+    @property
+    def project_info(self):
+        return self._info
+
+
+class ProjectDetailsPage(QWidget):
+    def __init__(self, project_info, parent=None):
+        super().__init__(parent)
+        self._info = project_info
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setSpacing(16)
+
+        back_layout = QHBoxLayout()
+        self.back_btn = QPushButton("  Back")
+        self.back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.back_btn.setFixedSize(100, 32)
+        self.back_btn.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background: transparent;
+                border: 1px solid #3C3C3C;
+                border-radius: 4px;
+                font-size: 13px;
+                text-align: left;
+                padding-left: 8px;
+            }
+            QPushButton:hover { background: #333; }
+        """)
+        back_layout.addWidget(self.back_btn)
+        back_layout.addStretch()
+        layout.addLayout(back_layout)
+
+        header = QLabel(f"Create New: {project_info['name']}")
+        header.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: 300;")
+        layout.addWidget(header)
+
+        desc = QLabel(project_info["desc"])
+        desc.setStyleSheet("color: #8A8A8A; font-size: 13px;")
+        layout.addWidget(desc)
+
+        layout.addSpacing(16)
+
+        name_label = QLabel("Project Name")
+        name_label.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold;")
+        layout.addWidget(name_label)
+
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("my_project_name")
+        self.name_input.setFixedHeight(36)
+        self.name_input.setStyleSheet("""
+            QLineEdit {
+                background: #25272B;
+                color: white;
+                border: 1px solid #3C3C3C;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 13px;
+            }
+            QLineEdit:focus { border: 1px solid #4A6FA5; }
+        """)
+        layout.addWidget(self.name_input)
+
+        location_label = QLabel("Project Location")
+        location_label.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold;")
+        layout.addWidget(location_label)
+
+        loc_row = QHBoxLayout()
+        self.location_input = QLineEdit()
+        self.location_input.setPlaceholderText(os.path.expanduser("~/DreamStudioProjects"))
+        self.location_input.setFixedHeight(36)
+        self.location_input.setStyleSheet("""
+            QLineEdit {
+                background: #25272B;
+                color: white;
+                border: 1px solid #3C3C3C;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 13px;
+            }
+            QLineEdit:focus { border: 1px solid #4A6FA5; }
+        """)
+        loc_row.addWidget(self.location_input)
+
+        self.browse_btn = QPushButton("Browse")
+        self.browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.browse_btn.setFixedSize(90, 36)
+        self.browse_btn.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background: #2D2D2D;
+                border: 1px solid #3C3C3C;
+                border-radius: 4px;
+                font-size: 13px;
+            }
+            QPushButton:hover { background: #3D3D3D; }
+        """)
+        loc_row.addWidget(self.browse_btn)
+        layout.addLayout(loc_row)
+
+        layout.addStretch()
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+
+        self.create_btn = QPushButton("Create Project")
+        self.create_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.create_btn.setFixedSize(160, 40)
+        self.create_btn.setEnabled(False)
+        self.create_btn.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background: #4A6FA5;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #3A5F95; }
+            QPushButton:disabled { background: #3C3C3C; color: #666; }
+        """)
+        btn_row.addWidget(self.create_btn)
+        layout.addLayout(btn_row)
+
+        self.name_input.textChanged.connect(self._validate)
+        self.location_input.textChanged.connect(self._validate)
+        self.browse_btn.clicked.connect(self._browse_location)
+
+    def _validate(self):
+        valid = bool(self.name_input.text().strip()) and bool(self.location_input.text().strip())
+        self.create_btn.setEnabled(valid)
+
+    def _browse_location(self):
+        path = QFileDialog.getExistingDirectory(self, "Select Project Location")
+        if path:
+            self.location_input.setText(path)
+
+    @property
+    def project_info(self):
+        return self._info
+
+    def collect_input(self):
+        return {
+            "name": self.name_input.text().strip(),
+            "location": self.location_input.text().strip(),
+        }
 
 
 class WelcomeInterface(QMainWindow):
@@ -55,6 +293,8 @@ class WelcomeInterface(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
+        self._details_pages = []
+        self._transitioning = False
         self.setup_layout()
 
     def setup_layout(self):
@@ -62,8 +302,7 @@ class WelcomeInterface(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Title Bar
-        self.title_bar = self.title_bar = TitleBar(self, "   Welcome to DreamStudio")
+        self.title_bar = TitleBar(self, "   Welcome to DreamStudio")
         main_layout.addWidget(self.title_bar)
 
         self.body_layout = QHBoxLayout()
@@ -74,18 +313,12 @@ class WelcomeInterface(QMainWindow):
 
         self.leftmost_bar = QFrame()
         self.leftmost_bar.setFixedWidth(300)
-        self.leftmost_bar.setStyleSheet("""background: #1B1B1B;""")
+        self.leftmost_bar.setStyleSheet("background: #1B1B1B;")
 
-        #### The Three Main Layouts
         self.stacked_layout = QStackedWidget()
 
-        # layouts
         self.welcome_layout = WelcomeFrame()
         self.new_proj_layout = QWidget()
-        self.marketplace_layout = QWidget()
-        self.news_and_articles = NewsAndArticles()
-
-        #### Leftmost Layout
 
         self.leftmost_layout = QVBoxLayout(self.leftmost_bar)
         self.leftmost_layout.setContentsMargins(10, 15, 10, 5)
@@ -104,12 +337,7 @@ class WelcomeInterface(QMainWindow):
             border-radius: 4px;
             padding-left: 15px;
             font-size: 14px;}
-            QPushButton:hover{
-            background-color:#444;}
-            
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.1);
-            }""")
+            QPushButton:hover{background-color: rgba(255, 255, 255, 0.1);}""")
         self.leftmost_layout.addWidget(new_project_btn)
 
         marketplace_btn = QPushButton("MarketPlace")
@@ -124,106 +352,100 @@ class WelcomeInterface(QMainWindow):
             border-radius: 4px;
             text-align: left;
             font-size: 14px;}
-            QPushButton:hover{
-            background-color:#444;}
-            
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.1);
-            }""")
+            QPushButton:hover{background-color: rgba(255, 255, 255, 0.1);}""")
         self.leftmost_layout.addWidget(marketplace_btn)
 
-        community_btn = QPushButton("Community")
-        community_btn.setFixedSize(280, 40)
-        community_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        community_btn.setStyleSheet("""
-            QPushButton{
-            color: white;
-            background-color: transparent;
-            border: none;
-            border-radius: 4px;
-            padding-left: 15px;
-            text-align: left;
-            font-size: 14px;}
-            QPushButton:hover{
-            background-color:#444;}
-            
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.1);
-            }""")
-        self.leftmost_layout.addWidget(community_btn)
+        self._build_new_project_page()
+        self._build_details_pages()
 
-        #### `New Project` Layout
-        self.new_proj_v_layout = QVBoxLayout()
-        self.new_proj_v_layout.setContentsMargins(20, 20, 20, 20)
-        self.new_proj_v_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        # --- Section 1: Desktop Projects ---
-        self.desktop_label = QLabel("Desktop Projects:")
-        self.desktop_label.setStyleSheet(
-            "font-size: 16px; font-weight: bold; color: #ffffff; margin-bottom: 10px;"
-        )
-        self.new_proj_v_layout.addWidget(self.desktop_label)
-
-        self.desktop_grid = QGridLayout()
-        self.desktop_grid.setSpacing(15)
-        self.desktop_grid.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
-        self.btn_cpp = ActivityButton(
-            "assets/activities/desktop_activity_2.svg", "Desktop Project with C++"
-        )
-        self.desktop_grid.addWidget(self.btn_cpp, 0, 0)
-
-        self.btn_python = ActivityButton(
-            "assets/activities/desktop_activity_1.svg", "Desktop Project with Python"
-        )
-        self.desktop_grid.addWidget(self.btn_python, 0, 1)
-
-        self.new_proj_v_layout.addLayout(self.desktop_grid)
-
-        # --- Spacer between sections ---
-        self.new_proj_v_layout.addSpacing(30)
-
-        # --- Section 2: Console Projects ---
-        self.console_label = QLabel("Console Projects:")
-        self.console_label.setStyleSheet(
-            "font-size: 16px; font-weight: bold; color: #ffffff; margin-bottom: 10px;"
-        )
-        self.new_proj_v_layout.addWidget(self.console_label)
-
-        self.console_grid = QGridLayout()
-        self.console_grid.setSpacing(15)
-        self.console_grid.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
-        self.btn_con1 = ActivityButton(
-            "assets/activities/console_activity_1.svg", "EXConsole Activity with C++"
-        )
-        self.console_grid.addWidget(self.btn_con1, 0, 0)
-
-        self.btn_con2 = ActivityButton(
-            "assets/activities/console_activity_2.svg", "EXConsole Activity with Python"
-        )
-        self.console_grid.addWidget(self.btn_con2, 0, 1)
-
-        self.new_proj_v_layout.addLayout(self.console_grid)
-
-        self.new_proj_layout.setLayout(self.new_proj_v_layout)
         self.stacked_layout.addWidget(self.welcome_layout)
         self.stacked_layout.addWidget(self.new_proj_layout)
-        self.stacked_layout.addWidget(self.news_and_articles)
+        for page in self._details_pages:
+            self.stacked_layout.addWidget(page)
 
         self.body_layout.addWidget(self.leftmost_bar)
         self.body_layout.addWidget(self.stacked_layout)
 
-        ### Actions
         new_project_btn.clicked.connect(lambda: self.stacked_layout.setCurrentIndex(1))
-        community_btn.clicked.connect(lambda: self.stacked_layout.setCurrentIndex(2))
+
+    def _build_new_project_page(self):
+        self.new_proj_v_layout = QVBoxLayout()
+        self.new_proj_v_layout.setContentsMargins(20, 20, 20, 20)
+        self.new_proj_v_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        python_label = QLabel("Python Projects:")
+        python_label.setStyleSheet(
+            "font-size: 16px; font-weight: bold; color: #ffffff; margin-bottom: 10px;"
+        )
+        self.new_proj_v_layout.addWidget(python_label)
+
+        python_grid = QGridLayout()
+        python_grid.setSpacing(15)
+        python_grid.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        self._project_cards = []
+        for i, info in enumerate(PYTHON_PROJECT_TYPES):
+            card = ProjectCard(info)
+            card.clicked.connect(lambda checked, idx=i: self._on_project_card_clicked(idx))
+            self._project_cards.append(card)
+            row, col = divmod(i, 3)
+            python_grid.addWidget(card, row, col)
+
+        self.new_proj_v_layout.addLayout(python_grid)
+        self.new_proj_v_layout.addSpacing(30)
+        self.new_proj_v_layout.addStretch()
+
+        self.new_proj_layout.setLayout(self.new_proj_v_layout)
+
+    def _build_details_pages(self):
+        for info in PYTHON_PROJECT_TYPES:
+            page = ProjectDetailsPage(info)
+            page.back_btn.clicked.connect(lambda: self.stacked_layout.setCurrentIndex(1))
+            page.create_btn.clicked.connect(lambda checked, pi=info: self._on_create_project(pi))
+            self._details_pages.append(page)
+
+    def _on_project_card_clicked(self, index):
+        details_index = 2 + index
+        if 0 <= details_index < self.stacked_layout.count():
+            self.stacked_layout.setCurrentIndex(details_index)
+
+    def _on_create_project(self, project_info):
+        page = self._details_pages[PYTHON_PROJECT_TYPES.index(project_info)]
+        input_data = page.collect_input()
+        name = input_data["name"]
+        location = input_data["location"]
+
+        project_path = os.path.join(location, name)
+        if os.path.exists(project_path):
+            QMessageBox.warning(self, "Conflict", f"Path already exists:\n{project_path}")
+            return
+
+        manifest_path = project_info["manifest"]
+        if not os.path.isfile(manifest_path):
+            QMessageBox.critical(self, "Error", f"Manifest not found:\n{manifest_path}")
+            return
+
+        self._launch_ide(manifest_path, project_path, project_info["type"])
+
+    def _launch_ide(self, manifest_path, project_path, project_type):
+        from editor.ui_build import DreamStudio
+
+        os.makedirs(project_path, exist_ok=True)
+
+        self._transitioning = True
+        self.ide_window = DreamStudio()
+        self.ide_window.show()
+        self.ide_window.title_bar.toggle_maximize()
+        self.close()
+
+        QApplication.processEvents()
+
+        self.ide_window.bootstrap_project(manifest_path, project_path, project_type)
 
     def center_on_screen(self):
-        """Calculates the screen center and moves the window there."""
         screen_geometry = self.screen().availableGeometry()
         window_geometry = self.frameGeometry()
         center_point = screen_geometry.center()
-
         window_geometry.moveCenter(center_point)
         self.move(window_geometry.topLeft())
 
@@ -240,23 +462,21 @@ class WelcomeInterface(QMainWindow):
                 cursor_x = event.globalPosition().toPoint().x()
                 max_width = win.width()
                 width_ratio = cursor_x / max_width
-
                 win.showNormal()
                 normal_width = win.width()
                 new_x = int(cursor_x - (normal_width * width_ratio))
                 new_y = event.globalPosition().toPoint().y() - self.offset.y()
-
                 win.move(new_x, new_y)
-
                 self.offset = event.globalPosition().toPoint() - win.pos()
                 return
-
             win.move(event.globalPosition().toPoint() - self.offset)
             event.accept()
 
     def closeEvent(self, event):
+        if self._transitioning:
+            event.accept()
+            return
         dialog = ExitDialog(self)
-        # .exec() returns QDialog.DialogCode.Accepted (1) or Rejected (0)
         if dialog.exec():
             event.accept()
         else:
@@ -264,12 +484,9 @@ class WelcomeInterface(QMainWindow):
 
 
 class WelcomeFrame(QFrame):
-    """A Welcome Frame once initializing DreamStudio"""
-
     def __init__(self, _parent=None):
         super().__init__(_parent)
         self._parent = _parent
-
         self.setStyleSheet("background-color: transparent; border: none;")
 
         main_layout = QVBoxLayout(self)
@@ -277,16 +494,19 @@ class WelcomeFrame(QFrame):
         main_layout.setSpacing(10)
 
         title = QLabel("DreamStudio 2026")
-        title.setStyleSheet("""color: #ffffff; 
-            font-size: 42px; 
-            font-weight: 300; 
-            font-family: montserrat, Arial; """)
+        title.setStyleSheet("""
+            color: #ffffff;
+            font-size: 42px;
+            font-weight: 300;
+            font-family: montserrat, Arial;
+        """)
 
         subtitle = QLabel("Welcome to")
         subtitle.setStyleSheet("""
-            color: #cccccc; 
+            color: #cccccc;
             font-size: 20px;
-            padding-left: 0px;""")
+            padding-left: 0px;
+        """)
 
         main_layout.addWidget(subtitle)
         main_layout.addWidget(title)
@@ -300,7 +520,6 @@ class WelcomeFrame(QFrame):
             font-size: 14px;
             padding-top: 10px;
         """)
-
         main_layout.addWidget(start_label)
         main_layout.addSpacing(6)
         main_layout.addStretch()
@@ -309,81 +528,7 @@ class WelcomeFrame(QFrame):
         footer.setSpacing(0)
         footer.setContentsMargins(0, 0, 0, 0)
         footer.addStretch()
-
         main_layout.addLayout(footer)
-
-
-class NewsAndArticles(QFrame):
-    def __init__(self):
-        super().__init__()
-        self.resize(1000, 700)
-
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(10)
-
-        self.view = QWebEngineView()
-        self.view.setStyleSheet("""
-            QScrollBar:vertical {
-                border: none;
-                background: #1e1e2e;
-                width: 8px;
-                margin: 0px;
-            }
-
-            QScrollBar::handle:vertical {
-                background: #45475a;
-                min-height: 30px;
-            }
-
-            QScrollBar::handle:vertical:hover {
-                background: #38bdf8;
-            }
-
-            QScrollBar:horizontal {
-                border: none;
-                background: #1e1e2e;
-                height: 8px;
-                margin: 0px;
-            }
-
-            QScrollBar::handle:horizontal {
-                background: #45475a;
-                min-width: 30px;
-            }
-
-            QScrollBar::handle:horizontal:hover {
-                background: #38bdf8;
-            }
-
-            QScrollBar::sub-line:vertical, QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:horizontal, QScrollBar::add-line:horizontal {
-                height: 0px;
-                width: 0px;
-                border: none;
-                background: none;
-            }
-        """)
-
-        file_path = os.path.abspath(
-            os.path.join(BASE_DIR, "additional", "techNews", "news.html")
-        )
-        self.view.setUrl(QUrl.fromLocalFile(file_path))
-
-        self.view.loadFinished.connect(self.inject_data_and_ui)
-        main_layout.addWidget(self.view)
-
-    def inject_data_and_ui(self):
-        json_path = os.path.join(BASE_DIR, "additional", "techNews", "news.json")
-        with open(json_path, "r") as f:
-            news_json = f.read()
-
-        self.view.page().runJavaScript(f"window.INJECTED_NEWS = {news_json};")
-        js_path = os.path.join(BASE_DIR, "additional", "techNews", "news.js")
-        with open(js_path, "r") as f:
-            app_js = f.read()
-
-        self.view.page().runJavaScript(app_js)
 
 
 TOOLTIP_STYLE = """
@@ -399,6 +544,8 @@ QToolTip {
 
 
 def main():
+    from editor.init import initialize
+
     app = QApplication(sys.argv)
     app.setApplicationName("DreamStudio")
     app.setStyleSheet(TOOLTIP_STYLE)
