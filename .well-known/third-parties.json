@@ -1,0 +1,5 @@
+{
+    "if_third_party":"addons/manifests",
+    "look_for":"yaml",
+    "ignore":"any"
+}

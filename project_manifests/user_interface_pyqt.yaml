@@ -1,0 +1,75 @@
+# Project Type: User Interface Project with PyQt6
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+language: "python"
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "pyqt6_ui_project"
+display_name: "User Interface Project with PyQt6"
+description: "Desktop application boilerplate utilizing the PyQt6 framework"
+pyqt_version: "studio_default_version"
+
+initialization: 
+  directories: 
+    - "app"
+    - "app/views"
+    - "app/controllers"
+    - "app/models"
+    - "app/resources"
+    - "tests"
+  files: 
+    - ".gitignore"
+    - ".gitattributes"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+  templates: 
+    - target: "main.py"
+      contents: |
+        import sys
+        from PyQt6.QtWidgets import QApplication
+        from app.views.main_window import MainWindow
+
+        def main():
+            app = QApplication(sys.argv)
+            window = MainWindow()
+            window.show()
+            sys.exit(app.exec())
+
+        if __name__ == "__main__":
+            main()
+    - target: "app/views/main_window.py"
+      contents: |
+        from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel
+        from PyQt6.QtCore import QSize
+
+        class MainWindow(QMainWindow):
+            def __init__(self):
+                super().__init__()
+                self.setWindowTitle("Studio Initialized Application")
+                self.setMinimumSize(QSize(800, 600))
+                
+                # Central Widget Layout setup
+                central_widget = QWidget(self)
+                layout = QVBoxLayout(central_widget)
+                
+                label = QLabel("Welcome to your PyQt6 Application", self)
+                layout.addWidget(label)
+                
+                self.setCentralWidget(central_widget)
+    - target: "requirements.txt"
+      contents: |
+        PyQt6>=6.6.0
+        PyQt6-Qt6>=6.6.0
+        pytest>=8.0.0
+        black>=24.0.0
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing PyQt6 and development dependencies via pip"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"

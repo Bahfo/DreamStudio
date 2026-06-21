@@ -1,0 +1,65 @@
+# Project Type: High-Performance Web API with FastAPI
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+language: "python"
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "fastapi_api_project"
+display_name: "Web API Project with FastAPI"
+description: "Asynchronous backend engine powered by FastAPI and Uvicorn"
+fastapi_version: "studio_default_version"
+
+initialization: 
+  directories: 
+    - "app"
+    - "app/api"
+    - "app/core"
+    - "app/models"
+    - "app/schemas"
+    - "tests"
+  files: 
+    - ".gitignore"
+    - "README.md"
+    - "requirements.txt"
+    - ".env"
+    - "main.py"
+  templates: 
+    - target: "main.py"
+      contents: |
+        import uvicorn
+
+        if __name__ == "__main__":
+            uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    - target: "app/main.py"
+      contents: |
+        from fastapi import FastAPI
+
+        app = FastAPI(title="Studio Engine API", version="0.1.0")
+
+        @app.get("/")
+        async def root():
+            return {"status": "online", "engine": "FastAPI"}
+    - target: ".env"
+      contents: |
+        DEBUG=True
+        SECRET_KEY=studio_auto_generated_development_key_placeholder
+        DATABASE_URL=sqlite:///./dev_database.db
+    - target: "requirements.txt"
+      contents: |
+        fastapi>=0.110.0
+        uvicorn[standard]>=0.28.0
+        pydantic>=2.6.0
+        pydantic-settings>=2.2.0
+        python-dotenv>=1.0.0
+        pytest>=8.0.0
+        httpx>=0.27.0
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing FastAPI, Uvicorn, and testing toolsets"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"

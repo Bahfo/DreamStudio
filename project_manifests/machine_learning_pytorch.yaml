@@ -1,0 +1,77 @@
+# Project Type: Machine Learning Project with PyTorch
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+language: "python"
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "pytorch_ml_project"
+display_name: "Machine Learning Project with PyTorch"
+description: "Deep Learning engineering architecture using the PyTorch ecosystem"
+pytorch_version: "studio_default_version"
+
+initialization: 
+  directories: 
+    - "data"
+    - "data/raw"
+    - "data/processed"
+    - "models"
+    - "notebooks"
+    - "src"
+    - "src/utils"
+    - "tests"
+  files: 
+    - ".gitignore"
+    - "README.md"
+    - "requirements.txt"
+    - "train.py"
+  templates: 
+    - target: "src/model.py"
+      contents: |
+        import torch
+        import torch.nn as nn
+
+        class StudioNeuralNetwork(nn.Module):
+            def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+                super(StudioNeuralNetwork, self).__init__()
+                self.linear_relu_stack = nn.Sequential(
+                    nn.Linear(input_dim, hidden_dim),
+                    nn.ReLU(),
+                    nn.Linear(hidden_dim, output_dim)
+                )
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                return self.linear_relu_stack(x)
+    - target: "train.py"
+      contents: |
+        import torch
+        from src.model import StudioNeuralNetwork
+
+        def execute_training_pipeline():
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"Targeting execution execution engine: {device}")
+            
+            # Placeholder instantiation for verification
+            model = StudioNeuralNetwork(input_dim=10, hidden_dim=32, output_dim=2).to(device)
+            print(model)
+
+        if __name__ == "__main__":
+            execute_training_pipeline()
+    - target: "requirements.txt"
+      contents: |
+        torch>=2.2.0
+        torchvision>=0.17.0
+        numpy>=1.26.0
+        pandas>=2.2.0
+        scikit-learn>=1.4.0
+        matplotlib>=3.8.0
+        jupyterlab>=4.1.0
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing PyTorch, Core Data Science packages, and Jupyter Support"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"

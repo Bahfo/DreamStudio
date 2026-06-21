@@ -1,0 +1,66 @@
+# Project Type: Server Project with Flask
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+language: "python"
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "flask_server_project"
+display_name: "Server Project with Flask"
+description: "Server type project powered by the Flask framework"
+flask_version: "studio_default_version"
+
+initialization: 
+  directories: 
+    - "app"
+    - "app/static"
+    - "app/templates"
+    - "app/tests"
+    - "config"
+  files: 
+    - ".gitignore"
+    - ".gitattributes"
+    - ".config"
+    - "README.md"
+    - "LICENSE.md"
+    - "requirements.txt"
+    - "build.bat"
+    - "build.sh"
+  templates: 
+    - target: "app/__init__.py"
+      contents: |
+        # Initialization Script
+        # Write your initialization here, or keep it empty
+    - target: "app/static/index.html"
+      contents: |
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Flask App</title>
+          </head>
+          <body>
+          </body>
+        </html>
+    - target: "requirements.txt"
+      contents: |
+        Flask>=3.0.0
+        Werkzeug>=3.0.0
+        gunicorn>=22.0.0
+        python-dotenv>=1.0.0
+        psycopg2-binary>=2.9.0
+        Flask-SQLAlchemy>=3.1.0
+        Flask-CORS>=4.0.0
+        Flask-WTF>=1.2.0
+        email-validator>=2.1.0
+        pytest>=8.0.0
+        blinker>=1.7.0
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing project dependencies via pip"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"

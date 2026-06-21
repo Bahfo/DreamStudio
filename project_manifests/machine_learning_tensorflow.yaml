@@ -1,0 +1,71 @@
+# Project Type: Machine Learning Project with TensorFlow
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+language: "python"
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "tensorflow_ml_project"
+display_name: "Machine Learning Project with TensorFlow"
+description: "Computational graphs and deep learning infrastructure powered by TensorFlow"
+tensorflow_version: "studio_default_version"
+
+initialization: 
+  directories: 
+    - "data"
+    - "saved_models"
+    - "notebooks"
+    - "src"
+    - "tests"
+  files: 
+    - ".gitignore"
+    - "README.md"
+    - "requirements.txt"
+    - "train.py"
+  templates: 
+    - target: "src/model.py"
+      contents: |
+        import tensorflow as tf
+        from tensorflow.keras import layers, models
+
+        def build_studio_network(input_shape: tuple, num_classes: int) -> models.Sequential:
+            model = models.Sequential([
+                layers.Input(shape=input_shape),
+                layers.Dense(64, activation='relu'),
+                layers.Dropout(0.2),
+                layers.Dense(num_classes, activation='softmax')
+            ])
+            return model
+    - target: "train.py"
+      contents: |
+        import tensorflow as tf
+        from src.model import build_studio_network
+
+        def run_pipeline():
+            print(f"TensorFlow Execution Version: {tf.__version__}")
+            available_gpus = tf.config.list_physical_devices('GPU')
+            print(f"Detected Accelerated Physical Hardware Units: {len(available_gpus)}")
+            
+            model = build_studio_network(input_shape=(32,), num_classes=10)
+            model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            model.summary()
+
+        if __name__ == "__main__":
+            run_pipeline()
+    - target: "requirements.txt"
+      contents: |
+        tensorflow>=2.16.0
+        numpy>=1.26.0
+        pandas>=2.2.0
+        scikit-learn>=1.4.0
+        matplotlib>=3.8.0
+        jupyterlab>=4.1.0
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing TensorFlow runtime engine and verification arrays"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"

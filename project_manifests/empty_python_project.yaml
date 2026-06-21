@@ -1,0 +1,76 @@
+# Project Type: Empty Python Project
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+language: "python"
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "empty_python_project"
+display_name: "Empty Python Project"
+description: "A bare, structured python baseline containing environment setups and testing hooks"
+
+initialization: 
+  directories: 
+    - "src"
+    - "tests"
+  files: 
+    - ".gitignore"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+  templates: 
+    - target: "main.py"
+      contents: |
+        def main():
+            print("Project runtime environment context initialized successfully.")
+
+        if __name__ == "__main__":
+            main()
+    - target: "requirements.txt"
+      contents: |
+        # Core third-party dependencies go here.
+        pytest>=8.0.0
+    - target: ".gitignore"
+      contents: |
+        # Byte-compiled / optimized / DLL files
+        __pycache__/
+        *.py[cod]
+        *$py.class
+
+        # C extensions
+        *.so
+
+        # Distribution / packaging
+        .Python
+        build/
+        develop-eggs/
+        dist/
+        downloads/
+        eggs/
+        .eggs/
+        lib/
+        lib64/
+        parts/
+        sdist/
+        var/
+        wheels/
+        *.egg-info/
+
+        # Virtual Environments
+        venv/
+        .venv/
+        env/
+        
+        # IDE Specific Configurations
+        .idea/
+        .vscode/
+        *.studio
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing structural project base components"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"
