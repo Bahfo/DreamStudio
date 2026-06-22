@@ -39,3 +39,19 @@ config.json
 .pytest_cache/
 
 /additional/consoles_emulators/
+
+.briefcase/
+src/*/__pycache__/
+src/*/*.egg-info/
+
+# Android Build Artifacts & SDK Outputs
+*.apk
+*.aab
+*.dex
+*.class
+
+# Local
+local.properties
+.android/
+*.keystore
+*.jks

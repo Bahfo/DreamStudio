@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QPixmap
 
 from editor.widgets.QTitleBar import TitleBar
 from editor.widgets.QExitDialog import ExitDialog
@@ -24,6 +25,19 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MANIFEST_DIR = os.path.join(BASE_DIR, "project_manifests")
+
+PROJECT_ICON_MAP = {
+    "empty_python_project": "dreamStudio_icon.png",
+    "tensorflow_ml_project": "tensorflow.png",
+    "pytorch_ml_project": "pytorch.png",
+    "fastapi_api_project": "fastapi.svg",
+    "pyqt6_ui_project": "qt.png",
+    "flask_server_project": "flask.png",
+    "kivy_mobile_project": "beeware.png",
+}
+
+ICON_DIR = os.path.join(BASE_DIR, "icon_src")
+
 
 PYTHON_PROJECT_TYPES = [
     {
@@ -62,6 +76,12 @@ PYTHON_PROJECT_TYPES = [
         "desc": "Server project powered by the Flask framework",
         "manifest": os.path.join(MANIFEST_DIR, "server_flask.yaml"),
     },
+    {
+        "type": "kivy_mobile_project",
+        "name": "Kivy Mobile App",
+        "desc": "Cross-platform mobile application with Kivy",
+        "manifest": os.path.join(MANIFEST_DIR, "mobile_application_kivy.yaml"),
+    },
 ]
 
 
@@ -80,15 +100,18 @@ class ProjectCard(QPushButton):
         layout.setSpacing(6)
         self.setLayout(layout)
 
-        icon_label = QLabel("  ".join(w[0].upper() for w in project_info["name"].split()[:2]))
+        icon_filename = PROJECT_ICON_MAP.get(project_info["type"], "dreamStudio_icon.png")
+        icon_path = os.path.join(ICON_DIR, icon_filename)
+        pixmap = QPixmap(icon_path)
+        if pixmap.isNull():
+            pixmap = QPixmap(os.path.join(ICON_DIR, "dreamStudio_icon.png"))
+        icon_label = QLabel()
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_label.setFixedHeight(80)
-        icon_label.setStyleSheet("""
-            font-size: 28px;
-            font-weight: bold;
-            color: #4A6FA5;
-            background: transparent;
-        """)
+        scaled = pixmap.scaled(76, 76, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
+        icon_label.setPixmap(scaled)
+        icon_label.setStyleSheet("background: transparent;")
 
         name_label = QLabel(project_info["name"])
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -400,9 +423,14 @@ class WelcomeInterface(QMainWindow):
     def _build_details_pages(self):
         for info in PYTHON_PROJECT_TYPES:
             page = ProjectDetailsPage(info)
-            page.back_btn.clicked.connect(lambda: self.stacked_layout.setCurrentIndex(1))
+            page.back_btn.clicked.connect(self._on_back_to_projects)
             page.create_btn.clicked.connect(lambda checked, pi=info: self._on_create_project(pi))
             self._details_pages.append(page)
+
+    def _on_back_to_projects(self):
+        self.stacked_layout.setCurrentIndex(1)
+        for card in self._project_cards:
+            card.setChecked(False)
 
     def _on_project_card_clicked(self, index):
         details_index = 2 + index

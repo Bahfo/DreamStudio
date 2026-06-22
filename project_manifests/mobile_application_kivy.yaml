@@ -1,0 +1,74 @@
+# Project Type: Mobile Application with Kivy
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+language: "python"
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "kivy_mobile_project"
+display_name: "Kivy Mobile App"
+description: "Cross-platform mobile application with Kivy framework"
+
+initialization:
+  directories:
+    - "src"
+    - "src/ui"
+    - "src/core"
+    - "assets"
+    - "tests"
+  files:
+    - ".gitignore"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+  templates:
+    - target: "main.py"
+      contents: |
+        from kivy.app import App
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.label import Label
+        from kivy.config import Config
+
+        Config.set("graphics", "resizable", True)
+
+
+        class MainLayout(BoxLayout):
+            pass
+
+
+        class MobileApp(App):
+            def build(self):
+                self.title = "Kivy Mobile App"
+                return MainLayout()
+
+
+        if __name__ == "__main__":
+            MobileApp().run()
+    - target: "requirements.txt"
+      contents: |
+        kivy>=2.3.0
+        pytest>=8.0.0
+    - target: ".gitignore"
+      contents: |
+        __pycache__/
+        *.py[cod]
+        *.pyo
+        *.egg-info/
+        .eggs/
+        dist/
+        build/
+        venv/
+        .venv/
+        .env
+        *.spec
+        .buildozer/
+        bin/
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing Kivy and testing tools"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"
