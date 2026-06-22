@@ -4,6 +4,7 @@ ToolsManager - Central panel for managing and launching IDE tools.
 import logging
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QFrame
 from editor.utils.tools.todo_search import TODOSearch
+from editor.utils.tools.system_monitor import SystemMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class ToolsManager(QFrame):
 
     def _register_default_tools(self):
         self.register_tool("todo", TODOSearch(self))
+        self.register_tool("system_monitor", SystemMonitor(self))
 
     def register_tool(self, name: str, widget) -> None:
         """Register a tool widget that can be opened by name."""

@@ -60,7 +60,6 @@ from editor.texteditor.tab_editor import (
 from editor.utils.find_replace import FindReplaceWidget, GlobalFileSearchEngine
 from editor.utils.theme_manager import ThemeManager, SyntaxThemeManager
 from editor.utils.file_explorer import DreamFileTreeWindow
-from editor.utils.system_monitor import SystemMonitorPanel
 from editor.utils.titleBar import DreamStudioTitleBar
 from editor.utils.source_control import SourceControl
 from editor.utils.marketplace import ExtensionsTab
@@ -216,7 +215,6 @@ class DreamStudio(QMainWindow):
         self.title_bar.retheme(t)
 
         self.minimap.retheme(t)
-        self.system_monitor.retheme(t)
         self.tools_manager.retheme_tools(t)
 
         for w in (self.search_menu, self.git_menu, self.extns_menu, self.infoBtn):
@@ -435,8 +433,6 @@ class DreamStudio(QMainWindow):
         wrapper_layout.addWidget(self.minimap)
 
         self.tab_editors.installEventFilter(self)
-
-        self.system_monitor = SystemMonitorPanel()
 
     def _build_splitters(self) -> None:
         self.hero_splitter = QSplitter(Qt.Orientation.Vertical)
@@ -713,11 +709,7 @@ class DreamStudio(QMainWindow):
             self.terminalWidget.switch_tab(0)
 
     def toggle_system_monitor(self):
-        if self.system_monitor.isVisible():
-            self.system_monitor.hide()
-        else:
-            self.system_monitor.show()
-            self.system_monitor.raise_()
+        self.open_tools_panel("system_monitor")
 
     def open_tools_panel(self, tool_name: str) -> None:
         """Opens the tools panel and switches to the requested tool."""

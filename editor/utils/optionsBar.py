@@ -337,8 +337,8 @@ class OptionsMenu(QFrame):
             """)
 
     def _on_open_monitor(self):
-        if hasattr(self.master, "toggle_system_monitor"):
-            self.master.toggle_system_monitor()
+        if hasattr(self.master, "open_tools_panel"):
+            self.master.open_tools_panel("system_monitor")
 
     def _on_search(self):
         if hasattr(self.master, "toggle_find_replace"):

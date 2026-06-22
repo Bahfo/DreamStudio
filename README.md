@@ -79,22 +79,53 @@ build.bat   # For Windows
 
 --- 
 
-## Additional Information
+## Using DreamStudio
 
-### Marketplace
+### For Python Users
 
-The marketplace offers extensions that you can add into DreamStudio. Basically, all marketplace extensions are available in one repository available on GitHub. The installation uses `clone` and then a building utility handles building the extension's source code. 
+You have several options of using DreamStudio. The IDE comes configured for Python mainly. 
 
-The marketplace is completely safe and is 100% secure to be trusted. All the addons and extensions that a developer might add are reviewed carefully inside the marketplace. 
+When you open DreamStudio, you are guided towards choosing an already made project or creating a new project. Suppose you are creating a new project. 
 
-You can if you want customize the IDE as you want or make a new addon or extension by using the free API that DreamStudio offers, read the notebook's documentation for more details on that.
+There are several options. Including: 
 
-### Ether AI
+1. Python Server with Flask: Create a Python server, powered by *Flask* framework. DreamStudio does the heavy lifting for you, and manages your environment fully.
 
-Ether AI is an additional **Large Language Model (LLM)** that DreamStudio offers. Ether AI window can be in two modes: chatting and agentic. Chatting simply can be helpful around general usage and defining goals or setting up plans. While agentic model is all about building, reading files, modifying files, etc. Ether AI in DreamStudio does not come natively built inside the studio.
+2. Python Machine Learning Project: Run your machine learning projects easily with Python, with options to use **TensorFlow** or **PyTorch**. The studio has all time-consuming tasks already built, so scientists and programmers can jump right-away into coding.
 
---- 
+3. Python User Acitivty Applications for Desktop: You can use PyQt's latest technologies to build your applications for desktop configured for your operating system's environment. Note that the application built is configured by default to be for your native operating system.
 
-## Additional Information
+4. Python Android Activity Project: Use BeeWare, the native Python builder for Android, with Android SDK, inside DreamStudio, to build your applications for android mobile, we have you set up with emulators needed, required SDKs, and all tools to build your apps on mobile. 
 
-This `README` file is an introduction and quick setup guide for installing and building DreamStudio, for better info with more explanations, additional informations, keybinding settings, and others, read the provided notebook documentation.
+You can also create empty projects and set things up yourself. 
+
+### For C-Plus-Plus: 
+
+C++ Is currently not implemented, but under development. In the future, DreamStudio will also support C++ natively inside it.
+
+### Initializing a New Project: 
+
+This is straight-forward: Initializing a new project is done easily via the setup wizard: 
+
+- Open DreamStudio. 
+- Select `New Project`.
+- Choose the project you want from templates. 
+- Give it a new name (duplicated names inside same directory aren't allowed). Then give it a path. 
+- Click `Create` to create the project.
+
+## Marketplace
+
+DreamStudio is also heavily-customized. You can customize the studio and install additional packages, addons, and themes from the marketplace (*the forth option in the leftmost sidebar*). Addons are installed directly from GitHub repository (`Addons-for-DreamStudio`). 
+
+Addons are heavily monitored and checked. If you want to make a new addon, head towards *DreamStudio Documentations* where you can find all needed info.
+
+## Android Apps and Emulation
+
+DreamStudio supports Android activity creation! You can build your app using `BeeWare` framework to create applications natively supported on Android. Thanks to Android's SDK we are able to bring this inside DreamStudio so you have all the tools you need in one place, ready to go.
+
+> [!NOTE]
+> Android SDK tools does come by default configured within the studio. If you want a verison of DreamStudio where these tools aren't what you want, or you want custom setup, then install what you want from DSInstaller by navigating to `Install` -> `Advanced Installtion` and choose what you want.
+
+## A Word to Users
+
+Thank you for choosing DreamStudio to build your applications! your support means the world to us. We will continue to ship more features and make the studio a better system for developers of all kinds. Thank you!

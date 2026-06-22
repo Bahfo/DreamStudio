@@ -91,6 +91,7 @@ class DreamStudioIDETabBar(QTabBar):
     def tabLayoutChange(self):
         super().tabLayoutChange()
         self._on_current_changed()
+        self.rebuild_dirty_indices()
 
     def tabInserted(self, index):
         super().tabInserted(index)

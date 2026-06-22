@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt, QSize, QPoint
 from PyQt6.QtWidgets import (
     QFrame,
     QPushButton,
@@ -8,38 +8,80 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QLabel,
     QProgressBar,
-    QDialog,
     QListWidget,
 )
 
 
-class BootstrapDetailDialog(QDialog):
+class BootstrapDetailMenu(QFrame):
     def __init__(self, messages, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Bootstrap Progress Details")
-        self.resize(500, 350)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #1E1E1E;
-                color: white;
-            }
+        super().__init__(parent, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.setObjectName("BootstrapDetailMenu")
+        self.setFixedSize(500, 350)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.title_bar = QFrame()
+        self.title_bar.setFixedHeight(36)
+        title_layout = QHBoxLayout(self.title_bar)
+        title_layout.setContentsMargins(12, 0, 12, 0)
+        self.title_label = QLabel("Bootstrap Progress")
+        self.title_label.setStyleSheet("color: #FFFFFF; font-size: 13px; font-weight: bold; background: transparent;")
+        title_layout.addWidget(self.title_label)
+        title_layout.addStretch()
+        layout.addWidget(self.title_bar)
+
+        self.list_widget = QListWidget()
+        self.list_widget.setStyleSheet("""
             QListWidget {
-                background-color: #25272B;
+                background-color: #1E1E1E;
                 color: #CCCCCC;
-                border: 1px solid #3C3C3C;
+                border: none;
                 font-size: 12px;
                 font-family: monospace;
+                padding: 8px;
+            }
+            QListWidget::item {
+                padding: 3px 6px;
+                border-bottom: 1px solid #2A2D30;
             }
         """)
-        layout = QVBoxLayout(self)
-        title = QLabel("Bootstrap Steps:")
-        title.setStyleSheet("color: white; font-size: 14px; font-weight: bold;")
-        layout.addWidget(title)
-        self.list_widget = QListWidget()
         for msg in messages:
             self.list_widget.addItem(msg)
         self.list_widget.scrollToBottom()
         layout.addWidget(self.list_widget)
+
+    def add_message(self, msg):
+        self.list_widget.addItem(msg)
+        self.list_widget.scrollToBottom()
+
+    def retheme(self, t):
+        bg = t.color("window.background", "#1E1E1E")
+        text = t.color("widget.text", "#CCCCCC")
+        border = t.color("widget.border", "#3C3C3C")
+        title_bg = t.color("titlebar.background", "#25272B")
+        title_text = t.color("titlebar.text", "#FFFFFF")
+        item_border = t.color("widget.border", "#2A2D30")
+
+        self.title_label.setStyleSheet(
+            f"color: {title_text}; font-size: 13px; font-weight: bold; background: transparent;"
+        )
+        self.title_bar.setStyleSheet(f"background-color: {title_bg}; border-bottom: 1px solid {border};")
+
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {bg};
+                color: {text};
+                border: none;
+                font-size: 12px;
+                font-family: monospace;
+                padding: 8px;
+            }}
+            QListWidget::item {{
+                padding: 3px 6px;
+                border-bottom: 1px solid {item_border};
+            }}
+        """)
 
 
 class StatusBar(QFrame):
@@ -253,6 +295,7 @@ class StatusBar(QFrame):
         self._bootstrap_log: list[str] = []
 
     def retheme(self, t) -> None:
+        self._theme = t
         bg = t.color("statusbar.background")
         text = t.color("statusbar.text")
         self.setStyleSheet(f"""
@@ -299,6 +342,9 @@ class StatusBar(QFrame):
         self.notificationBtn.setStyleSheet(f"""
         QPushButton{{background-color: transparent; border: none; color: {text}; border-radius: 0px; padding-left: 5px; padding-right: 10px;}}
         QPushButton:hover{{background-color: {t.color("notifications.button_hover")};}}""")
+        popup = getattr(self, '_bootstrap_popup', None)
+        if popup is not None and hasattr(popup, 'retheme'):
+            popup.retheme(t)
 
     def on_zoom_toggle(self, zoomText: str):
         if not zoomText:
@@ -313,10 +359,14 @@ class StatusBar(QFrame):
             print(f"Zoom error: {e}")
 
     def set_bootstrap_status(self, step_name: str, message: str) -> None:
-        self._bootstrap_log.append(f"[{step_name}] {message}")
+        msg = f"[{step_name}] {message}"
+        self._bootstrap_log.append(msg)
         self.statusBtn.setText(f"  {message}")
         self.statusBtn.setToolTip(f"Step: {step_name}")
         self.bootstrap_progress.show()
+        popup = getattr(self, '_bootstrap_popup', None)
+        if popup is not None and popup.isVisible():
+            popup.add_message(msg)
 
     def set_bootstrap_finished(self, success: bool) -> None:
         self.bootstrap_progress.hide()
@@ -326,12 +376,26 @@ class StatusBar(QFrame):
         else:
             self.statusBtn.setText("  Failed")
             self.statusBtn.setToolTip("Project initialization failed")
+        popup = getattr(self, '_bootstrap_popup', None)
+        if popup is not None and popup.isVisible():
+            popup.add_message(
+                "Bootstrap completed successfully." if success else "Bootstrap failed."
+            )
 
     def show_bootstrap_details(self) -> None:
         if not self._bootstrap_log:
             return
-        dialog = BootstrapDetailDialog(self._bootstrap_log, self.window())
-        dialog.exec()
+        popup = getattr(self, '_bootstrap_popup', None)
+        if popup is not None and popup.isVisible():
+            popup.close()
+            return
+        popup = BootstrapDetailMenu(self._bootstrap_log, self.window())
+        if hasattr(self, '_theme') and self._theme is not None:
+            popup.retheme(self._theme)
+        btn_pos = self.statusBtn.mapToGlobal(self.statusBtn.rect().topRight())
+        popup.move(btn_pos.x() - popup.width(), btn_pos.y() - popup.height() - 4)
+        popup.show()
+        self._bootstrap_popup = popup
 
     def clear_bootstrap_log(self) -> None:
         self._bootstrap_log.clear()
