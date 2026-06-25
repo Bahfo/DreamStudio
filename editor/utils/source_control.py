@@ -498,8 +498,12 @@ class SourceControl(QFrame):
         commit_input_layout.addWidget(self.commit_input)
 
         # Long message & commit row
-        msg_btn_layout = QHBoxLayout()
+        msg_btn_layout = QVBoxLayout()
         msg_btn_layout.setSpacing(4)
+        msg_btn_layout.addStretch()
+
+        main_commit_layout = QHBoxLayout()
+        main_commit_layout.setSpacing(4)
 
         self.long_msg_btn = QPushButton("Long Message")
         self.long_msg_btn.setMinimumHeight(32)
@@ -510,6 +514,7 @@ class SourceControl(QFrame):
                 color: #afb1b3;
                 border-radius: 4px;
                 padding: 4px 8px;
+                padding-bottom: 6px;
                 font-size: 12px;
             }
             QPushButton:hover {
@@ -523,7 +528,7 @@ class SourceControl(QFrame):
             }
         """)
         self.long_msg_btn.clicked.connect(self._open_long_message_editor)
-        msg_btn_layout.addWidget(self.long_msg_btn)
+        main_commit_layout.addWidget(self.long_msg_btn)
 
         self.commit_btn = QPushButton("Commit")
         self.commit_btn.setMinimumHeight(32)
@@ -534,6 +539,7 @@ class SourceControl(QFrame):
                 color: #ffffff;
                 border-radius: 4px;
                 padding: 6px 12px;
+                padding-bottom: 6px;
                 font-size: 12px;
                 font-weight: bold;
             }
@@ -546,26 +552,23 @@ class SourceControl(QFrame):
             }
         """)
         self.commit_btn.clicked.connect(self._do_commit)
-        msg_btn_layout.addWidget(self.commit_btn)
+        main_commit_layout.addWidget(self.commit_btn)
 
-        commit_input_layout.addLayout(msg_btn_layout)
-
-        # Commit message status label
-        self.commit_status_label = QLabel("")
-        self.commit_status_label.setStyleSheet("color: #969696; font-size: 11px; padding: 0px;")
-        self.commit_status_label.setWordWrap(True)
-        commit_input_layout.addWidget(self.commit_status_label)
+        msg_btn_layout.addStretch()
+        msg_btn_layout.addLayout(main_commit_layout)
 
         # Delete commit message button
         self.delete_msg_btn = QPushButton("Delete Commit Message")
+        self.delete_msg_btn.setMinimumHeight(32)
         self.delete_msg_btn.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
-                border: 1px solid #444444;
+                border: 2px solid #444444;
                 color: #afb1b3;
                 border-radius: 4px;
                 padding: 4px 8px;
-                font-size: 11px;
+                padding-bottom: 6px;
+                font-size: 12px;
             }
             QPushButton:hover {
                 background-color: #323232;
@@ -577,7 +580,17 @@ class SourceControl(QFrame):
             }
         """)
         self.delete_msg_btn.clicked.connect(self._delete_commit_message)
-        commit_input_layout.addWidget(self.delete_msg_btn)
+        msg_btn_layout.addWidget(self.delete_msg_btn)
+
+        msg_btn_layout.addStretch()
+        commit_input_layout.addLayout(msg_btn_layout)
+
+        # Commit message status label
+        self.commit_status_label = QLabel("")
+        self.commit_status_label.setStyleSheet("color: #969696; font-size: 11px; padding: 0px;")
+        self.commit_status_label.setWordWrap(True)
+        commit_input_layout.addWidget(self.commit_status_label)
+        commit_input_layout.addStretch()
 
         self.main_layout.addLayout(commit_input_layout)
 
@@ -1220,9 +1233,32 @@ class SourceControl(QFrame):
         }}
         """
         for btn in self.findChildren(QPushButton):
-            if btn is self.commit_btn or btn is self.long_msg_btn:
+            if btn is self.commit_btn or btn is self.long_msg_btn or btn is self.delete_msg_btn:
                 continue
             btn.setStyleSheet(btn_style)
+
+        commit_btn_border = t.color("widget.border", "#444444")
+        commit_btn_hover_border = t.color("widget.accent", hl)
+        self.delete_msg_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: 2px solid {commit_btn_border};
+                color: {txt};
+                border-radius: 4px;
+                padding: 4px 8px;
+                padding-bottom: 6px;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {hover};
+                border: 2px solid {commit_btn_hover_border};
+                color: #ffffff;
+            }}
+            QPushButton:disabled {{
+                color: {t.color("scrollbar.bg", "#555555")};
+                border: 2px solid {t.color("scrollbar.bg", "#333333")};
+            }}
+        """)
 
         self._input_bg = t.color("input.background", "#1E1E1E")
         self._input_txt = t.color("input.text", "#ffffff")

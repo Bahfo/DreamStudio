@@ -1,30 +1,35 @@
 import jedi
 import logging
+import threading
 import traceback
 from collections import deque
 from typing import Optional
 
-from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QWaitCondition
+from PyQt6.QtCore import pyqtSignal, QObject
 
 logger = logging.getLogger(__name__)
 
 _MAX_QUEUE = 20
 
 
-class JediWorker(QThread):
+class JediWorker(QObject):
     results_ready = pyqtSignal(object, int)
     error_occurred = pyqtSignal(str, int)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._mutex = QMutex()
-        self._cond = QWaitCondition()
-        self._queue = deque()
+    def __init__(self):
+        super().__init__()
+        self._mutex = threading.Lock()
+        self._cond = threading.Condition(self._mutex)
+        self._queue: deque = deque()
         self._running = True
         self.current_venv_path: Optional[str] = None
         self._jedi_env = jedi.get_default_environment()
         self._last_script_key = None
         self._cached_script = None
+        self._thread = threading.Thread(target=self._loop, name="jedi_worker", daemon=True)
+
+    def start(self):
+        self._thread.start()
 
     def set_virtual_environment(self, venv_path: Optional[str]) -> None:
         self.current_venv_path = venv_path
@@ -38,8 +43,7 @@ class JediWorker(QThread):
 
     def _enqueue(self, cmd, source, path, line, col, request_id):
         key = (cmd, path)
-        self._mutex.lock()
-        try:
+        with self._mutex:
             for i, existing in enumerate(self._queue):
                 if (existing[0], existing[2]) == key:
                     self._queue[i] = (cmd, source, path, line, col, request_id)
@@ -48,9 +52,7 @@ class JediWorker(QThread):
                 if len(self._queue) >= _MAX_QUEUE:
                     self._queue.popleft()
                 self._queue.append((cmd, source, path, line, col, request_id))
-            self._cond.wakeOne()
-        finally:
-            self._mutex.unlock()
+            self._cond.notify()
 
     def request_completion(self, source, path, line, col, request_id):
         self._enqueue("complete", source, path, line, col, request_id)
@@ -73,18 +75,14 @@ class JediWorker(QThread):
         self._cached_script = script
         return script
 
-    def run(self):
+    def _loop(self):
         while self._running:
             item = None
-            self._mutex.lock()
-            try:
+            with self._mutex:
                 while self._running and not self._queue:
-                    self._cond.wait(self._mutex, 50)
+                    self._cond.wait(timeout=0.05)
                 if not self._running or not self._queue:
-                    self._mutex.unlock()
                     continue
-                # Drain stale items: if a newer request with the same (cmd,path)
-                # is already queued, skip this one
                 while self._queue:
                     candidate = self._queue[0]
                     stale = False
@@ -97,11 +95,8 @@ class JediWorker(QThread):
                     if not stale:
                         break
                 if not self._queue:
-                    self._mutex.unlock()
                     continue
                 item = self._queue.popleft()
-            finally:
-                self._mutex.unlock()
 
             if item is None:
                 continue
@@ -179,13 +174,8 @@ class JediWorker(QThread):
                 logger.debug("JediWorker error: %s", traceback.format_exc())
                 self.error_occurred.emit(traceback.format_exc(), rid)
 
-    def shutdown(self, timeout=3000):
+    def shutdown(self):
         self._running = False
-        self._mutex.lock()
-        self._queue.clear()
-        self._cond.wakeOne()
-        self._mutex.unlock()
-        self.wait(timeout)
-        if self.isRunning():
-            self.terminate()
-            self.wait(1000)
+        with self._mutex:
+            self._queue.clear()
+            self._cond.notify()

@@ -12,6 +12,7 @@ tensorflow_version: "studio_default_version"
 initialization: 
   directories: 
     - "data"
+    - "configs"
     - "saved_models"
     - "notebooks"
     - "src"
@@ -19,46 +20,139 @@ initialization:
   files: 
     - ".gitignore"
     - "README.md"
-    - "requirements.txt"
-    - "train.py"
-  templates: 
+  templates:
+    - target: "configs/config.json"
+      contents: |
+        {
+          "model_name": "studio_optimized_network",
+          "input_shape": [32, 32, 3],
+          "num_classes": 10,
+          "batch_size": 32,
+          "epochs": 10,
+          "learning_rate": 0.001
+        }
     - target: "src/model.py"
       contents: |
         import tensorflow as tf
-        from tensorflow.keras import layers, models
+        from tensorflow.keras import layers, Model
 
-        def build_studio_network(input_shape: tuple, num_classes: int) -> models.Sequential:
-            model = models.Sequential([
-                layers.Input(shape=input_shape),
-                layers.Dense(64, activation='relu'),
-                layers.Dropout(0.2),
-                layers.Dense(num_classes, activation='softmax')
-            ])
+        class StudioNetwork(Model):
+            """
+            A modular, production-ready network architecture template.
+            Easily swappable between standard CNNs, Autoencoders, or custom feature extractors.
+            """
+            def __init__(self, num_classes: int = 10):
+                super(StudioNetwork, self).__init__()
+                # Example: Feature Extraction Layers (Convolutional Base)
+                self.conv1 = layers.Conv2D(32, (3, 3), activation='relu', padding='same')
+                self.pool1 = layers.MaxPooling2D((2, 2))
+                self.flatten = layers.Flatten()
+                
+                # Dense Classifier Head
+                self.dense1 = layers.Dense(128, activation='relu')
+                self.dropout = layers.Dropout(0.3)
+                self.classifier = layers.Dense(num_classes, activation='softmax')
+
+            def call(self, inputs, training=False):
+                x = self.conv1(inputs)
+                x = self.pool1(x)
+                x = self.flatten(x)
+                x = self.dense1(x)
+                if training:
+                    x = self.dropout(x)
+                return self.classifier(x)
+
+        def build_studio_network(input_shape: tuple, num_classes: int) -> Model:
+            model = StudioNetwork(num_classes=num_classes)
+            model.build(input_shape=(None, *input_shape))
             return model
     - target: "train.py"
       contents: |
+        import json
+        import os
         import tensorflow as tf
         from src.model import build_studio_network
 
         def run_pipeline():
             print(f"TensorFlow Execution Version: {tf.__version__}")
-            available_gpus = tf.config.list_physical_devices('GPU')
-            print(f"Detected Accelerated Physical Hardware Units: {len(available_gpus)}")
+            gpus = tf.config.list_physical_devices('GPU')
+            print(f"Detected Accelerated Physical Hardware Units: {len(gpus)}")
             
-            model = build_studio_network(input_shape=(32,), num_classes=10)
-            model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            # Load hyperparameter configurations
+            config_path = os.path.join("configs", "config.json")
+            with open(config_path, "r") as f:
+                config = json.load(f)
+            
+            # Initialize model dynamically from configuration boundaries
+            model = build_studio_network(
+                input_shape=tuple(config["input_shape"]), 
+                num_classes=config["num_classes"]
+            )
+            
+            optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
+            model.compile(
+                optimizer=optimizer, 
+                loss='sparse_categorical_crossentropy', 
+                metrics=['accuracy']
+            )
+            
             model.summary()
+            print("Initialization and verification pipelines executed successfully.")
 
         if __name__ == "__main__":
             run_pipeline()
     - target: "requirements.txt"
       contents: |
         tensorflow>=2.16.0
-        numpy>=1.26.0
+        numpy>=1.26.0,<2.0.0
         pandas>=2.2.0
         scikit-learn>=1.4.0
         matplotlib>=3.8.0
         jupyterlab>=4.1.0
+        opencv-python-headless
+    - target: "Dockerfile"
+      contents: |
+        FROM tensorflow/tensorflow:2.16.1-gpu
+
+        ENV PYTHONUNBUFFERED=1 \
+            DEBIAN_FRONTEND=noninteractive \
+            PYTHONPATH="/workspace"
+
+        WORKDIR /workspace
+
+        RUN apt-get update && apt-get install -y --no-install-recommends \
+            libgl1-mesa-glx \
+            libglib2.0-0 \
+            git \
+            wget \
+            && apt-get clean \
+            && rm -rf /var/lib/apt/lists/*
+
+        # Pre-seed requirements layer for aggressive build caching
+        COPY requirements.txt /workspace/
+        RUN pip install --no-cache-dir --upgrade pip && \
+            pip install --no-cache-dir -r requirements.txt
+
+        ARG USER_ID=1000
+        ARG GROUP_ID=1000
+        RUN groupadd -g ${GROUP_ID} studio_group && \
+            useradd -u ${USER_ID} -g studio_group -m studio_user && \
+            chown -R studio_user:studio_group /workspace
+
+        USER studio_user
+        COPY --chown=studio_user:studio_group . /workspace
+
+        CMD ["bash"]
+    - target: ".gitignore"
+      contents: |
+        venv/
+        .pytest_cache/
+        __pycache__/
+        *.pyc
+        data/
+        saved_models/
+        .DS_Store
+        .ipynb_checkpoints/
 
 post_lifecycle:
   - step: "create_venv"

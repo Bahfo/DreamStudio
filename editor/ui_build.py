@@ -90,7 +90,7 @@ class DreamStudio(QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         # Jedi background worker
-        self._jedi_worker = JediWorker(self)
+        self._jedi_worker = JediWorker()
         self._jedi_worker.results_ready.connect(self._on_jedi_results)
         self._jedi_worker.error_occurred.connect(self._on_jedi_error)
         self._pending_jedi_requests = {}
@@ -268,8 +268,10 @@ class DreamStudio(QMainWindow):
             self.find_replace_widget.find_input.setFocus()
 
     def closeEvent(self, event):
-        if self._jedi_worker.isRunning():
-            self._jedi_worker.shutdown()
+        if hasattr(self, '_project_bootstrap') and self._project_bootstrap is not None:
+            self._project_bootstrap.wait(5000)
+            self._project_bootstrap = None
+        self._jedi_worker.shutdown()
         for i in range(self.tab_editors.count()):
             editor = self.tab_editors.widget(i)
             if hasattr(editor, "_lexer") and hasattr(editor._lexer, "shutdown"):
@@ -791,6 +793,11 @@ class DreamStudio(QMainWindow):
 
     def bootstrap_project(self, manifest_path: str, target_path: str, project_type: str) -> None:
         from editor.init.project_bootstrap import ProjectBootstrap
+
+        if hasattr(self, '_project_bootstrap') and self._project_bootstrap is not None:
+            old = self._project_bootstrap
+            old.wait(5000)
+            self._project_bootstrap = None
 
         self._project_target_path = target_path
         self.currentDirectory = target_path

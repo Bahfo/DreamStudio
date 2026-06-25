@@ -5,23 +5,17 @@ import shutil
 import logging
 import platform
 import subprocess
+import threading
 import traceback
 
 from typing import Any, Optional
 
-from PyQt6.QtCore import QThread, pyqtSignal, QObject
+from PyQt6.QtCore import pyqtSignal, QObject
 
 logger = logging.getLogger(__name__)
 
 
-class BootstrapSignals(QObject):
-    step_changed = pyqtSignal(str, str)
-    step_progress = pyqtSignal(str)
-    step_failed = pyqtSignal(str, str)
-    finished = pyqtSignal(bool)
-
-
-class ProjectBootstrapWorker(QThread):
+class ProjectBootstrapWorker(QObject):
     step_changed = pyqtSignal(str, str)
     step_progress = pyqtSignal(str)
     step_failed = pyqtSignal(str, str)
@@ -34,9 +28,8 @@ class ProjectBootstrapWorker(QThread):
         requested_project_type: str,
         python_version: Optional[str] = None,
         interpreter_location: Optional[str] = None,
-        parent: Optional[QObject] = None,
     ):
-        super().__init__(parent)
+        super().__init__()
         self._manifest_path = manifest_path
         self._target_path = target_path
         self._requested_project_type = requested_project_type
@@ -280,6 +273,11 @@ class ProjectBootstrap:
             python_version=python_version,
             interpreter_location=interpreter_location,
         )
+        self._thread = threading.Thread(
+            target=self._worker.run,
+            name="bootstrap_thread",
+            daemon=True,
+        )
 
     @property
     def worker(self) -> ProjectBootstrapWorker:
@@ -302,7 +300,8 @@ class ProjectBootstrap:
         return self._worker.finished
 
     def start(self) -> None:
-        self._worker.start()
+        self._thread.start()
 
     def wait(self, timeout: int = 600000) -> bool:
-        return self._worker.wait(timeout)
+        self._thread.join(timeout)
+        return not self._thread.is_alive()

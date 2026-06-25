@@ -22,6 +22,8 @@ class DreamStudioIconProvider(QFileIconProvider):
 
         elif extension == "bash" or extension == "sh":
             return QIcon("assets/types/bash.png")
+        elif extension == "bat":
+            return QIcon("assets/types/bat.png")
         elif extension == "bin":
             return QIcon("assets/types/bin.png")
         elif extension == "css":
