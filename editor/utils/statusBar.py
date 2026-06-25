@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import Qt, QSize, QPoint
+from PyQt6.QtCore import Qt, QSize, QPoint, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QPushButton,
@@ -85,8 +85,11 @@ class BootstrapDetailMenu(QFrame):
 
 
 class StatusBar(QFrame):
+    bootstrap_done = pyqtSignal(bool)
+
     def __init__(self, master):
         super().__init__(master)
+        self._saved_btn_fixed = None
 
         self.setFrameShape(QFrame.Shape.Panel)
         self.setFixedHeight(30)
@@ -167,6 +170,51 @@ class StatusBar(QFrame):
         }""")
         statusbar_layout.addWidget(self.errorsBtn)
 
+        statusbar_layout.addSpacing(3)
+
+        self.statusBtn = QPushButton("   Ready")
+        self.statusBtn.setFixedSize(80, 28)
+        self.statusBtn.setIcon(QIcon("assets/system/status.png"))
+        self.statusBtn.setIconSize(QSize(17, 17))
+        self.statusBtn.setStyleSheet("""
+        QPushButton{
+        background-color: transparent;
+        font-size:12px;
+        font-family: Arial;
+        border: none;
+        color: white;
+        border-radius: 0px;
+        padding-left: 5px;
+        padding-right: 5px;
+        }
+        QPushButton:hover{
+        background-color: #333;
+        }""")
+        statusbar_layout.addWidget(self.statusBtn)
+
+        self.bootstrap_progress_container = QFrame()
+        self.bootstrap_progress_container.setFixedSize(100, 20)
+        progress_container_layout = QHBoxLayout(self.bootstrap_progress_container)
+        progress_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.bootstrap_progress = QProgressBar()
+        self.bootstrap_progress.setTextVisible(False)
+        self.bootstrap_progress.setFixedHeight(6)
+        self.bootstrap_progress.setRange(0, 0)
+        self.bootstrap_progress.hide()
+        self.bootstrap_progress.setStyleSheet("""
+            QProgressBar {
+                background-color: #3C3C3C;
+                border: none;
+                border-radius: 3px;
+            }
+            QProgressBar::chunk {
+                background-color: #5A8AC5;
+                border-radius: 3px;
+            }
+        """)
+        progress_container_layout.addWidget(self.bootstrap_progress)
+        statusbar_layout.addWidget(self.bootstrap_progress_container)
+
         statusbar_layout.addStretch()
 
         self.lines_and_cols = QLabel()
@@ -233,48 +281,6 @@ class StatusBar(QFrame):
         background-color: #333;
         }""")
         statusbar_layout.addWidget(self.terminalWindow)
-
-        self.statusBtn = QPushButton("   Ready")
-        self.statusBtn.setFixedSize(200, 28)
-        self.statusBtn.setIcon(QIcon("assets/system/status.png"))
-        self.statusBtn.setIconSize(QSize(17, 17))
-        self.statusBtn.setStyleSheet("""
-        QPushButton{
-        background-color: transparent;
-        font-size:12px;
-        font-family: Arial;
-        border: none;
-        color: white;
-        border-radius: 0px;
-        padding-left: 5px;
-        padding-right: 5px;
-        }
-        QPushButton:hover{
-        background-color: #333;
-        }""")
-        statusbar_layout.addWidget(self.statusBtn)
-
-        self.bootstrap_progress_container = QFrame()
-        self.bootstrap_progress_container.setFixedSize(120, 16)
-        progress_container_layout = QHBoxLayout(self.bootstrap_progress_container)
-        progress_container_layout.setContentsMargins(0, 0, 0, 0)
-        self.bootstrap_progress = QProgressBar()
-        self.bootstrap_progress.setTextVisible(False)
-        self.bootstrap_progress.setRange(0, 0)
-        self.bootstrap_progress.hide()
-        self.bootstrap_progress.setStyleSheet("""
-            QProgressBar {
-                background-color: #3C3C3C;
-                border: none;
-                border-radius: 3px;
-            }
-            QProgressBar::chunk {
-                background-color: #4A6FA5;
-                border-radius: 3px;
-            }
-        """)
-        progress_container_layout.addWidget(self.bootstrap_progress)
-        statusbar_layout.addWidget(self.bootstrap_progress_container)
 
         self.notificationBtn = QPushButton("")
         self.notificationBtn.setFixedSize(30, 28)
@@ -361,6 +367,11 @@ class StatusBar(QFrame):
     def set_bootstrap_status(self, step_name: str, message: str) -> None:
         msg = f"[{step_name}] {message}"
         self._bootstrap_log.append(msg)
+        if self._saved_btn_fixed is None:
+            self._saved_btn_fixed = self.statusBtn.width()
+            self._saved_btn_text = self.statusBtn.text()
+            self.statusBtn.setMinimumSize(80, 28)
+            self.statusBtn.setMaximumSize(16777215, 28)
         self.statusBtn.setText(f"  {message}")
         self.statusBtn.setToolTip(f"Step: {step_name}")
         self.bootstrap_progress.show()
@@ -370,12 +381,18 @@ class StatusBar(QFrame):
 
     def set_bootstrap_finished(self, success: bool) -> None:
         self.bootstrap_progress.hide()
+        if self._saved_btn_fixed is not None:
+            w = self._saved_btn_fixed
+            self._saved_btn_fixed = None
+            self._saved_btn_text = None
+            self.statusBtn.setFixedSize(w, 28)
         if success:
             self.statusBtn.setText("  Ready")
             self.statusBtn.setToolTip("Project initialized successfully")
         else:
             self.statusBtn.setText("  Failed")
             self.statusBtn.setToolTip("Project initialization failed")
+        self.bootstrap_done.emit(True)
         popup = getattr(self, '_bootstrap_popup', None)
         if popup is not None and popup.isVisible():
             popup.add_message(
@@ -392,8 +409,13 @@ class StatusBar(QFrame):
         popup = BootstrapDetailMenu(self._bootstrap_log, self.window())
         if hasattr(self, '_theme') and self._theme is not None:
             popup.retheme(self._theme)
-        btn_pos = self.statusBtn.mapToGlobal(self.statusBtn.rect().topRight())
-        popup.move(btn_pos.x() - popup.width(), btn_pos.y() - popup.height() - 4)
+        btn_pos = self.statusBtn.mapToGlobal(self.statusBtn.rect().topLeft())
+        screen = self.screen().geometry()
+        popup_x = max(screen.left(), min(btn_pos.x(), screen.right() - popup.width()))
+        popup_y = btn_pos.y() - popup.height() - 4
+        if popup_y < screen.top():
+            popup_y = btn_pos.y() + self.statusBtn.height() + 4
+        popup.move(popup_x, popup_y)
         popup.show()
         self._bootstrap_popup = popup
 

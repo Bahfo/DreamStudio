@@ -22,7 +22,7 @@ sleep 2
 source $VENV_DIR/bin/activate
 
 # Running
-python3 run.py
+python3 startup.py
 
 # Clearing cached files
 ./clear_cache.sh
