@@ -1,0 +1,12 @@
+{
+    "open-explorer": "open_file_explorer",
+    "open-search": "open_search_generic",
+    "open-git": "open_source_control",
+    "open-extensions": "open_extensions",
+    "open-terminal": "open_terminals",
+    "open-promptx": "open_promptx",
+    "open-problems": "open_problems",
+    "open-debug": "open_debug",
+    "open-output": "open_output",
+    "new-terminal": "new_terminal"
+}

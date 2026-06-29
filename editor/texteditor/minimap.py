@@ -39,7 +39,7 @@ class MiniMap(QsciScintilla):
 
         self._font = QFont("Consolas", 1)
         self.setFont(self._font)
-        self.setContentsMargins(8, 10, 18, 10)
+        self.setContentsMargins(0, 10, 18, 10)
         self.setStyleSheet("border:none;")
 
         self.setUtf8(True)

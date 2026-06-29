@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, QSize, QEvent, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, QEvent, pyqtSignal, QTimer
 from PyQt6.QtGui import QIcon, QLinearGradient, QPainter, QColor, QAction
 from PyQt6.QtWidgets import (
     QWidget,
@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (
     QMenuBar,
     QMenu,
 )
+
+from editor.utils.tools.commands_window import CommandWindow
 
 
 class DreamStudioTitleBar(QWidget):
@@ -36,14 +38,16 @@ class DreamStudioTitleBar(QWidget):
         self.icon_btn.setIconSize(QSize(26, 26))
         self.icon_btn.setFixedSize(120, 30)
         self.icon_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.icon_btn.setStyleSheet("""
+        self.icon_btn.setStyleSheet(
+            """
             QPushButton{
             color: white;
             background-color: transparent;
             border: none;
             border-radius: 4px;
             font-size: 13px;}
-            """)
+            """
+        )
         layout.addWidget(self.icon_btn)
 
         #################################
@@ -53,7 +57,8 @@ class DreamStudioTitleBar(QWidget):
         self.menubar.setFixedHeight(30)
         self.menubar.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
-        self.menubar.setStyleSheet("""
+        self.menubar.setStyleSheet(
+            """
         QMenuBar {
             background-color: transparent;
             color: #D1D1D1;
@@ -97,7 +102,8 @@ class DreamStudioTitleBar(QWidget):
             height: 1px;
             background-color: #3F4145;
             margin: 4px 0px;
-        }""")
+        }"""
+        )
 
         layout.addWidget(self.menubar, alignment=Qt.AlignmentFlag.AlignVCenter)
         layout.addSpacing(40)
@@ -110,7 +116,8 @@ class DreamStudioTitleBar(QWidget):
         self.studioSearch.setClearButtonEnabled(True)
         self.studioSearch.setFixedWidth(400)
         self.studioSearch.setFixedHeight(24)
-        self.studioSearch.setStyleSheet("""
+        self.studioSearch.setStyleSheet(
+            """
             QLineEdit{
                 background-color:transparent;
                 color: #D1D1D1;
@@ -120,10 +127,13 @@ class DreamStudioTitleBar(QWidget):
                 padding-left:15px;
                 border-radius:5px;}
             
-            QLineEdit:placeholder{font-style:italic;}""")
+            QLineEdit:placeholder{font-style:italic;}"""
+        )
 
         layout.addWidget(self.studioSearch)
         layout.addSpacing(10)
+
+        self._command_window = None
 
         #################################
         # Account
@@ -131,7 +141,8 @@ class DreamStudioTitleBar(QWidget):
         self.accountBtn = QPushButton()
         self.accountBtn.setIcon(QIcon("assets/system/account.png"))
         self.accountBtn.setIconSize(QSize(26, 26))
-        self.accountBtn.setStyleSheet("""
+        self.accountBtn.setStyleSheet(
+            """
             QPushButton{
             color: white;
             background-color: transparent;
@@ -144,14 +155,16 @@ class DreamStudioTitleBar(QWidget):
 
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 0.1);
-            }""")
+            }"""
+        )
         layout.addWidget(self.accountBtn)
         layout.addStretch()
 
         self.btn_minimize = QPushButton("—")
         self.btn_minimize.setFixedSize(30, 30)
         self.btn_minimize.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_minimize.setStyleSheet("""
+        self.btn_minimize.setStyleSheet(
+            """
             QPushButton{
             color: white;
             background-color: transparent;
@@ -163,13 +176,15 @@ class DreamStudioTitleBar(QWidget):
             
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 0.1);
-            }""")
+            }"""
+        )
         layout.addWidget(self.btn_minimize)
 
         self.btn_maximize = QPushButton("◻")
         self.btn_maximize.setFixedSize(30, 30)
         self.btn_maximize.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_maximize.setStyleSheet("""
+        self.btn_maximize.setStyleSheet(
+            """
             QPushButton{
             color: white;
             background-color: transparent;
@@ -180,13 +195,15 @@ class DreamStudioTitleBar(QWidget):
             background-color:#444;}
 
             QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.1);}""")
+                background-color: rgba(255, 255, 255, 0.1);}"""
+        )
         layout.addWidget(self.btn_maximize)
 
         self.btn_close = QPushButton("✕")
         self.btn_close.setFixedSize(30, 30)
         self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_close.setStyleSheet("""
+        self.btn_close.setStyleSheet(
+            """
             QPushButton{
             color: white;
             background-color: transparent;
@@ -199,7 +216,8 @@ class DreamStudioTitleBar(QWidget):
             QPushButton:hover {
                 background-color: #E81123; /* Windows red close */
                 color: white;
-            }""")
+            }"""
+        )
         layout.addWidget(self.btn_close)
 
         self.btn_minimize.clicked.connect(self.parent.showMinimized)
@@ -224,17 +242,37 @@ class DreamStudioTitleBar(QWidget):
                 ("Open...", "assets/menus/open.png", self.set_open_file),
                 ("Open Recent Project", None, self.set_open_recent_project),
                 None,
-                ("Save Current File", "assets/menus/save.png", self.set_save_current_file),
+                (
+                    "Save Current File",
+                    "assets/menus/save.png",
+                    self.set_save_current_file,
+                ),
                 ("Save File As...", None, self.set_save_file_as),
                 ("Save All Files", None, self.set_save_all_files),
                 ("Save All and Close Window", None, self.set_save_all_and_close),
                 None,
-                ("Close Editor", "assets/menus/close_editor.png", self.set_close_editor),
+                (
+                    "Close Editor",
+                    "assets/menus/close_editor.png",
+                    self.set_close_editor,
+                ),
                 ("Close DreamStudio", None, self.set_close_dreamstudio),
                 None,
-                ("Import...", "assets/menus/import.png", self.set_import_configurations),
-                ("Export...", "assets/menus/export.png", self.set_export_configurations),
-                ("Settings and Preferences", "assets/menus/settings.png", self.set_open_settings),
+                (
+                    "Import...",
+                    "assets/menus/import.png",
+                    self.set_import_configurations,
+                ),
+                (
+                    "Export...",
+                    "assets/menus/export.png",
+                    self.set_export_configurations,
+                ),
+                (
+                    "Settings and Preferences",
+                    "assets/menus/settings.png",
+                    self.set_open_settings,
+                ),
                 ("Exit", None, self.parent.close),
             ],
             "Edit": [
@@ -243,12 +281,20 @@ class DreamStudioTitleBar(QWidget):
                 None,
                 ("Cut Selection", "assets/menus/cut.png", self.set_cut),
                 ("Copy Selection", "assets/menus/copy.png", self.set_copy),
-                ("Copy Selection as Plain Text", "assets/menus/copy_text.png", self.set_copy_as_plain_text),
+                (
+                    "Copy Selection as Plain Text",
+                    "assets/menus/copy_text.png",
+                    self.set_copy_as_plain_text,
+                ),
                 ("Paste Clipboard", "assets/menus/paste.png", self.set_paste),
                 ("Delete Selection", None, self.set_delete_selection),
                 None,
                 ("Find and Replace", "assets/menus/find.png", self.set_find_replace),
-                ("Search in Selected Text", "assets/menus/search_sel.png", self.set_search_in_selected),
+                (
+                    "Search in Selected Text",
+                    "assets/menus/search_sel.png",
+                    self.set_search_in_selected,
+                ),
                 ("Find and Replace in Files", None, self.set_find_replace_in_files),
                 None,
                 ("Select All", None, self.set_select_all),
@@ -258,17 +304,21 @@ class DreamStudioTitleBar(QWidget):
                 ("Manage Indentation", None, self.set_manage_indentation),
             ],
             "View": [
-                ("Appearance", "assets/menus/appearance.png", [
-                    ("Full Screen", None, self.generic_callback),
-                    ("Zen Mode", None, self.generic_callback),
-                    None,
-                    ("Show Left Bar", None, self.generic_callback),
-                    ("Show Terminals", None, self.generic_callback),
-                    ("Show Services Right Bar", None, self.generic_callback),
-                    None,
-                    ("Move Sidebar to Right", None, self.generic_callback),
-                    ("Hide Options Bar", None, self.generic_callback),
-                ]),
+                (
+                    "Appearance",
+                    "assets/menus/appearance.png",
+                    [
+                        ("Full Screen", None, self.generic_callback),
+                        ("Zen Mode", None, self.generic_callback),
+                        None,
+                        ("Show Left Bar", None, self.generic_callback),
+                        ("Show Terminals", None, self.generic_callback),
+                        ("Show Services Right Bar", None, self.generic_callback),
+                        None,
+                        ("Move Sidebar to Right", None, self.generic_callback),
+                        ("Hide Options Bar", None, self.generic_callback),
+                    ],
+                ),
                 ("Themes", None, self.generic_callback),
                 None,
                 ("Recent Action", None, self.generic_callback),
@@ -279,18 +329,34 @@ class DreamStudioTitleBar(QWidget):
                 ("Reset Appearance Settings", None, self.generic_callback),
             ],
             "Tools": [
-                ("Command Window", "assets/menus/command.png", self.generic_callback),
+                (
+                    "Command Window",
+                    "assets/menus/command.png",
+                    self._show_command_window,
+                ),
                 ("Tasks TODO List", "assets/menus/todo.png", self.set_tasks_todo),
                 ("Bookmarks Manager", None, self.generic_callback),
-                ("Notifications", "assets/menus/notifications.png", self.generic_callback),
+                (
+                    "Notifications",
+                    "assets/menus/notifications.png",
+                    self.generic_callback,
+                ),
                 None,
-                ("Ether AI Chat Window", "assets/menus/ai_chat.png", self.generic_callback),
+                (
+                    "Ether AI Chat Window",
+                    "assets/menus/ai_chat.png",
+                    self.generic_callback,
+                ),
                 None,
                 ("Python Console", None, self.generic_callback),
                 ("Python Packages", None, self.generic_callback),
                 ("Python Process Output", None, self.generic_callback),
                 None,
-                ("Code Analysis Manager", "assets/menus/analysis.png", self.generic_callback),
+                (
+                    "Code Analysis Manager",
+                    "assets/menus/analysis.png",
+                    self.generic_callback,
+                ),
                 ("Code Snippets Manager", None, self.generic_callback),
                 ("Code Definition Window Browser", None, self.generic_callback),
                 ("Errors List", "assets/menus/errors.png", self.generic_callback),
@@ -310,7 +376,11 @@ class DreamStudioTitleBar(QWidget):
             "Code": [
                 ("Format Code", "assets/menus/format.png", self.generic_callback),
                 ("Minify Code in Current File", None, self.generic_callback),
-                ("Comment Current Line", "assets/menus/comment.png", self.generic_callback),
+                (
+                    "Comment Current Line",
+                    "assets/menus/comment.png",
+                    self.generic_callback,
+                ),
                 None,
                 ("Comment Current Selection", None, self.generic_callback),
                 ("Uncomment Current Line", None, self.generic_callback),
@@ -322,51 +392,99 @@ class DreamStudioTitleBar(QWidget):
                 ("Go to Definition", None, self.generic_callback),
                 ("Go to Declaration", None, self.generic_callback),
                 ("Go to Implementation", None, self.generic_callback),
-                ("Find Usages and References in Current File", None, self.generic_callback),
+                (
+                    "Find Usages and References in Current File",
+                    None,
+                    self.generic_callback,
+                ),
                 ("Go to Symbol", None, self.generic_callback),
                 None,
-                ("Analyze Code", None, [
-                    ("Find Duplicated Names", None, self.generic_callback),
-                    ("Delete Duplications", None, self.generic_callback),
-                    ("Analyze Behavior", None, self.generic_callback),
-                    ("Silent Code Cleanup", None, self.generic_callback),
-                ]),
-                ("Folding", None, [
-                    ("Expand Current", None, self.generic_callback),
-                    ("Expand All", None, self.generic_callback),
+                (
+                    "Analyze Code",
                     None,
-                    ("Collapse Current", None, self.generic_callback),
-                    ("Collapse All", None, self.generic_callback),
-                ]),
+                    [
+                        ("Find Duplicated Names", None, self.generic_callback),
+                        ("Delete Duplications", None, self.generic_callback),
+                        ("Analyze Behavior", None, self.generic_callback),
+                        ("Silent Code Cleanup", None, self.generic_callback),
+                    ],
+                ),
+                (
+                    "Folding",
+                    None,
+                    [
+                        ("Expand Current", None, self.generic_callback),
+                        ("Expand All", None, self.generic_callback),
+                        None,
+                        ("Collapse Current", None, self.generic_callback),
+                        ("Collapse All", None, self.generic_callback),
+                    ],
+                ),
                 None,
                 ("Add a copyright", None, self.generic_callback),
                 ("Update copyright", None, self.generic_callback),
             ],
             "Run": [
                 ("Run Current File", "assets/menus/run.png", self.generic_callback),
-                ("Run Current File with Configured Arguments", "assets/menus/run_args.png", self.generic_callback),
-                ("Debug Current File", "assets/menus/testing.png", self.generic_callback),
-                ("Run Current File without Debugging", "assets/menus/run_no_debug.png", self.generic_callback),
-                ("Stop Current Execution", "assets/menus/stop.png", self.generic_callback),
-                ("Restart Debugging", "assets/menus/restart.png", self.generic_callback),
+                (
+                    "Run Current File with Configured Arguments",
+                    "assets/menus/run_args.png",
+                    self.generic_callback,
+                ),
+                (
+                    "Debug Current File",
+                    "assets/menus/testing.png",
+                    self.generic_callback,
+                ),
+                (
+                    "Run Current File without Debugging",
+                    "assets/menus/run_no_debug.png",
+                    self.generic_callback,
+                ),
+                (
+                    "Stop Current Execution",
+                    "assets/menus/stop.png",
+                    self.generic_callback,
+                ),
+                (
+                    "Restart Debugging",
+                    "assets/menus/restart.png",
+                    self.generic_callback,
+                ),
                 None,
                 ("Step Over", None, self.generic_callback),
                 ("Step Into", None, self.generic_callback),
                 ("Step Out", None, self.generic_callback),
                 ("Continue", None, self.generic_callback),
                 None,
-                ("Add New Breakpoint at Current File", "assets/menus/breakpoint.png", self.generic_callback),
+                (
+                    "Add New Breakpoint at Current File",
+                    "assets/menus/breakpoint.png",
+                    self.generic_callback,
+                ),
                 ("Enable All Breakpoints", None, self.generic_callback),
                 ("Disable All Breakpoints", None, self.generic_callback),
                 ("Remove All Breakpoints", None, self.generic_callback),
                 None,
                 ("Start Testing", "assets/menus/testing.png", self.generic_callback),
-                ("Import Tests from a File", "assets/menus/import.png", self.generic_callback),
+                (
+                    "Import Tests from a File",
+                    "assets/menus/import.png",
+                    self.generic_callback,
+                ),
                 ("Manage Reports", "assets/menus/settings.png", self.generic_callback),
             ],
             "Marketplace": [
-                ("Open Marketplace", "assets/menus/manage_ext.png", self.set_open_marketplace),
-                ("Refresh Extensions", "assets/menus/refresh_ext.png", self.generic_callback),
+                (
+                    "Open Marketplace",
+                    "assets/menus/manage_ext.png",
+                    self.set_open_marketplace,
+                ),
+                (
+                    "Refresh Extensions",
+                    "assets/menus/refresh_ext.png",
+                    self.generic_callback,
+                ),
                 None,
                 ("Check for Extensions Updates", None, self.generic_callback),
                 ("Show Running Extensions", None, self.generic_callback),
@@ -391,30 +509,32 @@ class DreamStudioTitleBar(QWidget):
                     parent_menu.addSeparator()
                 else:
                     text, icon_path, target = item
-                    
+
                     if isinstance(target, list):
                         if icon_path:
                             sub_menu = parent_menu.addMenu(QIcon(icon_path), text)
                         else:
                             sub_menu = parent_menu.addMenu(text)
-                        
+
                         build_menu(sub_menu, target, top_level_name)
-                    
+
                     else:
                         if icon_path:
                             action = QAction(QIcon(icon_path), text, self)
                         else:
                             action = QAction(text, self)
-                            
+
                         if target:
                             if target == self.generic_callback:
-                                action.triggered.connect(lambda checked, t=text: target(t))
+                                action.triggered.connect(
+                                    lambda checked, t=text: target(t)
+                                )
                             else:
                                 action.triggered.connect(target)
-                        
+
                         parent_menu.addAction(action)
 
-                        # Track the parsed actions for dynamic state updates 
+                        # Track the parsed actions for dynamic state updates
                         if top_level_name == "File":
                             self._file_actions[text] = action
                         elif top_level_name == "Edit":
@@ -429,7 +549,7 @@ class DreamStudioTitleBar(QWidget):
         file_menu = self._menus.get("File")
         if file_menu:
             file_menu.aboutToShow.connect(self._update_file_menu_states)
-            
+
         edit_menu = self._menus.get("Edit")
         if edit_menu:
             edit_menu.aboutToShow.connect(self._update_edit_menu_states)
@@ -504,16 +624,18 @@ class DreamStudioTitleBar(QWidget):
                 self.sync_titlebar_state()
         return super().eventFilter(obj, event)
 
-    _gradient_colors = ["#004073", "#11324E", 
-        "#1E2E3B", "#24292D", "#25272B"]
+    _gradient_colors = ["#004073", "#11324E", "#1E2E3B", "#24292D", "#25272B"]
 
     def paintEvent(self, a0):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         stops = [0.85, 0.7, 0.5, 0.3, 0.1]
         gradient = QLinearGradient(0, 0, self.width(), 0)
-        colors = getattr(self, "_gradient_colors", ["#004073", "#11324E", 
-            "#1E2E3B", "#24292D", "#25272B"])
+        colors = getattr(
+            self,
+            "_gradient_colors",
+            ["#004073", "#11324E", "#1E2E3B", "#24292D", "#25272B"],
+        )
         for stop, color in zip(stops, colors):
             gradient.setColorAt(stop, QColor(color))
         painter.fillRect(self.rect(), gradient)
@@ -664,7 +786,11 @@ class DreamStudioTitleBar(QWidget):
             editor.endUndoAction()
 
     def _editor_count(self) -> int:
-        return getattr(self.parent, "tab_editors", None) and self.parent.tab_editors.count() or 0
+        return (
+            getattr(self.parent, "tab_editors", None)
+            and self.parent.tab_editors.count()
+            or 0
+        )
 
     def _has_editor(self) -> bool:
         return self._editor_count() > 0
@@ -673,6 +799,7 @@ class DreamStudioTitleBar(QWidget):
         editor = self._get_current_editor()
         if editor is not None:
             from editor.texteditor.code_editor import CodeEditor
+
             if isinstance(editor, CodeEditor):
                 return editor
         return None
@@ -683,10 +810,16 @@ class DreamStudioTitleBar(QWidget):
         is_dirty = editor is not None and editor.is_dirty()
 
         fa = self._file_actions
-        fa.get("Save Current File", None) and fa["Save Current File"].setEnabled(is_dirty)
-        fa.get("Save File As...", None) and fa["Save File As..."].setEnabled(editor is not None)
+        fa.get("Save Current File", None) and fa["Save Current File"].setEnabled(
+            is_dirty
+        )
+        fa.get("Save File As...", None) and fa["Save File As..."].setEnabled(
+            editor is not None
+        )
         fa.get("Save All Files", None) and fa["Save All Files"].setEnabled(has_editors)
-        fa.get("Save All and Close Window", None) and fa["Save All and Close Window"].setEnabled(has_editors)
+        fa.get("Save All and Close Window", None) and fa[
+            "Save All and Close Window"
+        ].setEnabled(has_editors)
 
     def _update_edit_menu_states(self):
         editor = self._current_code_editor()
@@ -698,12 +831,25 @@ class DreamStudioTitleBar(QWidget):
         ea = self._edit_actions
         ea.get("Undo", None) and ea["Undo"].setEnabled(can_u)
         ea.get("Redo", None) and ea["Redo"].setEnabled(can_r)
-        for name in ("Cut Selection", "Copy Selection", "Copy Selection as Plain Text", "Delete Selection"):
+        for name in (
+            "Cut Selection",
+            "Copy Selection",
+            "Copy Selection as Plain Text",
+            "Delete Selection",
+        ):
             ea.get(name, None) and ea[name].setEnabled(has_sel)
-        ea.get("Paste Clipboard", None) and ea["Paste Clipboard"].setEnabled(editor is not None)
-        ea.get("Search in Selected Text", None) and ea["Search in Selected Text"].setEnabled(has_sel)
-        ea.get("Find and Replace", None) and ea["Find and Replace"].setEnabled(editor is not None)
-        ea.get("Find and Replace in Files", None) and ea["Find and Replace in Files"].setEnabled(True)
+        ea.get("Paste Clipboard", None) and ea["Paste Clipboard"].setEnabled(
+            editor is not None
+        )
+        ea.get("Search in Selected Text", None) and ea[
+            "Search in Selected Text"
+        ].setEnabled(has_sel)
+        ea.get("Find and Replace", None) and ea["Find and Replace"].setEnabled(
+            editor is not None
+        )
+        ea.get("Find and Replace in Files", None) and ea[
+            "Find and Replace in Files"
+        ].setEnabled(True)
         for name in ("Select All", "Unselect All", "Manage Indentation"):
             ea.get(name, None) and ea[name].setEnabled(editor is not None)
         for name in ("Indent Selection", "Unindent Selection"):
@@ -736,7 +882,8 @@ class DreamStudioTitleBar(QWidget):
             t.color("titlebar.gradient_1"),
             t.color("titlebar.gradient_2"),
             t.color("titlebar.gradient_3"),
-            t.color("titlebar.gradient_4")]
+            t.color("titlebar.gradient_4"),
+        ]
 
         self.setStyleSheet(f"background-color: {tb_bg};")
         self.icon_btn.setStyleSheet(
@@ -746,8 +893,9 @@ class DreamStudioTitleBar(QWidget):
                 background-color: transparent; 
                 border: none; 
                 border-radius: 4px; 
-                font-size: 13px;}}""")
-        
+                font-size: 13px;}}"""
+        )
+
         self.menubar.setStyleSheet(
             f"""
             QMenuBar {{background-color: transparent; 
@@ -780,9 +928,11 @@ class DreamStudioTitleBar(QWidget):
 
             QMenu::separator {{height: 1px; 
                 background-color: {t.color("menu.separator")}; 
-                margin: 4px 0px;}}""")
+                margin: 4px 0px;}}"""
+        )
 
-        self.studioSearch.setStyleSheet(f"""
+        self.studioSearch.setStyleSheet(
+            f"""
             QLineEdit{{background-color: transparent; color: {tb_text}; 
                 font-size:13px; 
                 font-style:normal; 
@@ -790,7 +940,8 @@ class DreamStudioTitleBar(QWidget):
                 padding-left:15px; 
                 border-radius:5px;}}
 
-            QLineEdit:placeholder{{font-style:italic;}}""")
+            QLineEdit:placeholder{{font-style:italic;}}"""
+        )
 
         win_btn_style = f"""
             QPushButton{{color: {tb_text}; 
@@ -803,8 +954,14 @@ class DreamStudioTitleBar(QWidget):
         self.accountBtn.setStyleSheet(win_btn_style)
         self.btn_minimize.setStyleSheet(win_btn_style)
         self.btn_maximize.setStyleSheet(win_btn_style)
-        self.btn_close.setStyleSheet(win_btn_style + f"""
-            QPushButton:hover{{background-color: #E81123; color: white;}}""")
+        self.btn_close.setStyleSheet(
+            win_btn_style
+            + f"""
+            QPushButton:hover{{background-color: #E81123; color: white;}}"""
+        )
+
+        if self._command_window is not None:
+            self._command_window.retheme(t)
 
     def set_find_replace(self):
         return self.parent.toggle_find_replace()
@@ -817,3 +974,15 @@ class DreamStudioTitleBar(QWidget):
 
     def set_manage_indentation(self):
         return
+
+    def _show_command_window(self, checked=False):
+        if self._command_window is None:
+            theme_manager = getattr(self.parent, "theme_manager", None)
+            if theme_manager is None:
+                return
+            self._command_window = CommandWindow(theme_manager, self)
+        location = self.studioSearch
+        pos = location.mapToGlobal(location.rect().bottomLeft())
+        pos.setY(pos.y() + 8)
+
+        QTimer.singleShot(0, lambda: self._command_window.popup(pos))

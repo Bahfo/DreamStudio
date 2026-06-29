@@ -462,7 +462,7 @@ class DreamStudio(QMainWindow):
         self.minimap_wrapper.setMinimumWidth(100)
         self.minimap_wrapper.setMaximumWidth(120)
         wrapper_layout = QVBoxLayout(self.minimap_wrapper)
-        wrapper_layout.setContentsMargins(4, 4, 4, 4)
+        wrapper_layout.setContentsMargins(0, 0, 0, 0)
         wrapper_layout.addWidget(self.minimap)
 
         self.tab_editors.installEventFilter(self)
@@ -478,7 +478,7 @@ class DreamStudio(QMainWindow):
         self.body_layout.addWidget(self.hero_splitter)
 
         self.center_splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.center_splitter.setHandleWidth(1)
+        self.center_splitter.setHandleWidth(0)
         self.center_splitter.setChildrenCollapsible(False)
         self.center_splitter.addWidget(self.main_editor_area)
         self.center_splitter.addWidget(self.minimap_wrapper)
@@ -663,9 +663,11 @@ class DreamStudio(QMainWindow):
                 font-family: 'inter', Arial;
                 font-size: 13px;
             }}
-            QMenu::item {{ padding: 8px 28px 8px 18px; background: transparent; }}
-            QMenu::item:selected {{ background-color: {t.color("menu.selected")}; }}
-            QMenu::separator {{ height: 1px; background: {t.color("menu.separator")}; margin: 6px 10px; }}
+            QMenu::item {{ padding: 8px 28px 8px 18px; 
+                background: transparent; }}
+            QMenu::item:selected {{background-color: {t.color("menu.selected")};}}
+            QMenu::separator {{ height: 1px; 
+                background: {t.color("menu.separator")}; margin: 6px 10px; }}
             QMenu::right-arrow {{ image: none; }}
         """
 
