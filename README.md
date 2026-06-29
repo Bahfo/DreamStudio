@@ -1,3 +1,5 @@
+###### Current Version: 1.0.2 (Quiet Vally Release)
+
 <h1 align="left" style="font-size: 40px;">DreamStudio IDE</h1>
 
 ![Static Badge](https://img.shields.io/badge/Company-Excellent_TechStacks-006FCD?style=for-the-badge)
