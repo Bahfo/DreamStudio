@@ -1,7 +1,12 @@
 from PyQt6.Qsci import QsciScintilla
 from PyQt6.QtCore import Qt, QTimer, QPoint
 from PyQt6.QtWidgets import (
-    QFrame, QVBoxLayout, QHBoxLayout, QSplitter, QLabel, QToolTip,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QSplitter,
+    QLabel,
+    QToolTip,
 )
 from PyQt6.QtGui import QFont, QColor, QFontMetrics
 
@@ -12,7 +17,9 @@ import logging
 
 from editor.texteditor import keywords_path
 from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
-from editor.texteditor.ironica_lexer.python_jedi_highlighter import DreamPythonHighlighter
+from editor.texteditor.ironica_lexer.python_jedi_highlighter import (
+    DreamPythonHighlighter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +108,9 @@ class _DiffEditor(QsciScintilla):
         self.SendScintilla(SCI_MARKERDEFINE, MARKER_DELETED, SC_MARK_BACKGROUND)
         self.SendScintilla(SCI_MARKERSETBACK, MARKER_DELETED, QColor(_LINE_DELETED_BG))
         self.SendScintilla(SCI_MARKERDEFINE, MARKER_MODIFIED, SC_MARK_BACKGROUND)
-        self.SendScintilla(SCI_MARKERSETBACK, MARKER_MODIFIED, QColor(_LINE_MODIFIED_BG))
+        self.SendScintilla(
+            SCI_MARKERSETBACK, MARKER_MODIFIED, QColor(_LINE_MODIFIED_BG)
+        )
 
     def _apply_scrollbar_style(self, t=None):
         try:
@@ -214,7 +223,9 @@ class _DiffEditor(QsciScintilla):
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
-            logger.debug("Failed to load python_highlights.json, falling back to keyword lexer")
+            logger.debug(
+                "Failed to load python_highlights.json, falling back to keyword lexer"
+            )
             self._lexer = self._load_keyword_lexer()
             if self._lexer:
                 self._lexer.apply_font(self._font)
@@ -235,6 +246,7 @@ class _DiffEditor(QsciScintilla):
             return None
 
         from PyQt6.Qsci import QsciAPIs
+
         lexer = DreamPythonLexer(self, data)
         api = QsciAPIs(lexer)
         for word in data.get("words", {}):
@@ -269,6 +281,7 @@ class _DiffEditor(QsciScintilla):
         if repo is None:
             return
         from backend.git_control import get_blame_info
+
         info = get_blame_info(repo, file_path, self._hover_line)
         if info is None:
             return
@@ -277,7 +290,7 @@ class _DiffEditor(QsciScintilla):
         side_tag = "Old" if self._side == "old" else "New"
 
         html = (
-            f"<div style='font-family: Inter, sans-serif; font-size: 12px;'>"
+            f"<div style='font-family: 'inter', sans-serif; font-size: 12px;'>"
             f"<b style='color: #569CD6;'>{side_tag}</b> "
             f"<span style='color: #888;'>|</span> "
             f"<b>Line {self._hover_line + 1}:</b> "
@@ -300,7 +313,9 @@ class _DiffEditor(QsciScintilla):
 
 
 class QDiffControl(QFrame):
-    def __init__(self, file_path="", old_content="", new_content="", repo=None, _parent=None):
+    def __init__(
+        self, file_path="", old_content="", new_content="", repo=None, _parent=None
+    ):
         super().__init__(_parent)
         self._parent = _parent
         self.file_path = file_path
@@ -326,12 +341,16 @@ class QDiffControl(QFrame):
 
         file_name = pathlib.Path(self.file_path).name if self.file_path else "Unknown"
         self.header_label = QLabel(f"Diff: {file_name}")
-        self.header_label.setStyleSheet("color: #D4D4D4; font-size: 12px; font-weight: bold; background: transparent;")
+        self.header_label.setStyleSheet(
+            "color: #D4D4D4; font-size: 12px; font-weight: bold; background: transparent;"
+        )
         header_layout.addWidget(self.header_label)
         header_layout.addStretch()
 
         self.stats_label = QLabel("")
-        self.stats_label.setStyleSheet("color: #969696; font-size: 11px; background: transparent;")
+        self.stats_label.setStyleSheet(
+            "color: #969696; font-size: 11px; background: transparent;"
+        )
         header_layout.addWidget(self.stats_label)
 
         layout.addWidget(header)
@@ -347,10 +366,12 @@ class QDiffControl(QFrame):
 
         old_sub_header = QLabel("  Old File")
         old_sub_header.setFixedHeight(24)
-        old_sub_header.setStyleSheet(f"""
+        old_sub_header.setStyleSheet(
+            f"""
             color: {_OLD_LABEL_FG}; font-size: 10px; font-weight: bold;
             background-color: {_OLD_LABEL_BG}; padding-left: 8px;
-        """)
+        """
+        )
         old_layout.addWidget(old_sub_header)
         self._old_sub_header = old_sub_header
 
@@ -365,10 +386,12 @@ class QDiffControl(QFrame):
 
         new_sub_header = QLabel("  New File")
         new_sub_header.setFixedHeight(24)
-        new_sub_header.setStyleSheet(f"""
+        new_sub_header.setStyleSheet(
+            f"""
             color: {_NEW_LABEL_FG}; font-size: 10px; font-weight: bold;
             background-color: {_NEW_LABEL_BG}; padding-left: 8px;
-        """)
+        """
+        )
         new_layout.addWidget(new_sub_header)
         self._new_sub_header = new_sub_header
 
@@ -474,8 +497,12 @@ class QDiffControl(QFrame):
         self.new_editor.retheme(t)
 
         txt = t.color("window.text", "#D4D4D4")
-        self.header_label.setStyleSheet(f"color: {txt}; font-size: 12px; font-weight: bold; background: transparent;")
-        self.stats_label.setStyleSheet(f"color: {t.color('sidebar.text', '#969696')}; font-size: 11px; background: transparent;")
+        self.header_label.setStyleSheet(
+            f"color: {txt}; font-size: 12px; font-weight: bold; background: transparent;"
+        )
+        self.stats_label.setStyleSheet(
+            f"color: {t.color('sidebar.text', '#969696')}; font-size: 11px; background: transparent;"
+        )
 
         hdr_bg = t.color("titlebar.background", "#1E1E1E")
         header = self.layout().itemAt(0).widget()
@@ -484,14 +511,18 @@ class QDiffControl(QFrame):
         old_fg = t.color("git.deleted", _OLD_LABEL_FG)
         new_fg = t.color("git.added", _NEW_LABEL_FG)
 
-        self._old_sub_header.setStyleSheet(f"""
+        self._old_sub_header.setStyleSheet(
+            f"""
             color: {old_fg}; font-size: 10px; font-weight: bold;
             background-color: {t.color('editor.background', '#1E1E1E')}; padding-left: 8px;
-        """)
-        self._new_sub_header.setStyleSheet(f"""
+        """
+        )
+        self._new_sub_header.setStyleSheet(
+            f"""
             color: {new_fg}; font-size: 10px; font-weight: bold;
             background-color: {t.color('editor.background', '#1E1E1E')}; padding-left: 8px;
-        """)
+        """
+        )
 
     def set_content(self, file_path, old_content, new_content, repo=None):
         self.file_path = file_path

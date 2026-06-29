@@ -283,7 +283,8 @@ class DreamFileTreeWindow(QFrame):
         # Search Bar
         self.searchBar = QLineEdit()
         self.searchBar.setPlaceholderText("Search for a file or directory")
-        self.searchBar.setStyleSheet("""
+        self.searchBar.setStyleSheet(
+            """
             QLineEdit {
                 border: 1px solid #444444;
                 border-radius: 4px;
@@ -291,7 +292,8 @@ class DreamFileTreeWindow(QFrame):
                 color: #ffffff;
             }
             QLineEdit:focus {border: 1px solid #007acc;}
-        """)
+        """
+        )
         self.searchBar.textChanged.connect(self._on_search)
 
         self.treeview_layout.addWidget(self.searchBar)
@@ -308,8 +310,9 @@ class DreamFileTreeWindow(QFrame):
         # Model Treeview
         self.tree = DreamTreeView()
         self.tree.setModel(self.proxy_model)
-        self.tree.setIconSize(QSize(17,17))
-        self.tree.setStyleSheet("""
+        self.tree.setIconSize(QSize(17, 17))
+        self.tree.setStyleSheet(
+            """
             QTreeView {
                 background-color: #171717;
                 color: #afb1b3;
@@ -379,7 +382,8 @@ class DreamFileTreeWindow(QFrame):
             QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
                 background: none;
                 border: none;
-            }""")
+            }"""
+        )
 
         self.tree.setUniformRowHeights(True)
         self.tree.header().setStretchLastSection(True)
@@ -680,7 +684,7 @@ class DreamFileTreeWindow(QFrame):
             border: 1px solid {self._menu_border};
             border-radius: 0px;
             padding: 4px 0px;
-            font-family: 'Inter', Arial;
+            font-family: 'inter', Arial;
             font-size: 13px;
         }}
         QMenu::item {{
@@ -798,10 +802,13 @@ class DreamFileTreeWindow(QFrame):
         hl = t.color("treeview.highlight")
         hdr_bg = t.color("treeview.header_bg")
         hdr_txt = t.color("treeview.header_text")
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QFrame{{background-color: {bg}; border: none;}}
-        """)
-        self.tree.setStyleSheet(f"""
+        """
+        )
+        self.tree.setStyleSheet(
+            f"""
             QTreeView {{
                 background-color: {bg};
                 color: {txt};
@@ -865,7 +872,8 @@ class DreamFileTreeWindow(QFrame):
                 background: none;
                 border: none;
             }}
-        """)
+        """
+        )
         self.search_label.setStyleSheet(
             f"color: {txt}; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
         )
@@ -875,7 +883,8 @@ class DreamFileTreeWindow(QFrame):
         itxt = t.color("input.text", txt)
         iborder = t.color("input.border", "#444444")
         ifocus = t.color("input.focus_border", "#007acc")
-        self.searchBar.setStyleSheet(f"""
+        self.searchBar.setStyleSheet(
+            f"""
             QLineEdit {{
                 border: 1px solid {iborder};
                 border-radius: 4px;
@@ -884,7 +893,8 @@ class DreamFileTreeWindow(QFrame):
                 background-color: {ibg};
             }}
             QLineEdit:focus {{border: 1px solid {ifocus};}}
-        """)
+        """
+        )
 
         btn_style = f"""
         QPushButton {{

@@ -9,9 +9,11 @@ import codecs
 import signal
 import platform
 import subprocess
+import threading
 
 from abc import ABC, abstractmethod
-from PyQt6.QtCore import QThread, pyqtSignal, QObject
+from collections import deque
+from PyQt6.QtCore import pyqtSignal, QObject, QTimer
 
 try:
     import pty
@@ -190,20 +192,43 @@ class WinPty(BasePty):
         return self._proc.pid if self._proc else -1
 
 
-class PtyReader(QThread):
+class PtyReader(QObject):
     raw_output_received = pyqtSignal(str)
+    finished = pyqtSignal()
 
     def __init__(self, pty: BasePty, parent=None):
         super().__init__(parent)
         self._pty = pty
         self._running = True
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        self._events: deque = deque()
+        self._poll_timer = QTimer(self)
+        self._poll_timer.timeout.connect(self._poll_events)
+        self._thread = threading.Thread(target=self._run, name="pty_reader", daemon=True)
 
-    def run(self) -> None:
+    def start(self):
+        self._poll_timer.start(50)
+        self._thread.start()
+
+    def _poll_events(self):
+        while True:
+            try:
+                kind, data = self._events.popleft()
+            except IndexError:
+                break
+            if kind == "data":
+                self.raw_output_received.emit(data)
+            elif kind == "done":
+                self._poll_timer.stop()
+                self.finished.emit()
+                return
+
+    def _run(self) -> None:
         if sys.platform == "win32":
             self._run_windows()
         else:
             self._run_unix()
+        self._events.append(("done", None))
 
     def _run_unix(self) -> None:
         import select
@@ -239,7 +264,7 @@ class PtyReader(QThread):
     def _emit_data(self, data: bytes) -> None:
         decoded = self._decoder.decode(data)
         if decoded:
-            self.raw_output_received.emit(decoded)
+            self._events.append(("data", decoded))
 
     def stop(self) -> None:
         self._running = False
@@ -320,6 +345,7 @@ class ShellEmulator(QObject):
         rc = self._pty.poll() if self._pty is not None else None
         self.process_finished.emit(rc if rc is not None else -1)
         if self._reader is not None:
+            self._reader._poll_timer.stop()
             self._reader.deleteLater()
             self._reader = None
 

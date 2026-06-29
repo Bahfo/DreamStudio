@@ -119,14 +119,15 @@ class ClickMenu(QMenu):
         self.addMenu(analysis_submenu)
 
     def _build_stylesheet(self):
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QMenu {{
                 background-color: {self._bg};
                 color: {self._fg};
                 border: 1px solid {self._border};
                 border-radius: 0px;
                 padding: 4px 0px;
-                font-family: 'Inter', Arial;
+                font-family: 'inter', Arial;
                 font-size: 13px;
             }}
             QMenu::item {{
@@ -148,7 +149,8 @@ class ClickMenu(QMenu):
             QMenu::icon {{
                 padding-left: 10px;
             }}
-        """)
+        """
+        )
 
     def _build_submenu_style(self):
         return f"""
@@ -158,7 +160,7 @@ class ClickMenu(QMenu):
                 border: 1px solid {self._border};
                 border-radius: 0px;
                 padding: 4px 0px;
-                font-family: 'Inter', Arial;
+                font-family: 'inter', Arial;
                 font-size: 13px;
             }}
             QMenu::item {{

@@ -42,12 +42,14 @@ class DevContainers(QWidget):
         self.tab_editor.addTab(self.processes_tab, "Processes")
         self.tab_editor.addTab(QWidget(), "Images")
 
-        self.tab_editor.setStyleSheet("""
+        self.tab_editor.setStyleSheet(
+            """
             QTabWidget::pane {
                 border: none;
                 background-color: transparent;
             }
-        """)
+        """
+        )
 
         layout.addWidget(self.tab_editor)
 
@@ -70,7 +72,8 @@ class DevContainers(QWidget):
         header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
         header.resizeSection(5, 80)
 
-        self.table.setStyleSheet("""
+        self.table.setStyleSheet(
+            """
             QTableWidget {
                 background-color: #1E1E1E;
                 color: #CCCCCC;
@@ -95,7 +98,8 @@ class DevContainers(QWidget):
                 font-weight: bold;
                 font-size: 11px;
             }
-        """)
+        """
+        )
 
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -112,13 +116,15 @@ class DevContainers(QWidget):
     def _setup_detail_card(self):
         card = self.detail_card
         card.setObjectName("ContainerDetailCard")
-        card.setStyleSheet("""
+        card.setStyleSheet(
+            """
             #ContainerDetailCard {
                 background-color: #1E1E1E;
                 border: 1px solid #35538F;
                 border-radius: 6px;
             }
-        """)
+        """
+        )
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(12, 10, 12, 10)
@@ -127,14 +133,18 @@ class DevContainers(QWidget):
         header_layout = QHBoxLayout()
         title = QLabel("Container Details")
         title.setStyleSheet(
-            "color: #CCCCCC; font-size: 13px; font-weight: bold; background: transparent;"
+            """color: #CCCCCC; 
+            font-size: 13px; 
+            font-weight: bold; 
+            background: transparent;"""
         )
         header_layout.addWidget(title)
         header_layout.addStretch()
 
         close_btn = QPushButton("X")
         close_btn.setFixedSize(20, 20)
-        close_btn.setStyleSheet("""
+        close_btn.setStyleSheet(
+            """
             QPushButton {
                 background-color: #3C3C3C;
                 color: #969696;
@@ -147,7 +157,8 @@ class DevContainers(QWidget):
                 background-color: #555555;
                 color: white;
             }
-        """)
+        """
+        )
         close_btn.clicked.connect(lambda: card.setVisible(False))
         header_layout.addWidget(close_btn)
 
@@ -228,9 +239,7 @@ class DevContainers(QWidget):
 
         layout.addLayout(actions_layout)
 
-    def add_container_row(
-        self, name, pid, status, cpu, memory, row_data=None
-    ):
+    def add_container_row(self, name, pid, status, cpu, memory, row_data=None):
         row = self.table.rowCount()
         self.table.insertRow(row)
 
@@ -242,7 +251,8 @@ class DevContainers(QWidget):
 
         check_btn = QPushButton("Check")
         check_btn.setFixedSize(60, 22)
-        check_btn.setStyleSheet("""
+        check_btn.setStyleSheet(
+            """
             QPushButton {
                 background-color: #0e639c;
                 color: white;
@@ -254,7 +264,8 @@ class DevContainers(QWidget):
             QPushButton:hover {
                 background-color: #1177bb;
             }
-        """)
+        """
+        )
         check_btn.clicked.connect(
             lambda checked, r=row: self.show_container_detail(r, row_data)
         )

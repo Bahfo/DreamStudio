@@ -198,21 +198,49 @@ class TODOSearch(QWidget):
         self.path_input.setText(self._base_dir)
         self.table.setRowCount(0)
 
+    def _apply_error_border(self) -> None:
+        input_bg = "#3C3C3C"
+        input_text = "#D4D4D4"
+        if self._theme is not None:
+            input_bg = self._theme.color("input.background", "#3C3C3C")
+            input_text = self._theme.color("input.text", "#D4D4D4")
+        self.path_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {input_bg};
+                color: {input_text};
+                border: 1px solid #E81123;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+        """)
+
     def execute_search(self):
         root_dir = os.path.normpath(self.path_input.text().strip())
         base_dir = os.path.normpath(self._base_dir)
 
         if not os.path.isdir(root_dir):
-            self.path_input.setStyleSheet(
-                "border: 1px solid #E81123;"
-            )
+            self._apply_error_border()
             return
 
         if os.path.commonpath([base_dir, root_dir]) != base_dir:
-            self.path_input.setStyleSheet(
-                "border: 1px solid #E81123;"
-            )
+            self._apply_error_border()
             return
+
+        if self._theme is not None:
+            self.path_input.setStyleSheet(f"""
+                QLineEdit {{
+                    background-color: {self._theme.color("input.background", "#3C3C3C")};
+                    color: {self._theme.color("input.text", "#D4D4D4")};
+                    border: 1px solid {self._theme.color("widget.border", "#3C3C3C")};
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                }}
+                QLineEdit:focus {{
+                    border: 1px solid {self._theme.color("widget.accent", "#007ACC")};
+                }}
+            """)
 
         self.table.setRowCount(0)
         results = self._search_for_todos(root_dir)

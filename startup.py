@@ -104,12 +104,14 @@ class WelcomeWindow(QWidget):
             alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
         )
         self.info_label.setContentsMargins(17, 20, 0, 0)
-        self.info_label.setStyleSheet("""
+        self.info_label.setStyleSheet(
+            """
             QLabel {
             font-family: montserrat, Arial;
             font-size: 44px;
             color: #F5F5F5;
-            }""")
+            }"""
+        )
         layout.addWidget(self.info_label)
         layout.addSpacing(5)
 
@@ -139,12 +141,14 @@ class WelcomeWindow(QWidget):
             alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
         )
         self.copyright.setContentsMargins(17, 20, 17, 0)
-        self.copyright.setStyleSheet("""
+        self.copyright.setStyleSheet(
+            """
             QLabel {
             font-family: montserrat, Arial;
             font-size: 12px;
             color: #1E1E1E;
-            }""")
+            }"""
+        )
         layout.addWidget(self.copyright)
 
         layout.addStretch()
@@ -202,7 +206,9 @@ class ProjectCard(QPushButton):
         layout.setSpacing(6)
         self.setLayout(layout)
 
-        icon_filename = PROJECT_ICON_MAP.get(project_info["type"], "dreamStudio_icon.png")
+        icon_filename = PROJECT_ICON_MAP.get(
+            project_info["type"], "dreamStudio_icon.png"
+        )
         icon_path = os.path.join(ICON_DIR, icon_filename)
         pixmap = QPixmap(icon_path)
         if pixmap.isNull():
@@ -210,37 +216,46 @@ class ProjectCard(QPushButton):
         icon_label = QLabel()
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_label.setFixedHeight(80)
-        scaled = pixmap.scaled(76, 76, Qt.AspectRatioMode.KeepAspectRatio,
-                               Qt.TransformationMode.SmoothTransformation)
+        scaled = pixmap.scaled(
+            76,
+            76,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
         icon_label.setPixmap(scaled)
         icon_label.setStyleSheet("background: transparent;")
 
         name_label = QLabel(project_info["name"])
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         name_label.setWordWrap(True)
-        name_label.setStyleSheet("""
+        name_label.setStyleSheet(
+            """
             color: #A9B7C6;
             font-size: 12px;
             font-weight: bold;
             background: transparent;
             padding: 2px 4px;
-        """)
+        """
+        )
 
         desc_label = QLabel(project_info["desc"])
         desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("""
+        desc_label.setStyleSheet(
+            """
             color: #8A8A8A;
             font-size: 10px;
             background: transparent;
             padding: 0px 4px;
-        """)
+        """
+        )
 
         layout.addWidget(icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(name_label)
         layout.addWidget(desc_label)
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             ProjectCard, ProjectCard:focus, ProjectCard:pressed, ProjectCard:checked {
                 background: transparent;
                 border: 1px solid #3C3C3C;
@@ -254,7 +269,8 @@ class ProjectCard(QPushButton):
                 border: 1px solid #4A6FA5;
                 background: rgba(74, 111, 165, 0.15);
             }
-        """)
+        """
+        )
 
     @property
     def project_info(self):
@@ -274,7 +290,8 @@ class ProjectDetailsPage(QWidget):
         self.back_btn = QPushButton("  Back")
         self.back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.back_btn.setFixedSize(100, 32)
-        self.back_btn.setStyleSheet("""
+        self.back_btn.setStyleSheet(
+            """
             QPushButton {
                 color: white;
                 background: transparent;
@@ -285,7 +302,8 @@ class ProjectDetailsPage(QWidget):
                 padding-left: 8px;
             }
             QPushButton:hover { background: #333; }
-        """)
+        """
+        )
         back_layout.addWidget(self.back_btn)
         back_layout.addStretch()
         layout.addLayout(back_layout)
@@ -307,7 +325,8 @@ class ProjectDetailsPage(QWidget):
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("my_project_name")
         self.name_input.setFixedHeight(36)
-        self.name_input.setStyleSheet("""
+        self.name_input.setStyleSheet(
+            """
             QLineEdit {
                 background: #25272B;
                 color: white;
@@ -317,18 +336,24 @@ class ProjectDetailsPage(QWidget):
                 font-size: 13px;
             }
             QLineEdit:focus { border: 1px solid #4A6FA5; }
-        """)
+        """
+        )
         layout.addWidget(self.name_input)
 
         location_label = QLabel("Project Location")
-        location_label.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold;")
+        location_label.setStyleSheet(
+            "color: #ffffff; font-size: 13px; font-weight: bold;"
+        )
         layout.addWidget(location_label)
 
         loc_row = QHBoxLayout()
         self.location_input = QLineEdit()
-        self.location_input.setPlaceholderText(os.path.expanduser("~/DreamStudioProjects"))
+        self.location_input.setPlaceholderText(
+            os.path.expanduser("~/DreamStudioProjects")
+        )
         self.location_input.setFixedHeight(36)
-        self.location_input.setStyleSheet("""
+        self.location_input.setStyleSheet(
+            """
             QLineEdit {
                 background: #25272B;
                 color: white;
@@ -338,13 +363,15 @@ class ProjectDetailsPage(QWidget):
                 font-size: 13px;
             }
             QLineEdit:focus { border: 1px solid #4A6FA5; }
-        """)
+        """
+        )
         loc_row.addWidget(self.location_input)
 
         self.browse_btn = QPushButton("Browse")
         self.browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.browse_btn.setFixedSize(90, 36)
-        self.browse_btn.setStyleSheet("""
+        self.browse_btn.setStyleSheet(
+            """
             QPushButton {
                 color: white;
                 background: #2D2D2D;
@@ -353,7 +380,8 @@ class ProjectDetailsPage(QWidget):
                 font-size: 13px;
             }
             QPushButton:hover { background: #3D3D3D; }
-        """)
+        """
+        )
         loc_row.addWidget(self.browse_btn)
         layout.addLayout(loc_row)
 
@@ -366,7 +394,8 @@ class ProjectDetailsPage(QWidget):
         self.create_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.create_btn.setFixedSize(160, 40)
         self.create_btn.setEnabled(False)
-        self.create_btn.setStyleSheet("""
+        self.create_btn.setStyleSheet(
+            """
             QPushButton {
                 color: white;
                 background: #4A6FA5;
@@ -377,7 +406,8 @@ class ProjectDetailsPage(QWidget):
             }
             QPushButton:hover { background: #3A5F95; }
             QPushButton:disabled { background: #3C3C3C; color: #666; }
-        """)
+        """
+        )
         btn_row.addWidget(self.create_btn)
         layout.addLayout(btn_row)
 
@@ -386,7 +416,9 @@ class ProjectDetailsPage(QWidget):
         self.browse_btn.clicked.connect(self._browse_location)
 
     def _validate(self):
-        valid = bool(self.name_input.text().strip()) and bool(self.location_input.text().strip())
+        valid = bool(self.name_input.text().strip()) and bool(
+            self.location_input.text().strip()
+        )
         self.create_btn.setEnabled(valid)
 
     def _browse_location(self):
@@ -413,7 +445,7 @@ class WelcomeInterface(QMainWindow):
 
         self.resize(1000, 700)
         self.setWindowTitle("Welcome to DreamStudio")
-        self.setStyleSheet("background-color: #1E1E1E; font-family: inter, Arial;")
+        self.setStyleSheet("background-color: #1E1E1E; font-family: 'inter', Arial;")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self.center_on_screen()
 
@@ -455,7 +487,8 @@ class WelcomeInterface(QMainWindow):
         new_project_btn = QPushButton("New Project")
         new_project_btn.setFixedSize(280, 40)
         new_project_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        new_project_btn.setStyleSheet("""
+        new_project_btn.setStyleSheet(
+            """
             QPushButton{
             color: white;
             background-color: transparent;
@@ -464,13 +497,15 @@ class WelcomeInterface(QMainWindow):
             border-radius: 4px;
             padding-left: 15px;
             font-size: 14px;}
-            QPushButton:hover{background-color: rgba(255, 255, 255, 0.1);}""")
+            QPushButton:hover{background-color: rgba(255, 255, 255, 0.1);}"""
+        )
         self.leftmost_layout.addWidget(new_project_btn)
 
         marketplace_btn = QPushButton("MarketPlace")
         marketplace_btn.setFixedSize(280, 40)
         marketplace_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        marketplace_btn.setStyleSheet("""
+        marketplace_btn.setStyleSheet(
+            """
             QPushButton{
             color: white;
             background-color: transparent;
@@ -479,7 +514,8 @@ class WelcomeInterface(QMainWindow):
             border-radius: 4px;
             text-align: left;
             font-size: 14px;}
-            QPushButton:hover{background-color: rgba(255, 255, 255, 0.1);}""")
+            QPushButton:hover{background-color: rgba(255, 255, 255, 0.1);}"""
+        )
         self.leftmost_layout.addWidget(marketplace_btn)
 
         self._build_new_project_page()
@@ -513,7 +549,9 @@ class WelcomeInterface(QMainWindow):
         self._project_cards = []
         for i, info in enumerate(PYTHON_PROJECT_TYPES):
             card = ProjectCard(info)
-            card.clicked.connect(lambda checked, idx=i: self._on_project_card_clicked(idx))
+            card.clicked.connect(
+                lambda checked, idx=i: self._on_project_card_clicked(idx)
+            )
             self._project_cards.append(card)
             row, col = divmod(i, 3)
             python_grid.addWidget(card, row, col)
@@ -528,7 +566,9 @@ class WelcomeInterface(QMainWindow):
         for info in PYTHON_PROJECT_TYPES:
             page = ProjectDetailsPage(info)
             page.back_btn.clicked.connect(self._on_back_to_projects)
-            page.create_btn.clicked.connect(lambda checked, pi=info: self._on_create_project(pi))
+            page.create_btn.clicked.connect(
+                lambda checked, pi=info: self._on_create_project(pi)
+            )
             self._details_pages.append(page)
 
     def _on_back_to_projects(self):
@@ -549,7 +589,9 @@ class WelcomeInterface(QMainWindow):
 
         project_path = os.path.join(location, name)
         if os.path.exists(project_path):
-            QMessageBox.warning(self, "Conflict", f"Path already exists:\n{project_path}")
+            QMessageBox.warning(
+                self, "Conflict", f"Path already exists:\n{project_path}"
+            )
             return
 
         manifest_path = project_info["manifest"]
@@ -616,19 +658,23 @@ class WelcomeFrame(QFrame):
         main_layout.setSpacing(10)
 
         title = QLabel("DreamStudio 2026")
-        title.setStyleSheet("""
+        title.setStyleSheet(
+            """
             color: #ffffff;
             font-size: 42px;
             font-weight: 300;
             font-family: montserrat, Arial;
-        """)
+        """
+        )
 
         subtitle = QLabel("Welcome to")
-        subtitle.setStyleSheet("""
+        subtitle.setStyleSheet(
+            """
             color: #cccccc;
             font-size: 20px;
             padding-left: 0px;
-        """)
+        """
+        )
 
         main_layout.addWidget(subtitle)
         main_layout.addWidget(title)
@@ -637,11 +683,13 @@ class WelcomeFrame(QFrame):
         start_label = QLabel(
             "Start building by selecting `New Project` Tab, or view the marketplace for extensions."
         )
-        start_label.setStyleSheet("""
+        start_label.setStyleSheet(
+            """
             color: #ffffff;
             font-size: 14px;
             padding-top: 10px;
-        """)
+        """
+        )
         main_layout.addWidget(start_label)
         main_layout.addSpacing(6)
         main_layout.addStretch()
@@ -659,7 +707,7 @@ QToolTip {
     color: #FFFFFF;
     border: none;
     padding: 6px 5px;
-    font-family: inter;
+    font-family: 'inter';
     font-size: 12px;
 }
 """

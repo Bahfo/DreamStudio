@@ -84,7 +84,7 @@ class DreamStudio(QMainWindow):
 
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
-        self.setStyleSheet("background-color: #1E1E1E; font-family: inter, Arial;")
+        self.setStyleSheet("background-color: #1E1E1E; font-family: 'inter', Arial;")
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -147,7 +147,7 @@ class DreamStudio(QMainWindow):
     def _apply_theme_colors(self, t):
         border_c = t.color("widget.border", "#3F4145")
         tip_css = (
-            f"QToolTip{{color: {t.color('tooltip.text')}; font-family: inter, sans-serif;"
+            f"QToolTip{{color: {t.color('tooltip.text')}; font-family: 'inter', sans-serif;"
             f" padding: 8px 8px; font-size: 12px; line-height: 1.5;"
             f" background-color: {t.color('tooltip.background')};"
             f" border: 1px solid {border_c};"
@@ -162,7 +162,7 @@ class DreamStudio(QMainWindow):
                 f" border: 1px solid {border_c};"
                 f" border-radius: 8px;"
                 f" padding: 8px 8px;"
-                f" font-family: inter, sans-serif;"
+                f" font-family: 'inter', sans-serif;"
                 f" font-size: 12px;"
                 f" line-height: 1.5;}}"
             )
@@ -170,7 +170,7 @@ class DreamStudio(QMainWindow):
         self.setStyleSheet(
             f"background-color: {t.color('window.background')};"
             f" color: {t.color('window.text')};"
-            f" font-family: inter, Arial;" + tip_css
+            f" font-family: 'inter', Arial;" + tip_css
         )
 
         self.leftmost_bar.setStyleSheet(
@@ -248,10 +248,13 @@ class DreamStudio(QMainWindow):
             elif hasattr(editor, "retheme"):
                 editor.retheme(t)
 
-    def flash_button(self, button: QPushButton, color: str = "#4A6FA5", duration: int = 400):
+    def flash_button(
+        self, button: QPushButton, color: str = "#4A6FA5", duration: int = 400
+    ):
         original = button.styleSheet()
         flash_css = (
-            f"QPushButton{{background-color: {color}; border: none; border-radius: 10px;}}"
+            f"""QPushButton{{background-color: {color}; 
+                border: none; border-radius: 10px;}}"""
             f"QPushButton:hover{{background-color: {color};}}"
         )
         button.setStyleSheet(flash_css)
@@ -268,7 +271,7 @@ class DreamStudio(QMainWindow):
             self.find_replace_widget.find_input.setFocus()
 
     def closeEvent(self, event):
-        if hasattr(self, '_project_bootstrap') and self._project_bootstrap is not None:
+        if hasattr(self, "_project_bootstrap") and self._project_bootstrap is not None:
             self._project_bootstrap.wait(5000)
             self._project_bootstrap = None
         self._jedi_worker.shutdown()
@@ -326,7 +329,9 @@ class DreamStudio(QMainWindow):
         main_layout.addLayout(self.body_layout, stretch=1)
 
         self.status_bar = StatusBar(self)
-        self.status_bar.statusBtn.clicked.connect(self.status_bar.show_bootstrap_details)
+        self.status_bar.statusBtn.clicked.connect(
+            self.status_bar.show_bootstrap_details
+        )
         main_layout.addWidget(self.status_bar)
         return main_layout
 
@@ -369,17 +374,39 @@ class DreamStudio(QMainWindow):
         self.leftmost_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         btn_cfg = [
-            ("explorerBtn", "assets/system/folder.png", QSize(30, 30),
-             lambda: self.sidebar_frame.setCurrentIndex(0), "File Explorer"),
-            ("searchBtn", "assets/system/find.png", QSize(30, 30),
-             lambda: self.sidebar_frame.setCurrentIndex(1), "Find and Replace"),
-            ("gitChangesBtn", "assets/system/git.png", QSize(30, 30),
-             lambda: self.sidebar_frame.setCurrentIndex(2), "Manage Changes"),
-            ("extensionsBtn", "assets/system/extensions.png", QSize(26, 26),
-             lambda: self.sidebar_frame.setCurrentIndex(3), "Open Marketplace"),
+            (
+                "explorerBtn",
+                "assets/system/folder.png",
+                QSize(30, 30),
+                lambda: self.sidebar_frame.setCurrentIndex(0),
+                "File Explorer",
+            ),
+            (
+                "searchBtn",
+                "assets/system/find.png",
+                QSize(30, 30),
+                lambda: self.sidebar_frame.setCurrentIndex(1),
+                "Find and Replace",
+            ),
+            (
+                "gitChangesBtn",
+                "assets/system/git.png",
+                QSize(30, 30),
+                lambda: self.sidebar_frame.setCurrentIndex(2),
+                "Manage Changes",
+            ),
+            (
+                "extensionsBtn",
+                "assets/system/extensions.png",
+                QSize(26, 26),
+                lambda: self.sidebar_frame.setCurrentIndex(3),
+                "Open Marketplace",
+            ),
         ]
         for name, icon, size, cb, tip in btn_cfg:
-            btn = self.create_bar_option(text=None, image=icon, image_size=size, function=cb)
+            btn = self.create_bar_option(
+                text=None, image=icon, image_size=size, function=cb
+            )
             btn.setToolTip(tip)
             setattr(self, name, btn)
             self.leftmost_layout.addWidget(btn)
@@ -393,14 +420,18 @@ class DreamStudio(QMainWindow):
         self.leftmost_layout.addWidget(self.infoBtn)
 
         self.terminalBtn = self.create_bar_option(
-            text=None, image="assets/system/terminal.png", image_size=QSize(26, 26),
+            text=None,
+            image="assets/system/terminal.png",
+            image_size=QSize(26, 26),
             function=lambda: self.toggle_terminal(),
         )
         self.terminalBtn.setToolTip("Open Terminals")
         self.leftmost_layout.addWidget(self.terminalBtn)
 
         self.preferencesBtn = self.create_bar_option(
-            text=None, image="assets/system/version_control.png", image_size=QSize(26, 26),
+            text=None,
+            image="assets/system/version_control.png",
+            image_size=QSize(26, 26),
             function=lambda: self._show_preferences_menu(self.preferencesBtn),
         )
         self.preferencesBtn.setToolTip("Set Preferences")
@@ -456,6 +487,7 @@ class DreamStudio(QMainWindow):
         self.center_splitter.setSizes([800, 100])
 
         self.tools_manager = ToolsManager(self)
+        self.tools_manager.all_tabs_closed.connect(self._collapse_tools_panel)
 
         self.workspace_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.workspace_splitter.setHandleWidth(1)
@@ -604,8 +636,12 @@ class DreamStudio(QMainWindow):
         menu.addAction(header)
         menu.addSeparator()
 
-        for label in ("Enable Auto-Save", "Minimap Enabled",
-                       "Enable Sound Effects", "Show Line Numbers"):
+        for label in (
+            "Enable Auto-Save",
+            "Minimap Enabled",
+            "Enable Sound Effects",
+            "Show Line Numbers",
+        ):
             menu.addAction(QAction(label, self))
         menu.addSeparator()
 
@@ -624,7 +660,7 @@ class DreamStudio(QMainWindow):
                 color: {t.color("menu.text")};
                 border: 1px solid {t.color("menu.border")};
                 padding: 6px 0px;
-                font-family: Inter, Arial;
+                font-family: 'inter', Arial;
                 font-size: 13px;
             }}
             QMenu::item {{ padding: 8px 28px 8px 18px; background: transparent; }}
@@ -647,11 +683,17 @@ class DreamStudio(QMainWindow):
 
     def _build_theme_submenu(self) -> QMenu:
         THEMES = [
-            ("dark", "Dark"), ("light", "Light"), ("ocean", "Ocean"),
-            ("solarized_dark", "Solarized Dark"), ("solarized_light", "Solarized Light"),
-            ("Moses", "Moses"), ("hacker_blue", "Hacker Blue"), ("davy", "Davy"),
+            ("dark", "Dark"),
+            ("light", "Light"),
+            ("ocean", "Ocean"),
+            ("solarized_dark", "Solarized Dark"),
+            ("solarized_light", "Solarized Light"),
+            ("Moses", "Moses"),
+            ("hacker_blue", "Hacker Blue"),
+            ("davy", "Davy"),
             ("high_contrast_dark", "High Contrast Dark"),
-            ("coffee_dark", "Coffee Dark"), ("coffee_light", "Coffee Light"),
+            ("coffee_dark", "Coffee Dark"),
+            ("coffee_light", "Coffee Light"),
         ]
         sub = QMenu("Theme", self)
         sub.setStyleSheet(self._menu_theme_css())
@@ -663,17 +705,25 @@ class DreamStudio(QMainWindow):
 
     def _build_syntax_theme_submenu(self) -> QMenu:
         THEMES = [
-            ("dark", "Dark"), ("light", "Light"), ("ocean", "Ocean"),
-            ("solarized_dark", "Solarized Dark"), ("solarized_light", "Solarized Light"),
-            ("Moses", "Moses"), ("hacker_blue", "Hacker Blue"), ("davy", "Davy"),
+            ("dark", "Dark"),
+            ("light", "Light"),
+            ("ocean", "Ocean"),
+            ("solarized_dark", "Solarized Dark"),
+            ("solarized_light", "Solarized Light"),
+            ("Moses", "Moses"),
+            ("hacker_blue", "Hacker Blue"),
+            ("davy", "Davy"),
             ("high_contrast_dark", "High Contrast Dark"),
-            ("coffee_dark", "Coffee Dark"), ("coffee_light", "Coffee Light"),
+            ("coffee_dark", "Coffee Dark"),
+            ("coffee_light", "Coffee Light"),
         ]
         sub = QMenu("Syntax Theme", self)
         sub.setStyleSheet(self._menu_theme_css())
         for key, label in THEMES:
             a = QAction(label, self)
-            a.triggered.connect(lambda checked, t=key: self.syntax_theme_manager.switch_to(t))
+            a.triggered.connect(
+                lambda checked, t=key: self.syntax_theme_manager.switch_to(t)
+            )
             sub.addAction(a)
         return sub
 
@@ -681,7 +731,9 @@ class DreamStudio(QMainWindow):
         sub = QMenu("Font Size", self)
         for size in (10, 12, 14, 16, 18):
             a = QAction(str(size), self)
-            a.triggered.connect(lambda checked, s=size: self.tab_editors.set_font_size(s))
+            a.triggered.connect(
+                lambda checked, s=size: self.tab_editors.set_font_size(s)
+            )
             sub.addAction(a)
         return sub
 
@@ -719,6 +771,12 @@ class DreamStudio(QMainWindow):
         sizes = self.workspace_splitter.sizes()
         if sizes[2] == 0:
             self.workspace_splitter.setSizes([sizes[0], sizes[1], 400])
+
+    def _collapse_tools_panel(self) -> None:
+        """Collapse the tools panel when all tool tabs are closed."""
+        sizes = self.workspace_splitter.sizes()
+        if sizes[2] > 0:
+            self.workspace_splitter.setSizes([sizes[0], sizes[1] + sizes[2], 0])
 
     def ui_build_add_new_editor(self):
         """A higher heirarchy call for adding a new editor tab instead
@@ -791,10 +849,12 @@ class DreamStudio(QMainWindow):
     def ui_build_show_welcome(self):
         self.tab_editors.add_new_editor(welcome=True)
 
-    def bootstrap_project(self, manifest_path: str, target_path: str, project_type: str) -> None:
+    def bootstrap_project(
+        self, manifest_path: str, target_path: str, project_type: str
+    ) -> None:
         from editor.init.project_bootstrap import ProjectBootstrap
 
-        if hasattr(self, '_project_bootstrap') and self._project_bootstrap is not None:
+        if hasattr(self, "_project_bootstrap") and self._project_bootstrap is not None:
             old = self._project_bootstrap
             old.wait(5000)
             self._project_bootstrap = None

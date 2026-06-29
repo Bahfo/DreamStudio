@@ -132,7 +132,8 @@ class DreamTabbedEditor(QDreamTabEditor):
         content="",
         language=None,
         file_path=None,
-        welcome: bool = False):
+        welcome: bool = False,
+    ):
 
         if welcome:
             new_editor = FastTutorialFrame(self._parent)
@@ -528,7 +529,8 @@ class WelcomeAction(QPushButton):
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedWidth(200)
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QPushButton {
                 text-align: left;
                 color: #3794ef;
@@ -542,7 +544,8 @@ class WelcomeAction(QPushButton):
                 text-decoration: underline;
                 color: #4daafc;
             }
-        """)
+        """
+        )
         if self._event is not None:
             self.clicked.connect(self._event)
 
@@ -568,30 +571,36 @@ class FastTutorialFrame(QFrame):
         main_layout.setSpacing(10)
 
         title = QLabel("DreamStudio 2026")
-        title.setStyleSheet("""color: #ffffff; 
+        title.setStyleSheet(
+            """color: #ffffff; 
             font-size: 42px; 
             font-weight: 300; 
             font-family: montserrat, Arial; 
-            padding-left: 120px;""")
+            padding-left: 120px;"""
+        )
 
         subtitle = QLabel("Get Started with")
-        subtitle.setStyleSheet("""
+        subtitle.setStyleSheet(
+            """
             color: #cccccc; 
             font-size: 20px;
-            padding-left: 130px;""")
+            padding-left: 130px;"""
+        )
 
         main_layout.addWidget(subtitle)
         main_layout.addWidget(title)
         main_layout.addSpacing(20)
 
         start_label = QLabel("Start")
-        start_label.setStyleSheet("""
+        start_label.setStyleSheet(
+            """
             color: #ffffff;
             font-size: 18px;
             font-weight: bold;
             padding-left: 5px;
             padding-top: 20px;
-        """)
+        """
+        )
 
         main_layout.addWidget(start_label)
         main_layout.addSpacing(6)
@@ -647,7 +656,8 @@ class FastTutorialFrame(QFrame):
         for child in self.findChildren(QCheckBox):
             child.setStyleSheet(f"color: {t.color('welcome.footer')}; font-size: 12px;")
         for child in self.findChildren(WelcomeAction):
-            child.setStyleSheet(f"""
+            child.setStyleSheet(
+                f"""
                 QPushButton {{
                     text-align: left;
                     color: {t.color('welcome.action')};
@@ -661,7 +671,8 @@ class FastTutorialFrame(QFrame):
                     text-decoration: underline;
                     color: {t.color('welcome.action_hover')};
                 }}
-            """)
+            """
+            )
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -705,24 +716,28 @@ class BackgroundHintsFrame(QFrame):
         self._hint_labels = []
         for row, (keys, desc) in enumerate(self.BINDINGS):
             desc_label = QLabel(desc)
-            desc_label.setStyleSheet("""
+            desc_label.setStyleSheet(
+                """
                 font-family: 'inter';
                 color: #CCCCCC;
                 font-size: 16px;
-            """)
+            """
+            )
             desc_label.setAlignment(
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
             )
 
             key_label = QLabel(keys)
-            key_label.setStyleSheet("""
+            key_label.setStyleSheet(
+                """
                 color: #569CD6;
                 font-size: 16px;
                 font-family: 'JetBrains Mono', monospace;
                 padding: 4px 10px;
                 background-color: #2D2D2D;
                 border-radius: 3px;
-            """)
+            """
+            )
             key_label.setAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
@@ -751,16 +766,20 @@ class BackgroundHintsFrame(QFrame):
         self._center_widget.setStyleSheet(f"background-color: transparent;")
         self._grid_container.setStyleSheet(f"background-color: transparent;")
         for key_label, desc_label in self._hint_labels:
-            desc_label.setStyleSheet(f"""
+            desc_label.setStyleSheet(
+                f"""
                 font-family: 'inter';
                 color: {t.color('hints.desc')};
                 font-size: 16px;
-            """)
-            key_label.setStyleSheet(f"""
+            """
+            )
+            key_label.setStyleSheet(
+                f"""
                 color: {t.color('hints.text')};
                 font-size: 16px;
                 font-family: 'JetBrains Mono', monospace;
                 padding: 4px 10px;
                 background-color: {t.color('hints.key_bg')};
                 border-radius: 3px;
-            """)
+            """
+            )

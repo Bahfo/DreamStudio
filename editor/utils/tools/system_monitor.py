@@ -4,18 +4,38 @@ import psutil
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-    QLabel, QProgressBar, QScrollArea
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGridLayout,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QLabel,
+    QProgressBar,
+    QScrollArea,
 )
 
 from editor.widgets.QSystemGraphWidget import SystemGraphUtil
 
 _CORE_COLORS = [
-    "#E06C75", "#61AFEF", "#98C379", "#E5C07B",
-    "#C678DD", "#56B6C2", "#D19A66", "#ABB2BF",
-    "#BE5046", "#3E7BCC", "#7EC87E", "#D4A05A",
-    "#F78C6C", "#89DDFF", "#C3E88D", "#FF9CAC",
+    "#E06C75",
+    "#61AFEF",
+    "#98C379",
+    "#E5C07B",
+    "#C678DD",
+    "#56B6C2",
+    "#D19A66",
+    "#ABB2BF",
+    "#BE5046",
+    "#3E7BCC",
+    "#7EC87E",
+    "#D4A05A",
+    "#F78C6C",
+    "#89DDFF",
+    "#C3E88D",
+    "#FF9CAC",
 ]
 
 
@@ -72,17 +92,21 @@ class SystemMonitor(QWidget):
         for i in range(self._num_cores):
             lbl = QLabel(f"Core {i}")
             lbl.setFont(QFont("Inter", 8))
-            lbl.setStyleSheet(f"color: {self._text_color}; background-color: transparent;")
+            lbl.setStyleSheet(
+                f"color: {self._text_color}; background-color: transparent;"
+            )
 
             bar = QProgressBar()
             bar.setTextVisible(False)
             bar.setFixedHeight(6)
 
             bar_color = _CORE_COLORS[i % len(_CORE_COLORS)]
-            bar.setStyleSheet(f"""
+            bar.setStyleSheet(
+                f"""
                 QProgressBar {{ background-color: {self._grid_color}; border-radius: 3px; border: none; }}
                 QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; }}
-            """)
+            """
+            )
 
             row = i // cols
             col = (i % cols) * 2
@@ -129,12 +153,22 @@ class SystemMonitor(QWidget):
         proc_layout.setContentsMargins(5, 5, 5, 5)
 
         self.process_table = QTableWidget(0, 6)
-        self.process_table.setHorizontalHeaderLabels(["PID", "Name", "CPU %", "RAM (MB)", "Disk R/W", "Internet"])
-        self.process_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.process_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.process_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        self.process_table.setHorizontalHeaderLabels(
+            ["PID", "Name", "CPU %", "RAM (MB)", "Disk R/W", "Internet"]
+        )
+        self.process_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.process_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.process_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Interactive
+        )
         self.process_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.process_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.process_table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
         self.process_table.setShowGrid(False)
         self.process_table.setFont(QFont("Inter", 9))
         self._apply_table_styling()
@@ -152,23 +186,27 @@ class SystemMonitor(QWidget):
         QTimer.singleShot(100, self._collect)
 
     def _apply_tab_styling(self):
-        self.tabs.setStyleSheet(f"""
+        self.tabs.setStyleSheet(
+            f"""
             QTabWidget::pane {{ border: none; background-color: {self._window_bg}; }}
             QTabBar::tab {{ background: {self._bg_color}; color: {self._text_color};
             padding: 8px 20px; border-bottom: 2px solid transparent; }}
             QTabBar::tab:selected {{ color: #FFFFFF; border-bottom: 2px solid #61AFEF; }}
-        """)
+        """
+        )
 
     def _apply_table_styling(self):
-        self.process_table.setStyleSheet(f"""
+        self.process_table.setStyleSheet(
+            f"""
             QTableWidget {{ background-color: {self._window_bg};
             color: {self._text_color}; border: 1px solid {self._grid_color}; }}
             QHeaderView::section {{ background-color: {self._grid_color};
             color: {self._text_color}; padding: 4px; border: none;
             border-right: 1px solid {self._bg_color};
             border-bottom: 1px solid {self._bg_color};
-            font-family: 'Inter'; }}
-        """)
+            font-family: 'inter'; }}
+        """
+        )
 
     def retheme(self, t):
         self._theme = t
@@ -199,10 +237,12 @@ class SystemMonitor(QWidget):
                 f"color: {self._text_color}; background-color: transparent;"
             )
             bar_color = _CORE_COLORS[i % len(_CORE_COLORS)]
-            self._core_bars[i].setStyleSheet(f"""
+            self._core_bars[i].setStyleSheet(
+                f"""
                 QProgressBar {{ background-color: {self._grid_color}; border-radius: 3px; border: none; }}
                 QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; }}
-            """)
+            """
+            )
 
         section_fg = t.color("widget.text", "#969696")
         self.label.setStyleSheet(
@@ -273,23 +313,28 @@ class SystemMonitor(QWidget):
         self.process_table.setSortingEnabled(False)
         current_pids = set()
 
-        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent',
-            'memory_info', 'io_counters']):
+        for proc in psutil.process_iter(
+            ["pid", "name", "cpu_percent", "memory_info", "io_counters"]
+        ):
             try:
-                pid = proc.info['pid']
+                pid = proc.info["pid"]
                 current_pids.add(pid)
 
-                name = proc.info['name'] or ""
-                cpu = f"{proc.info['cpu_percent']:.1f}" if proc.info['cpu_percent'] is not None else "0.0"
+                name = proc.info["name"] or ""
+                cpu = (
+                    f"{proc.info['cpu_percent']:.1f}"
+                    if proc.info["cpu_percent"] is not None
+                    else "0.0"
+                )
 
                 ram = "0.0"
-                if proc.info['memory_info']:
+                if proc.info["memory_info"]:
                     ram = f"{(proc.info['memory_info'].rss / (1024**2)):.1f}"
 
                 disk = "N/A"
-                if proc.info['io_counters']:
-                    reads = proc.info['io_counters'].read_bytes / (1024**2)
-                    writes = proc.info['io_counters'].write_bytes / (1024**2)
+                if proc.info["io_counters"]:
+                    reads = proc.info["io_counters"].read_bytes / (1024**2)
+                    writes = proc.info["io_counters"].write_bytes / (1024**2)
                     disk = f"{reads:.1f} / {writes:.1f} MB"
 
                 if pid in self._process_items:

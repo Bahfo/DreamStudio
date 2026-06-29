@@ -12,10 +12,7 @@ This code is protected under the GPLv3 License.
 # Written By Bahaa Nofal - 26/May/2026
 
 
-from PyQt6.Qsci import (
-    QsciLexerCMake,
-    QsciScintilla,
-    QsciAPIs)
+from PyQt6.Qsci import QsciLexerCMake, QsciScintilla, QsciAPIs
 
 from PyQt6.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -25,7 +22,8 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QToolTip,
     QPushButton,
-    QSizePolicy)
+    QSizePolicy,
+)
 
 from PyQt6.QtGui import (
     QFont,
@@ -34,7 +32,8 @@ from PyQt6.QtGui import (
     QPalette,
     QShortcut,
     QKeyEvent,
-    QKeySequence)
+    QKeySequence,
+)
 
 import re
 import json
@@ -48,7 +47,9 @@ logger = logging.getLogger(__name__)
 ### LOCAL IMPORTS
 from editor.texteditor.click_menu import ClickMenu
 from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
-from editor.texteditor.ironica_lexer.python_jedi_highlighter import DreamPythonHighlighter
+from editor.texteditor.ironica_lexer.python_jedi_highlighter import (
+    DreamPythonHighlighter,
+)
 from editor.texteditor.analyzer.complexity_analyzer import analyze_python_complexity
 from editor.texteditor.analyzer.complexity_popup import ComplexityPopup
 
@@ -120,7 +121,8 @@ class CodeEditor(QsciScintilla):
         # Configuration
         #####################################
         self.setObjectName("CodeEditor")
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QTabWidget::pane {
                 border: none;
                 background-color: #1E1E1E;
@@ -145,7 +147,8 @@ class CodeEditor(QsciScintilla):
             QTabBar::close-button:hover {
                 background-color: rgba(255, 255, 255, 0.1);
             }
-        """)
+        """
+        )
 
         self.setEdgeMode(QsciScintilla.EdgeMode.EdgeLine)
         self.setEdgeColumn(80)
@@ -169,7 +172,8 @@ class CodeEditor(QsciScintilla):
             Qt.WidgetAttribute.WA_TransparentForMouseEvents, False
         )
         self.completion_popup.hide()
-        self.completion_popup.setStyleSheet("""
+        self.completion_popup.setStyleSheet(
+            """
             QListWidget {
                 background-color: #252526;
                 color: #D4D4D4;
@@ -183,7 +187,8 @@ class CodeEditor(QsciScintilla):
                 background-color: #094771;
                 color: white;
             }
-        """)
+        """
+        )
 
         self.completion_popup.itemClicked.connect(self._complete_current_item)
 
@@ -267,7 +272,8 @@ class CodeEditor(QsciScintilla):
         self._info_btn.setFlat(True)
         self._info_btn.clicked.connect(self._show_complexity_popup)
         self._info_btn.hide()
-        self._info_btn.setStyleSheet("""
+        self._info_btn.setStyleSheet(
+            """
             QPushButton {
                 color: #569CD6;
                 background: transparent;
@@ -279,7 +285,8 @@ class CodeEditor(QsciScintilla):
             QPushButton:hover {
                 color: #75BEFF;
             }
-        """)
+        """
+        )
         self._reposition_info_btn()
 
         self.setMarkerForegroundColor(
@@ -385,9 +392,8 @@ class CodeEditor(QsciScintilla):
             return
         self._complexity_popup.set_results(self._complexity_results)
         self._complexity_popup.adjustSize()
-        
-        btn_pos = self._info_btn.mapToGlobal(
-            self._info_btn.rect().bottomLeft())
+
+        btn_pos = self._info_btn.mapToGlobal(self._info_btn.rect().bottomLeft())
         popup_pos = btn_pos + QPoint(0, 4)
 
         self._complexity_popup.show_at(popup_pos)
@@ -608,7 +614,7 @@ class CodeEditor(QsciScintilla):
                 )
             except RuntimeError:
                 pass
-            if getattr(self, '_tooltip_shown', False):
+            if getattr(self, "_tooltip_shown", False):
                 QToolTip.hideText()
                 self._tooltip_shown = False
 
@@ -654,7 +660,7 @@ class CodeEditor(QsciScintilla):
             except RuntimeError:
                 pass
             self._hyperlink_target = None
-        if getattr(self, '_tooltip_shown', False):
+        if getattr(self, "_tooltip_shown", False):
             QToolTip.hideText()
             self._tooltip_shown = False
 
@@ -664,10 +670,43 @@ class CodeEditor(QsciScintilla):
             self._show_symbol_link(word_info)
 
     def _is_python_keyword(self, word):
-        keywords = {"False","None","True","and","as","assert","async","await","break",
-            "class","continue","def","del","elif","else","except","finally","for","from",
-            "global","if","import","in","is","lambda","nonlocal","not","or","pass",
-            "raise","return","try","while","with","yield"}
+        keywords = {
+            "False",
+            "None",
+            "True",
+            "and",
+            "as",
+            "assert",
+            "async",
+            "await",
+            "break",
+            "class",
+            "continue",
+            "def",
+            "del",
+            "elif",
+            "else",
+            "except",
+            "finally",
+            "for",
+            "from",
+            "global",
+            "if",
+            "import",
+            "in",
+            "is",
+            "lambda",
+            "nonlocal",
+            "not",
+            "or",
+            "pass",
+            "raise",
+            "return",
+            "try",
+            "while",
+            "with",
+            "yield",
+        }
         return word in keywords
 
     def _request_definition_location(self, word: str, line: int, index: int) -> None:
@@ -710,36 +749,43 @@ class CodeEditor(QsciScintilla):
         line_no = d.get("line")
 
         # JetBrains Dark Theme (New UI) Color Palette
-        text_color = "#DFE1E5"     # Crisp white/grey for symbols
-        type_color = "#868A91"     # Muted grey for types
-        link_color = "#548AF7"     # JetBrains blue for locations
-        doc_color = "#A9B7C6"      # Classic Darcula text color for docs
+        text_color = "#DFE1E5"  # Crisp white/grey for symbols
+        type_color = "#868A91"  # Muted grey for types
+        link_color = "#548AF7"  # JetBrains blue for locations
+        doc_color = "#A9B7C6"  # Classic Darcula text color for docs
         divider_color = "#43454A"  # Subtle border line
 
-        parts = [f"""<div style=\"font-family: 'Inter', sans-serif; 
-                 white-space: nowrap;\">"""]
+        parts = [
+            f"""<div style=\"font-family: 'inter', sans-serif; 
+                 white-space: nowrap;\">"""
+        ]
         header = []
         if name:
             header.append(
-                f'''<span style="color:{text_color}; font-size:13px; font-weight:600;">
-                {name}</span>''')
+                f"""<span style="color:{text_color}; font-size:13px; font-weight:600;">
+                {name}</span>"""
+            )
         if typ:
             header.append(
-                f'<span style="color:{type_color}; font-size:12px;"> : {typ}</span>')
+                f'<span style="color:{type_color}; font-size:12px;"> : {typ}</span>'
+            )
         if header:
             parts.append("".join(header))
         if file_path and line_no:
             parts.append(
-                f'''<div style="color:{link_color}; font-size:11px; margin-top:2px;">
-                {file_path}:{line_no}</div>''')
+                f"""<div style="color:{link_color}; font-size:11px; margin-top:2px;">
+                {file_path}:{line_no}</div>"""
+            )
 
         if doc:
             doc_short = doc.strip()[:500]
-            if len(doc.strip()) > 500: doc_short += "..."
+            if len(doc.strip()) > 500:
+                doc_short += "..."
             doc_escaped = html_lib.escape(doc_short)
             parts.append(
-                f'''<div style="margin-top:8px; margin-bottom:8px; 
-                border-top:1px solid {divider_color};"></div>''')
+                f"""<div style="margin-top:8px; margin-bottom:8px; 
+                border-top:1px solid {divider_color};"></div>"""
+            )
             parts.append(
                 f"""<pre style=\"font-family: 'JetBrains Mono', monospace; 
                 font-size:12px; color:{doc_color}; margin:0;\">""{doc_escaped}</pre>"""
@@ -1047,17 +1093,17 @@ class CodeEditor(QsciScintilla):
         source = self.text()
 
         # Use regex-based extraction that works even during typing (invalid syntax)
-        for m in re.finditer(r'^(?:async\s+)?def\s+(\w+)\s*\(', source, re.MULTILINE):
+        for m in re.finditer(r"^(?:async\s+)?def\s+(\w+)\s*\(", source, re.MULTILINE):
             self.document_symbols["functions"].add(m.group(1))
-        for m in re.finditer(r'^class\s+(\w+)\s*[\(:]', source, re.MULTILINE):
+        for m in re.finditer(r"^class\s+(\w+)\s*[\(:]", source, re.MULTILINE):
             self.document_symbols["classes"].add(m.group(1))
-        for m in re.finditer(r'^(\w+)\s*=', source, re.MULTILINE):
+        for m in re.finditer(r"^(\w+)\s*=", source, re.MULTILINE):
             self.document_symbols["variables"].add(m.group(1))
-        for m in re.finditer(r'^import\s+(\w+(?:\.\w+)*)', source, re.MULTILINE):
-            self.imported_modules.add(m.group(1).split('.')[0])
-        for m in re.finditer(r'^from\s+(\w+(?:\.\w+)*)\s+import', source, re.MULTILINE):
-            self.imported_modules.add(m.group(1).split('.')[0])
-        for m in re.finditer(r'^from\s+\S+\s+import\s+(\w+)', source, re.MULTILINE):
+        for m in re.finditer(r"^import\s+(\w+(?:\.\w+)*)", source, re.MULTILINE):
+            self.imported_modules.add(m.group(1).split(".")[0])
+        for m in re.finditer(r"^from\s+(\w+(?:\.\w+)*)\s+import", source, re.MULTILINE):
+            self.imported_modules.add(m.group(1).split(".")[0])
+        for m in re.finditer(r"^from\s+\S+\s+import\s+(\w+)", source, re.MULTILINE):
             self.imported_symbols.add(m.group(1))
 
     def show_completion_popup(self, items):
@@ -1147,7 +1193,8 @@ class CodeEditor(QsciScintilla):
                 "type": "global",
                 "prefix": global_match.group(1),
                 "line": line,
-                "index": index}
+                "index": index,
+            }
 
         return None
 
@@ -1238,61 +1285,81 @@ class CodeEditor(QsciScintilla):
         if context_type != "attribute":
             for word, word_type in self.keyword_map.items():
                 if word.lower().startswith(prefix.lower()):
-                    add({
-                        "label": word,
-                        "type": word_type,
-                        "source": "keywords",
-                        "score": 20})
+                    add(
+                        {
+                            "label": word,
+                            "type": word_type,
+                            "source": "keywords",
+                            "score": 20,
+                        }
+                    )
 
         for func_name in self.document_symbols["functions"]:
             if func_name.lower().startswith(prefix.lower()):
-                add({
-                    "label": func_name,
-                    "type": "function",
-                    "source": "local",
-                    "score": 80})
+                add(
+                    {
+                        "label": func_name,
+                        "type": "function",
+                        "source": "local",
+                        "score": 80,
+                    }
+                )
 
         for class_name in self.document_symbols["classes"]:
             if class_name.lower().startswith(prefix.lower()):
-                add({
-                    "label": class_name,
-                    "type": "class",
-                    "source": "local",
-                    "score": 75})
+                add(
+                    {
+                        "label": class_name,
+                        "type": "class",
+                        "source": "local",
+                        "score": 75,
+                    }
+                )
 
         for variable_name in self.document_symbols["variables"]:
             if variable_name.lower().startswith(prefix.lower()):
-                add({
-                    "label": variable_name,
-                    "type": "variable",
-                    "source": "local",
-                    "score": 70})
+                add(
+                    {
+                        "label": variable_name,
+                        "type": "variable",
+                        "source": "local",
+                        "score": 70,
+                    }
+                )
 
         for module_name in self.imported_modules:
             if module_name.lower().startswith(prefix.lower()):
-                add({
-                    "label": module_name,
-                    "type": "module",
-                    "source": "imported",
-                    "score": 72,
-                    "signature": f"module {module_name}",
-                    "doc": ""})
+                add(
+                    {
+                        "label": module_name,
+                        "type": "module",
+                        "source": "imported",
+                        "score": 72,
+                        "signature": f"module {module_name}",
+                        "doc": "",
+                    }
+                )
 
         for symbol_name in self.imported_symbols:
             if symbol_name.lower().startswith(prefix.lower()):
-                add({
-                    "label": symbol_name,
-                    "type": "imported_symbol",
-                    "source": "imported",
-                    "score": 74})
+                add(
+                    {
+                        "label": symbol_name,
+                        "type": "imported_symbol",
+                        "source": "imported",
+                        "score": 74,
+                    }
+                )
 
         items = list(items_by_label.values())
         items.sort(
             key=lambda x: (
                 self.score_item(x, context),
                 x.get("score", 0),
-                x["label"].lower()),
-            reverse=True)
+                x["label"].lower(),
+            ),
+            reverse=True,
+        )
         return items
 
     def insert_completion(self, completion_text):
@@ -1458,9 +1525,11 @@ class CodeEditor(QsciScintilla):
 
     def keyPressEvent(self, e: QKeyEvent):
 
-        if (e.modifiers() & Qt.KeyboardModifier.ControlModifier
+        if (
+            e.modifiers() & Qt.KeyboardModifier.ControlModifier
             and e.modifiers() & Qt.KeyboardModifier.ShiftModifier
-            and e.key() == Qt.Key.Key_T):
+            and e.key() == Qt.Key.Key_T
+        ):
 
             self._parent.add_new_editor()
             return
@@ -1666,7 +1735,9 @@ class CodeEditor(QsciScintilla):
                 self._lexer.setPaper(QColor(bg), style)
 
     def load_language_keywords(self, lang: str):
-        configs = {"Python": ("editor/texteditor/keywords/python.json", DreamPythonLexer)}
+        configs = {
+            "Python": ("editor/texteditor/keywords/python.json", DreamPythonLexer)
+        }
 
         if lang not in configs:
             return None

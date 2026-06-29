@@ -3,13 +3,15 @@ import sys
 import signal
 import logging
 import subprocess
+import threading
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from collections import deque
+from PyQt6.QtCore import pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
 
 
-class ProcessRunner(QThread):
+class ProcessRunner(QObject):
     output_received = pyqtSignal(str)
     error_received = pyqtSignal(str)
     process_finished = pyqtSignal(int, str)
@@ -24,6 +26,31 @@ class ProcessRunner(QThread):
         self._env = None
         self._running = False
         self._timeout_ms = 0
+        self._events: deque = deque()
+        self._poll_timer = QTimer(self)
+        self._poll_timer.timeout.connect(self._poll_events)
+        self._thread: threading.Thread | None = None
+
+    def _poll_events(self):
+        while True:
+            try:
+                kind, args = self._events.popleft()
+            except IndexError:
+                break
+            if kind == "output":
+                self.output_received.emit(*args)
+            elif kind == "error":
+                self.error_received.emit(*args)
+            elif kind == "started":
+                self.process_started.emit(*args)
+            elif kind == "finished":
+                self.process_finished.emit(*args)
+                self._poll_timer.stop()
+                return
+            elif kind == "errored":
+                self.process_errored.emit(*args)
+                self._poll_timer.stop()
+                return
 
     def configure(self, cmd, cwd=None, env=None, timeout_ms=0):
         self._cmd = cmd
@@ -31,9 +58,14 @@ class ProcessRunner(QThread):
         self._env = env
         self._timeout_ms = timeout_ms
 
-    def run(self):
+    def start(self):
+        self._poll_timer.start(50)
+        self._thread = threading.Thread(target=self._run, name="process_runner", daemon=True)
+        self._thread.start()
+
+    def _run(self):
         if not self._cmd:
-            self.process_errored.emit("No command configured")
+            self._events.append(("errored", ("No command configured",)))
             return
 
         try:
@@ -52,7 +84,7 @@ class ProcessRunner(QThread):
             )
 
             self._running = True
-            self.process_started.emit(self._process.pid)
+            self._events.append(("started", (self._process.pid,)))
 
             import select
             import time
@@ -78,40 +110,40 @@ class ProcessRunner(QThread):
                     if fd == stdout_fd:
                         line = self._process.stdout.readline()
                         if line:
-                            self.output_received.emit(line)
+                            self._events.append(("output", (line,)))
                     elif fd == stderr_fd:
                         line = self._process.stderr.readline()
                         if line:
-                            self.error_received.emit(line)
+                            self._events.append(("error", (line,)))
 
                 if self._process.poll() is not None:
                     for line in self._process.stdout:
-                        self.output_received.emit(line)
+                        self._events.append(("output", (line,)))
                     for line in self._process.stderr:
-                        self.error_received.emit(line)
+                        self._events.append(("error", (line,)))
                     break
 
             if timed_out:
                 self._kill_process()
-                self.process_finished.emit(-1, "TIMEOUT")
+                self._events.append(("finished", (-1, "TIMEOUT")))
                 return
 
             if not self._running:
                 self._kill_process()
-                self.process_finished.emit(-1, "CANCELLED")
+                self._events.append(("finished", (-1, "CANCELLED")))
                 return
 
             returncode = self._process.wait()
-            self.process_finished.emit(returncode, "")
+            self._events.append(("finished", (returncode, "")))
 
         except FileNotFoundError as e:
-            self.process_errored.emit(f"Command not found: {e}")
+            self._events.append(("errored", (f"Command not found: {e}",)))
         except PermissionError as e:
-            self.process_errored.emit(f"Permission denied: {e}")
+            self._events.append(("errored", (f"Permission denied: {e}",)))
         except OSError as e:
-            self.process_errored.emit(f"OS error: {e}")
+            self._events.append(("errored", (f"OS error: {e}",)))
         except Exception as e:
-            self.process_errored.emit(f"Unexpected error: {e}")
+            self._events.append(("errored", (f"Unexpected error: {e}",)))
         finally:
             self._running = False
             self._process = None
@@ -202,7 +234,7 @@ class PythonRunner(ProcessRunner):
     def run_file(self, file_path, args=None):
         interpreter = self._interpreter or self.find_interpreter(os.path.dirname(file_path))
         if not interpreter:
-            self.process_errored.emit("No Python interpreter found")
+            self._events.append(("errored", ("No Python interpreter found",)))
             return
 
         cmd = [interpreter, file_path]
@@ -224,7 +256,7 @@ class PythonRunner(ProcessRunner):
     def run_module(self, module_name, args=None, cwd=None):
         interpreter = self._interpreter or self.find_interpreter(cwd)
         if not interpreter:
-            self.process_errored.emit("No Python interpreter found")
+            self._events.append(("errored", ("No Python interpreter found",)))
             return
 
         cmd = [interpreter, "-m", module_name]

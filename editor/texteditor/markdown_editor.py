@@ -22,11 +22,13 @@ class MarkdownViewer(QWidget):
         self.setWindowTitle("Markdown Editor Engine")
         self.setMinimumSize(900, 600)
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QWidget {
                 background-color: #2b2b2b;
             }
-        """)
+        """
+        )
 
         self._preview_visible = False
 
@@ -42,14 +44,15 @@ class MarkdownViewer(QWidget):
         self.preview_btn.setCheckable(True)
         self.preview_btn.setChecked(False)
         self.preview_btn.clicked.connect(self.toggle_preview)
-        self.preview_btn.setStyleSheet("""
+        self.preview_btn.setStyleSheet(
+            """
             QPushButton {
                 background-color: #3c3f41;
                 color: #dcdcdc;
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 4px 12px;
-                font-family: Inter;
+                font-family: 'inter';
                 font-size: 12px;
             }
             QPushButton:hover {
@@ -59,7 +62,8 @@ class MarkdownViewer(QWidget):
                 background-color: #264f78;
                 border-color: #4fc1ff;
             }
-        """)
+        """
+        )
 
         toolbar.addStretch()
         toolbar.addWidget(self.preview_btn)
@@ -68,7 +72,8 @@ class MarkdownViewer(QWidget):
         self.editor = QPlainTextEdit()
         self.editor.setPlaceholderText("# Markdown...\nStart typing here")
 
-        self.editor.setStyleSheet("""
+        self.editor.setStyleSheet(
+            """
             QPlainTextEdit {
                 background-color: #1e1f22;
                 color: #dcdcdc;
@@ -124,22 +129,25 @@ class MarkdownViewer(QWidget):
                 background: none;
                 border: none;
             }
-        """)
+        """
+        )
 
         self.preview = QTextBrowser()
         self.preview.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.preview.setOpenExternalLinks(True)
-        self.preview.setStyleSheet("""
+        self.preview.setStyleSheet(
+            """
             QTextBrowser {
                 background-color: #1e1f22;
                 color: #d4d4d4;
                 border: 1px solid #3c3f41;
                 border-radius: 6px;
                 padding: 10px;
-                font-family: Inter;
+                font-family: 'inter';
                 font-size: 14px;
             }
-        """)
+        """
+        )
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.addWidget(self.editor)
@@ -149,7 +157,8 @@ class MarkdownViewer(QWidget):
         self.splitter.setStretchFactor(1, 1)
         self.splitter.setHandleWidth(6)
 
-        self.splitter.setStyleSheet("""
+        self.splitter.setStyleSheet(
+            """
             QSplitter::handle {
                 background-color: #3c3f41;
             }
@@ -157,7 +166,8 @@ class MarkdownViewer(QWidget):
             QSplitter::handle:hover {
                 background-color: #4a4d50;
             }
-        """)
+        """
+        )
 
         self.splitter.setSizes([1, 0])
 
@@ -185,7 +195,7 @@ class MarkdownViewer(QWidget):
     def _base_html(self, body_html: str) -> str:
         return f"""<html>
             <head><style>
-            body {{ font-family: 'Inter', sans-serif;
+            body {{ font-family: 'inter', sans-serif;
             font-size: 14px; line-height: 1.6; padding: 22px; margin: 0; }}
             h1, h2, h3 {{ color: #ffffff; border-bottom: 1px solid #3c3f41; padding-bottom: 6px; }}
             h1 {{ font-size: 24px; }} h2 {{ font-size: 20px; }} h3 {{ font-size: 17px; }}
@@ -221,15 +231,27 @@ class MarkdownViewer(QWidget):
 
     @staticmethod
     def _sanitize_html(html: str) -> str:
-        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-        html = re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=re.DOTALL | re.IGNORECASE)
-        html = re.sub(r'\bon\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
-        html = re.sub(r"\bon\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
-        html = re.sub(r'\bon\w+\s*=\s*\w+', '', html, flags=re.IGNORECASE)
-        html = re.sub(r'href\s*=\s*"javascript:[^"]*"', 'href="#"', html, flags=re.IGNORECASE)
-        html = re.sub(r"href\s*=\s*'javascript:[^']*'", "href='#'", html, flags=re.IGNORECASE)
-        html = re.sub(r'src\s*=\s*"javascript:[^"]*"', 'src="#"', html, flags=re.IGNORECASE)
-        html = re.sub(r"src\s*=\s*'javascript:[^']*'", "src='#'", html, flags=re.IGNORECASE)
+        html = re.sub(
+            r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
+        )
+        html = re.sub(
+            r"<iframe[^>]*>.*?</iframe>", "", html, flags=re.DOTALL | re.IGNORECASE
+        )
+        html = re.sub(r'\bon\w+\s*=\s*"[^"]*"', "", html, flags=re.IGNORECASE)
+        html = re.sub(r"\bon\w+\s*=\s*'[^']*'", "", html, flags=re.IGNORECASE)
+        html = re.sub(r"\bon\w+\s*=\s*\w+", "", html, flags=re.IGNORECASE)
+        html = re.sub(
+            r'href\s*=\s*"javascript:[^"]*"', 'href="#"', html, flags=re.IGNORECASE
+        )
+        html = re.sub(
+            r"href\s*=\s*'javascript:[^']*'", "href='#'", html, flags=re.IGNORECASE
+        )
+        html = re.sub(
+            r'src\s*=\s*"javascript:[^"]*"', 'src="#"', html, flags=re.IGNORECASE
+        )
+        html = re.sub(
+            r"src\s*=\s*'javascript:[^']*'", "src='#'", html, flags=re.IGNORECASE
+        )
         return html
 
     def schedule_updates(self):

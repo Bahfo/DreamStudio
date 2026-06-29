@@ -2,9 +2,14 @@ from typing import Optional, Any
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QTabWidget, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView,
-    QPushButton
+    QWidget,
+    QVBoxLayout,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QPushButton,
 )
 
 
@@ -34,7 +39,8 @@ class ComplexityWidget(QWidget):
     def _apply_stylesheet(self) -> None:
         tab_bg = "#252526"
         tab_inactive_fg = "#9B9B9B"
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QWidget {{ background-color: {self._bg}; color: {self._fg}; }}
             QTabWidget::pane {{ border: 1px solid {self._border}; top: -1px; }}
             QTabBar::tab {{ background: {tab_bg};
@@ -44,7 +50,7 @@ class ComplexityWidget(QWidget):
                 color: {self._fg};
                 border-bottom-color: {self._bg}; font-weight: bold; }}
             QTableWidget {{ border: none; gridline-color: {self._border};
-                font-family: 'Inter', 'Segoe UI', sans-serif; }}
+                font-family: 'inter', 'Segoe UI', sans-serif; }}
             QTableWidget::item {{
                 border-right: 1px solid {self._grid_border};
                 padding: 2px 6px;
@@ -76,7 +82,8 @@ class ComplexityWidget(QWidget):
             QPushButton:hover {{
                 background: {self._header_bg};
             }}
-        """)
+        """
+        )
 
     def _build_ui(self) -> None:
         self._apply_stylesheet()
@@ -158,8 +165,12 @@ class ComplexityWidget(QWidget):
             sev_item.setForeground(Qt.GlobalColor.red)
             self.problems_table.setItem(row, 0, sev_item)
             self.problems_table.setItem(row, 1, QTableWidgetItem(warn["message"]))
-            self.problems_table.setItem(row, 2, QTableWidgetItem(str(warn.get("line", ""))))
-            self.problems_table.setItem(row, 3, QTableWidgetItem(str(warn.get("col", ""))))
+            self.problems_table.setItem(
+                row, 2, QTableWidgetItem(str(warn.get("line", "")))
+            )
+            self.problems_table.setItem(
+                row, 3, QTableWidgetItem(str(warn.get("col", "")))
+            )
             self._add_goto_button(row)
             row += 1
 
@@ -171,8 +182,12 @@ class ComplexityWidget(QWidget):
             self.problems_table.setItem(
                 row, 1, QTableWidgetItem(f"Missing documentation for: {doc['name']}")
             )
-            self.problems_table.setItem(row, 2, QTableWidgetItem(str(doc.get("line", ""))))
-            self.problems_table.setItem(row, 3, QTableWidgetItem(str(doc.get("col", ""))))
+            self.problems_table.setItem(
+                row, 2, QTableWidgetItem(str(doc.get("line", "")))
+            )
+            self.problems_table.setItem(
+                row, 3, QTableWidgetItem(str(doc.get("col", "")))
+            )
             self._add_goto_button(row)
             row += 1
 
@@ -184,14 +199,16 @@ class ComplexityWidget(QWidget):
             self.problems_table.setItem(
                 row, 1, QTableWidgetItem("Bare except statement.")
             )
-            self.problems_table.setItem(row, 2, QTableWidgetItem(str(be.get("line", ""))))
-            self.problems_table.setItem(row, 3, QTableWidgetItem(str(be.get("col", ""))))
+            self.problems_table.setItem(
+                row, 2, QTableWidgetItem(str(be.get("line", "")))
+            )
+            self.problems_table.setItem(
+                row, 3, QTableWidgetItem(str(be.get("col", "")))
+            )
             self._add_goto_button(row)
             row += 1
 
-        self.tabs.setTabText(
-            0, f"⚠️ Problems ({self.problems_table.rowCount()})"
-        )
+        self.tabs.setTabText(0, f"⚠️ Problems ({self.problems_table.rowCount()})")
 
     def _add_goto_button(self, row: int) -> None:
         btn = QPushButton("↗")
@@ -211,9 +228,7 @@ class ComplexityWidget(QWidget):
             table.setItem(i, 4, QTableWidgetItem(str(func.get("line", ""))))
             table.setItem(i, 5, QTableWidgetItem(str(func.get("col", ""))))
 
-        self.tabs.setTabText(
-            1, f"ƒ Functions ({table.rowCount()})"
-        )
+        self.tabs.setTabText(1, f"ƒ Functions ({table.rowCount()})")
 
     def _populate_classes(self, results: dict) -> None:
         table = self.classes_table
@@ -228,9 +243,7 @@ class ComplexityWidget(QWidget):
             table.setItem(i, 4, QTableWidgetItem(str(cls.get("line", ""))))
             table.setItem(i, 5, QTableWidgetItem(str(cls.get("col", ""))))
 
-        self.tabs.setTabText(
-            2, f"⛃ Classes ({table.rowCount()})"
-        )
+        self.tabs.setTabText(2, f"⛃ Classes ({table.rowCount()})")
 
     def retheme(self, t) -> None:
         bg = t.color("terminal.background", self._bg)

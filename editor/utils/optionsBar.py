@@ -23,12 +23,14 @@ class OptionsMenu(QFrame):
 
         self.setFrameShape(QFrame.Shape.Panel)
         self.setFixedHeight(35)
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
         QFrame{
         border: 0px;
         border-radius: 0px;
         background-color: #25272B;
-        }""")
+        }"""
+        )
         optionsMenu_layout = QHBoxLayout(self)
         optionsMenu_layout.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
@@ -133,7 +135,7 @@ class OptionsMenu(QFrame):
 
         QToolTip{{
         color: {fg};
-        font-family: inter;
+        font-family: 'inter';
         padding: 6px 5px;
         font-size: 12px;
         background-color: {bg};
@@ -206,6 +208,7 @@ class OptionsMenu(QFrame):
             image="assets/system/container.png",
             image_size=QSize(21, 21),
             tooltip="Show containers and virtual environments",
+            function=self._on_open_containers,
         )
 
         optionsMenu_layout.addWidget(self.etherAIBtn)
@@ -315,8 +318,10 @@ class OptionsMenu(QFrame):
         hover = t.color("button.hover")
         fg = t.color("button.text")
         tooltip_bg = t.color("tooltip.background")
-        self.setStyleSheet(f"""
-        QFrame{{border: 0px; border-radius: 0px; background-color: {bg};}}""")
+        self.setStyleSheet(
+            f"""
+        QFrame{{border: 0px; border-radius: 0px; background-color: {bg};}}"""
+        )
         for sep in self.findChildren(VSeparator):
             sep.retheme(t)
         for widget in self.findChildren(QPushButton):
@@ -326,19 +331,25 @@ class OptionsMenu(QFrame):
                 )
             elif widget.property("_default_styled") is None:
                 widget.setProperty("_default_styled", True)
-            widget.setStyleSheet(f"""
+            widget.setStyleSheet(
+                f"""
                 QPushButton{{background-color: transparent; 
                     border: none; color: {fg}; border-radius: 10px; 
                     padding-top:4px; padding-left:2px; padding-right:2px;}}
                 QPushButton:hover{{background-color: {hover};}}
-                QToolTip{{color: {fg}; font-family: inter; padding: 6px 5px; 
+                QToolTip{{color: {fg}; font-family: 'inter'; padding: 6px 5px; 
                     font-size: 12px; background-color: {tooltip_bg}; 
                     border: none;}}
-            """)
+            """
+            )
 
     def _on_open_monitor(self):
         if hasattr(self.master, "open_tools_panel"):
             self.master.open_tools_panel("system_monitor")
+
+    def _on_open_containers(self):
+        if hasattr(self.master, "open_tools_panel"):
+            self.master.open_tools_panel("dev_containers")
 
     def _on_search(self):
         if hasattr(self.master, "toggle_find_replace"):

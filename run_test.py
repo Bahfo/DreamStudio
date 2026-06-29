@@ -13,7 +13,7 @@ QToolTip {
     color: #FFFFFF;
     border: none;
     padding: 6px 5px;
-    font-family: inter;
+    font-family: 'inter';
     font-size: 12px;
 }
 """

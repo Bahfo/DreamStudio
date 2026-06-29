@@ -58,7 +58,8 @@ class CardButton(QWidget):
 
         main_layout.addWidget(self.install_btn, alignment=Qt.AlignmentFlag.AlignTop)
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QWidget {
                 background-color: #181818;
                 font-family: 'inter', Arial;}
@@ -101,7 +102,8 @@ class CardButton(QWidget):
             QMenu::item:selected {
                 background-color: #007acc;
                 color: white;}
-        """)
+        """
+        )
 
     def retheme(self, t) -> None:
         bg = t.color("card.background")
@@ -114,7 +116,8 @@ class CardButton(QWidget):
         menu_fg = t.color("menu.text")
         menu_sel = t.color("menu.selected")
         menu_border = t.color("menu.border")
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QWidget {{
                 background-color: {bg};
                 font-family: 'inter', Arial;}}
@@ -156,7 +159,8 @@ class CardButton(QWidget):
             QMenu::item:selected {{
                 background-color: {menu_sel};
                 color: white;}}
-        """)
+        """
+        )
 
     def set_circular_icon(self, icon_path):
         """Creates a smooth circular cutout for any source image."""

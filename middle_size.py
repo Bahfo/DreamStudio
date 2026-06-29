@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
 )
 
+
 class MobileUIStructure(QWidget):
     def __init__(self):
         super().__init__()
@@ -18,7 +19,9 @@ class MobileUIStructure(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
+        )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFixedSize(400, 750)
 
@@ -27,7 +30,8 @@ class MobileUIStructure(QWidget):
         main_layout.setSpacing(15)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             #PhoneChassis {
                 background-color: #0B0B0C;
                 border: 3px solid #2E3033;
@@ -63,39 +67,44 @@ class MobileUIStructure(QWidget):
                 border: 1px solid #3F3F46;
                 border-radius: 4px;
                 padding: 5px 8px;
-                font-family: 'Segoe UI', sans-serif;
+                font-family: 'inter', sans-serif;
                 font-size: 11px;
             }
-        """)
+        """
+        )
 
         self.phone_chassis = QFrame()
         self.phone_chassis.setObjectName("PhoneChassis")
-        self.phone_chassis.setFixedSize(320, 700) 
-        
+        self.phone_chassis.setFixedSize(320, 700)
+
         chassis_layout = QVBoxLayout(self.phone_chassis)
         chassis_layout.setContentsMargins(8, 12, 8, 12)
         chassis_layout.setSpacing(0)
 
         self.camera_lens = QFrame()
         self.camera_lens.setFixedSize(10, 10)
-        self.camera_lens.setStyleSheet("""
+        self.camera_lens.setStyleSheet(
+            """
             background-color: #1C1C1E;
             border: 2px solid #0B0B0C;
             border-radius: 5px;
-        """)
-        chassis_layout.addWidget(self.camera_lens, alignment=Qt.AlignmentFlag.AlignCenter)
+        """
+        )
+        chassis_layout.addWidget(
+            self.camera_lens, alignment=Qt.AlignmentFlag.AlignCenter
+        )
         chassis_layout.addSpacing(10)
 
         self.screen_matrix = QStackedWidget()
         self.screen_matrix.setObjectName("ScreenMatrix")
         chassis_layout.addWidget(self.screen_matrix, stretch=1)
-        
+
         main_layout.addWidget(self.phone_chassis)
 
         self.options_dock = QFrame()
         self.options_dock.setObjectName("OptionsDock")
-        self.options_dock.setFixedWidth(40)  
-        
+        self.options_dock.setFixedWidth(40)
+
         dock_layout = QVBoxLayout(self.options_dock)
         dock_layout.setContentsMargins(4, 8, 4, 8)
         dock_layout.setSpacing(8)
@@ -107,7 +116,7 @@ class MobileUIStructure(QWidget):
             ("🔉", "Volume Down"),
             ("◁", "Return"),
             ("○", "Home"),
-            ("▢", "Activities")
+            ("▢", "Activities"),
         ]
 
         for icon, tooltip in menu_items:
@@ -115,21 +124,26 @@ class MobileUIStructure(QWidget):
             btn.setFixedSize(30, 30)
             btn.setToolTip(tooltip)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            
-            btn.clicked.connect(lambda checked, t=tooltip: print(f"[{t}] button clicked."))
+
+            btn.clicked.connect(
+                lambda checked, t=tooltip: print(f"[{t}] button clicked.")
+            )
             dock_layout.addWidget(btn)
 
         main_layout.addWidget(self.options_dock)
 
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            self._drag_position = (
+                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            )
             event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent):
         if event.buttons() == Qt.MouseButton.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag_position)
             event.accept()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

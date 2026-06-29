@@ -1,10 +1,10 @@
 from PyQt6.QtCore import (
-    Qt, 
-    QSize, 
-    QPoint, 
-    QDateTime, 
-    QPropertyAnimation, 
-    QSequentialAnimationGroup
+    Qt,
+    QSize,
+    QPoint,
+    QDateTime,
+    QPropertyAnimation,
+    QSequentialAnimationGroup,
 )
 from PyQt6.QtGui import QColor, QIcon, QFont, QCursor
 from PyQt6.QtWidgets import (
@@ -78,7 +78,8 @@ class GitCommitHistory(QFrame):
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         hdr.resizeSection(1, 100)
 
-        self.tree.setStyleSheet("""
+        self.tree.setStyleSheet(
+            """
             QTreeWidget {
                 background-color: #171717;
                 color: #afb1b3;
@@ -135,7 +136,8 @@ class GitCommitHistory(QFrame):
                 background: none;
                 border: none;
             }
-        """)
+        """
+        )
         self._main_layout.addWidget(self.tree)
 
         self.tree.verticalScrollBar().valueChanged.connect(self._on_scroll)
@@ -152,11 +154,13 @@ class GitCommitHistory(QFrame):
 
         if self._parent is None:
             return
-        repo = getattr(self._parent, "_repo", None) or getattr(self._parent, 
-            "_git_repo", None)
+        repo = getattr(self._parent, "_repo", None) or getattr(
+            self._parent, "_git_repo", None
+        )
         if repo is None:
             try:
                 from backend.git_control import return_repository
+
                 repo = return_repository(self._parent._parent.currentDirectory)
                 if isinstance(repo, Exception):
                     repo = None
@@ -169,6 +173,7 @@ class GitCommitHistory(QFrame):
 
         try:
             from backend.git_control import get_commit_history
+
             data = get_commit_history(repo, self._MAX_COMMITS)
         except Exception:
             item = QTreeWidgetItem(self.tree)
@@ -186,7 +191,7 @@ class GitCommitHistory(QFrame):
             item.setForeground(0, QColor("#969696"))
             return
 
-        self._all_commits = commits[:self._MAX_COMMITS]
+        self._all_commits = commits[: self._MAX_COMMITS]
         self._display_start = 0
         self._display_end = min(self._PAGE_SIZE, len(self._all_commits))
 
@@ -211,8 +216,9 @@ class GitCommitHistory(QFrame):
 
         if is_head:
             item.setText(1, f"({self._branch})")
-            item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight 
-                | Qt.AlignmentFlag.AlignVCenter)
+            item.setTextAlignment(
+                1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
             item.setForeground(1, QColor(self._head_color))
 
         return item
@@ -220,12 +226,16 @@ class GitCommitHistory(QFrame):
     def _build_rich_tooltip(self, commit) -> str:
         author = commit.author.name if commit.author else "unknown"
         email = commit.author.email if commit.author else ""
-        auth_date = QDateTime.fromSecsSinceEpoch(
-            commit.authored_date).toString("yyyy-MM-dd hh:mm:ss")
+        auth_date = QDateTime.fromSecsSinceEpoch(commit.authored_date).toString(
+            "yyyy-MM-dd hh:mm:ss"
+        )
         msg = commit.message.strip() if commit.message else "(no message)"
         sha = commit.hexsha
-        parents_str = ", ".join(p.hexsha[:7] for p in 
-            commit.parents) if commit.parents else "(none)"
+        parents_str = (
+            ", ".join(p.hexsha[:7] for p in commit.parents)
+            if commit.parents
+            else "(none)"
+        )
 
         lines = msg.split("\n")
         shown = lines[:5]
@@ -235,7 +245,7 @@ class GitCommitHistory(QFrame):
             msg_html += f"<br><span style='color: #888; font-style: italic;'>(+{remaining} lines more)</span>"
 
         return (
-            f"<div style='font-family: inter, sans-serif; font-size: 12px; line-height: 1.6;'>"
+            f"<div style='font-family: 'inter', sans-serif; font-size: 12px; line-height: 1.6;'>"
             f"<b>Commit:</b> <span style='font-family: monospace; color: {self._hash_color};'>{sha}</span><br>"
             f"<b style='color: {self._hash_color};'>Author:</b> {author} &lt;{email}&gt;<br>"
             f"<b>Date:</b>   {auth_date}<br>"
@@ -298,7 +308,8 @@ class GitCommitHistory(QFrame):
             letter-spacing: 1px; padding: 4px 8px;"""
         )
 
-        self.tree.setStyleSheet(f"""
+        self.tree.setStyleSheet(
+            f"""
             QTreeWidget {{
                 background-color: transparent;
                 color: {txt};
@@ -355,8 +366,9 @@ class GitCommitHistory(QFrame):
                 background: none;
                 border: none;
             }}
-        """)
-        
+        """
+        )
+
         for i in range(self.tree.topLevelItemCount()):
             item = self.tree.topLevelItem(i)
             item.setForeground(0, QColor(self._text_color))
@@ -507,7 +519,8 @@ class SourceControl(QFrame):
 
         self.long_msg_btn = QPushButton("Long Message")
         self.long_msg_btn.setMinimumHeight(32)
-        self.long_msg_btn.setStyleSheet("""
+        self.long_msg_btn.setStyleSheet(
+            """
             QPushButton {
                 background-color: transparent;
                 border: 2px solid #444444;
@@ -526,13 +539,15 @@ class SourceControl(QFrame):
                 color: #555555;
                 border-color: #333333;
             }
-        """)
+        """
+        )
         self.long_msg_btn.clicked.connect(self._open_long_message_editor)
         main_commit_layout.addWidget(self.long_msg_btn)
 
         self.commit_btn = QPushButton("Commit")
         self.commit_btn.setMinimumHeight(32)
-        self.commit_btn.setStyleSheet("""
+        self.commit_btn.setStyleSheet(
+            """
             QPushButton {
                 background-color: #2d476d;
                 border: none;
@@ -550,7 +565,8 @@ class SourceControl(QFrame):
                 background-color: #1a1a1a;
                 color: #555555;
             }
-        """)
+        """
+        )
         self.commit_btn.clicked.connect(self._do_commit)
         main_commit_layout.addWidget(self.commit_btn)
 
@@ -560,7 +576,8 @@ class SourceControl(QFrame):
         # Delete commit message button
         self.delete_msg_btn = QPushButton("Delete Commit Message")
         self.delete_msg_btn.setMinimumHeight(32)
-        self.delete_msg_btn.setStyleSheet("""
+        self.delete_msg_btn.setStyleSheet(
+            """
             QPushButton {
                 background-color: transparent;
                 border: 2px solid #444444;
@@ -578,7 +595,8 @@ class SourceControl(QFrame):
                 color: #555555;
                 border-color: #333333;
             }
-        """)
+        """
+        )
         self.delete_msg_btn.clicked.connect(self._delete_commit_message)
         msg_btn_layout.addWidget(self.delete_msg_btn)
 
@@ -587,7 +605,9 @@ class SourceControl(QFrame):
 
         # Commit message status label
         self.commit_status_label = QLabel("")
-        self.commit_status_label.setStyleSheet("color: #969696; font-size: 11px; padding: 0px;")
+        self.commit_status_label.setStyleSheet(
+            "color: #969696; font-size: 11px; padding: 0px;"
+        )
         self.commit_status_label.setWordWrap(True)
         commit_input_layout.addWidget(self.commit_status_label)
         commit_input_layout.addStretch()
@@ -600,7 +620,8 @@ class SourceControl(QFrame):
         self.tree.setRootIsDecorated(True)
         self.tree.setAnimated(True)
         self.tree.setIndentation(20)
-        self.tree.setStyleSheet("""
+        self.tree.setStyleSheet(
+            """
             QTreeWidget {
                 background-color: #171717;
                 color: #afb1b3;
@@ -656,17 +677,20 @@ class SourceControl(QFrame):
                 background: none;
                 border: none;
             }
-        """)
-        
+        """
+        )
+
         self.tree.itemDoubleClicked.connect(self._show_diff)
-        
+
         # Splitter: top = files tree, bottom = commit history graph
         self.splitter = QSplitter(Qt.Orientation.Vertical)
         self.splitter.setHandleWidth(3)
         self.splitter.setChildrenCollapsible(False)
 
         self.tree_container = QFrame()
-        self.tree_container.setStyleSheet("background-color: transparent; border: none;")
+        self.tree_container.setStyleSheet(
+            "background-color: transparent; border: none;"
+        )
         tree_container_layout = QVBoxLayout(self.tree_container)
         tree_container_layout.setContentsMargins(0, 0, 0, 0)
         tree_container_layout.addWidget(self.tree)
@@ -715,6 +739,7 @@ class SourceControl(QFrame):
         if self._repo is None:
             try:
                 from backend.git_control import return_repository
+
                 self._repo = return_repository(self._parent.currentDirectory)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -729,6 +754,7 @@ class SourceControl(QFrame):
 
         try:
             from backend.git_control import get_changed_files
+
             files = get_changed_files(self._repo)
         except Exception:
             item = QTreeWidgetItem(self.tree)
@@ -806,7 +832,9 @@ class SourceControl(QFrame):
             changes_text += f"-{deletions}"
         if changes_text:
             item.setText(1, changes_text)
-            item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item.setTextAlignment(
+                1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
             if additions > 0 and deletions == 0:
                 item.setForeground(1, QColor("#6BBF6B"))
             elif deletions > 0 and additions == 0:
@@ -831,6 +859,7 @@ class SourceControl(QFrame):
         if self._repo is None:
             try:
                 from backend.git_control import return_repository
+
                 self._repo = return_repository(self._parent.currentDirectory)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -839,9 +868,11 @@ class SourceControl(QFrame):
                 return
 
         from backend.git_control import get_file_diff
+
         diff_data = get_file_diff(self._repo, file_path)
 
         from editor.widgets.QDiffControl import QDiffControl
+
         diff_widget = QDiffControl(
             file_path=file_path,
             old_content=diff_data["old"],
@@ -850,6 +881,7 @@ class SourceControl(QFrame):
         )
 
         import pathlib
+
         file_name = pathlib.Path(file_path).name
 
         tab_editors = getattr(self._parent, "tab_editors", None)
@@ -860,7 +892,9 @@ class SourceControl(QFrame):
                 tab_editors.setCurrentIndex(idx)
                 existing = tab_editors.widget(idx)
                 if hasattr(existing, "set_content"):
-                    existing.set_content(file_path, diff_data["old"], diff_data["new"], repo=self._repo)
+                    existing.set_content(
+                        file_path, diff_data["old"], diff_data["new"], repo=self._repo
+                    )
                 return
 
             index = tab_editors.addTab(diff_widget, f"Diff: {file_name}")
@@ -876,7 +910,8 @@ class SourceControl(QFrame):
     def _update_commit_input_style(self, border: str | None = None):
         b = border or self._input_border
         c = self._input_txt if border is None else border
-        self.commit_input.setStyleSheet(f"""
+        self.commit_input.setStyleSheet(
+            f"""
             QLineEdit {{
                 border: 1px solid {b};
                 border-radius: 4px;
@@ -885,7 +920,8 @@ class SourceControl(QFrame):
                 background-color: {self._input_bg};
             }}
             QLineEdit:focus {{border: 1px solid {self._input_focus_border};}}
-        """)
+        """
+        )
 
     def _do_commit(self):
         message = self.commit_input.text().strip()
@@ -901,6 +937,7 @@ class SourceControl(QFrame):
         if self._repo is None:
             try:
                 from backend.git_control import return_repository
+
                 self._repo = return_repository(None)
                 if isinstance(self._repo, Exception):
                     self._repo = None
@@ -911,6 +948,7 @@ class SourceControl(QFrame):
                 return
 
         from backend.git_control import commit_staged
+
         success, msg = commit_staged(self._repo, message, checked_files)
         if success:
             self._commit_done = True
@@ -940,7 +978,9 @@ class SourceControl(QFrame):
         self._update_commit_input_style(border="#FF6B6B")
         if message:
             self.commit_status_label.setText(message)
-            self.commit_status_label.setStyleSheet("color: #FF6B6B; font-size: 11px; padding: 0px;")
+            self.commit_status_label.setStyleSheet(
+                "color: #FF6B6B; font-size: 11px; padding: 0px;"
+            )
         self._shake_widget(self.commit_input)
 
     def _shake_widget(self, widget):
@@ -1000,7 +1040,9 @@ class SourceControl(QFrame):
 
         if hasattr(self, "_close_interceptor_ref"):
             try:
-                self._connected_tab_editors.remove_close_interceptor(self._close_interceptor_ref)
+                self._connected_tab_editors.remove_close_interceptor(
+                    self._close_interceptor_ref
+                )
             except Exception:
                 pass
 
@@ -1026,8 +1068,12 @@ class SourceControl(QFrame):
                 if s:
                     shortcuts.append(s)
 
-        for attr in ("new_tab_shortcut", "close_tab_shortcut",
-                      "open_file_shortcut", "open_directory_shortcut"):
+        for attr in (
+            "new_tab_shortcut",
+            "close_tab_shortcut",
+            "open_file_shortcut",
+            "open_directory_shortcut",
+        ):
             s = getattr(self._parent, attr, None)
             if s:
                 shortcuts.append(s)
@@ -1138,7 +1184,8 @@ class SourceControl(QFrame):
         )
         self.maindirectory.setStyleSheet(f"color: {txt}; font-size: 13px;")
 
-        self.tree.setStyleSheet(f"""
+        self.tree.setStyleSheet(
+            f"""
             QTreeWidget {{
                 background-color: {bg};
                 color: {txt};
@@ -1194,7 +1241,8 @@ class SourceControl(QFrame):
                 background: none;
                 border: none;
             }}
-        """)
+        """
+        )
 
         # Re-color tree items
         for i in range(self.tree.topLevelItemCount()):
@@ -1233,13 +1281,18 @@ class SourceControl(QFrame):
         }}
         """
         for btn in self.findChildren(QPushButton):
-            if btn is self.commit_btn or btn is self.long_msg_btn or btn is self.delete_msg_btn:
+            if (
+                btn is self.commit_btn
+                or btn is self.long_msg_btn
+                or btn is self.delete_msg_btn
+            ):
                 continue
             btn.setStyleSheet(btn_style)
 
         commit_btn_border = t.color("widget.border", "#444444")
         commit_btn_hover_border = t.color("widget.accent", hl)
-        self.delete_msg_btn.setStyleSheet(f"""
+        self.delete_msg_btn.setStyleSheet(
+            f"""
             QPushButton {{
                 background-color: transparent;
                 border: 2px solid {commit_btn_border};
@@ -1258,7 +1311,8 @@ class SourceControl(QFrame):
                 color: {t.color("scrollbar.bg", "#555555")};
                 border: 2px solid {t.color("scrollbar.bg", "#333333")};
             }}
-        """)
+        """
+        )
 
         self._input_bg = t.color("input.background", "#1E1E1E")
         self._input_txt = t.color("input.text", "#ffffff")
@@ -1270,7 +1324,8 @@ class SourceControl(QFrame):
         accent = t.color("widget.accent", hl)
         disabled_bg = t.color("input.background", "#1a1a1a")
         disabled_txt = t.color("input.placeholder", "#555555")
-        self.commit_btn.setStyleSheet(f"""
+        self.commit_btn.setStyleSheet(
+            f"""
             QPushButton {{
                 background-color: {accent};
                 border: none;
@@ -1287,11 +1342,13 @@ class SourceControl(QFrame):
                 background-color: {disabled_bg};
                 color: {disabled_txt};
             }}
-        """)
+        """
+        )
 
         btn_border = t.color("widget.border", "#444444")
         btn_border_hover = t.color("button.hover", "#007acc")
-        self.long_msg_btn.setStyleSheet(f"""
+        self.long_msg_btn.setStyleSheet(
+            f"""
             QPushButton {{
                 background-color: transparent;
                 border: 2px solid {btn_border};
@@ -1309,12 +1366,14 @@ class SourceControl(QFrame):
                 color: {t.color("scrollbar.bg", "#555555")};
                 border-color: #333333;
             }}
-        """)
+        """
+        )
 
         if hasattr(self, "splitter"):
             splitter_bg = t.color("sidebar.background", "#171717")
             handle = t.color("splitter.handle", "#2a2a2a")
-            self.splitter.setStyleSheet(f"""
+            self.splitter.setStyleSheet(
+                f"""
                 QSplitter {{
                     background-color: {splitter_bg};
                 }}
@@ -1322,7 +1381,8 @@ class SourceControl(QFrame):
                     background-color: {handle};
                     height: 3px;
                 }}
-            """)
+            """
+            )
         if hasattr(self, "tree_container"):
             self.tree_container.setStyleSheet(f"background-color: {bg}; border: none;")
         if hasattr(self, "commit_history"):

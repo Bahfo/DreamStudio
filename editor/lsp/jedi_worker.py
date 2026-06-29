@@ -5,7 +5,7 @@ import traceback
 from collections import deque
 from typing import Optional
 
-from PyQt6.QtCore import pyqtSignal, QObject
+from PyQt6.QtCore import pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +21,30 @@ class JediWorker(QObject):
         self._mutex = threading.Lock()
         self._cond = threading.Condition(self._mutex)
         self._queue: deque = deque()
+        self._results: deque = deque()
         self._running = True
         self.current_venv_path: Optional[str] = None
         self._jedi_env = jedi.get_default_environment()
         self._last_script_key = None
         self._cached_script = None
         self._thread = threading.Thread(target=self._loop, name="jedi_worker", daemon=True)
+        self._poll_timer = QTimer(self)
+        self._poll_timer.timeout.connect(self._poll_results)
+        self._poll_timer.start(50)
 
     def start(self):
         self._thread.start()
+
+    def _poll_results(self):
+        while True:
+            try:
+                kind, payload, rid = self._results.popleft()
+            except IndexError:
+                break
+            if kind == "error":
+                self.error_occurred.emit(payload, rid)
+            else:
+                self.results_ready.emit(payload, rid)
 
     def set_virtual_environment(self, venv_path: Optional[str]) -> None:
         self.current_venv_path = venv_path
@@ -124,7 +139,7 @@ class JediWorker(QObject):
                             "line": c.line,
                             "column": c.column,
                         })
-                    self.results_ready.emit(("complete", rid, items), rid)
+                    self._results.append(("result", ("complete", rid, items), rid))
 
                 elif cmd == "goto":
                     result = script.goto(line, col, follow_imports=True)
@@ -140,7 +155,7 @@ class JediWorker(QObject):
                             "in_builtin": d.in_builtin_module(),
                             "doc": d.docstring(),
                         })
-                    self.results_ready.emit(("goto", rid, defs), rid)
+                    self._results.append(("result", ("goto", rid, defs), rid))
 
                 elif cmd == "hover":
                     result = script.infer(line, col)
@@ -154,7 +169,7 @@ class JediWorker(QObject):
                             "line": h.line,
                             "column": h.column,
                         })
-                    self.results_ready.emit(("hover", rid, hovers), rid)
+                    self._results.append(("result", ("hover", rid, hovers), rid))
 
                 elif cmd == "references":
                     result = script.get_references(line, col)
@@ -168,14 +183,14 @@ class JediWorker(QObject):
                             "description": r.description,
                             "type": r.type,
                         })
-                    self.results_ready.emit(("references", rid, refs), rid)
+                    self._results.append(("result", ("references", rid, refs), rid))
 
-            except Exception:
+            except BaseException as e:
                 logger.debug("JediWorker error: %s", traceback.format_exc())
-                self.error_occurred.emit(traceback.format_exc(), rid)
 
     def shutdown(self):
         self._running = False
+        self._poll_timer.stop()
         with self._mutex:
             self._queue.clear()
             self._cond.notify()

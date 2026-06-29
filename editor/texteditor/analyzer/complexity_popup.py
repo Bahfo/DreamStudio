@@ -5,9 +5,7 @@ from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
 class ComplexityPopup(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(
-            Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
-        )
+        self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
 
@@ -21,14 +19,16 @@ class ComplexityPopup(QFrame):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QFrame {{
                 background-color: {self._bg};
                 border: 1px solid {self._border};
                 border-radius: 4px;
             }}
-            QLabel {{ border: none; font-family: 'Segoe UI', sans-serif; }}
-        """)
+            QLabel {{ border: none; font-family: 'inter', sans-serif; }}
+        """
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 6, 10, 6)
@@ -86,14 +86,16 @@ class ComplexityPopup(QFrame):
         self._err_color = t.color("terminal.error", self._err_color)
         self._ok_color = t.color("terminal.success", self._ok_color)
 
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QFrame {{
                 background-color: {self._bg};
                 border: 1px solid {self._border};
                 border-radius: 4px;
             }}
-            QLabel {{ border: none; font-family: 'Segoe UI', sans-serif; }}
-        """)
+            QLabel {{ border: none; font-family: 'inter', sans-serif; }}
+        """
+        )
         self.file_label.setStyleSheet(
             f"color: {self._accent}; font-size: 12px; font-weight: bold;"
         )

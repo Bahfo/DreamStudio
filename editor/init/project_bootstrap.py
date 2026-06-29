@@ -8,9 +8,10 @@ import subprocess
 import threading
 import traceback
 
+from collections import deque
 from typing import Any, Optional
 
-from PyQt6.QtCore import pyqtSignal, QObject
+from PyQt6.QtCore import pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,30 @@ class ProjectBootstrapWorker(QObject):
         self._created_files: list[str] = []
         self._is_windows = platform.system() == "Windows"
 
+        self._events: deque = deque()
+        self._poll_timer = QTimer(self)
+        self._poll_timer.timeout.connect(self._poll_events)
+
+    def _poll_events(self):
+        while True:
+            try:
+                kind, args = self._events.popleft()
+            except IndexError:
+                break
+            if kind == "step_changed":
+                self.step_changed.emit(*args)
+            elif kind == "step_progress":
+                self.step_progress.emit(*args)
+            elif kind == "step_failed":
+                self.step_failed.emit(*args)
+            elif kind == "finished":
+                self.finished.emit(*args)
+                self._poll_timer.stop()
+                return
+
+    def _emit_event(self, kind, args):
+        self._events.append((kind, args))
+
     def run(self):
         success = False
         try:
@@ -64,14 +89,14 @@ class ProjectBootstrapWorker(QObject):
             error = traceback.format_exc()
             logger.error("Bootstrap failed: %s", error)
             current_step = getattr(self, "_current_step", "unknown")
-            self.step_failed.emit(current_step, error)
+            self._emit_event("step_failed", (current_step, error))
             self._rollback()
         finally:
-            self.finished.emit(success)
+            self._emit_event("finished", (success,))
 
     def _emit_step(self, name: str, description: str) -> None:
         self._current_step = name
-        self.step_changed.emit(name, description)
+        self._emit_event("step_changed", (name, description))
 
     def _load_manifest(self) -> None:
         if not os.path.isfile(self._manifest_path):
@@ -96,17 +121,17 @@ class ProjectBootstrapWorker(QObject):
             actual = sys.version_info
             actual_str = f"{actual.major}.{actual.minor}.{actual.micro}"
             if self._python_version and self._python_version != manifest_version:
-                self.step_progress.emit(
+                self._emit_event("step_progress", (
                     f"Requested Python {self._python_version}, "
                     f"manifest specifies {manifest_version}, "
-                    f"actual runtime is {actual_str}"
-                )
+                    f"actual runtime is {actual_str}",
+                ))
             else:
-                self.step_progress.emit(f"Python runtime: {actual_str}")
+                self._emit_event("step_progress", (f"Python runtime: {actual_str}",))
         else:
-            self.step_progress.emit(
-                f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-            )
+            self._emit_event("step_progress", (
+                f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            ))
 
         manifest_interp = self._manifest.get("interpreter_location", "")
         if manifest_interp and manifest_interp != "studio_interpreter_defined_location":
@@ -115,9 +140,9 @@ class ProjectBootstrapWorker(QObject):
                 raise FileNotFoundError(
                     f"Python interpreter not found at: {check_path}"
                 )
-            self.step_progress.emit(f"Interpreter verified: {check_path}")
+            self._emit_event("step_progress", (f"Interpreter verified: {check_path}",))
         else:
-            self.step_progress.emit(f"Using interpreter: {sys.executable}")
+            self._emit_event("step_progress", (f"Using interpreter: {sys.executable}",))
 
     def _check_project_type(self) -> None:
         manifest_type = self._manifest.get("project_type")
@@ -126,7 +151,7 @@ class ProjectBootstrapWorker(QObject):
                 f"Project type mismatch: manifest specifies '{manifest_type}', "
                 f"but '{self._requested_project_type}' was requested"
             )
-        self.step_progress.emit(f"Project type verified: {manifest_type}")
+        self._emit_event("step_progress", (f"Project type verified: {manifest_type}",))
 
     def _initialize(self) -> None:
         init_data = self._manifest.get("initialization", {})
@@ -139,7 +164,7 @@ class ProjectBootstrapWorker(QObject):
         for rel_dir in init_data.get("directories", []):
             dir_path = os.path.join(project_path, rel_dir)
             self._ensure_dir(dir_path)
-            self.step_progress.emit(f"Created directory: {rel_dir}")
+            self._emit_event("step_progress", (f"Created directory: {rel_dir}",))
 
         created_as_template: set[str] = set()
         for tmpl in init_data.get("templates", []):
@@ -157,7 +182,7 @@ class ProjectBootstrapWorker(QObject):
                 f.write(contents)
             self._created_files.append(file_path)
             created_as_template.add(target)
-            self.step_progress.emit(f"Created file: {target}")
+            self._emit_event("step_progress", (f"Created file: {target}",))
 
         for rel_file in init_data.get("files", []):
             if rel_file in created_as_template:
@@ -170,7 +195,7 @@ class ProjectBootstrapWorker(QObject):
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write("")
                 self._created_files.append(file_path)
-                self.step_progress.emit(f"Created file: {rel_file}")
+                self._emit_event("step_progress", (f"Created file: {rel_file}",))
 
     def _ensure_dir(self, path: str) -> None:
         if os.path.isdir(path):
@@ -196,7 +221,7 @@ class ProjectBootstrapWorker(QObject):
                 continue
             step_name = step_data.get("step", "unknown")
             desc = step_data.get("desc", "")
-            self.step_changed.emit(f"post_{step_name}", desc)
+            self._emit_event("step_changed", (f"post_{step_name}", desc))
 
             cmd = step_data.get("wind") if self._is_windows else step_data.get("unix")
             if not cmd:
@@ -209,7 +234,7 @@ class ProjectBootstrapWorker(QObject):
                 venv_path = os.path.join(project_path, "venv")
                 self._created_dirs.append(venv_path)
 
-            self.step_progress.emit(f"Running: {cmd}")
+            self._emit_event("step_progress", (f"Running: {cmd}",))
             result = subprocess.run(
                 cmd,
                 cwd=project_path,
@@ -229,16 +254,16 @@ class ProjectBootstrapWorker(QObject):
 
             output = result.stdout.strip()
             if output:
-                self.step_progress.emit(output)
+                self._emit_event("step_progress", (output,))
 
     def _rollback(self) -> None:
-        self.step_progress.emit("Rolling back created resources...")
+        self._emit_event("step_progress", ("Rolling back created resources...",))
 
         for file_path in reversed(self._created_files):
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     os.remove(file_path)
-                    self.step_progress.emit(f"Removed file: {file_path}")
+                    self._emit_event("step_progress", (f"Removed file: {file_path}",))
             except OSError as e:
                 logger.warning("Rollback: could not remove file %s: %s", file_path, e)
 
@@ -246,7 +271,7 @@ class ProjectBootstrapWorker(QObject):
             try:
                 if os.path.isdir(dir_path):
                     shutil.rmtree(dir_path, ignore_errors=True)
-                    self.step_progress.emit(f"Removed directory: {dir_path}")
+                    self._emit_event("step_progress", (f"Removed directory: {dir_path}",))
             except OSError as e:
                 logger.warning(
                     "Rollback: could not remove directory %s: %s", dir_path, e
@@ -254,7 +279,7 @@ class ProjectBootstrapWorker(QObject):
 
         self._created_files.clear()
         self._created_dirs.clear()
-        self.step_progress.emit("Rollback complete")
+        self._emit_event("step_progress", ("Rollback complete",))
 
 
 class ProjectBootstrap:
@@ -300,7 +325,11 @@ class ProjectBootstrap:
         return self._worker.finished
 
     def start(self) -> None:
+        self._worker._poll_timer.start(50)
         self._thread.start()
+
+    def stop(self) -> None:
+        self._worker._poll_timer.stop()
 
     def wait(self, timeout: int = 600000) -> bool:
         self._thread.join(timeout)
