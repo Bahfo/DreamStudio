@@ -2,8 +2,12 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMenu, QLineEdit, QWidgetAction, QLabel
 
-import logging
 import json
+import logging
+
+from editor.terminal.commands_window import execute_command
+
+logger = logging.getLogger(__name__)
 
 
 class CommandWindow(QMenu):
@@ -41,7 +45,7 @@ class CommandWindow(QMenu):
             QMenu::right-arrow {{
                 image: none;
             }}
-            
+
             QLineEdit {{
                 background-color: transparent;
                 color: {t.color("menu.text")};
@@ -70,9 +74,9 @@ class CommandWindow(QMenu):
             "TIP: Type to search a command, navigate by keyboard arrows."
         )
         self.tip_label.setStyleSheet(
-            """background-color: transparent; 
+            """background-color: transparent;
             padding: 8px 18px 8px 18px;
-            font-size: 12px; 
+            font-size: 12px;
             font-family: 'inter';"""
         )
         tip_action.setDefaultWidget(self.tip_label)
@@ -89,16 +93,25 @@ class CommandWindow(QMenu):
             for command, display in commands.items():
                 action = QAction(command, self)
                 action.setData(display)
+                action.triggered.connect(
+                    lambda checked=False, c=command: self._on_choosing_command(c)
+                )
                 self.addAction(action)
                 self._command_actions.append(action)
 
         except Exception as e:
-            self.addAction(f"Error loading commands: {e}").setEnabled(False)
+            logger.error("Failed to load commands: %s", e)
+            err_action = QAction(f"Error loading commands: {e}", self)
+            err_action.setEnabled(False)
+            self.addAction(err_action)
 
     def _filter_commands(self, text):
         """Triggered automatically every time the user types a letter."""
         search_text = text.lower()
-
         for action in self._command_actions:
             is_match = search_text in action.text().lower()
             action.setVisible(is_match)
+
+    def _on_choosing_command(self, command):
+        logger.info("Executing command: %s", command)
+        execute_command(command)
