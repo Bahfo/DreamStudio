@@ -255,6 +255,10 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         self.tabBar().rebuild_dirty_indices()
 
+        if getattr(new_editor, "_pending_readonly", False):
+            new_editor._pending_readonly = False
+            self.tabBar().mark_readonly(index, True)
+
         self.setFocus()
         self._parent.update_editor_visibility()
 

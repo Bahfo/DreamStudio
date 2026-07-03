@@ -1496,6 +1496,18 @@ class CodeEditor(QsciScintilla):
         with open(file_path, "r", encoding="utf-8") as f:
             self.setText(f.read())
         self.setModified(False)
+
+        try:
+            import pathlib
+            import stat
+
+            p = pathlib.Path(file_path)
+            if not (p.stat().st_mode & stat.S_IWUSR):
+                self.setReadOnly(True)
+                self._pending_readonly = True
+        except Exception:
+            pass
+
         self._run_complexity_analysis()
 
     def set_editor_font(self, font):
@@ -1851,3 +1863,66 @@ class CodeEditor(QsciScintilla):
         if selected_text:
             clipboard = QApplication.clipboard()
             clipboard.setText(selected_text)
+
+    def make_file_readonly(self):
+        if not self.current_file_path:
+            from editor.widgets.QExitDialog import ConfirmDialog
+
+            dialog = ConfirmDialog(
+                parent=self,
+                title="No File Path",
+                message="This file isn't provided with a path. Save it first.",
+                confirm_text="OK",
+                cancel_text="CANCEL",
+                destructive=False,
+            )
+            t = getattr(self._parent, "_parent", None)
+            theme = getattr(t, "theme_manager", None) if t else None
+            if theme and hasattr(dialog, "retheme"):
+                dialog.retheme(theme)
+            dialog.exec()
+            return
+
+        try:
+            import pathlib
+            import stat
+
+            file_path = pathlib.Path(self.current_file_path)
+            current_mode = file_path.stat().st_mode
+
+            if current_mode & stat.S_IWUSR:
+                new_mode = current_mode & ~stat.S_IWUSR
+                self.setReadOnly(True)
+                self._update_readonly_tab_indicator(True)
+            else:
+                new_mode = current_mode | stat.S_IWUSR | stat.S_IXUSR
+                self.setReadOnly(False)
+                self._update_readonly_tab_indicator(False)
+
+            file_path.chmod(new_mode)
+        except Exception as e:
+            from editor.widgets.QExitDialog import ConfirmDialog
+
+            dialog = ConfirmDialog(
+                parent=self,
+                title="Read-Only Error",
+                message=f"Could not change file permissions: {e}",
+                confirm_text="OK",
+                cancel_text="CANCEL",
+                destructive=False,
+            )
+            t = getattr(self._parent, "_parent", None)
+            theme = getattr(t, "theme_manager", None) if t else None
+            if theme and hasattr(dialog, "retheme"):
+                dialog.retheme(theme)
+            dialog.exec()
+
+    def _update_readonly_tab_indicator(self, is_readonly):
+        tab_widget = self._parent
+        if tab_widget is None:
+            return
+        tab_bar = tab_widget.tabBar()
+        for i in range(tab_widget.count()):
+            if tab_widget.widget(i) is self:
+                tab_bar.mark_readonly(i, is_readonly)
+                break

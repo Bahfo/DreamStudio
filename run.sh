@@ -7,7 +7,7 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-VENV_DIR="venv/"
+VENV_DIR="venv"
 
 if [ -d "$VENV_DIR" ]; then 
     echo -e "${YELLOW}[STATUS] Virtual environment found.${NC}"
@@ -19,10 +19,7 @@ fi
 
 echo -e "${GREEN}[INFO] Activating virtual environment...${NC}"
 sleep 2
-source $VENV_DIR/bin/activate
-
-# Running
-python3 startup.py
+./venv/bin/python startup.py
 
 # Clearing cached files
 ./clear_cache.sh

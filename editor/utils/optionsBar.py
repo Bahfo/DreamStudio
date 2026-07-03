@@ -202,18 +202,11 @@ class OptionsMenu(QFrame):
             image="assets/system/lock.png",
             image_size=QSize(19, 19),
             tooltip="Make current file read-only",
-        )
-        self.containerToolsBtn = self.create_menu_button(
-            text=None,
-            image="assets/system/container.png",
-            image_size=QSize(21, 21),
-            tooltip="Show containers and virtual environments",
-            function=self._on_open_containers,
+            function=self._on_toggle_readonly,
         )
 
         optionsMenu_layout.addWidget(self.etherAIBtn)
         optionsMenu_layout.addWidget(self.readOnlyBtn)
-        optionsMenu_layout.addWidget(self.containerToolsBtn)
 
         self.searchBtn = self.create_menu_button(
             text=None,
@@ -347,10 +340,11 @@ class OptionsMenu(QFrame):
         if hasattr(self.master, "open_tools_panel"):
             self.master.open_tools_panel("system_monitor")
 
-    def _on_open_containers(self):
-        if hasattr(self.master, "open_tools_panel"):
-            self.master.open_tools_panel("dev_containers")
-
     def _on_search(self):
         if hasattr(self.master, "toggle_find_replace"):
             self.master.toggle_find_replace()
+
+    def _on_toggle_readonly(self):
+        editor = self._get_current_editor()
+        if editor and hasattr(editor, "make_file_readonly"):
+            editor.make_file_readonly()

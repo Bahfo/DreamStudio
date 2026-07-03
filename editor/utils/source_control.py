@@ -136,6 +136,16 @@ class GitCommitHistory(QFrame):
                 background: none;
                 border: none;
             }
+            QToolTip {
+                background-color: #25272B;
+                color: #FFFFFF;
+                border: 1px solid #3F4145;
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
+            }
         """
         )
         self._main_layout.addWidget(self.tree)
@@ -366,6 +376,16 @@ class GitCommitHistory(QFrame):
                 background: none;
                 border: none;
             }}
+            QToolTip {{
+                background-color: {t.color("tooltip.background", "#25272B")};
+                color: {t.color("tooltip.text", "#FFFFFF")};
+                border: 1px solid {t.color("widget.border", "#3F4145")};
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
+            }}
         """
         )
 
@@ -428,6 +448,16 @@ class SourceControl(QFrame):
         QPushButton:disabled {
             color: #555555;
         }
+        QToolTip {
+            background-color: #25272B;
+            color: #FFFFFF;
+            border: 1px solid #3F4145;
+            border-radius: 8px;
+            padding: 8px 8px;
+            font-family: 'inter', sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+        }
         """
         icon_size = QSize(16, 16)
         btn_size = QSize(26, 26)
@@ -443,7 +473,7 @@ class SourceControl(QFrame):
         self.show_diff_btn = QPushButton()
         self.show_diff_btn.setFixedSize(btn_size)
         self.show_diff_btn.setStyleSheet(self._toolbar_btn_style)
-        self.show_diff_btn.setIcon(QIcon("assets/menus/refresh.png"))
+        self.show_diff_btn.setIcon(QIcon("assets/menus/diff.png"))
         self.show_diff_btn.setIconSize(icon_size)
         self.show_diff_btn.setToolTip("Show Diff")
         self.show_diff_btn.clicked.connect(self._show_diff)
@@ -451,7 +481,7 @@ class SourceControl(QFrame):
         self.check_all_btn = QPushButton()
         self.check_all_btn.setFixedSize(btn_size)
         self.check_all_btn.setStyleSheet(self._toolbar_btn_style)
-        self.check_all_btn.setIcon(QIcon("assets/menus/refresh.png"))
+        self.check_all_btn.setIcon(QIcon("assets/menus/check.png"))
         self.check_all_btn.setIconSize(icon_size)
         self.check_all_btn.setToolTip("Check / Uncheck All")
         self.check_all_btn.clicked.connect(self._toggle_check_all)
@@ -512,7 +542,6 @@ class SourceControl(QFrame):
         # Long message & commit row
         msg_btn_layout = QVBoxLayout()
         msg_btn_layout.setSpacing(4)
-        msg_btn_layout.addStretch()
 
         main_commit_layout = QHBoxLayout()
         main_commit_layout.setSpacing(4)
@@ -538,6 +567,16 @@ class SourceControl(QFrame):
             QPushButton:disabled {
                 color: #555555;
                 border-color: #333333;
+            }
+            QToolTip {
+                background-color: #25272B;
+                color: #FFFFFF;
+                border: 1px solid #3F4145;
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
             }
         """
         )
@@ -565,12 +604,21 @@ class SourceControl(QFrame):
                 background-color: #1a1a1a;
                 color: #555555;
             }
+            QToolTip {
+                background-color: #25272B;
+                color: #FFFFFF;
+                border: 1px solid #3F4145;
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
+            }
         """
         )
         self.commit_btn.clicked.connect(self._do_commit)
         main_commit_layout.addWidget(self.commit_btn)
 
-        msg_btn_layout.addStretch()
         msg_btn_layout.addLayout(main_commit_layout)
 
         # Delete commit message button
@@ -588,19 +636,28 @@ class SourceControl(QFrame):
                 font-size: 12px;
             }
             QPushButton:hover {
-                background-color: #323232;
+                border: 2px solid #FF6B6B;
                 color: #ffffff;
             }
             QPushButton:disabled {
                 color: #555555;
                 border-color: #333333;
             }
+            QToolTip {
+                background-color: #25272B;
+                color: #FFFFFF;
+                border: 1px solid #3F4145;
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
+            }
         """
         )
         self.delete_msg_btn.clicked.connect(self._delete_commit_message)
         msg_btn_layout.addWidget(self.delete_msg_btn)
 
-        msg_btn_layout.addStretch()
         commit_input_layout.addLayout(msg_btn_layout)
 
         # Commit message status label
@@ -610,7 +667,6 @@ class SourceControl(QFrame):
         )
         self.commit_status_label.setWordWrap(True)
         commit_input_layout.addWidget(self.commit_status_label)
-        commit_input_layout.addStretch()
 
         self.main_layout.addLayout(commit_input_layout)
 
@@ -1241,6 +1297,16 @@ class SourceControl(QFrame):
                 background: none;
                 border: none;
             }}
+            QToolTip {{
+                background-color: {t.color("tooltip.background", "#25272B")};
+                color: {t.color("tooltip.text", "#FFFFFF")};
+                border: 1px solid {t.color("widget.border", "#3F4145")};
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
+            }}
         """
         )
 
@@ -1263,6 +1329,16 @@ class SourceControl(QFrame):
             else:
                 parent.setForeground(0, QColor(txt))
 
+        tooltip_tip_bg = t.color("tooltip.background", "#25272B")
+        tooltip_tip_fg = t.color("tooltip.text", "#FFFFFF")
+        tooltip_border = t.color("widget.border", "#3F4145")
+        tooltip_style = (
+            f"QToolTip{{background-color: {tooltip_tip_bg}; color: {tooltip_tip_fg};"
+            f" border: 1px solid {tooltip_border}; border-radius: 8px;"
+            f" padding: 8px 8px; font-family: 'inter', sans-serif;"
+            f" font-size: 12px; line-height: 1.5;}}"
+        )
+
         btn_style = f"""
         QPushButton {{
             background-color: transparent;
@@ -1279,6 +1355,7 @@ class SourceControl(QFrame):
         QPushButton:disabled {{
             color: {t.color("scrollbar.bg", "#555555")};
         }}
+        {tooltip_style}
         """
         for btn in self.findChildren(QPushButton):
             if (
@@ -1290,7 +1367,6 @@ class SourceControl(QFrame):
             btn.setStyleSheet(btn_style)
 
         commit_btn_border = t.color("widget.border", "#444444")
-        commit_btn_hover_border = t.color("widget.accent", hl)
         self.delete_msg_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -1303,14 +1379,14 @@ class SourceControl(QFrame):
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: {hover};
-                border: 2px solid {commit_btn_hover_border};
+                border: 2px solid #FF6B6B;
                 color: #ffffff;
             }}
             QPushButton:disabled {{
                 color: {t.color("scrollbar.bg", "#555555")};
                 border: 2px solid {t.color("scrollbar.bg", "#333333")};
             }}
+            {tooltip_style}
         """
         )
 
@@ -1342,6 +1418,7 @@ class SourceControl(QFrame):
                 background-color: {disabled_bg};
                 color: {disabled_txt};
             }}
+            {tooltip_style}
         """
         )
 
@@ -1366,6 +1443,7 @@ class SourceControl(QFrame):
                 color: {t.color("scrollbar.bg", "#555555")};
                 border-color: #333333;
             }}
+            {tooltip_style}
         """
         )
 

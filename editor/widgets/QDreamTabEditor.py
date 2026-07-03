@@ -29,6 +29,7 @@ class DreamStudioIDETabBar(QTabBar):
         self._hover_index = -1
         self._is_syncing = False
         self._dirty_indices: set = set()
+        self._readonly_indices: set = set()
         self.currentChanged.connect(self._on_current_changed)
 
     def mouseMoveEvent(self, event):
@@ -92,6 +93,7 @@ class DreamStudioIDETabBar(QTabBar):
         super().tabLayoutChange()
         self._on_current_changed()
         self.rebuild_dirty_indices()
+        self.rebuild_readonly_indices()
 
     def tabInserted(self, index):
         super().tabInserted(index)
@@ -100,6 +102,7 @@ class DreamStudioIDETabBar(QTabBar):
     def tabRemoved(self, index):
         super().tabRemoved(index)
         self._sync_close_buttons()
+        self.rebuild_readonly_indices()
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -192,6 +195,21 @@ class DreamStudioIDETabBar(QTabBar):
             painter.drawEllipse(QPoint(cx, cy), dot_r, dot_r)
             painter.restore()
 
+        if index in self._readonly_indices:
+            painter.save()
+            lock_color = getattr(self, "_readonly_color", QColor("#888888"))
+            pen = QPen(lock_color)
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            lock_x = r.left() + 5
+            lock_y = r.center().y() - 5
+            painter.drawRoundedRect(lock_x, lock_y, 8, 7, 1, 1)
+            painter.drawLine(lock_x + 2, lock_y, lock_x + 2, lock_y - 3)
+            painter.drawLine(lock_x + 6, lock_y, lock_x + 6, lock_y - 3)
+            painter.drawLine(lock_x + 2, lock_y - 3, lock_x + 6, lock_y - 3)
+            painter.restore()
+
         text_sel = getattr(self, "_text_selected", QColor("white"))
         text_inactive = getattr(self, "_text_inactive", QColor("#AFB1B3"))
         option.palette.setColor(
@@ -227,6 +245,15 @@ class DreamStudioIDETabBar(QTabBar):
         if not rect.isNull():
             self.update(rect)
 
+    def mark_readonly(self, index: int, is_readonly: bool) -> None:
+        if is_readonly:
+            self._readonly_indices.add(index)
+        else:
+            self._readonly_indices.discard(index)
+        rect = self.tabRect(index)
+        if not rect.isNull():
+            self.update(rect)
+
     def retheme(self, t) -> None:
         self.selected_bg = QColor(t.color("tab.selected_bg"))
         self.hover_bg = QColor(t.color("tab.hover_bg"))
@@ -237,8 +264,11 @@ class DreamStudioIDETabBar(QTabBar):
         self._text_selected = QColor(t.color("tab.text_selected"))
         self._text_inactive = QColor(t.color("tab.text_inactive"))
         self._dirty_dot = QColor(t.color("tab.dirty_dot"))
+        self._readonly_color = QColor(t.color("tab.readonly_color", "#888888"))
         self._dirty_indices.clear()
+        self._readonly_indices.clear()
         self.rebuild_dirty_indices()
+        self.rebuild_readonly_indices()
         self.update()
 
     def rebuild_dirty_indices(self) -> None:
@@ -249,6 +279,17 @@ class DreamStudioIDETabBar(QTabBar):
                 try:
                     if w.is_dirty():
                         self._dirty_indices.add(i)
+                except RuntimeError:
+                    pass
+
+    def rebuild_readonly_indices(self) -> None:
+        self._readonly_indices.clear()
+        for i in range(self._parent.count()):
+            w = self._parent.widget(i)
+            if w is not None and hasattr(w, "isReadOnly"):
+                try:
+                    if w.isReadOnly():
+                        self._readonly_indices.add(i)
                 except RuntimeError:
                     pass
 
@@ -264,9 +305,11 @@ class QDreamTabEditor(QTabWidget):
         self.setTabsClosable(False)
         self.setMovable(True)
         self.setDocumentMode(True)
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QTabWidget::pane {
                 border: none;
                 background-color: transparent;
             }
-        """)
+        """
+        )

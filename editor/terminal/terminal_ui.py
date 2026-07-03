@@ -44,7 +44,8 @@ class OutputWidget(QWidget):
         self._text = QPlainTextEdit(self)
         self._text.setReadOnly(True)
         self._text.setMaximumBlockCount(10000)
-        self._text.setStyleSheet("""
+        self._text.setStyleSheet(
+            """
             QPlainTextEdit {
                 background-color: #1e1e1e;
                 color: #d4d4d4;
@@ -52,7 +53,8 @@ class OutputWidget(QWidget):
                 font-family: "JetBrains Mono", "Consolas", monospace;
                 font-size: 12px;
             }
-        """)
+        """
+        )
         layout.addWidget(self._text)
 
     def append_text(self, text):
@@ -76,7 +78,8 @@ class TerminalEdit(QPlainTextEdit):
         self._apply_style()
 
     def _apply_style(self) -> None:
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QPlainTextEdit {{
                 background-color: {self._bg};
                 color: {self._fg};
@@ -122,7 +125,8 @@ class TerminalEdit(QPlainTextEdit):
                 background: none;
                 border: none;
             }}
-        """)
+        """
+        )
 
     def _zoom_font(self, delta: int) -> None:
         self._font_size = max(6, self._font_size + delta)
@@ -340,13 +344,15 @@ class PromptXTerminalWidget(QWidget):
         self._show_prompt()
 
     def retheme(self, t) -> None:
-        self._highlighter.retheme({
-            "error": t.color("terminal.highlight_error", "#FF5252"),
-            "command": t.color("terminal.highlight_command", "#FFD740"),
-            "number": t.color("terminal.highlight_number", "#69F0AE"),
-            "success": t.color("terminal.highlight_success", "#40C4FF"),
-            "prompt": t.color("terminal.prompt", "#888888"),
-        })
+        self._highlighter.retheme(
+            {
+                "error": t.color("terminal.highlight_error", "#FF5252"),
+                "command": t.color("terminal.highlight_command", "#FFD740"),
+                "number": t.color("terminal.highlight_number", "#69F0AE"),
+                "success": t.color("terminal.highlight_success", "#40C4FF"),
+                "prompt": t.color("terminal.prompt", "#888888"),
+            }
+        )
 
     def focus_input(self) -> None:
         self._terminal.setFocus()
@@ -364,7 +370,8 @@ class TerminalPanel(QWidget):
         self.setObjectName("terminalPanel")
         self.setWindowTitle("Terminal Panel")
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QWidget#terminalPanel {
                 background-color: #1e1e1e;
                 color: #cccccc;
@@ -378,7 +385,8 @@ class TerminalPanel(QWidget):
                 background-color: #333333;
                 border-radius: 3px;
             }
-        """)
+        """
+        )
 
         self._setup_ui()
 
@@ -460,7 +468,8 @@ class TerminalPanel(QWidget):
         bg = t.color("terminal.background")
         txt = t.color("terminal.text")
         sel = t.color("terminal.selection")
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QWidget#terminalPanel {{
                 background-color: {bg};
                 color: {txt};
@@ -475,13 +484,15 @@ class TerminalPanel(QWidget):
                 background-color: {t.color("button.hover")};
                 border-radius: 3px;
             }}
-        """)
+        """
+        )
         self.promptXShell_tab._terminal.set_theme(bg, txt, sel)
         self.promptXShell_tab.retheme(t)
         self.system_shell_tab.set_theme(bg, txt, sel)
         if hasattr(self.problems_tab, "retheme"):
             self.problems_tab.retheme(t)
-        self.output_tab._text.setStyleSheet(f"""
+        self.output_tab._text.setStyleSheet(
+            f"""
             QPlainTextEdit {{
                 background-color: {bg};
                 color: {txt};
@@ -489,7 +500,8 @@ class TerminalPanel(QWidget):
                 font-family: "JetBrains Mono", "Consolas", monospace;
                 font-size: 12px;
             }}
-        """)
+        """
+        )
         self.switch_tab(self.stack.currentIndex())
 
     def append_output(self, text):

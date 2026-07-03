@@ -8,7 +8,7 @@ class DreamStudioIconProvider(QFileIconProvider):
         if not isinstance(file_info, QFileInfo):
             return super().icon(file_info)
 
-        name = file_info.fileName() # Maybe needed in future
+        name = file_info.fileName()  # Maybe needed in future
         name_lower = name.lower()
         extension = file_info.suffix().lower()
 

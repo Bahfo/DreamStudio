@@ -204,7 +204,9 @@ class PtyReader(QObject):
         self._events: deque = deque()
         self._poll_timer = QTimer(self)
         self._poll_timer.timeout.connect(self._poll_events)
-        self._thread = threading.Thread(target=self._run, name="pty_reader", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run, name="pty_reader", daemon=True
+        )
 
     def start(self):
         self._poll_timer.start(50)

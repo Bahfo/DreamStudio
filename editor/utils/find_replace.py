@@ -1,16 +1,24 @@
 import re
+import os
 
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QPalette
 from PyQt6.Qsci import QsciScintilla
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QPushButton,
     QSizePolicy,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QHeaderView,
     QLineEdit,
     QLabel,
     QFrame,
 )
+
+# Local Imports
+from backend.file_search import *
 
 
 class FindReplaceWidget(QFrame):
@@ -31,7 +39,8 @@ class FindReplaceWidget(QFrame):
         self.setFixedHeight(76)
         self.setFixedWidth(430)
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QFrame#findReplaceWidget {
                 background-color: #252526;
                 border: 1px solid #454545;
@@ -74,7 +83,8 @@ class FindReplaceWidget(QFrame):
                 font-size: 11px;
                 background-color: #252526;
             }
-        """)
+        """
+        )
 
         self._setup_ui()
         self.hide()
@@ -364,7 +374,8 @@ class FindReplaceWidget(QFrame):
 
     # Events
     def retheme(self, t) -> None:
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QFrame#findReplaceWidget {{
                 background-color: {t.color("find_replace.background")};
                 border: 1px solid {t.color("find_replace.border")};
@@ -401,7 +412,8 @@ class FindReplaceWidget(QFrame):
                 font-size: 11px;
                 background-color: {t.color("find_replace.background")};
             }}
-        """)
+        """
+        )
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -421,196 +433,472 @@ class FindReplaceWidget(QFrame):
 
 
 class GlobalFileSearchEngine(QFrame):
-    def __init__(self, _parent=None):
+    def __init__(self, root_dir, _parent=None):
         super().__init__()
         self._parent = _parent
+        self.root_dir = root_dir
+        self._matches = []
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.setStyleSheet("background-color: #171717; border: none;")
-
         self._init_ui()
 
     def _init_ui(self):
         self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+        self._layout.addSpacing(10)
 
-        self._layout.addSpacing(10)
+        # --- HEADER ---
+        header = QHBoxLayout()
+        header.setContentsMargins(12, 10, 12, 0)
+        header.setSpacing(0)
         self.search_label = QLabel("FIND AND REPLACE")
-        self.search_label.setStyleSheet(
-            "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
-        )
-        self._layout.addWidget(self.search_label)
+        header.addWidget(self.search_label)
+        header.addStretch()
+
+        self._layout.addLayout(header)
         self._layout.addSpacing(10)
+
+        # --- SEARCH ROW ---
+        search_row = QHBoxLayout()
+        search_row.setContentsMargins(12, 8, 12, 0)
+        search_row.setSpacing(4)
 
         self.find_input = QLineEdit()
-        self.find_input.setPlaceholderText("Find")
-        self._layout.addWidget(self.find_input)
+        self.find_input.setPlaceholderText("Search")
+        self.find_input.returnPressed.connect(self.perform_search)
+        search_row.addWidget(self.find_input, 1)
 
-        find_row = QHBoxLayout()
-        find_row.setSpacing(4)
-        self.result_label = QLabel("")
         self.btn_case = QPushButton("Aa")
+        self.btn_case.setFixedSize(26, 24)
         self.btn_case.setCheckable(True)
+        self.btn_case.setToolTip("Match Case")
+
         self.btn_word = QPushButton("ab")
+        self.btn_word.setFixedSize(26, 24)
         self.btn_word.setCheckable(True)
+        self.btn_word.setToolTip("Whole Word")
+
         self.btn_regex = QPushButton(".*")
+        self.btn_regex.setFixedSize(26, 24)
         self.btn_regex.setCheckable(True)
-        self.btn_prev = QPushButton("↑")
-        self.btn_next = QPushButton("↓")
-        self.btn_close = QPushButton("✕")
+        self.btn_regex.setToolTip("Use Regular Expression")
 
-        find_row.addStretch()
-        find_row.setAlignment(Qt.AlignmentFlag.AlignRight)
-        find_row.addWidget(self.result_label)
-        find_row.addWidget(self.btn_case)
-        find_row.addWidget(self.btn_word)
-        find_row.addWidget(self.btn_regex)
-        find_row.addWidget(self.btn_prev)
-        find_row.addWidget(self.btn_next)
-        find_row.addWidget(self.btn_close)
+        self.btn_search = QPushButton("▶")
+        self.btn_search.setFixedSize(26, 24)
+        self.btn_search.setToolTip("Search")
 
+        search_row.addWidget(self.btn_case)
+        search_row.addWidget(self.btn_word)
+        search_row.addWidget(self.btn_regex)
+        search_row.addWidget(self.btn_search)
+
+        self._layout.addLayout(search_row)
+
+        # --- SCOPE ROW ---
+        scope_row = QHBoxLayout()
+        scope_row.setContentsMargins(12, 6, 12, 0)
+        scope_row.setSpacing(4)
+
+        self.scope_input = QLineEdit()
+        self.scope_input.setPlaceholderText("Scope (e.g. src/)")
+        self.scope_input.returnPressed.connect(self.perform_search)
+        scope_row.addWidget(self.scope_input, 1)
+
+        self._layout.addLayout(scope_row)
+
+        # --- REPLACE ROW ---
         replace_row = QHBoxLayout()
+        replace_row.setContentsMargins(12, 6, 12, 0)
         replace_row.setSpacing(4)
+
         self.replace_input = QLineEdit()
         self.replace_input.setPlaceholderText("Replace")
+        replace_row.addWidget(self.replace_input, 1)
+
         self.btn_replace = QPushButton("Replace")
+        self.btn_replace.setFixedHeight(24)
+        self.btn_replace.setToolTip("Replace current match")
+
         self.btn_replace_all = QPushButton("All")
-        replace_row.addWidget(self.replace_input)
+        self.btn_replace_all.setFixedHeight(24)
+        self.btn_replace_all.setToolTip("Replace all matches")
+
         replace_row.addWidget(self.btn_replace)
         replace_row.addWidget(self.btn_replace_all)
 
-        self._layout.addLayout(find_row)
         self._layout.addLayout(replace_row)
 
-        self._layout.addSpacing(20)
-        self.constraints_label = QLabel("SEARCH CONSTRAINTS")
-        self.constraints_label.setStyleSheet(
-            "color: #969696; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+        # --- RESULTS LABEL ---
+        self.result_label = QLabel("Ready")
+        self.result_label.setContentsMargins(12, 10, 12, 4)
+        self._layout.addWidget(self.result_label)
+
+        # --- RESULTS TREE ---
+        tree_container = QFrame()
+        tree_container.setStyleSheet("background-color: transparent; border: none;")
+        tree_layout = QVBoxLayout(tree_container)
+        tree_layout.setContentsMargins(8, 4, 8, 8)
+
+        self.results_tree = QTreeWidget()
+        self.results_tree.setHeaderHidden(True)
+        self.results_tree.setRootIsDecorated(True)
+        self.results_tree.setIndentation(16)
+        self.results_tree.setAnimated(True)
+        self.results_tree.setUniformRowHeights(True)
+        self.results_tree.setExpandsOnDoubleClick(True)
+        self.results_tree.setColumnCount(2)
+        self.results_tree.header().setStretchLastSection(False)
+        self.results_tree.header().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
         )
-        self._layout.addWidget(self.constraints_label)
-        self._layout.addSpacing(10)
+        self.results_tree.header().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.results_tree.setSortingEnabled(False)
+        self.results_tree.itemClicked.connect(self._on_result_clicked)
+        tree_layout.addWidget(self.results_tree)
 
-        self.file_mask_input = QLineEdit()
-        self.file_mask_input.setPlaceholderText("File Mask (.*)")
-        self._layout.addWidget(self.file_mask_input)
+        self._layout.addWidget(tree_container, 1)
 
-        options_row = QHBoxLayout()
-        options_row.setSpacing(4)
-        self.btn_inProject = QPushButton("In Project")
-        self.btn_inProject.setCheckable(True)
-        self.btn_inProject.setFixedWidth(75)
-        self.btn_Directory = QPushButton("Directory")
-        self.btn_Directory.setCheckable(True)
-        self.btn_Directory.setFixedWidth(75)
-        self.btn_Module = QPushButton("Module")
-        self.btn_Module.setCheckable(True)
-        self.btn_Module.setFixedWidth(75)
-        self.btn_Scope = QPushButton("Scope")
-        self.btn_Scope.setCheckable(True)
-        self.btn_Scope.setFixedWidth(75)
+        # --- CONNECT SIGNALS ---
+        self.btn_search.clicked.connect(self.perform_search)
+        self.btn_case.clicked.connect(self.perform_search)
+        self.btn_word.clicked.connect(self.perform_search)
+        self.btn_regex.clicked.connect(self.perform_search)
+        self.btn_replace.clicked.connect(self.replace_next)
+        self.btn_replace_all.clicked.connect(self.replace_all)
 
-        options_row.addStretch()
-        options_row.setAlignment(Qt.AlignmentFlag.AlignRight)
-        options_row.addWidget(self.btn_inProject)
-        options_row.addWidget(self.btn_Directory)
-        options_row.addWidget(self.btn_Module)
-        options_row.addWidget(self.btn_Scope)
+    def _toggle_scope(self):
+        visible = self.scope_chevron.isChecked()
+        self.scope_input.setVisible(visible)
 
-        self._layout.addLayout(options_row)
+    def perform_search(self):
+        query = self.find_input.text().strip()
+        if not query:
+            self.result_label.setText("Please enter a search query.")
+            return
 
-        self.setStyleSheet("""
-            QFrame#findReplaceWidget {
-                background-color: #252526;
-                border: 1px solid #454545;
-                border-radius: 4px;
-            }
+        self.result_label.setText("Searching...")
+        self.results_tree.clear()
+        self._matches.clear()
 
-            QLineEdit {{
-                border: 1px solid #007043;
-                border-radius: 4px;
-                padding: 4px 8px;
-                color: #888888;
-                background-color: #3C3C3C;
-            }}
+        scope_text = self.scope_input.text().strip()
+        scope_dirs = [scope_text] if scope_text else None
 
-            QLineEdit:focus {
-                border: 1px solid #007ACC;
-            }
+        is_ignore_case = not self.btn_case.isChecked()
+        is_regex = self.btn_regex.isChecked()
 
-            QPushButton {
-                background-color: transparent;
-                border: none;
-                border-radius: 2px;
-                color: #858585;
-                padding: 3px 6px;
-            }
+        results = execute_search(
+            root_dir=self.root_dir,
+            query=query,
+            scope_dirs=scope_dirs,
+            is_regex=is_regex,
+            is_ignore_case=is_ignore_case,
+        )
 
-            QPushButton:hover {
-                background-color: #3A3A3C;
-            }
+        if not results:
+            self.result_label.setText("No matches found.")
+            return
 
-            QPushButton:checked {
-                background-color: #007ACC;
-                color: white;
-            }
+        self._matches = results
 
-            QLabel {
-                color: #C5C5C5;
-                font-size: 11px;
-                background-color: #171717;
-            }
-        """)
+        by_file = {}
+        for m in results:
+            by_file.setdefault(m["file"], []).append(m)
 
-        self._layout.addStretch()
+        for file_path, matches in sorted(by_file.items()):
+            rel = os.path.relpath(file_path, self.root_dir)
+            file_item = QTreeWidgetItem(self.results_tree)
+            file_item.setText(0, rel)
+            file_item.setText(1, f"{len(matches)}")
+            file_item.setForeground(
+                0, self.results_tree.palette().color(QPalette.ColorRole.WindowText)
+            )
+            file_item.setFlags(file_item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+
+            for m in matches:
+                child = QTreeWidgetItem(file_item)
+                child.setText(0, m["text"])
+                child.setText(1, str(m["line"]))
+                child.setData(0, Qt.ItemDataRole.UserRole, m)
+                child.setFlags(child.flags() | Qt.ItemFlag.ItemIsSelectable)
+
+        self.results_tree.expandAll()
+        total_files = len(by_file)
+        total_matches = len(results)
+        self.result_label.setText(f"{total_matches} matches in {total_files} files")
+
+    def _on_result_clicked(self, item, column):
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if not data:
+            return
+        file_path = data.get("file")
+        line = data.get("line", 1) - 1
+        win = self.window()
+        if win and hasattr(win, "tab_editors"):
+            win.tab_editors.open_file_at_line(file_path, line)
+
+    def _get_file_content(self, file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                return f.read()
+        except (OSError, PermissionError):
+            return None
+
+    def _write_file_content(self, file_path, content):
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return True
+        except (OSError, PermissionError):
+            return False
+
+    def _build_replace_pattern(self):
+        query = self.find_input.text()
+        is_regex = self.btn_regex.isChecked()
+        use_word = self.btn_word.isChecked()
+        case_sensitive = self.btn_case.isChecked()
+
+        if is_regex:
+            pattern = query
+        else:
+            pattern = re.escape(query)
+
+        if use_word:
+            pattern = rf"\b{pattern}\b"
+
+        flags = 0 if case_sensitive else re.IGNORECASE
+        return re.compile(pattern, flags)
+
+    def replace_next(self):
+        if not self._matches:
+            self.perform_search()
+        if not self._matches:
+            return
+
+        tree = self.results_tree
+        selected = tree.currentItem()
+        if selected is None:
+            return
+
+        data = selected.data(0, Qt.ItemDataRole.UserRole)
+        if data is None:
+            parents = [selected.child(i) for i in range(selected.childCount())]
+            for p in parents:
+                d = p.data(0, Qt.ItemDataRole.UserRole)
+                if d:
+                    data = d
+                    break
+        if data is None:
+            return
+
+        file_path = data.get("file")
+        line_num = data.get("line")
+        replace_text = self.replace_input.text()
+
+        content = self._get_file_content(file_path)
+        if content is None:
+            return
+
+        pattern = self._build_replace_pattern()
+        lines = content.split("\n")
+
+        if line_num < 1 or line_num > len(lines):
+            return
+
+        original_line = lines[line_num - 1]
+        new_line, count = pattern.subn(replace_text, original_line, count=1)
+
+        if count == 0:
+            return
+
+        lines[line_num - 1] = new_line
+        if self._write_file_content(file_path, "\n".join(lines)):
+            self.perform_search()
+
+    def replace_all(self):
+        if not self._matches:
+            self.perform_search()
+        if not self._matches:
+            return
+
+        replace_text = self.replace_input.text()
+        pattern = self._build_replace_pattern()
+
+        by_file = {}
+        for m in self._matches:
+            by_file.setdefault(m["file"], []).append(m)
+
+        total_replaced = 0
+
+        for file_path, matches in by_file.items():
+            content = self._get_file_content(file_path)
+            if content is None:
+                continue
+
+            new_content, count = pattern.subn(replace_text, content)
+            if count > 0 and self._write_file_content(file_path, new_content):
+                total_replaced += count
+
+        if total_replaced > 0:
+            self.perform_search()
+            self.result_label.setText(f"Replaced {total_replaced} matches.")
+        else:
+            self.result_label.setText("No replacements made.")
 
     def retheme(self, t) -> None:
-        bg = t.color("find_replace.background")
-        border = t.color("find_replace.border")
-        input_bg = t.color("find_replace.input_bg")
-        txt = t.color("window.text")
-        accent = t.color("widget.accent")
-        btn_hover = t.color("button.hover")
-        self.setStyleSheet(f"""
-            QFrame#findReplaceWidget {{
-                background-color: {bg};
-                border: 1px solid {border};
-                border-radius: 4px;
-            }}
-            QLineEdit {{
-                background-color: {input_bg};
-                color: {txt};
-                border: 1px solid {input_bg};
-                border-radius: 2px;
-                padding: 4px;
-                font-family: "JetBrains Mono";
-                font-size: 12px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {accent};
-            }}
-            QPushButton {{
-                background-color: transparent;
+        bg = t.color("sidebar.background", "#171717")
+        txt = t.color("sidebar.text", "#afb1b3")
+        input_bg = t.color("input.background", "#3C3C3C")
+        input_border = t.color("input.border", "#3C3C3C")
+        focus_border = t.color("input.focus_border", "#007ACC")
+        btn_hover = t.color("button.hover", "#333333")
+        accent = t.color("widget.accent", "#007ACC")
+        tree_bg = t.color("treeview.background", "#171717")
+        tree_txt = t.color("treeview.text", "#afb1b3")
+        tree_hl = t.color("treeview.highlight", "#2d476d")
+        tree_hover = t.color("treeview.hover", "#323232")
+        tree_hdr_bg = t.color("treeview.header_bg", "#313335")
+        tree_hdr_txt = t.color("treeview.header_text", "#afb1b3")
+        sb_bg = t.color("scrollbar.bg", "transparent")
+        sb_fg = t.color("scrollbar.fg", "#424242")
+        sb_hover = t.color("scrollbar.hover", "#555555")
+
+        self.setStyleSheet(f"background-color: {bg}; border: none;")
+
+        self.search_label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; font-weight: bold; "
+            f"letter-spacing: 1px; background-color: transparent;"
+        )
+
+        self.result_label.setStyleSheet(
+            f"color: {txt}; font-size: 11px; background-color: transparent;"
+        )
+
+        input_css = (
+            f"QLineEdit{{background-color: {input_bg}; color: {txt}; "
+            f"border: 1px solid {input_border}; border-radius: 3px; "
+            f"padding: 4px 8px; font-size: 12px;}}"
+            f"QLineEdit:focus{{border: 1px solid {focus_border};}}"
+        )
+        self.find_input.setStyleSheet(input_css)
+        self.scope_input.setStyleSheet(input_css)
+        self.replace_input.setStyleSheet(input_css)
+
+        toggle_css = (
+            f"QPushButton{{background-color: transparent; border: none; "
+            f"color: {txt}; font-size: 11px; border-radius: 2px; "
+            f"padding: 2px; font-weight: bold;}}"
+            f"QPushButton:hover{{background-color: {btn_hover};}}"
+            f"QPushButton:checked{{background-color: {accent}; color: white;}}"
+            f"QToolTip{{background-color: {t.color('tooltip.background', '#25272B')}; "
+            f"color: {t.color('tooltip.text', '#FFFFFF')}; "
+            f"border: 1px solid {t.color('widget.border', '#3F4145')}; "
+            f"border-radius: 8px; padding: 8px 8px; "
+            f"font-family: 'inter', sans-serif; font-size: 12px; line-height: 1.5;}}"
+        )
+        self.btn_case.setStyleSheet(toggle_css)
+        self.btn_word.setStyleSheet(toggle_css)
+        self.btn_regex.setStyleSheet(toggle_css)
+
+        action_css = (
+            f"QPushButton{{background-color: transparent; border: none; "
+            f"color: {txt}; font-size: 12px; border-radius: 2px; "
+            f"padding: 2px 6px; font-weight: bold;}}"
+            f"QPushButton:hover{{background-color: {btn_hover};}}"
+            f"QToolTip{{background-color: {t.color('tooltip.background', '#25272B')}; "
+            f"color: {t.color('tooltip.text', '#FFFFFF')}; "
+            f"border: 1px solid {t.color('widget.border', '#3F4145')}; "
+            f"border-radius: 8px; padding: 8px 8px; "
+            f"font-family: 'inter', sans-serif; font-size: 12px; line-height: 1.5;}}"
+        )
+        self.btn_search.setStyleSheet(action_css)
+
+        replace_css = (
+            f"QPushButton{{background-color: transparent; border: 1px solid {input_border}; "
+            f"color: {txt}; font-size: 11px; border-radius: 3px; "
+            f"padding: 2px 8px;}}"
+            f"QPushButton:hover{{background-color: {btn_hover};}}"
+            f"QToolTip{{background-color: {t.color('tooltip.background', '#25272B')}; "
+            f"color: {t.color('tooltip.text', '#FFFFFF')}; "
+            f"border: 1px solid {t.color('widget.border', '#3F4145')}; "
+            f"border-radius: 8px; padding: 8px 8px; "
+            f"font-family: 'inter', sans-serif; font-size: 12px; line-height: 1.5;}}"
+        )
+        self.btn_replace.setStyleSheet(replace_css)
+        self.btn_replace_all.setStyleSheet(replace_css)
+
+        header_css = (
+            f"QPushButton{{background-color: transparent; border: none; "
+            f"color: {txt}; font-size: 12px; border-radius: 2px;}}"
+            f"QPushButton:hover{{background-color: {btn_hover};}}"
+        )
+        for btn in self.findChildren(QPushButton):
+            if btn.property("header_btn"):
+                btn.setStyleSheet(header_css)
+
+        self.results_tree.setStyleSheet(
+            f"""
+            QTreeWidget {{
+                background-color: {tree_bg};
+                color: {tree_txt};
                 border: none;
-                border-radius: 2px;
-                color: {txt};
-                padding: 3px 6px;
+                outline: 0;
+                font-size: 12px;
+                font-family: 'JetBrains Mono', monospace;
             }}
-            QPushButton:hover {{
-                background-color: {btn_hover};
+            QTreeWidget::item {{
+                height: 24px;
+                padding-left: 4px;
+                padding-right: 8px;
             }}
-            QPushButton:checked {{
-                background-color: {accent};
+            QTreeWidget::item:hover {{
+                background-color: {tree_hover};
+            }}
+            QTreeWidget::item:selected {{
+                background-color: {tree_hl};
                 color: white;
             }}
-            QLabel {{
-                color: {txt};
+            QHeaderView::section {{
+                background-color: {tree_hdr_bg};
+                color: {tree_hdr_txt};
+                padding: 4px;
+                border: none;
+                border-right: 1px solid {tree_bg};
                 font-size: 11px;
-                background-color: transparent;
             }}
-        """)
-        self.search_label.setStyleSheet(
-            f"""color: {txt}; 
-            font-size: 11px; 
-            font-weight: bold; 
-            letter-spacing: 1px; 
-            background-color: transparent;"""
+            QScrollBar:vertical {{
+                background: {sb_bg};
+                width: 8px;
+                margin: 0px;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {sb_fg};
+                min-height: 24px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {sb_hover};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+                border: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+            QToolTip {{
+                background-color: {t.color("tooltip.background", "#25272B")};
+                color: {t.color("tooltip.text", "#FFFFFF")};
+                border: 1px solid {t.color("widget.border", "#3F4145")};
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
+            }}
+        """
         )

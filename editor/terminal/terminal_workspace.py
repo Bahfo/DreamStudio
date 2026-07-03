@@ -51,7 +51,8 @@ class _SessionItem(QWidget):
         btn_kill.setIcon(QIcon("assets/menus/trash.png"))
         btn_kill.setFixedSize(20, 20)
         btn_kill.setToolTip("Kill this terminal session")
-        btn_kill.setStyleSheet("""
+        btn_kill.setStyleSheet(
+            """
             QPushButton {
                 background: transparent;
                 border: none;
@@ -63,7 +64,8 @@ class _SessionItem(QWidget):
                 background-color: #3c3c3c6a;
                 border-radius: 3px;
             }
-        """)
+        """
+        )
         btn_kill.clicked.connect(self._on_kill)
         layout.addWidget(btn_kill)
 
@@ -87,7 +89,8 @@ class _TerminalView(QWidget):
         layout.addWidget(self.display, 1)
 
         self._scrollbar = QScrollBar(Qt.Orientation.Vertical)
-        self._scrollbar.setStyleSheet("""
+        self._scrollbar.setStyleSheet(
+            """
             QScrollBar:vertical {
                 background: #1e1e1e;
                 width: 8px;
@@ -125,7 +128,8 @@ class _TerminalView(QWidget):
                 background: none;
                 border: none;
             }
-        """)
+        """
+        )
         layout.addWidget(self._scrollbar)
 
         self.display.history_changed.connect(self._on_display_history)
@@ -150,7 +154,8 @@ class _TerminalView(QWidget):
         else:
             handle = bg_q.lighter(150).name()
             handle_hover = bg_q.lighter(170).name()
-        self._scrollbar.setStyleSheet(f"""
+        self._scrollbar.setStyleSheet(
+            f"""
             QScrollBar:vertical {{
                 background: {bg};
                 width: 8px;
@@ -188,7 +193,8 @@ class _TerminalView(QWidget):
                 background: none;
                 border: none;
             }}
-        """)
+        """
+        )
 
 
 class TerminalWorkspace(QWidget):
@@ -204,11 +210,13 @@ class TerminalWorkspace(QWidget):
         self._theme_sel: str | None = None
 
         self.setObjectName("terminalWorkspace")
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QWidget#terminalWorkspace {
                 background-color: #252526;
             }
-        """)
+        """
+        )
 
         self._build_ui()
 
@@ -219,11 +227,13 @@ class TerminalWorkspace(QWidget):
 
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
         self._splitter.setHandleWidth(1)
-        self._splitter.setStyleSheet("""
+        self._splitter.setStyleSheet(
+            """
             QSplitter::handle {
                 background-color: #3c3c3c;
             }
-        """)
+        """
+        )
 
         self._stack = QStackedWidget()
         self._splitter.addWidget(self._stack)
@@ -242,12 +252,14 @@ class TerminalWorkspace(QWidget):
         widget.setObjectName("terminalSidebar")
         widget.setMinimumWidth(160)
         widget.setMaximumWidth(320)
-        widget.setStyleSheet("""
+        widget.setStyleSheet(
+            """
             QWidget#terminalSidebar {
                 background-color: #252526;
                 border-left: 1px solid #3c3c3c;
             }
-        """)
+        """
+        )
 
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -274,7 +286,8 @@ class TerminalWorkspace(QWidget):
         self._sidebar_add_btn.setObjectName("terminalSidebarAddBtn")
         self._sidebar_add_btn.setFixedSize(22, 22)
         self._sidebar_add_btn.setToolTip("Create new terminal session")
-        self._sidebar_add_btn.setStyleSheet("""
+        self._sidebar_add_btn.setStyleSheet(
+            """
             QPushButton {
                 background: transparent;
                 border: none;
@@ -287,7 +300,8 @@ class TerminalWorkspace(QWidget):
                 border-radius: 4px;
                 color: #ffffff;
             }
-        """)
+        """
+        )
         self._sidebar_add_btn.clicked.connect(self._on_add_session)
         header_layout.addWidget(self._sidebar_add_btn)
 
@@ -297,7 +311,8 @@ class TerminalWorkspace(QWidget):
         self._list.setFrameShape(QFrame.Shape.NoFrame)
         self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self._list.setStyleSheet("""
+        self._list.setStyleSheet(
+            """
             QListWidget {
                 background: transparent;
                 border: none;
@@ -315,7 +330,8 @@ class TerminalWorkspace(QWidget):
             QListWidget::item:hover {
                 background-color: #2a2d2e;
             }
-        """)
+        """
+        )
         self._list.currentRowChanged.connect(self._on_list_row_changed)
         layout.addWidget(self._list)
 
@@ -448,25 +464,32 @@ class TerminalWorkspace(QWidget):
 
         title_fg = f"rgba({fg_q.red()}, {fg_q.green()}, {fg_q.blue()}, 0.6)"
 
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QWidget#terminalWorkspace {{
                 background-color: {sidebar_bg};
             }}
-        """)
+        """
+        )
 
-        self._sidebar.setStyleSheet(f"""
+        self._sidebar.setStyleSheet(
+            f"""
             QWidget#terminalSidebar {{
                 background-color: {sidebar_bg};
                 border-left: 1px solid {border};
             }}
-        """)
+        """
+        )
 
-        self._sidebar_title.setStyleSheet(f"""
+        self._sidebar_title.setStyleSheet(
+            f"""
             color: {title_fg}; font-size: 10px; font-weight: bold;
             letter-spacing: 1px; background:{sidebar_bg};
-        """)
+        """
+        )
 
-        self._sidebar_add_btn.setStyleSheet(f"""
+        self._sidebar_add_btn.setStyleSheet(
+            f"""
             QPushButton {{
                 background: transparent;
                 border: none;
@@ -479,9 +502,11 @@ class TerminalWorkspace(QWidget):
                 border-radius: 4px;
                 color: {fg};
             }}
-        """)
+        """
+        )
 
-        self._list.setStyleSheet(f"""
+        self._list.setStyleSheet(
+            f"""
             QListWidget {{
                 background: transparent;
                 border: none;
@@ -499,13 +524,16 @@ class TerminalWorkspace(QWidget):
             QListWidget::item:hover {{
                 background-color: {hover_bg};
             }}
-        """)
+        """
+        )
 
-        self._splitter.setStyleSheet(f"""
+        self._splitter.setStyleSheet(
+            f"""
             QSplitter::handle {{
                 background-color: {border};
             }}
-        """)
+        """
+        )
 
     def active_session_id(self) -> int | None:
         return self._active_id

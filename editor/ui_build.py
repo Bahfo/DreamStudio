@@ -357,7 +357,7 @@ class DreamStudio(QMainWindow):
             lambda idx: self.open_file_from_treeview(idx)
         )
 
-        self.search_menu = GlobalFileSearchEngine()
+        self.search_menu = GlobalFileSearchEngine(self.currentDirectory)
         self.git_menu = SourceControl(self)
         self.extns_menu = ExtensionsTab()
 

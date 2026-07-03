@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved. 
+(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
 
 Shells and Emulators for DreamStudio - Contain all emulator classes and
 custom terminals used by the IDE.

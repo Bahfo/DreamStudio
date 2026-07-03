@@ -93,7 +93,7 @@ class WelcomeWindow(QWidget):
 
         self.background_img = QPixmap("assets/logos/welcome_mountains.png")
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
-        self.resize(750, 450)
+        self.resize(690, 350)
 
         self.center_on_screen()
 
@@ -179,9 +179,8 @@ class WelcomeWindow(QWidget):
         painter.fillRect(self.rect(), QColor("#1E1E1E"))
 
         gradient = QLinearGradient(0, 0, 0, self.height())
-        gradient.setColorAt(0.0, QColor("#382162"))
-        gradient.setColorAt(0.2, QColor("#D8446B"))
-        gradient.setColorAt(1.0, QColor("#FFB347"))
+        gradient.setColorAt(0.0, QColor("#D8446B"))
+        gradient.setColorAt(0.4, QColor("#FFB347"))
 
         painter.setBrush(QBrush(gradient))
         painter.setPen(Qt.PenStyle.NoPen)
@@ -443,11 +442,11 @@ class WelcomeInterface(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.resize(1000, 700)
+        self.resize(850, 600)
+        self.center_on_screen()
         self.setWindowTitle("Welcome to DreamStudio")
         self.setStyleSheet("background-color: #1E1E1E; font-family: 'inter', Arial;")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
-        self.center_on_screen()
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)

@@ -3,6 +3,7 @@
 
 Python Syntax Highlighter (Ironica) for DreamStudio.
 """
+
 # Written by Bahaa Nofal - 31/5/2026
 
 import re
@@ -34,15 +35,15 @@ _STYLE_IDS = {
     "comment_doc": 9,
     "number": 10,
     "number_float": 11,
-    "function": 12,        # Used ONLY for definition
-    "function_call": 13,   # Unused with new rules
-    "class": 14,           # Used ONLY for definition
+    "function": 12,  # Used ONLY for definition
+    "function_call": 13,  # Unused with new rules
+    "class": 14,  # Used ONLY for definition
     "decorator": 15,
     "self": 16,
-    "variable": 17,        # Unused with new rules
-    "parameter": 18,       # Used ONLY inside def(...)
+    "variable": 17,  # Unused with new rules
+    "parameter": 18,  # Used ONLY inside def(...)
     "constant": 19,
-    "module": 20,          # Unused with new rules
+    "module": 20,  # Unused with new rules
     "import_keyword": 21,
     "exception": 22,
     "operator": 23,
@@ -57,8 +58,11 @@ _STYLE_IDS = {
 
 _ID_TO_NAME = {v: k for k, v in _STYLE_IDS.items()}
 
-_ESCAPE_RE = re.compile(r"""\\(x[\da-fA-F]{1,2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}
-                        |N\{\w+\}|[0-7]{1,3}|.)""", re.VERBOSE)
+_ESCAPE_RE = re.compile(
+    r"""\\(x[\da-fA-F]{1,2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}
+                        |N\{\w+\}|[0-7]{1,3}|.)""",
+    re.VERBOSE,
+)
 _COMMENT_TODO_RE = re.compile(r"\b(TODO|FIXME|XXX|HACK|NOTE|BUG|OPTIMIZE)\b")
 _DUNDER_RE = re.compile(r"__\w+__")
 _CAPITAL_WORD_RE = re.compile(r"\b[A-Z][A-Z0-9_]*\b")
@@ -66,7 +70,8 @@ _CAPITAL_WORD_RE = re.compile(r"\b[A-Z][A-Z0-9_]*\b")
 _ML_DQUOTE_END_RE = re.compile(r'(?<!\\)(?:\\\\)*"""')
 _ML_SQUOTE_END_RE = re.compile(r"(?<!\\)(?:\\\\)*'''")
 
-_TOKEN_RE = re.compile(r"""
+_TOKEN_RE = re.compile(
+    r"""
     (?P<decorator> @ [^\W\d] \w* (?: \. [^\W\d] \w* )* )
     |(?P<ml_dq_start> [uUbBfFrR]* \"\"\" )
     |(?P<ml_sq_start> [uUbBfFrR]* ''' )
@@ -91,14 +96,17 @@ _TOKEN_RE = re.compile(r"""
     |(?P<punctuation> [;,.:()\[\]{}] )
     |(?P<ws> [ \t\r\n]+ )
     |(?P<other> . )
-""", re.VERBOSE)
+""",
+    re.VERBOSE,
+)
+
 
 class DreamPythonHighlighter(QsciLexerCustom):
     def __init__(self, parent, json_data: Optional[dict] = None) -> None:
         super().__init__(parent)
         self.json_data = json_data or self._load_defaults()
         self._editor = parent
-        
+
         self._default_font = QFont("JetBrains Mono", 11)
         self.setDefaultFont(self._default_font)
         self.setDefaultPaper(QColor("#1E1E1E"))
@@ -117,14 +125,25 @@ class DreamPythonHighlighter(QsciLexerCustom):
             with open(_HIGHLIGHTS_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            logger.warning("Failed to load %s, using fallback defaults", _HIGHLIGHTS_PATH)
-            return {"styles": {"default": "#D4D4D4"}, "keyword_map": {}, 
-                "builtins": [], "builtin_types": [], "exceptions": []}
+            logger.warning(
+                "Failed to load %s, using fallback defaults", _HIGHLIGHTS_PATH
+            )
+            return {
+                "styles": {"default": "#D4D4D4"},
+                "keyword_map": {},
+                "builtins": [],
+                "builtin_types": [],
+                "exceptions": [],
+            }
 
     def _init_styles(self) -> None:
         colors = self._style_colors
         for style_name, style_id in _STYLE_IDS.items():
-            fallback = colors.get("string_doc", "#6A9955") if style_name == "string_doc_sq" else "#D4D4D4"
+            fallback = (
+                colors.get("string_doc", "#6A9955")
+                if style_name == "string_doc_sq"
+                else "#D4D4D4"
+            )
             hex_color = colors.get(style_name, fallback)
             self.setColor(QColor(hex_color), style_id)
             self.setPaper(QColor("#1E1E1E"), style_id)
@@ -138,7 +157,9 @@ class DreamPythonHighlighter(QsciLexerCustom):
 
     def _style_with_escapes(self, editor, raw: str, base_style: int) -> None:
         if "\\" not in raw:
-            editor.SendScintilla(editor.SCI_SETSTYLING, len(raw.encode("utf-8")), base_style)
+            editor.SendScintilla(
+                editor.SCI_SETSTYLING, len(raw.encode("utf-8")), base_style
+            )
             return
 
         pos = 0
@@ -146,15 +167,21 @@ class DreamPythonHighlighter(QsciLexerCustom):
             start = m.start()
             if start > pos:
                 chunk = raw[pos:start]
-                editor.SendScintilla(editor.SCI_SETSTYLING, len(chunk.encode("utf-8")), base_style)
+                editor.SendScintilla(
+                    editor.SCI_SETSTYLING, len(chunk.encode("utf-8")), base_style
+                )
 
             esc = m.group()
-            editor.SendScintilla(editor.SCI_SETSTYLING, len(esc.encode("utf-8")), _STYLE_IDS["escape"])
+            editor.SendScintilla(
+                editor.SCI_SETSTYLING, len(esc.encode("utf-8")), _STYLE_IDS["escape"]
+            )
             pos = m.end()
 
         if pos < len(raw):
             chunk = raw[pos:]
-            editor.SendScintilla(editor.SCI_SETSTYLING, len(chunk.encode("utf-8")), base_style)
+            editor.SendScintilla(
+                editor.SCI_SETSTYLING, len(chunk.encode("utf-8")), base_style
+            )
 
     def styleText(self, start: int, end: int) -> None:
         editor = self.editor()
@@ -164,7 +191,9 @@ class DreamPythonHighlighter(QsciLexerCustom):
         line_start = editor.SendScintilla(editor.SCI_LINEFROMPOSITION, start)
         current_state = _STATE_NORMAL
         if line_start > 0:
-            current_state = editor.SendScintilla(editor.SCI_GETLINESTATE, line_start - 1)
+            current_state = editor.SendScintilla(
+                editor.SCI_GETLINESTATE, line_start - 1
+            )
 
         full_bytes = editor.text().encode("utf-8")
         text_bytes = full_bytes[start:end]
@@ -176,18 +205,27 @@ class DreamPythonHighlighter(QsciLexerCustom):
         text_len = len(text_str)
         current_line = line_start
 
-        def advance_and_style(chunk: str, style: int, state_during_chunk: int, 
-            state_after_chunk: int) -> int:
+        def advance_and_style(
+            chunk: str, style: int, state_during_chunk: int, state_after_chunk: int
+        ) -> int:
             nonlocal pos, current_line
-            if style in (_STYLE_IDS["string"], _STYLE_IDS["string_fstring"], 
-                _STYLE_IDS["string_doc"], _STYLE_IDS["string_doc_sq"]):
+            if style in (
+                _STYLE_IDS["string"],
+                _STYLE_IDS["string_fstring"],
+                _STYLE_IDS["string_doc"],
+                _STYLE_IDS["string_doc_sq"],
+            ):
                 self._style_with_escapes(editor, chunk, style)
             else:
-                editor.SendScintilla(editor.SCI_SETSTYLING, len(chunk.encode("utf-8")), style)
+                editor.SendScintilla(
+                    editor.SCI_SETSTYLING, len(chunk.encode("utf-8")), style
+                )
 
             newlines = chunk.count("\n")
             for _ in range(newlines):
-                editor.SendScintilla(editor.SCI_SETLINESTATE, current_line, state_during_chunk)
+                editor.SendScintilla(
+                    editor.SCI_SETLINESTATE, current_line, state_during_chunk
+                )
                 current_line += 1
             pos += len(chunk)
             return state_after_chunk
@@ -202,51 +240,84 @@ class DreamPythonHighlighter(QsciLexerCustom):
             if current_state == _STATE_ML_DQUOTE:
                 match = _ML_DQUOTE_END_RE.search(text_str, pos)
                 if not match:
-                    current_state = advance_and_style(text_str[pos:], _STYLE_IDS["string_doc"], 
-                        _STATE_ML_DQUOTE, _STATE_ML_DQUOTE)
+                    current_state = advance_and_style(
+                        text_str[pos:],
+                        _STYLE_IDS["string_doc"],
+                        _STATE_ML_DQUOTE,
+                        _STATE_ML_DQUOTE,
+                    )
                     break
                 else:
-                    current_state = advance_and_style(text_str[pos:match.end()], _STYLE_IDS["string_doc"],
-                        _STATE_ML_DQUOTE, _STATE_NORMAL)
+                    current_state = advance_and_style(
+                        text_str[pos : match.end()],
+                        _STYLE_IDS["string_doc"],
+                        _STATE_ML_DQUOTE,
+                        _STATE_NORMAL,
+                    )
 
             elif current_state == _STATE_ML_SQUOTE:
                 match = _ML_SQUOTE_END_RE.search(text_str, pos)
                 if not match:
-                    current_state = advance_and_style(text_str[pos:], _STYLE_IDS["string_doc_sq"], 
-                        _STATE_ML_SQUOTE, _STATE_ML_SQUOTE)
+                    current_state = advance_and_style(
+                        text_str[pos:],
+                        _STYLE_IDS["string_doc_sq"],
+                        _STATE_ML_SQUOTE,
+                        _STATE_ML_SQUOTE,
+                    )
                     break
                 else:
-                    current_state = advance_and_style(text_str[pos:match.end()], 
-                        _STYLE_IDS["string_doc_sq"], _STATE_ML_SQUOTE, _STATE_NORMAL)
+                    current_state = advance_and_style(
+                        text_str[pos : match.end()],
+                        _STYLE_IDS["string_doc_sq"],
+                        _STATE_ML_SQUOTE,
+                        _STATE_NORMAL,
+                    )
 
             else:
                 match = _TOKEN_RE.search(text_str, pos)
                 if not match:
-                    current_state = advance_and_style(text_str[pos:], _STYLE_IDS["default"], 
-                        _STATE_NORMAL, _STATE_NORMAL)
+                    current_state = advance_and_style(
+                        text_str[pos:],
+                        _STYLE_IDS["default"],
+                        _STATE_NORMAL,
+                        _STATE_NORMAL,
+                    )
                     break
 
                 if match.start() > pos:
-                    current_state = advance_and_style(text_str[pos:match.start()], 
-                        _STYLE_IDS["default"], _STATE_NORMAL, _STATE_NORMAL)
+                    current_state = advance_and_style(
+                        text_str[pos : match.start()],
+                        _STYLE_IDS["default"],
+                        _STATE_NORMAL,
+                        _STATE_NORMAL,
+                    )
 
                 raw = match.group(0)
 
                 if match.group("ml_dq_start"):
-                    current_state = advance_and_style(raw, _STYLE_IDS["string_doc"], 
-                        _STATE_ML_DQUOTE, _STATE_ML_DQUOTE)
+                    current_state = advance_and_style(
+                        raw,
+                        _STYLE_IDS["string_doc"],
+                        _STATE_ML_DQUOTE,
+                        _STATE_ML_DQUOTE,
+                    )
                     continue
                 elif match.group("ml_sq_start"):
-                    current_state = advance_and_style(raw, _STYLE_IDS["string_doc_sq"], 
-                        _STATE_ML_SQUOTE, _STATE_ML_SQUOTE)
+                    current_state = advance_and_style(
+                        raw,
+                        _STYLE_IDS["string_doc_sq"],
+                        _STATE_ML_SQUOTE,
+                        _STATE_ML_SQUOTE,
+                    )
                     continue
 
                 style_id = _STYLE_IDS["default"]
 
                 if match.group("comment"):
                     if _COMMENT_TODO_RE.search(raw):
-                        style_id = _STYLE_IDS["comment_doc"] 
-                    else: style_id = _STYLE_IDS["comment"]
+                        style_id = _STYLE_IDS["comment_doc"]
+                    else:
+                        style_id = _STYLE_IDS["comment"]
                 elif match.group("fstring"):
                     style_id = _STYLE_IDS["string_fstring"]
                 elif match.group("string"):
@@ -259,8 +330,9 @@ class DreamPythonHighlighter(QsciLexerCustom):
                     style_id = _STYLE_IDS["number"]
                 elif match.group("operator"):
                     style_id = _STYLE_IDS["operator"]
-                    if raw == "->": expect_annotation = True
-                
+                    if raw == "->":
+                        expect_annotation = True
+
                 elif match.group("punctuation"):
                     style_id = _STYLE_IDS["punctuation"]
                     if raw == ":":
@@ -286,7 +358,9 @@ class DreamPythonHighlighter(QsciLexerCustom):
                     if word in ("self", "cls"):
                         style_id = _STYLE_IDS["self"]
                     elif word in self._keyword_map:
-                        style_id = _STYLE_IDS.get(self._keyword_map[word], _STYLE_IDS["keyword"])
+                        style_id = _STYLE_IDS.get(
+                            self._keyword_map[word], _STYLE_IDS["keyword"]
+                        )
                         if word in ("def", "class"):
                             last_keyword = word
                     elif word in self._builtin_types:
@@ -312,7 +386,9 @@ class DreamPythonHighlighter(QsciLexerCustom):
                             # Rule 1: Everything else remains uncolored (default)
                             style_id = _STYLE_IDS["default"]
 
-                current_state = advance_and_style(raw, style_id, _STATE_NORMAL, _STATE_NORMAL)
+                current_state = advance_and_style(
+                    raw, style_id, _STATE_NORMAL, _STATE_NORMAL
+                )
 
         editor.SendScintilla(editor.SCI_SETLINESTATE, current_line, current_state)
 
@@ -329,9 +405,24 @@ class DreamPythonHighlighter(QsciLexerCustom):
             if stripped and not stripped.startswith(("#", '"""', "'''")):
                 is_header = any(
                     stripped.startswith(kw)
-                    for kw in ("def ", "class ", "if ", "elif ", "else:", "for ",
-                        "while ", "try:", "except ", "finally:", "with ", "async def ",
-                        "async for ", "async with ", "@"))
+                    for kw in (
+                        "def ",
+                        "class ",
+                        "if ",
+                        "elif ",
+                        "else:",
+                        "for ",
+                        "while ",
+                        "try:",
+                        "except ",
+                        "finally:",
+                        "with ",
+                        "async def ",
+                        "async for ",
+                        "async with ",
+                        "@",
+                    )
+                )
 
             level = indent_level + 0x400
             if is_header:

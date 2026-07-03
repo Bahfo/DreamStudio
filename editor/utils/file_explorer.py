@@ -214,6 +214,16 @@ class DreamFileTreeWindow(QFrame):
         QPushButton:disabled {
             color: #555555;
         }
+        QToolTip {
+            background-color: #25272B;
+            color: #FFFFFF;
+            border: 1px solid #3F4145;
+            border-radius: 8px;
+            padding: 8px 8px;
+            font-family: 'inter', sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+        }
         """
         icon_size = QSize(16, 16)
         btn_size = QSize(26, 26)
@@ -382,6 +392,16 @@ class DreamFileTreeWindow(QFrame):
             QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
                 background: none;
                 border: none;
+            }
+            QToolTip {
+                background-color: #25272B;
+                color: #FFFFFF;
+                border: 1px solid #3F4145;
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
             }"""
         )
 
@@ -872,6 +892,16 @@ class DreamFileTreeWindow(QFrame):
                 background: none;
                 border: none;
             }}
+            QToolTip {{
+                background-color: {t.color("tooltip.background", "#25272B")};
+                color: {t.color("tooltip.text", "#FFFFFF")};
+                border: 1px solid {t.color("widget.border", "#3F4145")};
+                border-radius: 8px;
+                padding: 8px 8px;
+                font-family: 'inter', sans-serif;
+                font-size: 12px;
+                line-height: 1.5;
+            }}
         """
         )
         self.search_label.setStyleSheet(
@@ -911,6 +941,16 @@ class DreamFileTreeWindow(QFrame):
         }}
         QPushButton:disabled {{
             color: {t.color("scrollbar.bg")};
+        }}
+        QToolTip {{
+            background-color: {t.color("tooltip.background", "#25272B")};
+            color: {t.color("tooltip.text", "#FFFFFF")};
+            border: 1px solid {t.color("widget.border", "#3F4145")};
+            border-radius: 8px;
+            padding: 8px 8px;
+            font-family: 'inter', sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
         }}
         """
         for btn in self.findChildren(QPushButton):

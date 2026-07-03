@@ -1,3 +1,8 @@
+"""
+(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
+Background module to control GIT actions for DreamStudio.
+"""
+
 import os
 from git import Repo
 

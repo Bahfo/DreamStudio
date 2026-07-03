@@ -1378,6 +1378,10 @@ class CommandLine(cmd.Cmd):
                         if addr.netmask:
                             lines.append(f"  Netmask: {addr.netmask}")
 
-            return "\n".join(lines) if len(lines) > 1 else "Error 72: No network interfaces found."
+            return (
+                "\n".join(lines)
+                if len(lines) > 1
+                else "Error 72: No network interfaces found."
+            )
         except Exception as e:
             return f"Error 73: Failed to retrieve network information: {e}"

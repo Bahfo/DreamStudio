@@ -1,12 +1,12 @@
 """
 ToolsManager - Central panel for managing and launching IDE tools.
 """
+
 import logging
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QTabWidget, QVBoxLayout, QFrame
 from editor.utils.tools.todo_search import TODOSearch
 from editor.utils.tools.system_monitor import SystemMonitor
-from editor.utils.tools.dev_containers import DevContainers
 from editor.widgets.QDreamTabEditor import DreamStudioIDETabBar
 
 logger = logging.getLogger(__name__)
@@ -31,18 +31,19 @@ class ToolsManager(QFrame):
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.setDocumentMode(True)
         self.tab_widget.tabCloseRequested.connect(self._on_tab_close)
-        self.tab_widget.setStyleSheet("""
+        self.tab_widget.setStyleSheet(
+            """
             QTabWidget::pane {
                 border: none;
                 background-color: transparent;
             }
-        """)
+        """
+        )
         layout.addWidget(self.tab_widget)
 
         self._tool_factories: dict[str, type] = {
             "todo": TODOSearch,
             "system_monitor": SystemMonitor,
-            "dev_containers": DevContainers,
         }
         self._open_tabs: dict[str, tuple[int, object]] = {}
         self._theme = None
