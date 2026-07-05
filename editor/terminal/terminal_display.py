@@ -149,6 +149,7 @@ class TerminalDisplay(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StaticContents, True)
 
         self._bg = QColor("#1e1e1e")
         self._fg = QColor("#d4d4d4")
@@ -181,6 +182,7 @@ class TerminalDisplay(QWidget):
         self._resize_timer.timeout.connect(self._apply_resize)
         self._pending_cols = 0
         self._pending_rows = 0
+        self._resizing = False
 
         self._sel_active = False
         self._sel_start: tuple[int, int] | None = None
@@ -198,7 +200,8 @@ class TerminalDisplay(QWidget):
 
     def _on_cursor_timer(self):
         self._cursor_on = not self._cursor_on
-        if self.isVisible() and self.hasFocus() and self._scroll_offset == 0:
+        if (self.isVisible() and self.hasFocus()
+                and self._scroll_offset == 0 and self._cw > 0 and self._ch > 0):
             cx = self._screen.cursor.x * self._cw
             cy = self._screen.cursor.y * self._ch
             self.update(cx, cy, self._cw, self._ch)
@@ -317,23 +320,36 @@ class TerminalDisplay(QWidget):
                 self._resize_timer.start(50)
 
     def _apply_resize(self):
+        if not self.isVisible():
+            return
         cols = self._pending_cols
         rows = self._pending_rows
+        if cols < 1 or rows < 1:
+            return
         if cols == self._columns and rows == self._rows:
             return
-        self._columns = cols
-        self._rows = rows
-        self._screen.resize(rows, cols)
-        self._scroll_offset = 0
-        self._cache_valid = False
-        self.resized.emit(rows, cols)
-        if self._emulator is not None:
-            self._emulator.resize(rows, cols)
+        self._resizing = True
+        try:
+            self._columns = cols
+            self._rows = rows
+            self._screen.resize(rows, cols)
+            self._scroll_offset = 0
+            self._cache_valid = False
+            self.resized.emit(rows, cols)
+            if self._emulator is not None:
+                self._emulator.resize(rows, cols)
+        finally:
+            self._resizing = False
         self.update()
         self.history_changed.emit(0, self._count_history_lines())
 
     def feed(self, text: str) -> None:
-        self._stream.feed(text)
+        if self._resizing or not self.isVisible():
+            return
+        try:
+            self._stream.feed(text)
+        except Exception:
+            return
         self._scroll_offset = 0
         self._cache_valid = False
         self.update()
@@ -408,6 +424,8 @@ class TerminalDisplay(QWidget):
         return qfg, qbg, bold, italics, underscore, blink
 
     def paintEvent(self, event):
+        if self._cw < 1 or self._ch < 1:
+            return
         painter = QPainter(self)
         painter.setFont(self._font)
         default_fm = QFontMetrics(self._font)
@@ -418,6 +436,10 @@ class TerminalDisplay(QWidget):
         painter.fillRect(0, 0, w, h, self._bg)
 
         visible = self._get_visible_lines()
+        if not visible:
+            painter.end()
+            return
+
         cell_h = self._ch
         cell_w = self._cw
         visible_rows = min(len(visible), h // cell_h)
@@ -489,14 +511,16 @@ class TerminalDisplay(QWidget):
         if self._cursor_on and self.hasFocus() and self._scroll_offset == 0:
             cx = self._screen.cursor.x * cell_w
             cy = self._screen.cursor.y * cell_h
-            if cy < visible_rows * cell_h:
+            if cy < visible_rows * cell_h and cx < w - cell_w:
                 painter.fillRect(cx, cy, cell_w, cell_h, self._fg)
                 d = self._screen.display
                 ch = " "
-                if self._screen.cursor.y < len(d) and self._screen.cursor.x < len(
-                    d[self._screen.cursor.y]
-                ):
-                    ch = d[self._screen.cursor.y][self._screen.cursor.x]
+                try:
+                    if (self._screen.cursor.y < len(d)
+                            and self._screen.cursor.x < len(d[self._screen.cursor.y])):
+                        ch = d[self._screen.cursor.y][self._screen.cursor.x]
+                except (IndexError, TypeError):
+                    pass
                 painter.setPen(QPen(self._bg))
                 painter.drawText(cx, cy + default_baseline, ch)
 
@@ -581,7 +605,8 @@ class TerminalDisplay(QWidget):
         elif delta < 0:
             self._scroll_offset = max(self._scroll_offset - 3, 0)
         self._cache_valid = False
-        self.update()
+        if self._cw > 0 and self._ch > 0:
+            self.update()
         self.history_changed.emit(self._scroll_offset, hist_lines)
 
     def set_theme(self, bg: str, fg: str, sel_bg: str) -> None:

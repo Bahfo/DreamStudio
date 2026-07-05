@@ -318,37 +318,57 @@ class ShellEmulator(QObject):
                 pass
 
     def resize(self, rows: int, cols: int) -> None:
-        if self._pty is not None:
+        if self._pty is not None and self._running:
             try:
                 self._pty.setwinsize(rows, cols)
-            except OSError:
+            except (OSError, ValueError):
                 pass
 
     def stop(self) -> None:
         """Graceful stop: close fd, send SIGTERM, do not block."""
         self._running = False
-        if self._reader:
+        if self._reader is not None:
             self._reader.stop()
         if self._pty is not None:
-            self._pty.close()
-            self._pty.killpg(signal.SIGTERM)
+            try:
+                self._pty.close()
+            except Exception:
+                pass
+            try:
+                self._pty.killpg(signal.SIGTERM)
+            except Exception:
+                pass
 
     def kill(self) -> None:
         """Brutal kill: close fd first to unblock reader, then SIGKILL."""
         self._running = False
-        if self._reader:
+        if self._reader is not None:
             self._reader.stop()
         if self._pty is not None:
-            self._pty.close()
-            self._pty.killpg(signal.SIGKILL)
+            try:
+                self._pty.close()
+            except Exception:
+                pass
+            try:
+                self._pty.killpg(signal.SIGKILL)
+            except Exception:
+                pass
 
     def _on_reader_finished(self) -> None:
         self._running = False
-        rc = self._pty.poll() if self._pty is not None else None
+        rc = None
+        if self._pty is not None:
+            try:
+                rc = self._pty.poll()
+            except Exception:
+                pass
         self.process_finished.emit(rc if rc is not None else -1)
         if self._reader is not None:
-            self._reader._poll_timer.stop()
-            self._reader.deleteLater()
+            try:
+                self._reader._poll_timer.stop()
+                self._reader.deleteLater()
+            except Exception:
+                pass
             self._reader = None
 
     def is_running(self) -> bool:
