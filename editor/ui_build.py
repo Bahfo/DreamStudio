@@ -215,6 +215,8 @@ class DreamStudio(QMainWindow):
         self.title_bar.retheme(t)
 
         self.minimap.retheme(t)
+        editor_bg = t.color("editor.background", "#171717")
+        self.minimap_wrapper.setStyleSheet(f"background-color: {editor_bg}; border: none;")
         self.tools_manager.retheme_tools(t)
 
         for w in (self.search_menu, self.git_menu, self.extns_menu, self.infoBtn):
@@ -349,7 +351,7 @@ class DreamStudio(QMainWindow):
         self._build_leftmost_buttons()
 
         self.sidebar_frame = QStackedWidget()
-        self.sidebar_frame.setStyleSheet("background-color: #171717; border: none;")
+        self.sidebar_frame.setStyleSheet("background-color: #1E1E1E; border: none;")
         self.sidebar_frame.setMinimumWidth(150)
 
         self.treeview = DreamFileTreeWindow(self)
@@ -460,7 +462,8 @@ class DreamStudio(QMainWindow):
         self.minimap = MiniMap(self)
         self.minimap_wrapper = QWidget()
         self.minimap_wrapper.setMinimumWidth(100)
-        self.minimap_wrapper.setMaximumWidth(120)
+        self.minimap_wrapper.setMaximumWidth(100)
+        self.minimap_wrapper.setStyleSheet("background-color: #171717; border: none;")
         wrapper_layout = QVBoxLayout(self.minimap_wrapper)
         wrapper_layout.setContentsMargins(0, 0, 0, 0)
         wrapper_layout.addWidget(self.minimap)
@@ -510,6 +513,7 @@ class DreamStudio(QMainWindow):
         self.workspace_splitter.setSizes(
             [450, self.workspace_splitter.width() - 450, 0]
         )
+        self.tools_manager.hide()
 
         self.hero_splitter.addWidget(self.workspace_splitter)
 
@@ -669,6 +673,20 @@ class DreamStudio(QMainWindow):
             QMenu::separator {{ height: 1px; 
                 background: {t.color("menu.separator")}; margin: 6px 10px; }}
             QMenu::right-arrow {{ image: none; }}
+            QMenu::indicator {{
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                margin-right: 4px;
+                border-radius: 4px;
+                border: 1px solid {t.color("menu.border")};
+                background-color: transparent;
+            }}
+            QMenu::indicator:checked {{
+                background-color: {t.color("menu.selected")};
+                border: 1px solid {t.color("menu.selected")};
+                image: url(assets/menus/check.png);
+            }}
         """
 
     def _menu_theme_css(self) -> str:
@@ -681,6 +699,20 @@ class DreamStudio(QMainWindow):
             }}
             QMenu::item {{ padding: 8px 28px 8px 18px; }}
             QMenu::item:selected {{ background-color: {t.color("menu.selected")}; }}
+            QMenu::indicator {{
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                margin-right: 4px;
+                border-radius: 4px;
+                border: 1px solid {t.color("menu.border")};
+                background-color: transparent;
+            }}
+            QMenu::indicator:checked {{
+                background-color: {t.color("menu.selected")};
+                border: 1px solid {t.color("menu.selected")};
+                image: url(assets/menus/check.png);
+            }}
         """
 
     def _build_theme_submenu(self) -> QMenu:
@@ -769,6 +801,8 @@ class DreamStudio(QMainWindow):
 
     def open_tools_panel(self, tool_name: str) -> None:
         """Opens the tools panel and switches to the requested tool."""
+        self.tools_manager.show()
+        self.tools_manager.setMaximumWidth(500)
         self.tools_manager._on_click_open(tool_name)
         sizes = self.workspace_splitter.sizes()
         if sizes[2] == 0:
@@ -779,6 +813,7 @@ class DreamStudio(QMainWindow):
         sizes = self.workspace_splitter.sizes()
         if sizes[2] > 0:
             self.workspace_splitter.setSizes([sizes[0], sizes[1] + sizes[2], 0])
+        self.tools_manager.hide()
 
     def ui_build_add_new_editor(self):
         """A higher heirarchy call for adding a new editor tab instead

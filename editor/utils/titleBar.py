@@ -102,6 +102,20 @@ class DreamStudioTitleBar(QWidget):
             height: 1px;
             background-color: #3F4145;
             margin: 4px 0px;
+        }
+        QMenu::indicator {
+            width: 18px;
+            height: 18px;
+            margin-left: 6px;
+            margin-right: 4px;
+            border-radius: 4px;
+            border: 1px solid #3F4145;
+            background-color: transparent;
+        }
+        QMenu::indicator:checked {
+            background-color: #2E436E;
+            border: 1px solid #2E436E;
+            image: url(assets/menus/check.png);
         }"""
         )
 
@@ -928,7 +942,22 @@ class DreamStudioTitleBar(QWidget):
 
             QMenu::separator {{height: 1px; 
                 background-color: {t.color("menu.separator")}; 
-                margin: 4px 0px;}}"""
+                margin: 4px 0px;}}
+
+            QMenu::indicator {{
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                margin-right: 4px;
+                border-radius: 4px;
+                border: 1px solid {t.color("menu.border")};
+                background-color: transparent;
+            }}
+            QMenu::indicator:checked {{
+                background-color: {t.color("menu.selected")};
+                border: 1px solid {t.color("menu.selected")};
+                image: url(assets/menus/check.png);
+            }}"""
         )
 
         self.studioSearch.setStyleSheet(

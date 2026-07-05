@@ -490,7 +490,7 @@ class QDiffControl(QFrame):
         new_sb.valueChanged.connect(sync_new_to_old)
 
     def retheme(self, t):
-        bg = t.color("sidebar.background", "#171717")
+        bg = t.color("sidebar.background", "#1E1E1E")
         self.setStyleSheet(f"background-color: {bg}; border: none;")
 
         self.old_editor.retheme(t)

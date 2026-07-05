@@ -44,7 +44,7 @@ class MiniMap(QsciScintilla):
 
         self.setUtf8(True)
         self.setReadOnly(True)
-        self.setPaper(QColor("#1E1E1E"))
+        self.setPaper(QColor("#171717"))
         self.setColor(QColor("#D4D4D4"))
 
         self.setCaretWidth(0)

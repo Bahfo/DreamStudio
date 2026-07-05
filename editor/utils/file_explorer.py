@@ -723,6 +723,20 @@ class DreamFileTreeWindow(QFrame):
             background-color: {self._menu_sep};
             margin: 4px 0px;
         }}
+        QMenu::indicator {{
+            width: 18px;
+            height: 18px;
+            margin-left: 6px;
+            margin-right: 4px;
+            border-radius: 4px;
+            border: 1px solid {self._menu_border};
+            background-color: transparent;
+        }}
+        QMenu::indicator:checked {{
+            background-color: {self._menu_sel_bg};
+            border: 1px solid {self._menu_sel_bg};
+            image: url(assets/menus/check.png);
+        }}
         """
 
     def _show_toolbox_menu(self) -> None:

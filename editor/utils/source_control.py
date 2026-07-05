@@ -1226,7 +1226,7 @@ class SourceControl(QFrame):
         self._disable_editor_shortcuts(False)
 
     def retheme(self, t):
-        bg = t.color("sidebar.background", "#171717")
+        bg = t.color("sidebar.background", "#1E1E1E")
         txt = t.color("sidebar.text", "#afb1b3")
         hl = t.color("treeview.highlight", "#2d476d")
         hover = t.color("treeview.hover", "#323232")
@@ -1448,7 +1448,7 @@ class SourceControl(QFrame):
         )
 
         if hasattr(self, "splitter"):
-            splitter_bg = t.color("sidebar.background", "#171717")
+            splitter_bg = t.color("sidebar.background", "#1E1E1E")
             handle = t.color("splitter.handle", "#2a2a2a")
             self.splitter.setStyleSheet(
                 f"""

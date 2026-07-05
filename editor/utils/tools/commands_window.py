@@ -45,6 +45,20 @@ class CommandWindow(QMenu):
             QMenu::right-arrow {{
                 image: none;
             }}
+            QMenu::indicator {{
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                margin-right: 4px;
+                border-radius: 4px;
+                border: 1px solid {t.color("menu.border")};
+                background-color: transparent;
+            }}
+            QMenu::indicator:checked {{
+                background-color: {t.color("menu.selected")};
+                border: 1px solid {t.color("menu.selected")};
+                image: url(assets/menus/check.png);
+            }}
 
             QLineEdit {{
                 background-color: transparent;

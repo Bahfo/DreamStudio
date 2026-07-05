@@ -125,7 +125,7 @@ class CodeEditor(QsciScintilla):
             """
             QTabWidget::pane {
                 border: none;
-                background-color: #1E1E1E;
+                background-color: #171717;
             }
             QTabBar {
                 border: none;
@@ -1654,12 +1654,12 @@ class CodeEditor(QsciScintilla):
             margin_fg = t.color("editor.margin_fg")
             edge_color = t.color("editor.edge", "#444444")
         else:
-            bg = "#1E1E1E"
+            bg = "#171717"
             fg = "#D4D4D4"
             sel_bg = "#264F78"
             sel_fg = "#FFFFFF"
             caret = "#FFFFFF"
-            margin_bg = "#1E1E1E"
+            margin_bg = "#171717"
             margin_fg = "#D4D4D4"
             edge_color = "#444444"
 
@@ -1719,7 +1719,7 @@ class CodeEditor(QsciScintilla):
                 QsciScintilla.SCI_SETWHITESPACEFORE, True, QColor("#3C3C3C")
             )
             self.SendScintilla(
-                QsciScintilla.SCI_SETWHITESPACEBACK, True, QColor("#1E1E1E")
+                QsciScintilla.SCI_SETWHITESPACEBACK, True, QColor("#171717")
             )
 
             self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, solid_edge_qcolor)
@@ -1741,7 +1741,7 @@ class CodeEditor(QsciScintilla):
             self._lexer.apply_syntax_theme(t)
         else:
             fg = t.color("editor.text", "#D4D4D4")
-            bg = t.color("editor.background", "#1E1E1E")
+            bg = t.color("editor.background", "#171717")
             self._lexer.setDefaultColor(QColor(fg))
             for style in range(128):
                 self._lexer.setPaper(QColor(bg), style)

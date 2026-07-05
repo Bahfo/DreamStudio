@@ -102,6 +102,20 @@ class CardButton(QWidget):
             QMenu::item:selected {
                 background-color: #007acc;
                 color: white;}
+            QMenu::indicator {
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                margin-right: 4px;
+                border-radius: 4px;
+                border: 1px solid #454545;
+                background-color: transparent;
+            }
+            QMenu::indicator:checked {
+                background-color: #007acc;
+                border: 1px solid #007acc;
+                image: url(assets/menus/check.png);
+            }
         """
         )
 
@@ -159,6 +173,20 @@ class CardButton(QWidget):
             QMenu::item:selected {{
                 background-color: {menu_sel};
                 color: white;}}
+            QMenu::indicator {{
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                margin-right: 4px;
+                border-radius: 4px;
+                border: 1px solid {menu_border};
+                background-color: transparent;
+            }}
+            QMenu::indicator:checked {{
+                background-color: {menu_sel};
+                border: 1px solid {menu_sel};
+                image: url(assets/menus/check.png);
+            }}
         """
         )
 

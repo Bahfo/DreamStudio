@@ -701,7 +701,7 @@ class BackgroundHintsFrame(QFrame):
     def __init__(self, _parent=None):
         super().__init__(_parent)
         self._parent = _parent
-        self.setStyleSheet("background-color: #1E1E1E; border: none;")
+        self.setStyleSheet("background-color: #171717; border: none;")
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -765,7 +765,7 @@ class BackgroundHintsFrame(QFrame):
         )
 
     def retheme(self, t) -> None:
-        bg = t.color("window.background")
+        bg = t.color("editor.background")
         self.setStyleSheet(f"background-color: {bg}; border: none;")
         self._center_widget.setStyleSheet(f"background-color: transparent;")
         self._grid_container.setStyleSheet(f"background-color: transparent;")

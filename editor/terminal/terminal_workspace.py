@@ -4,6 +4,7 @@ Terminal Emulator Logic for DreamStudio.
 """
 
 import os
+import sys
 import logging
 
 from PyQt6.QtWidgets import (
@@ -18,9 +19,10 @@ from PyQt6.QtWidgets import (
     QFrame,
     QSplitter,
     QScrollBar,
+    QMenu,
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
-from PyQt6.QtGui import QIcon, QColor
+from PyQt6.QtGui import QIcon, QColor, QPixmap, QAction, QCursor
 
 from editor.terminal.emulator import ShellEmulator
 from editor.terminal.terminal_display import TerminalDisplay
@@ -197,6 +199,58 @@ class _TerminalView(QWidget):
         )
 
 
+class _EmptyTerminalPlaceholder(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(10)
+
+        self._icon = QLabel()
+        self._icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pixmap = QPixmap("assets/system/sleeping.png")
+        if not pixmap.isNull():
+            self._icon.setPixmap(pixmap.scaled(
+                64, 64,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            ))
+        layout.addWidget(self._icon, 0, Qt.AlignmentFlag.AlignCenter)
+
+        self._title = QLabel("No Terminals Open")
+        self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._title.setStyleSheet(
+            "color: #cccccc; font-size: 14px; font-weight: bold; background: transparent;"
+        )
+        layout.addWidget(self._title, 0, Qt.AlignmentFlag.AlignCenter)
+
+        self._subtitle = QLabel(
+            "Click the (+) button to add a new system terminal,\n"
+            "or click the tools menu (...) to configure a terminal."
+        )
+        self._subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._subtitle.setWordWrap(True)
+        self._subtitle.setStyleSheet(
+            "color: #888888; font-size: 12px; background: transparent;"
+        )
+        layout.addWidget(self._subtitle, 0, Qt.AlignmentFlag.AlignCenter)
+
+    def retheme(self, bg: str, fg: str) -> None:
+        self.setStyleSheet(f"background: transparent;")
+        self._title.setStyleSheet(
+            f"color: {fg}; font-size: 14px; font-weight: bold; background: transparent;"
+        )
+        fg_q = QColor(fg)
+        muted = QColor(
+            min(255, fg_q.red() + (0 - fg_q.red()) // 2),
+            min(255, fg_q.green() + (0 - fg_q.green()) // 2),
+            min(255, fg_q.blue() + (0 - fg_q.blue()) // 2),
+        )
+        self._subtitle.setStyleSheet(
+            f"color: {muted.name()}; font-size: 12px; background: transparent;"
+        )
+
+
 class TerminalWorkspace(QWidget):
     close_requested = pyqtSignal()
 
@@ -208,6 +262,13 @@ class TerminalWorkspace(QWidget):
         self._theme_bg: str | None = None
         self._theme_fg: str | None = None
         self._theme_sel: str | None = None
+        self._menu_bg: str = "#1E1E1E"
+        self._menu_fg: str = "#cccccc"
+        self._menu_border: str = "#3F4145"
+        self._menu_sel_bg: str = "#2E436E"
+        self._menu_sel_fg: str = "#ffffff"
+        self._menu_disabled_fg: str = "#555555"
+        self._menu_sep: str = "#3F4145"
 
         self.setObjectName("terminalWorkspace")
         self.setStyleSheet(
@@ -236,6 +297,9 @@ class TerminalWorkspace(QWidget):
         )
 
         self._stack = QStackedWidget()
+        self._empty_placeholder = _EmptyTerminalPlaceholder()
+        self._stack.addWidget(self._empty_placeholder)
+        self._stack.setCurrentWidget(self._empty_placeholder)
         self._splitter.addWidget(self._stack)
 
         self._sidebar = self._build_sidebar()
@@ -302,7 +366,7 @@ class TerminalWorkspace(QWidget):
             }
         """
         )
-        self._sidebar_add_btn.clicked.connect(self._on_add_session)
+        self._sidebar_add_btn.clicked.connect(self._show_terminal_type_menu)
         header_layout.addWidget(self._sidebar_add_btn)
 
         layout.addWidget(header)
@@ -337,11 +401,86 @@ class TerminalWorkspace(QWidget):
 
         return widget
 
-    def _on_add_session(self, cwd: str | None = None) -> None:
+    def _build_menu_style(self) -> str:
+        return f"""
+        QMenu {{
+            background-color: {self._menu_bg};
+            color: {self._menu_fg};
+            border: 1px solid {self._menu_border};
+            border-radius: 0px;
+            padding: 4px 0px;
+            font-family: 'inter', Arial;
+            font-size: 13px;
+        }}
+        QMenu::item {{
+            padding: 6px 24px 6px 32px;
+            background-color: transparent;
+        }}
+        QMenu::item:selected {{
+            background-color: {self._menu_sel_bg};
+            color: {self._menu_sel_fg};
+        }}
+        QMenu::item:disabled {{
+            color: {self._menu_disabled_fg};
+        }}
+        QMenu::separator {{
+            height: 1px;
+            background-color: {self._menu_sep};
+            margin: 4px 0px;
+        }}
+        QMenu::indicator {{
+            width: 18px;
+            height: 18px;
+            margin-left: 6px;
+            margin-right: 4px;
+            border-radius: 4px;
+            border: 1px solid {self._menu_border};
+            background-color: transparent;
+        }}
+        QMenu::indicator:checked {{
+            background-color: {self._menu_sel_bg};
+            border: 1px solid {self._menu_sel_bg};
+            image: url(assets/menus/check.png);
+        }}
+        """
+
+    def _show_terminal_type_menu(self) -> None:
+        menu = QMenu(self)
+        menu.setStyleSheet(self._build_menu_style())
+
+        is_windows = sys.platform == "win32"
+        primary_label = "PowerShell" if is_windows else "Bash"
+        primary_shell = "powershell.exe" if is_windows else os.environ.get("SHELL", "/bin/bash")
+
+        primary_act = QAction(primary_label, menu)
+        primary_act.triggered.connect(
+            lambda checked, shell=primary_shell: self._on_add_session(shell=shell)
+        )
+        menu.addAction(primary_act)
+
+        menu.addSeparator()
+
+        placeholder_types = [
+            "Zsh",
+            "Fish",
+            "cmd (Command Prompt)",
+            "SSH Session",
+            "Docker Container",
+            "WSL",
+        ]
+        for label in placeholder_types:
+            act = QAction(label, menu)
+            act.setEnabled(False)
+            menu.addAction(act)
+
+        menu.exec(QCursor.pos())
+
+    def _on_add_session(self, cwd: str | None = None, shell: str | None = None) -> None:
         self._id_counter += 1
         session_id = self._id_counter
 
-        shell = os.environ.get("SHELL", "/bin/bash")
+        if shell is None:
+            shell = os.environ.get("SHELL", "/bin/bash")
         shell_name = os.path.basename(shell)
         display_name = f"{shell_name}"
 
@@ -359,6 +498,9 @@ class TerminalWorkspace(QWidget):
         emulator.start(cwd=cwd or os.getcwd())
 
         self._stack.addWidget(view)
+
+        if self._stack.currentWidget() is self._empty_placeholder:
+            self._stack.setCurrentWidget(view)
 
         item = QListWidgetItem()
         item.setData(Qt.ItemDataRole.UserRole, session_id)
@@ -433,6 +575,9 @@ class TerminalWorkspace(QWidget):
 
         emulator.kill()
 
+        if len(self._sessions) == 0:
+            self._stack.setCurrentWidget(self._empty_placeholder)
+
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self._theme_bg = bg
         self._theme_fg = fg
@@ -463,6 +608,14 @@ class TerminalWorkspace(QWidget):
             selected_bg = bg_q.lighter(115).name()
 
         title_fg = f"rgba({fg_q.red()}, {fg_q.green()}, {fg_q.blue()}, 0.6)"
+
+        self._menu_bg = sidebar_bg
+        self._menu_fg = fg
+        self._menu_border = border
+        self._menu_sel_bg = selected_bg
+        self._menu_sel_fg = "#ffffff" if bg_q.lightness() < 50 else "#000000"
+        self._menu_disabled_fg = f"rgba({fg_q.red()}, {fg_q.green()}, {fg_q.blue()}, 0.35)"
+        self._menu_sep = border
 
         self.setStyleSheet(
             f"""
@@ -534,6 +687,8 @@ class TerminalWorkspace(QWidget):
             }}
         """
         )
+
+        self._empty_placeholder.retheme(bg, fg)
 
     def active_session_id(self) -> int | None:
         return self._active_id

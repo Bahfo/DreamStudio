@@ -749,14 +749,14 @@ class GlobalFileSearchEngine(QFrame):
             self.result_label.setText("No replacements made.")
 
     def retheme(self, t) -> None:
-        bg = t.color("sidebar.background", "#171717")
+        bg = t.color("sidebar.background", "#1E1E1E")
         txt = t.color("sidebar.text", "#afb1b3")
         input_bg = t.color("input.background", "#3C3C3C")
         input_border = t.color("input.border", "#3C3C3C")
         focus_border = t.color("input.focus_border", "#007ACC")
         btn_hover = t.color("button.hover", "#333333")
         accent = t.color("widget.accent", "#007ACC")
-        tree_bg = t.color("treeview.background", "#171717")
+        tree_bg = t.color("treeview.background", "#1E1E1E")
         tree_txt = t.color("treeview.text", "#afb1b3")
         tree_hl = t.color("treeview.highlight", "#2d476d")
         tree_hover = t.color("treeview.hover", "#323232")
