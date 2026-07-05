@@ -53,3 +53,45 @@ class StatusBarAPI:
     def getWidget(self):
         """Get the raw status bar widget."""
         return self._bar()
+
+    def addButton(self, text: str, tooltip: str = "", callback=None):
+        """Add a button to the status bar.
+
+        Args:
+            text: The display text for the button.
+            tooltip: Optional tooltip text.
+            callback: Optional callable to invoke when the button is clicked.
+
+        Returns:
+            The created QPushButton, or None if unavailable.
+        """
+        bar = self._bar()
+        if bar is None:
+            return None
+        from PyQt6.QtCore import QSize
+        from PyQt6.QtWidgets import QPushButton
+
+        btn = QPushButton(text)
+        btn.setFixedSize(max(len(text) * 8, 60), 28)
+        btn.setToolTip(tooltip)
+        btn.setStyleSheet("""
+        QPushButton{
+            background-color: transparent;
+            font-size: 12px;
+            font-family: Arial;
+            border: none;
+            color: white;
+            border-radius: 0px;
+            padding-left: 5px;
+            padding-right: 10px;
+        }
+        QPushButton:hover{
+            background-color: #333;
+        }""")
+
+        if callback:
+            btn.clicked.connect(callback)
+
+        layout = bar.layout()
+        layout.addWidget(btn)
+        return btn

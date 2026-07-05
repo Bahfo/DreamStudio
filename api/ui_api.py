@@ -106,3 +106,53 @@ class UIAPI:
     def getWindow(self):
         """Get the raw QMainWindow instance."""
         return self._main
+
+    def addButtonToLeftmostBar(self, text: str = None, image: str = None,
+                               tooltip: str = "", callback=None):
+        """Add a button to the leftmost sidebar bar.
+
+        Args:
+            text: Optional text for the button (usually None for icon-only).
+            image: Path to the icon image file.
+            tooltip: Optional tooltip text.
+            callback: Optional callable to invoke when the button is clicked.
+
+        Returns:
+            The created QPushButton, or None if unavailable.
+        """
+        if not hasattr(self._main, "leftmost_bar"):
+            return None
+        from PyQt6.QtCore import QSize
+        from PyQt6.QtGui import QIcon
+        from PyQt6.QtWidgets import QPushButton
+
+        btn = QPushButton() if text is None else QPushButton(text)
+        btn.setFixedSize(QSize(40, 40))
+
+        if image:
+            btn.setIcon(QIcon(image))
+            btn.setIconSize(QSize(30, 30))
+
+        if tooltip:
+            btn.setToolTip(tooltip)
+
+        btn.setStyleSheet("""
+        QPushButton{
+            background-color: transparent;
+            border: none;
+            color: white;
+            border-radius: 10px;
+            padding-top:4px;
+            padding-left:2px;
+            padding-right:2px;
+        }
+        QPushButton:hover{background-color:#333}
+        """)
+
+        if callback:
+            btn.clicked.connect(callback)
+
+        layout = self._main.leftmost_bar.layout()
+        insert_pos = layout.count() - 1
+        layout.insertWidget(insert_pos, btn)
+        return btn

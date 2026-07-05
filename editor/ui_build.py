@@ -141,6 +141,16 @@ class DreamStudio(QMainWindow):
         self.replace_shortcut.activated.connect(self.toggle_find_replace)
         self.replace_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
 
+        self._load_extensions()
+
+    def _load_extensions(self):
+        from api import DreamStudioAPI
+        from extensions.extension_loader import ExtensionLoader
+
+        api = DreamStudioAPI(self)
+        self._extension_loader = ExtensionLoader(api)
+        self._extension_loader.load_all()
+
     def _on_theme_changed(self, theme_name: str):
         self._apply_theme_colors(self.theme_manager)
 

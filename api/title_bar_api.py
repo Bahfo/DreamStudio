@@ -135,3 +135,61 @@ class TitleBarAPI:
         bar = self._bar()
         if bar is not None:
             bar.set_tasks_todo()
+
+    def addMenu(self, title: str):
+        """Add a new top-level menu to the menubar.
+
+        Args:
+            title: The display name for the new menu.
+
+        Returns:
+            The created QMenu instance, or None if unavailable.
+        """
+        bar = self._bar()
+        if bar is None:
+            return None
+        from PyQt6.QtWidgets import QMenu
+
+        menu = bar.menubar.addMenu(title)
+        if menu is not None:
+            bar._menus[title] = menu
+        return menu
+
+    def addMenuItem(self, menu_title: str, text: str, callback=None):
+        """Add an action to an existing menu.
+
+        Args:
+            menu_title: The title of the menu to add the item to.
+            text: The display text for the menu item.
+            callback: Optional callable to invoke when the item is triggered.
+
+        Returns:
+            The created QAction, or None if the menu was not found.
+        """
+        bar = self._bar()
+        if bar is None:
+            return None
+        from PyQt6.QtGui import QAction
+
+        menu = bar._menus.get(menu_title)
+        if menu is None:
+            return None
+        action = QAction(text, bar)
+        if callback:
+            action.triggered.connect(lambda: callback())
+        menu.addAction(action)
+        return action
+
+    def addSeparator(self, menu_title: str):
+        """Add a separator to an existing menu.
+
+        Args:
+            menu_title: The title of the menu to add the separator to.
+        """
+        bar = self._bar()
+        if bar is None:
+            return None
+
+        menu = bar._menus.get(menu_title)
+        if menu is not None:
+            menu.addSeparator()
