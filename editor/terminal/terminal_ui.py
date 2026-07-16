@@ -4,36 +4,36 @@ Terminal Emulator Logic for DreamStudio.
 """
 
 import os
-import sys
 import logging
 
 from PyQt6.QtWidgets import (
-    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QSpacerItem,
-    QSizePolicy,
     QStackedWidget,
     QPlainTextEdit,
+    QMenu,
+    QApplication,
 )
 from PyQt6.QtGui import QFont, QTextCursor
-from PyQt6.QtCore import pyqtSignal, Qt, QEvent
+from PyQt6.QtCore import pyqtSignal, Qt, QSize
 
-from editor.lsp.runner import ProcessRunner
-from PromptX import CommandLine, HELP
-from PromptX.highlight import PromptXHighlighter
+from editor.promptx import CommandLine, HELP
+from editor.promptx.highlight import PromptXHighlighter
 from editor.terminal.terminal_workspace import TerminalWorkspace
-from editor.utils.problems_view import ComplexityWidget
+from editor.widgets.QDreamTabEditor import DreamStudioIDETabBar
 
 logger = logging.getLogger(__name__)
 
-TAB_PROMPTX = 0
-TAB_SYSTEM_SHELL = 1
-TAB_PROBLEMS = 2
-TAB_DEBUG = 3
-TAB_OUTPUT = 4
+TAB_SYSTEM_SHELL = 0
+TAB_PROMPTX = 1
+TAB_OUTPUT = 2
+
+
+class _TerminalTabBar(DreamStudioIDETabBar):
+    def tabSizeHint(self, index):
+        return QSize(80, 32)
 
 
 class OutputWidget(QWidget):
@@ -42,19 +42,9 @@ class OutputWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self._text = QPlainTextEdit(self)
+        self._text.setObjectName("terminalOutputText")
         self._text.setReadOnly(True)
         self._text.setMaximumBlockCount(10000)
-        self._text.setStyleSheet(
-            """
-            QPlainTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: none;
-                font-family: "JetBrains Mono", "Consolas", monospace;
-                font-size: 12px;
-            }
-        """
-        )
         layout.addWidget(self._text)
 
     def append_text(self, text):
@@ -70,73 +60,114 @@ class TerminalEdit(QPlainTextEdit):
         super().__init__(parent)
         self._tw = terminal_widget
         self._font_size = 14
-        self._bg = "#1e1e1e"
-        self._fg = "#d4d4d4"
-        self._sel = "#264f78"
+        self.setObjectName("terminalTextEdit")
         self.setUndoRedoEnabled(False)
         self.setMaximumBlockCount(10000)
-        self._apply_style()
+        self._apply_font()
 
-    def _apply_style(self) -> None:
-        self.setStyleSheet(
-            f"""
-            QPlainTextEdit {{
-                background-color: {self._bg};
-                color: {self._fg};
-                border: none;
-                font-family: "JetBrains Mono", "Consolas", "monospace";
-                font-size: {self._font_size}px;
-                selection-background-color: {self._sel};
-            }}
-            QScrollBar:vertical {{
-                background: #1E1E1E;
-                width: 8px;
-                margin: 0;
-                border: none;
-            }}
-            QScrollBar::handle:vertical {{
-                background: #424242;
-                min-height: 24px;
-            }}
-            QScrollBar::handle:vertical:hover {{
-                background: #555555;
-            }}
-            QScrollBar:horizontal {{
-                background: #1E1E1E;
-                height: 8px;
-                margin: 0;
-                border: none;
-            }}
-            QScrollBar::handle:horizontal {{
-                background: #424242;
-                min-width: 24px;
-            }}
-            QScrollBar::handle:horizontal:hover {{
-                background: #555555;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
-                height: 0;
-                width: 0;
-                border: none;
-            }}
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
-                background: none;
-                border: none;
-            }}
-        """
-        )
+    def _apply_font(self) -> None:
+        font = QFont("JetBrains Mono, Consolas, monospace", self._font_size)
+        self.setFont(font)
 
     def _zoom_font(self, delta: int) -> None:
         self._font_size = max(6, self._font_size + delta)
-        self._apply_style()
+        self._apply_font()
 
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
-        self._bg = bg
-        self._fg = fg
-        self._sel = sel
-        self._apply_style()
+        pass
+
+    # ------------------------------------------------------------------
+    # Input boundary enforcement (Step 4)
+    #
+    # The PromptX terminal has a protected prompt prefix at the start of
+    # the document.  Users must not be able to insert, delete, or modify
+    # text before ``_input_pos`` through *any* input channel — keyboard,
+    # mouse paste, drag-and-drop, or context menu.  The following
+    # overrides close every one of those escape routes.
+    # ------------------------------------------------------------------
+
+    def insertFromMimeData(self, source):
+        """Intercept paste operations (Ctrl+V, Shift+Insert, etc.) to
+        prevent insertion before the prompt boundary.
+
+        If the cursor currently sits inside the protected prompt zone it
+        is silently relocated to ``_input_pos`` before the base-class
+        insertion proceeds, so the pasted text always lands in the
+        editable region.
+        """
+        cursor = self.textCursor()
+        if cursor.position() < self._tw._input_pos:
+            cursor.setPosition(self._tw._input_pos)
+            self.setTextCursor(cursor)
+        super().insertFromMimeData(source)
+
+    def dropEvent(self, event):
+        """Reject drag-and-drop operations that target the protected
+        prompt area.  Drops landing in the editable input zone are
+        accepted normally.
+        """
+        drop_cursor = self.cursorForPosition(event.position().toPoint())
+        if drop_cursor.position() < self._tw._input_pos:
+            event.ignore()
+            return
+        # Also guard the *current* text cursor — if it somehow ended up
+        # before the prompt, snap it forward before the base-class drop.
+        if self.textCursor().position() < self._tw._input_pos:
+            c = self.textCursor()
+            c.setPosition(self._tw._input_pos)
+            self.setTextCursor(c)
+        super().dropEvent(event)
+
+    def contextMenuEvent(self, event):
+        """Provide a minimal, filtered context menu that never allows
+        editing of the protected prompt zone.
+
+        * Copy is always available when there is a selection.
+        * Paste is only offered when the cursor is inside the editable
+          input zone (at or after ``_input_pos``).
+        * Cut and all other mutation actions are omitted entirely to
+          prevent accidental prompt corruption.
+        """
+        cursor = self.textCursor()
+        has_selection = cursor.hasSelection()
+
+        menu = QMenu(self)
+
+        copy_action = menu.addAction("Copy")
+        copy_action.setEnabled(has_selection)
+        if has_selection:
+            copy_action.triggered.connect(self._ctx_copy)
+
+        # Only offer paste when the insertion point is in the safe zone.
+        if cursor.position() >= self._tw._input_pos:
+            paste_action = menu.addAction("Paste")
+            paste_action.triggered.connect(self._ctx_paste)
+
+        if menu.actions():
+            menu.exec(event.globalPos())
+        else:
+            event.ignore()
+
+    def _ctx_copy(self):
+        """Copy the current selection to the system clipboard."""
+        text = self.textCursor().selectedText()
+        if text:
+            QApplication.clipboard().setText(text)
+
+    def _ctx_paste(self):
+        """Paste from the system clipboard into the editable input zone,
+        never into the protected prompt region."""
+        text = QApplication.clipboard().text()
+        if text:
+            cursor = self.textCursor()
+            if cursor.position() < self._tw._input_pos:
+                cursor.setPosition(self._tw._input_pos)
+                self.setTextCursor(cursor)
+            cursor.insertText(text)
+
+    # ------------------------------------------------------------------
+    # Keyboard handling
+    # ------------------------------------------------------------------
 
     def keyPressEvent(self, event):
         tw = self._tw
@@ -211,7 +242,7 @@ class TerminalEdit(QPlainTextEdit):
 
         if key == Qt.Key.Key_0 and mods == Qt.KeyboardModifier.ControlModifier:
             self._font_size = 14
-            self._apply_style()
+            self._apply_font()
             return
 
         if key == Qt.Key.Key_A and mods == Qt.KeyboardModifier.ControlModifier:
@@ -250,9 +281,6 @@ class TerminalEdit(QPlainTextEdit):
                 QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor
             )
             self.setTextCursor(c)
-
-    def contextMenuEvent(self, event):
-        event.ignore()
 
     def wheelEvent(self, event):
         super().wheelEvent(event)
@@ -343,17 +371,6 @@ class PromptXTerminalWidget(QWidget):
             self._terminal.insertPlainText(str(result) + "\n")
         self._show_prompt()
 
-    def retheme(self, t) -> None:
-        self._highlighter.retheme(
-            {
-                "error": t.color("terminal.highlight_error", "#FF5252"),
-                "command": t.color("terminal.highlight_command", "#FFD740"),
-                "number": t.color("terminal.highlight_number", "#69F0AE"),
-                "success": t.color("terminal.highlight_success", "#40C4FF"),
-                "prompt": t.color("terminal.prompt", "#888888"),
-            }
-        )
-
     def focus_input(self) -> None:
         self._terminal.setFocus()
         cursor = self._terminal.textCursor()
@@ -370,24 +387,6 @@ class TerminalPanel(QWidget):
         self.setObjectName("terminalPanel")
         self.setWindowTitle("Terminal Panel")
 
-        self.setStyleSheet(
-            """
-            QWidget#terminalPanel {
-                background-color: #1e1e1e;
-                color: #cccccc;
-            }
-            QPushButton {
-                background-color: transparent;
-                border: none;
-                padding: 5px;
-            }
-            QPushButton:hover {
-                background-color: #333333;
-                border-radius: 3px;
-            }
-        """
-        )
-
         self._setup_ui()
 
     def _setup_ui(self):
@@ -397,48 +396,39 @@ class TerminalPanel(QWidget):
 
         self.stack = QStackedWidget()
 
-        self.promptXShell_tab = PromptXTerminalWidget(self)
         self.system_shell_tab = TerminalWorkspace(self)
-        self.problems_tab = ComplexityWidget(self.parent())
-        self.debug_tab = QWidget()
+        self.promptXShell_tab = PromptXTerminalWidget(self)
         self.output_tab = OutputWidget(self)
 
         # Connecting the close button to the system shell emulator
         self.system_shell_tab.close_requested.connect(self.close_requested.emit)
 
         self.tabs = {
-            TAB_PROMPTX: (self.promptXShell_tab, "PROMPTX"),
             TAB_SYSTEM_SHELL: (self.system_shell_tab, "TERMINAL"),
-            TAB_PROBLEMS: (self.problems_tab, "PROBLEMS"),
-            TAB_DEBUG: (self.debug_tab, "DEBUG"),
+            TAB_PROMPTX: (self.promptXShell_tab, "PROMPTX"),
             TAB_OUTPUT: (self.output_tab, "OUTPUT"),
         }
 
-        for tab_id in range(len(self.tabs)):
+        for tab_id in sorted(self.tabs.keys()):
             widget, _ = self.tabs[tab_id]
             self.stack.addWidget(widget)
 
+        # Custom tab bar
         toolbar = QHBoxLayout()
-        toolbar.setContentsMargins(10, 5, 10, 5)
+        toolbar.setContentsMargins(0, 0, 0, 0)
+        toolbar.setSpacing(0)
 
-        self.buttons = {}
-
-        for tab_id in range(len(self.tabs)):
+        self.tab_bar = _TerminalTabBar(self)
+        self.tab_bar.setObjectName("terminalTabBar")
+        self.tab_bar.setExpanding(False)
+        for tab_id in sorted(self.tabs.keys()):
             _, label = self.tabs[tab_id]
-            btn = QPushButton(label)
-            btn.setFont(QFont("Inter", 9, QFont.Weight.Bold))
-            btn.setCheckable(True)
-            btn.clicked.connect(lambda _, idx=tab_id: self.switch_tab(idx))
-            toolbar.addWidget(btn)
-            self.buttons[tab_id] = btn
-
-        toolbar.addItem(
-            QSpacerItem(
-                40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
-            )
-        )
+            self.tab_bar.addTab(label)
+        self.tab_bar.currentChanged.connect(self._on_tab_changed)
+        toolbar.addWidget(self.tab_bar, 0)
 
         self.btn_close = QPushButton("✕")
+        self.btn_close.setObjectName("terminalCloseBtn")
         self.btn_close.setFixedSize(26, 26)
         self.btn_close.clicked.connect(self.close_requested.emit)
         toolbar.addWidget(self.btn_close)
@@ -448,68 +438,49 @@ class TerminalPanel(QWidget):
 
         self.switch_tab(TAB_SYSTEM_SHELL)
 
-    def switch_tab(self, index):
+    def _on_tab_changed(self, index):
         if index < 0 or index >= self.stack.count():
             return
         self.stack.setCurrentIndex(index)
 
-        for i, btn in self.buttons.items():
-            if i == index:
-                btn.setStyleSheet("color: #007acc; border-bottom: 2px solid #007acc;")
-                btn.setFixedWidth(90)
-            else:
-                btn.setStyleSheet("color: #cccccc; border-bottom: none;")
-                btn.setFixedWidth(90)
-
         if index == TAB_PROMPTX:
             self.promptXShell_tab.focus_input()
 
+    def switch_tab(self, index):
+        if index < 0 or index >= self.tab_bar.count():
+            return
+        self.tab_bar.setCurrentIndex(index)
+
+    def count(self):
+        return self.stack.count()
+
+    def widget(self, index):
+        return self.stack.widget(index)
+
+    def set_theme(self, bg: str, fg: str, sel: str) -> None:
+        self.system_shell_tab.set_theme(bg, fg, sel)
+
     def retheme(self, t) -> None:
-        bg = t.color("terminal.background")
-        txt = t.color("terminal.text")
-        sel = t.color("terminal.selection")
-        self.setStyleSheet(
-            f"""
-            QWidget#terminalPanel {{
-                background-color: {bg};
-                color: {txt};
-            }}
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                padding: 5px;
-                color: {txt};
-            }}
-            QPushButton:hover {{
-                background-color: {t.color("button.hover")};
-                border-radius: 3px;
-            }}
-        """
-        )
-        self.promptXShell_tab._terminal.set_theme(bg, txt, sel)
-        self.promptXShell_tab.retheme(t)
-        self.system_shell_tab.set_theme(bg, txt, sel)
-        if hasattr(self.problems_tab, "retheme"):
-            self.problems_tab.retheme(t)
-        self.output_tab._text.setStyleSheet(
-            f"""
-            QPlainTextEdit {{
-                background-color: {bg};
-                color: {txt};
-                border: none;
-                font-family: "JetBrains Mono", "Consolas", monospace;
-                font-size: 12px;
-            }}
-        """
-        )
-        self.switch_tab(self.stack.currentIndex())
+        pass
 
     def append_output(self, text):
         self.output_tab.append_text(text)
 
+    # ------------------------------------------------------------------
+    # Cleanup (Step 7)
+    # ------------------------------------------------------------------
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    w = TerminalPanel()
-    w.show()
-    sys.exit(app.exec())
+    def cleanup(self) -> None:
+        """Aggressively terminate every terminal session managed by this
+        panel.  Called from application-lifetime hooks to guarantee no
+        orphaned PTY descriptors or zombie child processes survive an
+        IDE shutdown.
+        """
+        self.system_shell_tab.cleanup()
+
+    def closeEvent(self, event) -> None:
+        """Intercept close to prevent widget destruction; the workspace is
+        toggled visible/hidden by the parent splitter.  Cleanup is
+        handled separately through application lifetime hooks.
+        """
+        event.ignore()

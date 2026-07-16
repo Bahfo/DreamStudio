@@ -1,164 +1,53 @@
 {
-  "meta": 
-  {
-    "language": "Python",
-    "version_support": "3.12"
-  },
-
-  "words": 
-  {
-    "def": "definition",
-    "class": "definition",
-    "return": "definition",
-    "nonlocal": "definition",
-    "global": "definition",
-
-    "import": "import",
-    "from": "import",
-
-    "as": "keyword",
-    "if": "keyword",
-    "elif": "keyword",
-    "else": "keyword",
-    "for": "keyword",
-    "while": "keyword",
-    "try": "keyword",
-    "except": "keyword",
-    "with": "keyword",
-    "pass": "keyword",
-    "break": "keyword",
-    "continue": "keyword",
-    "yield": "keyword",
-    "finally": "keyword",
-    "match": "keyword",
-    "case": "keyword",
-
-    "assert": "execution_logic",
-    "del": "execution_logic",
-    "lambda": "execution_logic",
-    "raise": "execution_logic",
-    "async": "execution_logic",
-    "await": "execution_logic",
-
-    "False": "logic",
-    "True": "logic",
-    "None": "logic",
-    "in": "logic",
-    "and": "logic",
-    "not": "logic",
-    "or": "logic"
-  },
-
-  "types": 
-  {
-    "int": "constructor",
-    "float": "constructor",
-    "bool": "constructor",
-    "str": "constructor",
-    "bytes": "constructor",
-    "complex": "constructor",
-
-    "list": "collection",
-    "tuple": "collection",
-    "set": "collection",
-    "frozenset": "collection",
-    "dict": "collection",
-
-    "object": "meta",
-    "type": "meta"
-  },
-
-  "iterators": 
-  {
-    "range": "iterator",
-    "enumerate": "iterator",
-    "zip": "iterator",
-    "map": "iterator",
-    "filter": "iterator"
-  },
-
-  "exceptions":
-  {
-    "BaseException": "exception_class",
-    "Exception": "exception_class",
-
-    "SystemExit": "exception_class",
-    "KeyboardInterrupt": "exception_class",
-    "GeneratorExit": "exception_class",
-
-    "ValueError": "exception_class",
-    "TypeError": "exception_class",
-    "NameError": "exception_class",
-    "UnboundLocalError": "exception_class",
-    "AttributeError": "exception_class",
-    "RuntimeError": "exception_class",
-    "NotImplementedError": "exception_class",
-
-    "ZeroDivisionError": "exception_class",
-    "OverflowError": "exception_class",
-    "FloatingPointError": "exception_class",
-
-    "IndexError": "exception_class",
-    "KeyError": "exception_class",
-
-    "ImportError": "exception_class",
-    "ModuleNotFoundError": "exception_class",
-
-    "OSError": "exception_class",
-    "FileNotFoundError": "exception_class",
-    "PermissionError": "exception_class",
-    "IsADirectoryError": "exception_class",
-    "NotADirectoryError": "exception_class",
-    "TimeoutError": "exception_class",
-
-    "Warning": "warning_class",
-    "UserWarning": "warning_class",
-    "DeprecationWarning": "warning_class",
-    "SyntaxWarning": "warning_class",
-    "RuntimeWarning": "warning_class",
-    "FutureWarning": "warning_class"
-  },
-
-  "colors_schema": {
-    "definition": "#4FC1FF",
-    "import": "#C586C0",
-    "keyword": "#C586C0",
-    "execution_logic": "#DCDCAA",
-    "logic": "#569CD6",
-    "constructor": "#4EC9B0",
-    "collection": "#9CDCFE",
-    "meta": "#808080",
-    "iterator": "#B5CEA8",
-    "exception_class": "#F44747",
-    "warning_class": "#FFCC66"
-  },
-
-  "all_words": 
-  [
-    "def", "class", "return", "nonlocal", "global",
-    "import", "from",
-    "as", "if", "elif", "else", "for", "while", "try", "except",
-    "with", "pass", "break", "continue", "yield", "finally",
-    "match", "case",
-    "assert", "del", "lambda", "raise", "async", "await",
-    "False", "True", "None", "in", "and", "not", "or",
-
-    "int", "float", "bool", "str", "bytes", "complex",
-    "list", "tuple", "set", "frozenset", "dict",
-    "object", "type",
-
-    "range", "enumerate", "zip", "map", "filter",
-
-    "BaseException", "Exception",
-    "SystemExit", "KeyboardInterrupt", "GeneratorExit",
-    "ValueError", "TypeError", "NameError", "UnboundLocalError",
-    "AttributeError", "RuntimeError", "NotImplementedError",
-    "ZeroDivisionError", "OverflowError", "FloatingPointError",
-    "IndexError", "KeyError",
-    "ImportError", "ModuleNotFoundError",
-    "OSError", "FileNotFoundError", "PermissionError",
-    "IsADirectoryError", "NotADirectoryError", "TimeoutError",
-    "Warning", "UserWarning", "DeprecationWarning",
-    "SyntaxWarning", "RuntimeWarning", "FutureWarning"
-  ]
+    "lang": "python",
+    "extensions": ["py", "pyw", "pyi"],
+    "styles": {
+        "keyword": "#C586C0",
+        "builtin": "#4FC1FF",
+        "definition": "#DCDCAA",
+        "class_def": "#4EC9B0",
+        "string": "#CE9178",
+        "number": "#B5CEA8",
+        "comment": "#6A9955",
+        "decorator": "#D7BA7D",
+        "self": "#569CD6",
+        "operator": "#D4D4D4"
+    },
+    "keywords": {
+        "keyword": [
+            "False", "None", "True", "and", "as", "assert", "async", "await",
+            "break", "class", "continue", "def", "del", "elif", "else", "except",
+            "finally", "for", "from", "global", "if", "import", "in", "is",
+            "lambda", "nonlocal", "not", "or", "pass", "raise", "return",
+            "try", "while", "with", "yield"
+        ],
+        "builtin": [
+            "abs", "all", "any", "bin", "bool", "bytearray", "bytes", "callable",
+            "chr", "classmethod", "compile", "complex", "delattr", "dict", "dir",
+            "divmod", "enumerate", "eval", "exec", "filter", "float", "format",
+            "frozenset", "getattr", "globals", "hasattr", "hash", "help", "hex",
+            "id", "input", "int", "isinstance", "issubclass", "iter", "len",
+            "list", "locals", "map", "max", "memoryview", "min", "next",
+            "object", "oct", "open", "ord", "pow", "print", "property",
+            "range", "repr", "reversed", "round", "set", "setattr", "slice",
+            "sorted", "staticmethod", "str", "sum", "super", "tuple", "type",
+            "vars", "zip", "__import__"
+        ],
+        "definition": [
+            "def"
+        ],
+        "class_def": [
+            "class"
+        ],
+        "string": [
+            "True", "False", "None"
+        ],
+        "number": [],
+        "comment": [],
+        "decorator": [],
+        "self": [
+            "self", "cls"
+        ],
+        "operator": []
+    }
 }

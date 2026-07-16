@@ -1,0 +1,292 @@
+import os
+import re
+
+from PyQt6.QtWidgets import QPushButton
+from PyQt6.QtGui import QColor
+
+
+class EditorAPI:
+    """Mixin that holds all editor API callbacks (toggles, theme setters,
+    file operations, clipboard actions, status updates, etc.).
+
+    Designed to be mixed into the DreamStudio QMainWindow so that
+    ``getattr(self, callback_name)`` dispatch still works.
+    """
+
+    # ------------------------------------------------------------------
+    # Panel toggles
+    # ------------------------------------------------------------------
+
+    def _toggle_file_explorer(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("solution_explorer"):
+            self.hero_window._left_utils_manager.set_current_panel("solution_explorer")
+        else:
+            api.activate_panel("solution_explorer")
+
+    def _toggle_git_source_control(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("source_control"):
+            self.hero_window._left_utils_manager.set_current_panel("source_control")
+        else:
+            api.activate_panel("source_control")
+
+    def _toggle_properties(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("properties"):
+            self.hero_window._right_utils_manager.set_current_panel("properties")
+        else:
+            api.activate_panel("properties")
+
+    def _toggle_todo_search(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("todo_search"):
+            self.hero_window._right_utils_manager.set_current_panel("todo_search")
+        else:
+            api.activate_panel("todo_search")
+
+    def _toggle_terminal(self) -> None:
+        terminal = self.hero_window.terminal_window
+        splitter = self.hero_window._main_vertical_splitter
+        if terminal.isVisible():
+            terminal.setVisible(False)
+            splitter.setSizes([1, 0])
+        else:
+            terminal.setVisible(True)
+            splitter.setSizes([600, 400])
+            terminal.switch_tab(0)
+
+    # ------------------------------------------------------------------
+    # Sidebar button state
+    # ------------------------------------------------------------------
+
+    def _update_left_button_state(self, active_id: str) -> None:
+        buttons = self.left_sidebar.findChildren(QPushButton)
+        for btn in buttons:
+            btn.setChecked(False)
+        idx = {
+            "solution_explorer": 0,
+            "source_control": 2,
+        }.get(active_id)
+        if idx is not None and idx < len(buttons):
+            buttons[idx].setChecked(True)
+
+    def _on_panel_visibility_changed(self, panel_id: str, visible: bool) -> None:
+        if panel_id not in (
+            "solution_explorer",
+            "source_control",
+        ):
+            return
+        if visible:
+            self._update_left_button_state(panel_id)
+        else:
+            api = self.hero_window._vertical_menus_api
+            for pid in (
+                "solution_explorer",
+                "source_control",
+            ):
+                if api.is_visible(pid):
+                    self._update_left_button_state(pid)
+                    return
+            buttons = self.left_sidebar.findChildren(QPushButton)
+            for btn in buttons:
+                btn.setChecked(False)
+
+    # ------------------------------------------------------------------
+    # File operations
+    # ------------------------------------------------------------------
+
+    def _new_file(self) -> None:
+        self.hero_window._text_editor_center.methods.open_new_tab()
+
+    def _open_file(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog
+
+        path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*)")
+        if path:
+            self.hero_window._text_editor_center.methods.open_file(path)
+
+    def _save_file(self) -> None:
+        self.hero_window._text_editor_center.methods.save_current()
+
+    def _save_all_files(self) -> None:
+        self.hero_window._text_editor_center.methods.save_all()
+
+    # ------------------------------------------------------------------
+    # Clipboard & undo/redo
+    # ------------------------------------------------------------------
+
+    def _cut_text(self) -> None:
+        api = self.hero_window._text_editor_center.methods.current_editor()
+        if api:
+            api.cut()
+
+    def _copy_text(self) -> None:
+        api = self.hero_window._text_editor_center.methods.current_editor()
+        if api:
+            api.copy()
+
+    def _paste_text(self) -> None:
+        api = self.hero_window._text_editor_center.methods.current_editor()
+        if api:
+            api.paste()
+
+    def _undo_action(self) -> None:
+        api = self.hero_window._text_editor_center.methods.current_editor()
+        if api:
+            api.undo()
+
+    def _redo_action(self) -> None:
+        api = self.hero_window._text_editor_center.methods.current_editor()
+        if api:
+            api.redo()
+
+    # ------------------------------------------------------------------
+    # Theme
+    # ------------------------------------------------------------------
+
+    def _apply_theme_content(self, content: str) -> None:
+        """Apply a QSS stylesheet string and propagate colours to child widgets.
+
+        This is the single internal method that all theme application
+        ultimately reaches.  It does not perform any I/O.
+        """
+        self.setStyleSheet(content)
+
+        self._qss_bg = self._extract_qss_color(
+            content, r"QMainWindow\s*,\s*QWidget", "background-color"
+        ) or "#1E1E1E"
+        self._qss_fg = self._extract_qss_color(
+            content, r"QMainWindow\s*,\s*QWidget", "color"
+        ) or "#CCCCCC"
+        self._qss_sel = self._extract_qss_color(
+            content, r"UtilityTabBar::tab:selected", "background-color"
+        ) or self._qss_bg
+
+        self.current_theme = (
+            "dark" if QColor(self._qss_bg).lightness() < 128 else "light"
+        )
+        self._apply_custom_theme()
+
+    def _set_theme_by_name(self, name: str) -> None:
+        """Load a theme by name through ResourceManager and apply it.
+
+        When a bootstrap ``ServiceRegistry`` with a ``resource_manager``
+        is available the theme content is obtained from there.  Otherwise
+        falls back to a direct file read via ``_parse_styleSheet``.
+        """
+        resource_manager = self._get_resource_manager()
+        if resource_manager is not None:
+            content = resource_manager.load_theme(name)
+            if content:
+                self._apply_theme_content(content)
+                return
+
+        # Fallback: direct file read (e.g. during testing without registry).
+        self._parse_styleSheet(f"editor/qss/{name}.qss")
+
+    def _toggle_theme(self) -> None:
+        alt = "light" if self.current_theme == "dark" else "dark"
+        self._set_theme_by_name(alt)
+
+    def _set_theme_dark(self) -> None:
+        self._set_theme_by_name("dark")
+
+    def _set_theme_light(self) -> None:
+        self._set_theme_by_name("light")
+
+    def _set_theme_moses(self) -> None:
+        self._set_theme_by_name("moses")
+
+    def _set_theme_davy(self) -> None:
+        self._set_theme_by_name("davy")
+
+    def _set_theme_tokyonight(self) -> None:
+        self._set_theme_by_name("tokyonight")
+
+    def _set_theme_solarized_dark(self) -> None:
+        self._set_theme_by_name("solarized_dark")
+
+    def _set_theme_solarized_light(self) -> None:
+        self._set_theme_by_name("solarized_light")
+
+    def _set_theme_monokai(self) -> None:
+        self._set_theme_by_name("monokai")
+
+    def _set_theme_dark_hc(self) -> None:
+        self._set_theme_by_name("dark_hc")
+
+    def _set_theme_light_hc(self) -> None:
+        self._set_theme_by_name("light_hc")
+
+    def _set_theme_coffee_dark(self) -> None:
+        self._set_theme_by_name("coffee_dark")
+
+    def _set_theme_coffee_light(self) -> None:
+        self._set_theme_by_name("coffee_light")
+
+    def _apply_custom_theme(self) -> None:
+        self.hero_window.set_theme(self._qss_bg, self._qss_fg, self._qss_sel)
+        self.hero_window.terminal_window.set_theme(
+            self._qss_bg, self._qss_fg, self._qss_sel
+        )
+
+    def _get_resource_manager(self):
+        """Return the bootstrap ResourceManager if available, else ``None``."""
+        registry = getattr(self, "_registry", None)
+        if registry is not None and registry.has("resource_manager"):
+            return registry.get("resource_manager")
+        return None
+
+    def _parse_styleSheet(self, qss_file: str) -> None:
+        """Load a QSS file and apply it.
+
+        When a bootstrap ``ResourceManager`` is available, the file is
+        loaded through it (benefiting from caching and fallback logic).
+        Otherwise reads directly from disk.
+        """
+        resource_manager = self._get_resource_manager()
+        if resource_manager is not None:
+            import os as _os
+            theme_name = _os.path.splitext(_os.path.basename(qss_file))[0]
+            content = resource_manager.load_theme(theme_name)
+            if content:
+                self._apply_theme_content(content)
+                return
+
+        try:
+            with open(qss_file, "r") as file:
+                content = file.read()
+        except OSError:
+            return
+
+        self._apply_theme_content(content)
+
+    @staticmethod
+    def _extract_qss_color(
+        qss_content: str, selector_re: str, property_name: str
+    ) -> str | None:
+        pattern = re.compile(
+            rf"{selector_re}\s*\{{[^}}]*{property_name}\s*:\s*([^;\s}}]+)",
+            re.IGNORECASE | re.DOTALL,
+        )
+        m = pattern.search(qss_content)
+        return m.group(1).strip() if m else None
+
+    # ------------------------------------------------------------------
+    # Editor state & status
+    # ------------------------------------------------------------------
+
+    def _get_current_editor(self):
+        return self.hero_window._text_editor_center.current_editor()
+
+    def update_editor_visibility(self) -> None:
+        pass
+
+    def update_position_status(self) -> None:
+        api = self._get_current_editor()
+        if api is None:
+            return
+        editor = api.editor
+        line, col = editor.getCursorPosition()
+        self.status_bar.lines_and_cols.setText(f"Ln {line + 1} : Col {col + 1}")

@@ -1,0 +1,58 @@
+[
+    {
+        "id":"btn",
+        "icon_path":"assets/system/info.png",
+        "tooltip":"Toggle Properties",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": "_toggle_properties"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/menus/docs.png",
+        "tooltip":"TODOs Search",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": "_toggle_todo_search"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/config.png",
+        "tooltip":"Devices Manager",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/menus/testing.png",
+        "tooltip":"DreamTest Tools",
+        "size":[40, 40],
+        "icon_size":[29, 29],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/menus/browser.png",
+        "tooltip":"Server Tools",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/container.png",
+        "tooltip":"Environments and Containers",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/ai.png",
+        "tooltip":"Ether AI",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": false
+    }
+]

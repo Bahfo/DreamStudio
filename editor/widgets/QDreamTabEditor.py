@@ -1,21 +1,16 @@
-from PyQt6.QtCore import Qt, QSize, QRect, QPoint, QEvent, QTimer
+from PyQt6.QtCore import Qt, QSize, QRect, QPoint, QEvent, QTimer, pyqtProperty
 from PyQt6.QtWidgets import (
+    QStyle,
     QTabBar,
     QTabWidget,
     QStyleOptionTab,
-    QStyle,
     QGraphicsOpacityEffect,
 )
-from PyQt6.QtGui import (
-    QPen,
-    QColor,
-    QPainter,
-    QPalette,
-    QPainterPath,
-)
+from PyQt6.QtGui import QPen, QColor, QPainter, QPalette
 
 
 class DreamStudioIDETabBar(QTabBar):
+
     def __init__(self, _parent=None):
         super().__init__(_parent)
         self.setDrawBase(False)
@@ -30,7 +25,114 @@ class DreamStudioIDETabBar(QTabBar):
         self._is_syncing = False
         self._dirty_indices: set = set()
         self._readonly_indices: set = set()
+
+        self._selected_bg = QColor("#1E1E1E")
+        self._hover_bg = QColor("#3E3E42")
+        self._inactive_bg = QColor("#252526")
+        self._border_color = QColor("#1E1E1E")
+        self._hover_border_color = QColor("#3E3E42")
+        self._inactive_border_color = QColor("#252526")
+
+        self._text_selected = QColor("#FFFFFF")
+        self._text_inactive = QColor("#969696")
+        self._dirty_dot = QColor("#EAB308")
+        self._readonly_color = QColor("#888888")
+
         self.currentChanged.connect(self._on_current_changed)
+
+    # -- Q_PROPERTY: background colors -----------------------------------
+
+    def get_selected_bg(self):
+        return self._selected_bg
+
+    def set_selected_bg(self, color):
+        self._selected_bg = QColor(color)
+        self.update()
+
+    selected_bg = pyqtProperty(QColor, get_selected_bg, set_selected_bg)
+
+    def get_hover_bg(self):
+        return self._hover_bg
+
+    def set_hover_bg(self, color):
+        self._hover_bg = QColor(color)
+        self.update()
+
+    hover_bg = pyqtProperty(QColor, get_hover_bg, set_hover_bg)
+
+    def get_inactive_bg(self):
+        return self._inactive_bg
+
+    def set_inactive_bg(self, color):
+        self._inactive_bg = QColor(color)
+        self.update()
+
+    inactive_bg = pyqtProperty(QColor, get_inactive_bg, set_inactive_bg)
+
+    def get_border_color(self):
+        return self._border_color
+
+    def set_border_color(self, color):
+        self._border_color = QColor(color)
+        self.update()
+
+    border_color = pyqtProperty(QColor, get_border_color, set_border_color)
+
+    def get_hover_border_color(self):
+        return self._hover_border_color
+
+    def set_hover_border_color(self, color):
+        self._hover_border_color = QColor(color)
+        self.update()
+
+    hover_border_color = pyqtProperty(QColor, get_hover_border_color, set_hover_border_color)
+
+    def get_inactive_border_color(self):
+        return self._inactive_border_color
+
+    def set_inactive_border_color(self, color):
+        self._inactive_border_color = QColor(color)
+        self.update()
+
+    inactive_border_color = pyqtProperty(QColor, get_inactive_border_color, set_inactive_border_color)
+
+    # -- Q_PROPERTY: text / indicator colors -----------------------------
+
+    def get_text_selected(self):
+        return self._text_selected
+
+    def set_text_selected(self, color):
+        self._text_selected = QColor(color)
+        self.update()
+
+    text_selected = pyqtProperty(QColor, get_text_selected, set_text_selected)
+
+    def get_text_inactive(self):
+        return self._text_inactive
+
+    def set_text_inactive(self, color):
+        self._text_inactive = QColor(color)
+        self.update()
+
+    text_inactive = pyqtProperty(QColor, get_text_inactive, set_text_inactive)
+
+    def get_dirty_dot(self):
+        return self._dirty_dot
+
+    def set_dirty_dot(self, color):
+        self._dirty_dot = QColor(color)
+        self.update()
+
+    dirty_dot = pyqtProperty(QColor, get_dirty_dot, set_dirty_dot)
+
+    def get_readonly_color(self):
+        return self._readonly_color
+
+    def set_readonly_color(self, color):
+        self._readonly_color = QColor(color)
+        self.update()
+
+    readonly_color = pyqtProperty(QColor, get_readonly_color, set_readonly_color)
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
@@ -71,9 +173,9 @@ class DreamStudioIDETabBar(QTabBar):
             if update_geometry:
                 rect = self.tabRect(i)
                 if not rect.isNull():
-                    btn_w = 18
-                    btn_h = 18
-                    margin_right = 8
+                    btn_w = 14
+                    btn_h = 14
+                    margin_right = 6
                     x = rect.right() - btn_w - margin_right
                     y = rect.center().y() - (btn_h // 2)
                     new_geo = QRect(x, y, btn_w, btn_h)
@@ -105,28 +207,28 @@ class DreamStudioIDETabBar(QTabBar):
         self.rebuild_readonly_indices()
 
     def changeEvent(self, event):
-        super().changeEvent(event)
-        if event.type() in (
-            QEvent.Type.FontChange,
-            QEvent.Type.StyleChange,
-            QEvent.Type.PaletteChange,
-        ):
-            self._sync_close_buttons()
+        if getattr(self, "_in_change_event", False):
+            return
+        self._in_change_event = True
+        try:
+            super().changeEvent(event)
+            if event.type() in (
+                QEvent.Type.FontChange,
+                QEvent.Type.StyleChange,
+                QEvent.Type.PaletteChange,
+            ):
+                self._sync_close_buttons()
+        finally:
+            self._in_change_event = False
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        selected_index = self.currentIndex()
+        # Draw the solid unified tab bar background row first
+        painter.fillRect(self.rect(), self.inactive_bg)
 
-        selected_bg = getattr(self, "selected_bg", QColor("#25324D"))
-        hover_bg = getattr(self, "hover_bg", QColor("#2D2D2D"))
-        inactive_bg = getattr(self, "inactive_bg", QColor("#1E1E1E"))
-        border_color = getattr(self, "border_color", QColor("#35538F"))
-        hover_border_color = getattr(self, "hover_border_color", QColor("#3C3F41"))
-        inactive_border_color = getattr(
-            self, "inactive_border_color", QColor("#1E1E1E")
-        )
+        selected_index = self.currentIndex()
 
         for i in range(self.count()):
             if i == selected_index:
@@ -136,8 +238,10 @@ class DreamStudioIDETabBar(QTabBar):
             self.initStyleOption(option, i)
             is_hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
 
-            bg = hover_bg if is_hovered else inactive_bg
-            border = hover_border_color if is_hovered else inactive_border_color
+            bg = self.hover_bg if is_hovered else self.inactive_bg
+            border = (
+                self.hover_border_color if is_hovered else self.inactive_border_color
+            )
 
             self._draw_tab(painter, i, bg, border, False, option)
 
@@ -145,7 +249,12 @@ class DreamStudioIDETabBar(QTabBar):
             option = QStyleOptionTab()
             self.initStyleOption(option, selected_index)
             self._draw_tab(
-                painter, selected_index, selected_bg, border_color, True, option
+                painter,
+                selected_index,
+                self.selected_bg,
+                self.border_color,
+                True,
+                option,
             )
 
     def _draw_tab(self, painter, index, bg_color, border_color, selected, option):
@@ -153,72 +262,54 @@ class DreamStudioIDETabBar(QTabBar):
         if rect.isNull():
             return
 
-        r = rect.adjusted(1, 6, -1, -6)
-        radius = 5
-
-        path = QPainterPath()
-        path.moveTo(r.left(), r.bottom() - radius)
-        path.lineTo(r.left(), r.top() + radius)
-        path.quadTo(r.left(), r.top(), r.left() + radius, r.top())
-        path.lineTo(r.right() - radius, r.top())
-        path.quadTo(r.right(), r.top(), r.right(), r.top() + radius)
-        path.lineTo(r.right(), r.bottom() - radius)
-        path.quadTo(r.right(), r.bottom(), r.right() - radius, r.bottom())
-        path.lineTo(r.left() + radius, r.bottom())
-        path.quadTo(r.left(), r.bottom(), r.left(), r.bottom() - radius)
-        path.closeSubpath()
-
         painter.save()
-        painter.fillPath(path, bg_color)
 
+        painter.fillRect(rect, bg_color)
+
+        # Subtle layout boundary line isolation rules
         pen = QPen(border_color)
         pen.setWidth(1)
         painter.setPen(pen)
-        painter.drawPath(path)
 
         if selected:
+            painter.drawLine(rect.left(), rect.top(), rect.left(), rect.bottom())
+            painter.drawLine(rect.right(), rect.top(), rect.right(), rect.bottom())
+            painter.drawLine(rect.left(), rect.bottom(), rect.right(), rect.bottom())
+        else:
+            painter.setPen(QPen(self.inactive_bg.lighter(110)))
             painter.drawLine(
-                r.left() + radius,
-                r.top(),
-                r.right() - radius,
-                r.top(),
+                rect.right(), rect.top() + 4, rect.right(), rect.bottom() - 4
             )
 
+        text_offset = 0
         if index in self._dirty_indices:
-            dot_color = getattr(self, "_dirty_dot", QColor("#EAB308"))
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(dot_color)
-            dot_r = 4
-            cx = r.left() + 5
-            cy = r.center().y()
-            painter.drawEllipse(QPoint(cx, cy), dot_r, dot_r)
+            painter.setBrush(self._dirty_dot)
+            painter.drawEllipse(QPoint(rect.left() + 10, rect.center().y()), 3, 3)
             painter.restore()
+            text_offset += 12
 
         if index in self._readonly_indices:
             painter.save()
-            lock_color = getattr(self, "_readonly_color", QColor("#888888"))
-            pen = QPen(lock_color)
-            pen.setWidth(2)
+            pen = QPen(self._readonly_color)
+            pen.setWidth(1.5)
             painter.setPen(pen)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            lock_x = r.left() + 5
-            lock_y = r.center().y() - 5
-            painter.drawRoundedRect(lock_x, lock_y, 8, 7, 1, 1)
-            painter.drawLine(lock_x + 2, lock_y, lock_x + 2, lock_y - 3)
-            painter.drawLine(lock_x + 6, lock_y, lock_x + 6, lock_y - 3)
-            painter.drawLine(lock_x + 2, lock_y - 3, lock_x + 6, lock_y - 3)
+            lock_x = rect.left() + 8 + text_offset
+            lock_y = rect.center().y() - 3
+            painter.drawRect(lock_x, lock_y, 7, 6)
+            painter.drawArc(lock_x + 1, lock_y - 3, 5, 6, 0 * 16, 180 * 16)
             painter.restore()
+            text_offset += 14
 
-        text_sel = getattr(self, "_text_selected", QColor("white"))
-        text_inactive = getattr(self, "_text_inactive", QColor("#AFB1B3"))
         option.palette.setColor(
-            QPalette.ColorRole.WindowText, text_sel if selected else text_inactive
+            QPalette.ColorRole.WindowText,
+            self._text_selected if selected else self._text_inactive,
         )
 
-        right_reserve = 10
-        left_margin = 10
-        option.rect = r.adjusted(left_margin, 0, -right_reserve, 0)
+        right_reserve = 20 if self.tabsClosable() else 12
+        left_margin = 12 + text_offset
+        option.rect = rect.adjusted(left_margin, 0, -right_reserve, 0)
 
         option.state &= ~QStyle.StateFlag.State_MouseOver
         option.state &= ~QStyle.StateFlag.State_HasFocus
@@ -234,7 +325,7 @@ class DreamStudioIDETabBar(QTabBar):
 
     def tabSizeHint(self, index):
         size = super().tabSizeHint(index)
-        return QSize(size.width() + 25, size.height() + 12)
+        return QSize(size.width() + 10, 32)
 
     def mark_dirty(self, index: int, is_dirty: bool) -> None:
         if is_dirty:
@@ -253,23 +344,6 @@ class DreamStudioIDETabBar(QTabBar):
         rect = self.tabRect(index)
         if not rect.isNull():
             self.update(rect)
-
-    def retheme(self, t) -> None:
-        self.selected_bg = QColor(t.color("tab.selected_bg"))
-        self.hover_bg = QColor(t.color("tab.hover_bg"))
-        self.inactive_bg = QColor(t.color("tab.inactive_bg"))
-        self.border_color = QColor(t.color("tab.selected_border"))
-        self.hover_border_color = QColor(t.color("tab.hover_border"))
-        self.inactive_border_color = QColor(t.color("tab.inactive_border"))
-        self._text_selected = QColor(t.color("tab.text_selected"))
-        self._text_inactive = QColor(t.color("tab.text_inactive"))
-        self._dirty_dot = QColor(t.color("tab.dirty_dot"))
-        self._readonly_color = QColor(t.color("tab.readonly_color", "#888888"))
-        self._dirty_indices.clear()
-        self._readonly_indices.clear()
-        self.rebuild_dirty_indices()
-        self.rebuild_readonly_indices()
-        self.update()
 
     def rebuild_dirty_indices(self) -> None:
         self._dirty_indices.clear()
@@ -293,10 +367,6 @@ class DreamStudioIDETabBar(QTabBar):
                 except RuntimeError:
                     pass
 
-    def on_double_click(self, index):
-        if index == -1:
-            self._parent.add_new_editor()
-
 
 class QDreamTabEditor(QTabWidget):
     def __init__(self, parent=None):
@@ -305,11 +375,5 @@ class QDreamTabEditor(QTabWidget):
         self.setTabsClosable(False)
         self.setMovable(True)
         self.setDocumentMode(True)
-        self.setStyleSheet(
-            """
-            QTabWidget::pane {
-                border: none;
-                background-color: transparent;
-            }
-        """
-        )
+
+        self.setTabPosition(QTabWidget.TabPosition.North)

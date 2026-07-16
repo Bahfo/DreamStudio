@@ -42,48 +42,41 @@ class ExitDialog(QDialog):
         layout.addLayout(button_layout)
 
     def _apply_styles(self):
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {self._bg};
-                border: 1px solid {self._border};
-            }}
-            QLabel {{
-                color: {self._text};
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #2B2B2B;
+                border: 1px solid #444444;
+            }
+            QLabel {
+                color: #BBBBBB;
                 font-size: 14px;
                 background-color: transparent;
                 padding: 10px 5px;
-            }}
-            QPushButton {{
-                color: {self._text};
+            }
+            QPushButton {
+                color: #BBBBBB;
                 background-color: transparent;
                 border: none;
                 border-radius: 2px;
                 padding: 8px 15px;
                 font-size: 13px;
                 font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {self._btn_hover};
+            }
+            QPushButton:hover {
+                background-color: #555555;
                 color: white;
-            }}
-            QPushButton#exitButton {{
+            }
+            QPushButton#exitButton {
                 color: #FF5555;
-            }}
-            QPushButton#exitButton:hover {{
+            }
+            QPushButton#exitButton:hover {
                 background-color: #CC0000;
                 color: white;
-            }}
-            QPushButton#exitButton:pressed {{
+            }
+            QPushButton#exitButton:pressed {
                 background-color: #990000;
-            }}
+            }
         """)
-
-    def retheme(self, t):
-        self._bg = t.color("window.background", "#2B2B2B")
-        self._border = t.color("widget.border", "#444444")
-        self._text = t.color("window.text", "#BBBBBB")
-        self._btn_hover = t.color("button.hover", "#555555")
-        self._apply_styles()
 
 
 class ConfirmDialog(QDialog):
@@ -148,52 +141,45 @@ class ConfirmDialog(QDialog):
     def _apply_styles(self):
         destructive_css = ""
         if self._destructive:
-            destructive_css = f"""
-            QPushButton#destructiveButton {{
+            destructive_css = """
+            QPushButton#destructiveButton {
                 color: #FF5555;
-            }}
-            QPushButton#destructiveButton:hover {{
+            }
+            QPushButton#destructiveButton:hover {
                 background-color: #CC0000;
                 color: white;
-            }}
-            QPushButton#destructiveButton:pressed {{
+            }
+            QPushButton#destructiveButton:pressed {
                 background-color: #990000;
-            }}
+            }
             """
 
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {self._bg};
-                border: 1px solid {self._border};
-            }}
-            QLabel {{
-                color: {self._text};
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #2B2B2B;
+                border: 1px solid #444444;
+            }
+            QLabel {
+                color: #BBBBBB;
                 font-size: 14px;
                 background-color: transparent;
                 padding: 10px 5px;
-            }}
-            QPushButton {{
-                color: {self._text};
+            }
+            QPushButton {
+                color: #BBBBBB;
                 background-color: transparent;
                 border: none;
                 border-radius: 2px;
                 padding: 8px 15px;
                 font-size: 13px;
                 font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {self._btn_hover};
+            }
+            QPushButton:hover {
+                background-color: #555555;
                 color: white;
-            }}
-            {destructive_css}
+            }
+            """ + destructive_css + """
         """)
-
-    def retheme(self, t):
-        self._bg = t.color("window.background", "#2B2B2B")
-        self._border = t.color("widget.border", "#444444")
-        self._text = t.color("window.text", "#BBBBBB")
-        self._btn_hover = t.color("button.hover", "#555555")
-        self._apply_styles()
 
 
 class RenameDialog(QDialog):
@@ -328,49 +314,42 @@ class RenameDialog(QDialog):
         group.start()
 
     def _apply_styles(self):
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {self._bg};
-                border: 1px solid {self._border};
-            }}
-            QLabel {{
-                color: {self._text};
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #2B2B2B;
+                border: 1px solid #444444;
+            }
+            QLabel {
+                color: #BBBBBB;
                 font-size: 14px;
                 background-color: transparent;
                 padding: 2px 0px;
-            }}
-            QLineEdit {{
-                background-color: {self._bg};
-                color: {self._text};
-                border: 1px solid {self._border};
+            }
+            QLineEdit {
+                background-color: #2B2B2B;
+                color: #BBBBBB;
+                border: 1px solid #444444;
                 border-radius: 3px;
                 padding: 6px 10px;
                 font-size: 13px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {self._btn_hover};
-            }}
-            QPushButton {{
-                color: {self._text};
+            }
+            QLineEdit:focus {
+                border: 1px solid #555555;
+            }
+            QPushButton {
+                color: #BBBBBB;
                 background-color: transparent;
                 border: none;
                 border-radius: 2px;
                 padding: 8px 15px;
                 font-size: 13px;
                 font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {self._btn_hover};
+            }
+            QPushButton:hover {
+                background-color: #555555;
                 color: white;
-            }}
+            }
         """)
-
-    def retheme(self, t):
-        self._bg = t.color("window.background", "#2B2B2B")
-        self._border = t.color("widget.border", "#444444")
-        self._text = t.color("window.text", "#BBBBBB")
-        self._btn_hover = t.color("button.hover", "#555555")
-        self._apply_styles()
 
     def get_name(self) -> str | None:
         if self.exec() == QDialog.DialogCode.Accepted:

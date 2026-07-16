@@ -1,0 +1,105 @@
+[
+    {
+        "id": "toggle_header_visibility",
+        "text": "Toggle Header Visibility",
+        "icon": "assets/menu/eye.png",
+        "category": "tools",
+        "show_for": "all"
+    },
+    {
+        "type": "separator",
+        "category": "organize"
+    },
+    {
+        "id": "open",
+        "text": "Open",
+        "shortcut": "",
+        "icon": "assets/menu/open.png",
+        "category": "actions",
+        "show_for": "all"
+    },
+    {
+        "id": "open_with",
+        "text": "Open With...",
+        "shortcut": "",
+        "icon": "",
+        "category": "actions",
+        "show_for": "all"
+    },
+    {
+        "id": "view_code",
+        "text": "View Code",
+        "shortcut": "F7",
+        "icon": "assets/menu/view_code.png",
+        "category": "actions",
+        "show_for": "file"
+    },
+    {
+        "type": "separator",
+        "category": "clipboard"
+    },
+    {
+        "id": "cut",
+        "text": "Cut",
+        "shortcut": "Ctrl+X",
+        "icon": "assets/menu/cut.png",
+        "category": "clipboard",
+        "show_for": "all"
+    },
+    {
+        "id": "copy",
+        "text": "Copy",
+        "shortcut": "Ctrl+C",
+        "icon": "assets/menu/copy.png",
+        "category": "clipboard",
+        "show_for": "all"
+    },
+    {
+        "id": "paste",
+        "text": "Paste",
+        "shortcut": "Ctrl+V",
+        "icon": "assets/menu/paste.png",
+        "category": "clipboard",
+        "show_for": "all"
+    },
+    {
+        "id": "copy_path",
+        "text": "Copy Path",
+        "shortcut": "",
+        "icon": "",
+        "category": "clipboard",
+        "show_for": "all"
+    },
+    {
+        "type": "separator",
+        "category": "organize"
+    },
+    {
+        "id": "rename",
+        "text": "Rename",
+        "shortcut": "F2",
+        "icon": "assets/menu/rename.png",
+        "category": "organize",
+        "show_for": "all"
+    },
+    {
+        "id": "delete",
+        "text": "Delete",
+        "shortcut": "Del",
+        "icon": "assets/menu/delete.png",
+        "category": "organize",
+        "show_for": "all"
+    },
+    {
+        "type": "separator",
+        "category": "tools"
+    },
+    {
+        "id": "properties",
+        "text": "Properties",
+        "shortcut": "Alt+Enter",
+        "icon": "assets/menu/properties.png",
+        "category": "tools",
+        "show_for": "all"
+    }
+]

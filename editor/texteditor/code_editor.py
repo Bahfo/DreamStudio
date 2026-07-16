@@ -1,1532 +1,321 @@
 """
 (C) COPYRIGHT 2026 - EXcellent TechStacks, All Rights Reserved.
 
-Ironica Code Editor - The Base Code and Texteditor for DreamStudio.
-Ironica is a self contained code editor that operates on a modern level by
-utilizing Ironica lexer: The base lexer behind Python Ironica lexical
-analysis.
+Ironica Code Editor - Lightweight static text editor for DreamStudio.
 
 This code is protected under the GPLv3 License.
 """
 
 # Written By Bahaa Nofal - 26/May/2026
 
-
-from PyQt6.Qsci import QsciLexerCMake, QsciScintilla, QsciAPIs
-
-from PyQt6.QtCore import Qt, QTimer, QPoint, pyqtSignal
-from PyQt6.QtWidgets import (
-    QListWidgetItem,
-    QApplication,
-    QFileDialog,
-    QListWidget,
-    QToolTip,
-    QPushButton,
-    QSizePolicy,
-)
-
-from PyQt6.QtGui import (
-    QFont,
-    QIcon,
-    QColor,
-    QPalette,
-    QShortcut,
-    QKeyEvent,
-    QKeySequence,
-)
-
-import re
-import json
 import logging
+import pathlib
+import re
+import stat
 
-from typing import Optional, Dict, Any
-import html as html_lib
+from typing import Optional, Any
+
+from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
+from PyQt6.QtGui import QFont, QKeyEvent, QPalette
+from PyQt6.QtWidgets import QApplication
+from PyQt6.Qsci import QsciScintilla
+
+from editor.texteditor.language_engine import LanguageRegistry, LanguageLexer
+from editor.texteditor.autocomplete_menu import EditorAutocompleteExtension, HoverDocumentationPopup
 
 logger = logging.getLogger(__name__)
 
-### LOCAL IMPORTS
-from editor.texteditor.click_menu import ClickMenu
-from editor.texteditor.ironica_lexer.python_lexer import DreamPythonLexer
-from editor.texteditor.ironica_lexer.python_jedi_highlighter import (
-    DreamPythonHighlighter,
-)
-from editor.texteditor.analyzer.complexity_analyzer import analyze_python_complexity
-from editor.texteditor.analyzer.complexity_popup import ComplexityPopup
-
-_WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-
 
 class CodeEditor(QsciScintilla):
-    position_changed = pyqtSignal(int, int)
+    """
+    Base class code editor for complex language support for DreamStudio.
 
-    def __init__(self, _parent=None, language=None):
+    Builds on top of QScintilla. The ``CodeEditor`` class supports a multi-
+    plugin system for languages support via its modern engine built on top
+    of Ironica Lexers.
+
+    **Ownership Model:**
+
+    The editor owns the following state exclusively:
+
+    - Text content (via QScintilla buffer)
+    - Cursor position and selection
+    - Modified (dirty) flag (via ``isModified()``)
+    - Lexer and language configuration
+    - Read-only state (via ``setReadOnly()``)
+    - ``current_file_path`` — the canonical path of the file on disk
+    - ``current_lang`` — the resolved language identifier
+    - ``current_provider`` — the language intelligence provider
+
+    The tab manager (``DreamTabbedEditor``) owns:
+
+    - Tab title, position, and ordering
+    - The ``opened_files`` deduplication map
+    - Per-tab UI indicators (dirty dot, read-only lock)
+    """
+
+    position_changed = pyqtSignal(int, int)
+    dirty_state_changed = pyqtSignal(bool)
+
+    _INDENTATION_SPACING = 4
+
+    def __init__(self, _parent=None, language=None, file_path=None):
+        """
+        Initialise the editor widget.
+
+        Args:
+            _parent: Parent widget (typically the tab editor).
+            language: Optional language identifier string. When ``None``,
+                no syntax highlighting or provider is attached.
+            file_path: Optional file path to load immediately. If provided,
+                ``load_from_file`` is called during construction.
+        """
         super().__init__(_parent)
 
         self._lexer = None
-        self.keyword_map = {}
         self._parent = _parent
-        self.language = language
-        self.current_completion_context = None
-        self.api = None
+        self.current_file_path = None
+        self._font_size = 10
+        self._is_dirty = False
 
-        self.document_symbols = {
-            "variables": set(),
-            "functions": set(),
-            "classes": set(),
-        }
-        self.imported_modules = set()
-        self.imported_symbols = set()
+        self.setObjectName("CodeEditor")
 
-        self._font_size = 11
-        self._font = QFont("Jetbrains Mono", self._font_size)
+        self.textChanged.connect(self._on_text_changed)
+
+        # Language state — single source of truth.
+        self.current_lang: Optional[str] = None
+        self.current_provider: Optional[Any] = None
+
+        self._font = QFont()
+        self._font.setFamilies(["JetBrains Mono", "Consolas", "Courier New", "monospace"])
+        self._font.setStyleHint(QFont.StyleHint.Monospace)
+        self._font.setPointSize(11)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
         except Exception:
             pass
 
-        self._indentation_spacing = 4
+        self.setMouseTracking(True)
+        self._setup_indentation()
+        self._setup_auto_indent()
+        self._setup_margins()
+        self._setup_folding()
+        self._setup_caret()
+        self._setup_edge()
+        self._setup_wrap()
+
+        # Hover timer for documentation tooltips.
+        self._hover_timer = QTimer(self)
+        self._hover_timer.setSingleShot(True)
+        self._hover_timer.timeout.connect(self._on_hover_timeout)
+        self._last_mouse_pos = None
+        self._hover_popup: Optional[HoverDocumentationPopup] = None
+
+        # Import highlighting indicators (debounced).
+        self._import_highlight_timer = QTimer(self)
+        self._import_highlight_timer.setSingleShot(True)
+        self._import_highlight_timer.setInterval(300)
+        self._import_highlight_timer.timeout.connect(self._apply_semantic_indicators)
+
+        self.cursorPositionChanged.connect(self._emit_position)
+
+        # QScintilla AutoCompletion configuration.
+        self.setAutoCompletionSource(QsciScintilla.AutoCompletionSource.AcsNone)
+        self.setAutoCompletionThreshold(2)
+        self.setAutoCompletionCaseSensitivity(True)
+        self.setAutoCompletionReplaceWord(True)
+        self.setAutoCompletionUseSingle(QsciScintilla.AutoCompletionUseSingle.AcusNever)
+
+        self.userListActivated.connect(self._on_completion_selected)
+
+        # Autocomplete extension — event filter + popup controller.
+        self._autocomplete_ext = EditorAutocompleteExtension(self)
+        self._autocomplete_ext.install()
+
+        # Apply language if provided.
+        if language:
+            self.setLanguage(language)
+
+        # Load file if provided.
+        if file_path:
+            self.load_from_file(file_path)
+
+    # ------------------------------------------------------------------
+    # Dirty state
+    # ------------------------------------------------------------------
+
+    def _on_text_changed(self) -> None:
+        if not self._is_dirty:
+            self._is_dirty = True
+            self.dirty_state_changed.emit(True)
+        if self.current_lang == "python":
+            self._import_highlight_timer.start()
+
+    # ------------------------------------------------------------------
+    # Setup helpers
+    # ------------------------------------------------------------------
+
+    def _setup_indentation(self) -> None:
+        """Configure indentation, tab width, and backspace behaviour."""
         self.setAutoIndent(True)
         self.setBackspaceUnindents(True)
         self.setTabIndents(True)
-        self.setIndentationWidth(self._indentation_spacing)
+        self.setIndentationWidth(self._INDENTATION_SPACING)
         self.setIndentationsUseTabs(False)
-        self.setTabWidth(4)
+        self.setTabWidth(self._INDENTATION_SPACING)
         self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 3)
 
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.show_context_menu)
+    def _theme_colors(self):
+        """Derive palette colours for margins, caret, and folding."""
+        pal = self.palette()
+        bg = pal.color(QPalette.ColorRole.Window)
+        text = pal.color(QPalette.ColorRole.WindowText)
+        mid = bg.lighter(130) if bg.lightness() < 128 else bg.darker(115)
+        border = bg.lighter(150) if bg.lightness() < 128 else bg.darker(130)
+        return bg, text, mid, border
 
-        self.fold_bg = QColor("#1C1C1C")
-        self.fold_color = QColor("#A0A0A0")
-
-        self._palette = self.palette()
-        self._palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#25272B"))
-        self._palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#FFFFFF"))
-        self.setPalette(self._palette)
-
-        #####################################
-        # Lines and Columns
-        #####################################
-        self.cursorPositionChanged.connect(self._emit_position)
-
-        #####################################
-        # JEDI
-        #####################################
-        self.jedi_enabled = True
-        self.current_file_path = None
-        self.setModified(False)
-
-        #####################################
-        # Configuration
-        #####################################
-        self.setObjectName("CodeEditor")
-        self.setStyleSheet(
-            """
-            QTabWidget::pane {
-                border: none;
-                background-color: #171717;
-            }
-            QTabBar {
-                border: none;
-                qproperty-drawBase: 0; 
-            }
-            QTabBar::tab {
-                color: #AFB1B3; 
-            }
-            QTabBar::tab:selected {
-                color: white; 
-            }
-            QTabBar::close-button {
-                image: url(assets/system/close.png);
-                background-color: transparent;
-                padding-left: 4px;
-                padding-right: 4px;
-                border-radius: 2px;
-            }
-            QTabBar::close-button:hover {
-                background-color: rgba(255, 255, 255, 0.1);
-            }
-        """
-        )
-
-        self.setEdgeMode(QsciScintilla.EdgeMode.EdgeLine)
-        self.setEdgeColumn(80)
-        self.setEdgeColor(QColor("#444444"))
-        self.zoomIn(0)
-
-        self._apply_scrollbar_style(False)
-
-        ####################################
-        # AutoCompletion
-        ####################################
-
-        self.completion_popup = QListWidget(self)
-        self.completion_popup.setFixedWidth(600)
-        self.completion_popup.setWindowFlags(
-            Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
-        )
-        self.completion_popup.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.completion_popup.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.completion_popup.setAttribute(
-            Qt.WidgetAttribute.WA_TransparentForMouseEvents, False
-        )
-        self.completion_popup.hide()
-        self.completion_popup.setStyleSheet(
-            """
-            QListWidget {
-                background-color: #252526;
-                color: #D4D4D4;
-                border: 1px solid #3C3C3C;
-                padding: 4px;
-                font-family: "JetBrains Mono";
-                font-size: 11pt;
-            }
-            QListWidget::item { padding: 4px 8px; }
-            QListWidget::item:selected {
-                background-color: #094771;
-                color: white;
-            }
-        """
-        )
-
-        self.completion_popup.itemClicked.connect(self._complete_current_item)
-
-        self._symbol_update_timer = QTimer(self)
-        self._symbol_update_timer.setSingleShot(True)
-        self._symbol_update_timer.timeout.connect(self.update_document_symbols)
-
-        self._completion_timer = QTimer(self)
-        self._completion_timer.setSingleShot(True)
-        self._completion_timer.timeout.connect(self.request_completion)
-
-        # Jedi async request tracking
-        self._completion_request_id = None
-        self._goto_request_id = None
-        self._last_hover_word = None
-
-        # Hover debounce to prevent flooding JediWorker
-        self._hover_debounce_timer = QTimer(self)
-        self._hover_debounce_timer.setSingleShot(True)
-        self._hover_debounce_timer.setInterval(150)
-        self._hover_debounce_timer.timeout.connect(self._execute_hover_request)
-        self._last_hover_pos = None
-        self._hover_debounce_word_info = None
-
-        # Explicit goto navigation (from right-click / keyboard)
-        self._pending_navigate_request_id = None
-
-        self._symbol_update_timer.setInterval(400)
-
-        self.completion_icons = {
-            "function": QIcon("assets/editor/function.png"),
-            "class": QIcon("assets/editor/class.png"),
-            "module": QIcon("assets/editor/module.png"),
-            "instance": QIcon("assets/editor/variable.png"),
-            "statement": QIcon("assets/editor/keyword.png"),
-            "param": QIcon("assets/editor/parameter.png"),
-            "path": QIcon("assets/editor/path.png"),
-            "variable": QIcon("assets/editor/variable.png"),
-            "imported_symbol": QIcon("assets/editor/import.png"),
-            "keyword": QIcon("assets/editor/keyword.png"),
-            "keywords": QIcon("assets/editor/keyword.png"),
-            "property": QIcon("assets/editor/property.png"),
-            "method": QIcon("assets/editor/method.png"),
-            "namespace": QIcon("assets/editor/module.png"),
-        }
-
-        ####################################
-        # Main Implementation
-        ####################################
+    def _setup_margins(self) -> None:
+        """Configure line-number and folding margins."""
+        bg, text, mid, border = self._theme_colors()
+        self.setPaper(bg)
+        self.setColor(text)
         self.setMarginType(0, QsciScintilla.MarginType.NumberMargin)
-        self.setMarginType(1, QsciScintilla.MarginType.SymbolMargin)
-
         self.setMarginWidth(0, "000000")
         self.setMarginLineNumbers(0, True)
-        self.setMarginsBackgroundColor(self.fold_bg)
-        self.setMarginsForegroundColor(QColor("#5F5F5F"))
-        self.setFoldMarginColors(self.fold_bg, self.fold_bg)
+        self.setMarginsBackgroundColor(bg)
+        self.setMarginsForegroundColor(text)
+        self.setFoldMarginColors(mid, mid)
 
-        self.setCaretForegroundColor(QColor("white"))
+    def _setup_caret(self) -> None:
+        """Configure caret appearance."""
+        bg, text, mid, _ = self._theme_colors()
+        self.setCaretForegroundColor(text)
         self.setCaretLineVisible(True)
-        self.setCaretLineBackgroundColor(QColor("#323232"))
+        self.setCaretLineBackgroundColor(mid)
         self.setCaretWidth(2)
 
-        self.setBraceMatching(QsciScintilla.BraceMatch.StrictBraceMatch)
-
+    def _setup_folding(self) -> None:
+        """Configure code folding markers."""
+        _, _, mid, _ = self._theme_colors()
         self.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle)
         self.setMarginType(1, QsciScintilla.MarginType.SymbolMargin)
         self.setMarginWidth(1, 12)
         self.setMarginSensitivity(1, True)
 
-        ###############################
-        # Complexity Analysis
-        ###############################
-        self._complexity_results = None
-        self._complexity_popup = ComplexityPopup(self)
-
-        self._info_btn = QPushButton("\u24d8", self)
-        self._info_btn.setFixedSize(18, 18)
-        self._info_btn.setToolTip("Complexity Analysis")
-        self._info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._info_btn.setFlat(True)
-        self._info_btn.clicked.connect(self._show_complexity_popup)
-        self._info_btn.hide()
-        self._info_btn.setStyleSheet(
-            """
-            QPushButton {
-                color: #569CD6;
-                background: transparent;
-                border: none;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 0px;
-            }
-            QPushButton:hover {
-                color: #75BEFF;
-            }
-        """
-        )
-        self._reposition_info_btn()
-
-        self.setMarkerForegroundColor(
-            QColor("#B0B0B0"), QsciScintilla.SC_MARKNUM_FOLDER
-        )
-        self.setMarkerForegroundColor(
-            QColor("#B0B0B0"), QsciScintilla.SC_MARKNUM_FOLDEROPEN
-        )
-        self.setMarkerForegroundColor(
-            self.fold_color, QsciScintilla.SC_MARKNUM_FOLDEROPEN
-        )
-
+        self.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDER)
+        self.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDEROPEN)
         self.markerDefine(
-            QsciScintilla.MarkerSymbol.Plus, QsciScintilla.SC_MARKNUM_FOLDER
+            QsciScintilla.MarkerSymbol.Plus,
+            QsciScintilla.SC_MARKNUM_FOLDER,
         )
         self.markerDefine(
-            QsciScintilla.MarkerSymbol.Minus, QsciScintilla.SC_MARKNUM_FOLDEROPEN
+            QsciScintilla.MarkerSymbol.Minus,
+            QsciScintilla.SC_MARKNUM_FOLDEROPEN,
         )
 
-        self.set_wrap_mode()
-        self.setLanguage(self.language)
+    def _setup_edge(self) -> None:
+        """Configure the long-line edge marker."""
+        _, _, mid, _ = self._theme_colors()
+        self.setEdgeMode(QsciScintilla.EdgeMode.EdgeLine)
+        self.setEdgeColumn(80)
+        self.setEdgeColor(mid)
 
-        self.setAutoCompletionSource(QsciScintilla.AutoCompletionSource.AcsNone)
-        self.setAutoCompletionThreshold(0)
-        self.setAutoCompletionCaseSensitivity(False)
-        self.setAutoCompletionReplaceWord(True)
+    def _setup_wrap(self) -> None:
+        """Configure word-wrap mode."""
+        self.setWrapMode(QsciScintilla.WrapMode.WrapNone)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
-        self.SCN_CHARADDED.connect(self._on_char_added)
+    def _setup_auto_indent(self) -> None:
+        """Configure brace matching."""
+        self.setBraceMatching(QsciScintilla.BraceMatch.StrictBraceMatch)
 
-        self._hyperlink_indicator = 8
-        self._highlight_indicator = 9
-        self._hyperlink_target: Optional[Dict[str, Any]] = None
-        self._setup_hyperlink_indicator()
+    # ------------------------------------------------------------------
+    # Position / signals
+    # ------------------------------------------------------------------
 
-        ###############################
-        # Find and Replace Indicators
-        ###############################
-        self.setup_find_indicators()
-
-        ###############################
-        # Keyboard Shortcuts for Navigation
-        ###############################
-        self._goto_shortcut = QShortcut(QKeySequence("Ctrl+B"), self)
-        self._goto_shortcut.activated.connect(self.goto_definition_at_cursor)
-        self._goto_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
-
-        self._find_usages_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
-        self._find_usages_shortcut.activated.connect(self.find_usages)
-        self._find_usages_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
-
-    def _emit_position(self, line, col):
+    def _emit_position(self, line: int, col: int) -> None:
+        """Forward cursor position changes to the ``position_changed`` signal."""
         self.position_changed.emit(line, col)
 
-    def _reposition_info_btn(self):
-        margin0_w = self.marginWidth(0)
-        x = margin0_w + 4
-        self._info_btn.move(x, 2)
-
-    def resizeEvent(self, event):
+    def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        self._reposition_info_btn()
 
-    def _run_complexity_analysis(self):
-        if self.language != "Python":
-            self._info_btn.hide()
-            self._complexity_results = None
-            return
-        if not self.current_file_path:
-            self._info_btn.hide()
-            self._complexity_results = None
-            return
-        source = self.text()
-        if not source.strip():
-            self._info_btn.hide()
-            self._complexity_results = None
-            return
-        self._complexity_results = analyze_python_complexity(
-            source, self.current_file_path
-        )
-        self._info_btn.show()
-        self._reposition_info_btn()
-        self._populate_problems_view()
+    def wheelEvent(self, event) -> None:
+        """Dismiss all popups and cancel hover when the editor scrolls."""
+        self._hover_timer.stop()
+        self._dismiss_all_popups()
+        super().wheelEvent(event)
 
-    def _populate_problems_view(self):
-        if not self._complexity_results:
-            return
-        win = self.window()
-        if not win:
-            return
-        terminal = getattr(win, "terminalWidget", None)
-        if not terminal:
-            return
-        problems_tab = getattr(terminal, "problems_tab", None)
-        if not problems_tab or not hasattr(problems_tab, "set_results"):
-            return
-        problems_tab.set_results(self._complexity_results)
+    def changeEvent(self, event) -> None:
+        if event.type() in (
+            QEvent.Type.StyleChange,
+            QEvent.Type.PaletteChange,
+        ):
+            if getattr(self, "_in_change_event", False):
+                return
+            self._in_change_event = True
+            try:
+                self._setup_margins()
+                self._setup_caret()
+                self._setup_folding()
+                self._setup_edge()
+            finally:
+                self._in_change_event = False
+        elif event.type() == QEvent.Type.WindowStateChange:
+            self._dismiss_all_popups()
+        super().changeEvent(event)
 
-    def _show_complexity_popup(self):
-        if not self._complexity_results:
-            return
-        if self._complexity_popup.isVisible():
-            self._complexity_popup.hide()
-            return
-        self._complexity_popup.set_results(self._complexity_results)
-        self._complexity_popup.adjustSize()
+    def focusOutEvent(self, event) -> None:
+        """Dismiss hover popup when the editor loses focus."""
+        self._dismiss_hover()
+        super().focusOutEvent(event)
 
-        btn_pos = self._info_btn.mapToGlobal(self._info_btn.rect().bottomLeft())
-        popup_pos = btn_pos + QPoint(0, 4)
-
-        self._complexity_popup.show_at(popup_pos)
-
-    def show_context_menu(self, point):
-        self.menu = ClickMenu(self)
-        win = self.window()
-        if win is not None and hasattr(win, "theme_manager"):
-            self.menu.retheme(win.theme_manager)
-        global_point = self.mapToGlobal(point)
-        self.menu.exec(global_point)
-
-    def _apply_scrollbar_style(self, themed=True, t=None):
-        try:
-            if themed and t is not None:
-                bg = t.color("scrollbar.bg", "#1E1E1E")
-                fg = t.color("scrollbar.fg", "#424242")
-                hover = t.color("scrollbar.hover", "#555555")
-            else:
-                bg = "#1E1E1E"
-                fg = "#424242"
-                hover = "#555555"
-            css = f"""
-                QScrollBar:vertical {{
-                    background: {bg};
-                    width: 8px;
-                    margin: 0;
-                    border: none;
-                }}
-                QScrollBar::handle:vertical {{
-                    background: {fg};
-                    min-height: 24px;
-                }}
-                QScrollBar::handle:vertical:hover {{
-                    background: {hover};
-                }}
-                QScrollBar:horizontal {{
-                    background: {bg};
-                    height: 8px;
-                    margin: 0;
-                    border: none;
-                }}
-                QScrollBar::handle:horizontal {{
-                    background: {fg};
-                    min-width: 24px;
-                }}
-                QScrollBar::handle:horizontal:hover {{
-                    background: {hover};
-                }}
-                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
-                    height: 0;
-                    width: 0;
-                    border: none;
-                }}
-                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-                QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
-                    background: none;
-                    border: none;
-                }}
-            """
-            vsb = self.verticalScrollBar()
-            if vsb:
-                vsb.setStyleSheet(css)
-            hsb = self.horizontalScrollBar()
-            if hsb:
-                hsb.setStyleSheet(css)
-        except RuntimeError:
-            pass
+    # ------------------------------------------------------------------
+    # Font management
+    # ------------------------------------------------------------------
 
     @property
-    def font_size(self):
+    def font_size(self) -> int:
+        """Current font point size."""
         return self._font_size
 
     @font_size.setter
-    def font_size(self, size):
+    def font_size(self, size: int) -> None:
         self._font_size = int(size)
         self._font.setPointSize(self._font_size)
         self.setFont(self._font)
         self.setMarginsFont(self._font)
-        if self._lexer and hasattr(self._lexer, "apply_font"):
-            self._lexer.apply_font(self._font)
-
-    def setup_find_indicators(self):
-        FIND_ALL = 11
-        CURRENT = 12
-        NO_MATCH = 13
-        self.indicatorDefine(QsciScintilla.IndicatorStyle.RoundBoxIndicator, FIND_ALL)
-        self.setIndicatorForegroundColor(QColor("#D18616"), FIND_ALL)
-        self.setIndicatorDrawUnder(True, FIND_ALL)
-
-        self.indicatorDefine(
-            QsciScintilla.IndicatorStyle.ThinCompositionIndicator, CURRENT
-        )
-        self.setIndicatorForegroundColor(QColor("#FF8C00"), CURRENT)
-        self.setIndicatorDrawUnder(False, CURRENT)
-
-        self.indicatorDefine(QsciScintilla.IndicatorStyle.SquiggleIndicator, NO_MATCH)
-        self.setIndicatorForegroundColor(QColor("#FF5555"), NO_MATCH)
-        self.setIndicatorDrawUnder(False, NO_MATCH)
-
-    def _setup_hyperlink_indicator(self):
-        self.indicatorDefine(
-            QsciScintilla.IndicatorStyle.TextColorIndicator, self._hyperlink_indicator
-        )
-        self.setIndicatorForegroundColor(QColor("#569CD6"), self._hyperlink_indicator)
-        self.indicatorDefine(
-            QsciScintilla.IndicatorStyle.RoundBoxIndicator, self._highlight_indicator
-        )
-        self.setIndicatorForegroundColor(QColor("#2D5F2D"), self._highlight_indicator)
-        self.setIndicatorDrawUnder(True, self._highlight_indicator)
-
-    def focusInEvent(self, event):
-        self._hide_symbol_link()
-        super().focusInEvent(event)
-
-    def focusOutEvent(self, event):
-        self._hide_symbol_link()
-        super().focusOutEvent(event)
-
-    def hideEvent(self, event):
-        self._hide_symbol_link()
-        super().hideEvent(event)
-
-    def mouseMoveEvent(self, event):
-        super().mouseMoveEvent(event)
-
-        if event.buttons() & Qt.MouseButton.LeftButton:
-            return
-
-        mods = QApplication.keyboardModifiers()
-        has_ctrl = bool(
-            mods
-            & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
-        )
-        if has_ctrl and self._can_hyperlink():
-            word_info = self._get_word_at(event.pos())
-            if word_info and not self._is_python_keyword(word_info["word"]):
-                new_key = (
-                    word_info["line"],
-                    word_info["start"],
-                    word_info["end"],
-                    word_info["word"],
-                )
-                if new_key != self._last_hover_pos:
-                    self._last_hover_pos = new_key
-                    self._hover_debounce_word_info = word_info
-                    self._hover_debounce_timer.start()
-                return
-        self._hide_symbol_link()
-        self._hover_debounce_timer.stop()
-        self._last_hover_pos = None
-        self._hover_debounce_word_info = None
-
-    def mousePressEvent(self, event):
-        self._complexity_popup.hide()
-        if event.button() == Qt.MouseButton.LeftButton:
-            mods = QApplication.keyboardModifiers()
-            has_ctrl = bool(
-                mods
-                & (
-                    Qt.KeyboardModifier.ControlModifier
-                    | Qt.KeyboardModifier.MetaModifier
-                )
-            )
-            if has_ctrl and self._hyperlink_target:
-                sci_pos = self.SendScintilla(
-                    QsciScintilla.SCI_POSITIONFROMPOINT,
-                    event.pos().x(),
-                    event.pos().y(),
-                )
-                line, index = self.lineIndexFromPosition(sci_pos)
-                target = self._hyperlink_target
-                if line == target["line"] and target["start"] <= index <= target["end"]:
-                    self._navigate_to_definition()
-                    event.accept()
-                    return
-            self._hide_symbol_link()
-        super().mousePressEvent(event)
-
-    def _can_hyperlink(self) -> bool:
-        if self.current_file_path is None:
-            return False
-        if self.language == "Python" and self.jedi_enabled:
-            return True
-        return False
-
-    def _get_word_at(self, pos: QPoint) -> Optional[Dict[str, Any]]:
-        sci_pos = self.SendScintilla(
-            QsciScintilla.SCI_POSITIONFROMPOINT, int(pos.x()), int(pos.y())
-        )
-        line, index = self.lineIndexFromPosition(sci_pos)
-        if line < 0 or index < 0:
-            return None
-        text = self.text(line)
-        if not text:
-            return None
-        clamped_index = min(index, len(text) - 1)
-        for match in _WORD_RE.finditer(text):
-            s, e = match.span()
-            if s <= clamped_index <= e:
-                return {"word": match.group(), "line": line, "start": s, "end": e}
-        return None
-
-    def _show_symbol_link(self, word_info: Dict[str, Any]) -> None:
-        key = (word_info["line"], word_info["start"], word_info["end"])
-        old = self._hyperlink_target
-        if old is not None and (old["line"], old["start"], old["end"]) == key:
-            return
-        if old is not None:
-            try:
-                self.clearIndicatorRange(
-                    old["line"],
-                    old["start"],
-                    old["line"],
-                    old["end"],
-                    self._hyperlink_indicator,
-                )
-            except RuntimeError:
-                pass
-            if getattr(self, "_tooltip_shown", False):
-                QToolTip.hideText()
-                self._tooltip_shown = False
-
-        word_sci_pos = self.positionFromLineIndex(word_info["line"], word_info["start"])
-        x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, word_sci_pos)
-        y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, word_sci_pos)
-        window_pos = self.mapTo(self.window(), QPoint(x, y + self.font_size + 8))
-        tooltip_pos = self.window().mapToGlobal(window_pos)
-
-        self._hyperlink_target = {
-            "word": word_info["word"],
-            "line": word_info["line"],
-            "start": word_info["start"],
-            "end": word_info["end"],
-            "definition": None,
-            "_tooltip_pos": tooltip_pos,
-        }
-        try:
-            self.fillIndicatorRange(
-                word_info["line"],
-                word_info["start"],
-                word_info["line"],
-                word_info["end"],
-                self._hyperlink_indicator,
-            )
-        except RuntimeError:
-            pass
-        self._request_definition_location(
-            word_info["word"], word_info["line"], word_info["start"]
-        )
-
-    def _hide_symbol_link(self) -> None:
-        old = self._hyperlink_target
-        if old is not None:
-            try:
-                self.clearIndicatorRange(
-                    old["line"],
-                    old["start"],
-                    old["line"],
-                    old["end"],
-                    self._hyperlink_indicator,
-                )
-            except RuntimeError:
-                pass
-            self._hyperlink_target = None
-        if getattr(self, "_tooltip_shown", False):
-            QToolTip.hideText()
-            self._tooltip_shown = False
-
-    def _execute_hover_request(self):
-        word_info = self._hover_debounce_word_info
-        if word_info is not None:
-            self._show_symbol_link(word_info)
-
-    def _is_python_keyword(self, word):
-        keywords = {
-            "False",
-            "None",
-            "True",
-            "and",
-            "as",
-            "assert",
-            "async",
-            "await",
-            "break",
-            "class",
-            "continue",
-            "def",
-            "del",
-            "elif",
-            "else",
-            "except",
-            "finally",
-            "for",
-            "from",
-            "global",
-            "if",
-            "import",
-            "in",
-            "is",
-            "lambda",
-            "nonlocal",
-            "not",
-            "or",
-            "pass",
-            "raise",
-            "return",
-            "try",
-            "while",
-            "with",
-            "yield",
-        }
-        return word in keywords
-
-    def _request_definition_location(self, word: str, line: int, index: int) -> None:
-        if not self._can_hyperlink():
-            return
-
-        win = self.window()
-        if not hasattr(win, "_jedi_worker"):
-            return
-
-        # Drop any stale pending requests from this editor
-        if hasattr(win, "_pending_jedi_requests"):
-            to_drop = [
-                rid
-                for rid, ed in win._pending_jedi_requests.items()
-                if isinstance(ed, tuple) and ed[0] is self
-            ]
-            for rid in to_drop:
-                del win._pending_jedi_requests[rid]
-
-        source = self.text()
-        req_id = win._jedi_request_counter
-        win._jedi_request_counter += 1
-        win._pending_jedi_requests[req_id] = (self, "hover")
-        self._goto_request_id = req_id
-        self._last_hover_word = word
-
-        win._jedi_worker.request_goto(
-            source, self.current_file_path, line + 1, index, req_id
-        )
-
-    def handle_jedi_hover_results(self, items) -> None:
-        pass
-
-    def _format_definition_tooltip(self, d: dict) -> str:
-        name = d.get("name", "")
-        typ = d.get("type", "")
-        doc = d.get("doc", "") or d.get("description", "")
-        file_path = d.get("file")
-        line_no = d.get("line")
-
-        # JetBrains Dark Theme (New UI) Color Palette
-        text_color = "#DFE1E5"  # Crisp white/grey for symbols
-        type_color = "#868A91"  # Muted grey for types
-        link_color = "#548AF7"  # JetBrains blue for locations
-        doc_color = "#A9B7C6"  # Classic Darcula text color for docs
-        divider_color = "#43454A"  # Subtle border line
-
-        parts = [
-            f"""<div style=\"font-family: 'inter', sans-serif; 
-                 white-space: nowrap;\">"""
-        ]
-        header = []
-        if name:
-            header.append(
-                f"""<span style="color:{text_color}; font-size:13px; font-weight:600;">
-                {name}</span>"""
-            )
-        if typ:
-            header.append(
-                f'<span style="color:{type_color}; font-size:12px;"> : {typ}</span>'
-            )
-        if header:
-            parts.append("".join(header))
-        if file_path and line_no:
-            parts.append(
-                f"""<div style="color:{link_color}; font-size:11px; margin-top:2px;">
-                {file_path}:{line_no}</div>"""
-            )
-
-        if doc:
-            doc_short = doc.strip()[:500]
-            if len(doc.strip()) > 500:
-                doc_short += "..."
-            doc_escaped = html_lib.escape(doc_short)
-            parts.append(
-                f"""<div style="margin-top:8px; margin-bottom:8px; 
-                border-top:1px solid {divider_color};"></div>"""
-            )
-            parts.append(
-                f"""<pre style=\"font-family: 'JetBrains Mono', monospace; 
-                font-size:12px; color:{doc_color}; margin:0;\">""{doc_escaped}</pre>"""
-            )
-
-        parts.append("</div>")
-        return "".join(parts)
-
-    def handle_jedi_goto_results(self, definitions):
-        win = self.window()
-        if win is None or not win.isVisible():
-            return
-        if hasattr(win, "_pending_jedi_requests"):
-            to_remove = [
-                rid
-                for rid, ed in win._pending_jedi_requests.items()
-                if isinstance(ed, tuple) and ed[0] is self
-            ]
-            for rid in to_remove:
-                win._pending_jedi_requests.pop(rid, None)
-
-        self._goto_request_id = None
-        if self._pending_navigate_request_id is not None:
-            self._pending_navigate_request_id = None
-            best = self._pick_best_definition(definitions)
-            if best:
-                self._perform_goto_navigation(best)
-            return
-
-        target = self._hyperlink_target
-        if target is None:
-            return
-        last_word = getattr(self, "_last_hover_word", None)
-        if last_word is not None and target.get("word") != last_word:
-            return
-
-        best_def = None
-        for d in definitions:
-            file_path = d.get("file")
-            if file_path is not None and best_def is None:
-                best_def = d
-                target["definition"] = {
-                    "file": file_path,
-                    "line": d["line"] - 1 if d["line"] else 0,
-                    "column": d["column"] or 0,
-                    "same_file": file_path == self.current_file_path,
-                }
-            target.setdefault("_hover_info", []).append(
-                {
-                    "name": d.get("name", ""),
-                    "description": d.get("description", ""),
-                    "doc": d.get("doc", ""),
-                }
-            )
-
-        display_def = best_def or (definitions[0] if definitions else None)
-        if display_def:
-            pos = self._compute_current_tooltip_pos(target)
-            if pos:
-                html = self._format_definition_tooltip(display_def)
-                QToolTip.showText(pos, html)
-                self._tooltip_shown = True
-        else:
-            pos = self._compute_current_tooltip_pos(target)
-            if pos:
-                QToolTip.showText(
-                    pos,
-                    f"<b>{target.get('word', 'Symbol')}</b><br/>"
-                    f'<span style="color:#888;">no definition found</span>',
-                )
-                self._tooltip_shown = True
-
-    def _pick_best_definition(self, definitions):
-        if not definitions:
-            return None
-        for d in definitions:
-            if d.get("file") is not None and not d.get("in_builtin", False):
-                return d
-        return definitions[0]
-
-    def _perform_goto_navigation(self, definition):
-        file_path = definition.get("file")
-        line = definition.get("line", 0)
-        if not file_path:
-            return
-        self._hide_symbol_link()
-        same_file = file_path == self.current_file_path
-        if same_file:
-            target_line = line - 1 if line else 0
-            target_line = max(0, target_line)
-            target_line = min(target_line, self.lines() - 1)
-            self.setCursorPosition(target_line, 0)
-            self.ensureLineVisible(target_line)
-            self.setFocus()
-            self._flash_definition_line(target_line)
-        else:
-            self._parent.open_file_at_line(file_path, line - 1 if line else 0)
-
-    def _navigate_to_definition(self) -> None:
-        target = self._hyperlink_target
-        if target is None:
-            return
-
-        definition = target.get("definition")
-        if definition is None:
-            hover_info = target.get("_hover_info", [])
-            if hover_info:
-                display = hover_info[0]
-                html = self._format_definition_tooltip(display)
-                pos = self._compute_current_tooltip_pos(target)
-                if pos:
-                    QToolTip.showText(pos, html)
-                    self._tooltip_shown = True
-            return
-
-        file_path = definition.get("file")
-        line = definition.get("line", 0)
-
-        if not file_path:
-            return
-
-        same_file = definition.get("same_file", False)
-
-        self._hide_symbol_link()
-
-        if same_file:
-            target_line = max(0, min(line, self.lines() - 1))
-            self.setCursorPosition(target_line, 0)
-            self.ensureLineVisible(target_line)
-            self.setFocus()
-            self._flash_definition_line(target_line)
-        else:
-            self._parent.open_file_at_line(file_path, line)
-
-    def _compute_current_tooltip_pos(self, target):
-        win = self.window()
-        if win is None:
-            return None
-        try:
-            sci_pos = self.positionFromLineIndex(target["line"], target["start"])
-            x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, sci_pos)
-            y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, sci_pos)
-            window_pos = self.mapTo(win, QPoint(x, y + self.font_size + 8))
-            return win.mapToGlobal(window_pos)
-        except RuntimeError:
-            return None
-
-    def goto_definition_at_cursor(self):
-        if not self._can_hyperlink():
-            return
-
-        line, index = self.getCursorPosition()
-        text = self.text(line)
-        if not text:
-            return
-
-        for match in _WORD_RE.finditer(text):
-            s, e = match.span()
-            if s <= index <= e:
-                word = match.group()
-                if self._is_python_keyword(word):
-                    return
-                self._request_goto_navigation(word, line, s)
-                return
-
-    def _request_goto_navigation(self, word, line, col):
-        win = self.window()
-        if not hasattr(win, "_jedi_worker"):
-            return
-
-        if hasattr(win, "_pending_jedi_requests"):
-            to_drop = [
-                rid
-                for rid, ed in win._pending_jedi_requests.items()
-                if isinstance(ed, tuple) and ed[0] is self
-            ]
-            for rid in to_drop:
-                del win._pending_jedi_requests[rid]
-
-        source = self.text()
-        req_id = win._jedi_request_counter
-        win._jedi_request_counter += 1
-        win._pending_jedi_requests[req_id] = (self, "goto")
-        self._pending_navigate_request_id = req_id
-        self._last_hover_word = word
-
-        win._jedi_worker.request_goto(
-            source, self.current_file_path, line + 1, col, req_id
-        )
-
-    def find_usages(self):
-        if not self._can_hyperlink():
-            return
-
-        line, index = self.getCursorPosition()
-        text = self.text(line)
-        if not text:
-            return
-
-        for match in _WORD_RE.finditer(text):
-            s, e = match.span()
-            if s <= index <= e:
-                word = match.group()
-                if self._is_python_keyword(word):
-                    return
-                self._request_find_usages(word, line, s)
-                return
-
-    def _request_find_usages(self, word, line, col):
-        win = self.window()
-        if not hasattr(win, "_jedi_worker"):
-            return
-
-        source = self.text()
-        req_id = win._jedi_request_counter
-        win._jedi_request_counter += 1
-        win._pending_jedi_requests[req_id] = (self, "references")
-        self._last_hover_word = word
-
-        win._jedi_worker.request_references(
-            source, self.current_file_path, line + 1, col, req_id
-        )
-
-    def handle_jedi_references_results(self, refs):
-        if not refs:
-            return
-        win = self.window()
-        if win is None or not win.isVisible():
-            return
-
-        if hasattr(win, "_pending_jedi_requests"):
-            to_remove = [
-                rid
-                for rid, ed in win._pending_jedi_requests.items()
-                if isinstance(ed, tuple) and ed[0] is self
-            ]
-            for rid in to_remove:
-                win._pending_jedi_requests.pop(rid, None)
-
-        same_file_refs = [r for r in refs if r.get("file") == self.current_file_path]
-        if same_file_refs:
-            self._highlight_usages(same_file_refs)
-
-    def _highlight_usages(self, refs):
-        USAGE_INDICATOR = 14
-        self.indicatorDefine(
-            QsciScintilla.IndicatorStyle.RoundBoxIndicator, USAGE_INDICATOR
-        )
-        self.setIndicatorForegroundColor(QColor("#D18616"), USAGE_INDICATOR)
-        self.setIndicatorDrawUnder(True, USAGE_INDICATOR)
-
-        first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
-        lines_on_screen = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
-        last_visible = first_visible + lines_on_screen
-
-        for ref in refs:
-            rline = ref.get("line", 1) - 1
-            if rline < first_visible or rline > last_visible + 1:
-                continue
-            rcol = ref.get("column", 0)
-            name = ref.get("name", "")
-            if rline >= 0 and name:
-                end_col = rcol + len(name)
-                try:
-                    self.fillIndicatorRange(
-                        rline, rcol, rline, end_col, USAGE_INDICATOR
-                    )
-                except RuntimeError:
-                    pass
-
-    def _flash_definition_line(self, line: int) -> None:
-        line_len = len(self.text(line))
-        self.fillIndicatorRange(line, 0, line, line_len, self._highlight_indicator)
-        QTimer.singleShot(2000, lambda: self._clear_flash_highlight(line))
-
-    def _clear_flash_highlight(self, line: int) -> None:
-        try:
-            line_len = len(self.text(line))
-            self.clearIndicatorRange(line, 0, line, line_len, self._highlight_indicator)
-        except RuntimeError:
-            pass
-
-    def _schedule_document_symbol_update(self):
-        self._symbol_update_timer.start(150)
-
-    def _schedule_completion(self):
-        self._completion_timer.start(150)
-
-    def _get_line_text(self, line):
-        lines = self.text().splitlines()
-        if 0 <= line < len(lines):
-            return lines[line]
-        return ""
-
-    def update_document_symbols(self):
-        self.imported_modules.clear()
-        self.imported_symbols.clear()
-        self.document_symbols["variables"] = set()
-        self.document_symbols["functions"] = set()
-        self.document_symbols["classes"] = set()
-
-        if self.language != "Python":
-            return
-
-        source = self.text()
-
-        # Use regex-based extraction that works even during typing (invalid syntax)
-        for m in re.finditer(r"^(?:async\s+)?def\s+(\w+)\s*\(", source, re.MULTILINE):
-            self.document_symbols["functions"].add(m.group(1))
-        for m in re.finditer(r"^class\s+(\w+)\s*[\(:]", source, re.MULTILINE):
-            self.document_symbols["classes"].add(m.group(1))
-        for m in re.finditer(r"^(\w+)\s*=", source, re.MULTILINE):
-            self.document_symbols["variables"].add(m.group(1))
-        for m in re.finditer(r"^import\s+(\w+(?:\.\w+)*)", source, re.MULTILINE):
-            self.imported_modules.add(m.group(1).split(".")[0])
-        for m in re.finditer(r"^from\s+(\w+(?:\.\w+)*)\s+import", source, re.MULTILINE):
-            self.imported_modules.add(m.group(1).split(".")[0])
-        for m in re.finditer(r"^from\s+\S+\s+import\s+(\w+)", source, re.MULTILINE):
-            self.imported_symbols.add(m.group(1))
-
-    def show_completion_popup(self, items):
-        self.completion_popup.clear()
-
-        if not items:
-            self.completion_popup.hide()
-            return
-
-        for item in items:
-            item_type = self.normalize_type(item.get("type", "variable"))
-
-            # enforce consistent structure so UI never degrades unexpectedly
-            item.setdefault("label", "")
-            item.setdefault("signature", "")
-            item.setdefault("doc", "")
-            item.setdefault("source", "")
-            item["type"] = item_type
-
-            display_text = self.build_completion_display(item)
-
-            list_item = QListWidgetItem("   " + display_text)
-            list_item.setData(Qt.ItemDataRole.UserRole, item)
-
-            # guaranteed fallback icon (prevents empty icon cases)
-            icon = self.completion_icons.get(
-                item_type, self.completion_icons.get("variable")
-            )
-            list_item.setIcon(icon)
-
-            self.completion_popup.addItem(list_item)
-
-        self.position_completion_popup()
-        self.completion_popup.setCurrentRow(0)
-        self.completion_popup.show()
-
-    def _complete_current_item(self, item):
-        data = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(data, dict) or "label" not in data:
-            return
-        self.insert_completion(data["label"])
-
-    def position_completion_popup(self):
-        pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
-        x = self.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, pos)
-        y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, pos)
-
-        global_pos = self.mapToGlobal(QPoint(x, y + 24))
-        self.completion_popup.move(global_pos)
-
-    def _on_char_added(self, char_number):
-        try:
-            ch = chr(char_number)
-        except (ValueError, TypeError):
-            return
-
-        if ch.isalnum() or ch in "._:":
-            self._schedule_completion()
-        else:
-            self.current_completion_context = None
-            self.completion_popup.hide()
-
-    def get_completion_context(self):
-        line, index = self.getCursorPosition()
-        current_line = self._get_line_text(line)
-        text_before_cursor = current_line[:index]
-
-        # Handle chained calls: obj.method().attr or dict["key"].attr
-        attr_match = re.search(
-            r"""((?:[A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*(?:\s*\([^)]*\)\s*
-                |\s*\[[^\]]*\]\s*))*))\s*\.\s*([A-Za-z_]\w*)$""",
-            text_before_cursor,
-            re.VERBOSE,
-        )
-        if attr_match:
-            return {
-                "type": "attribute",
-                "object": attr_match.group(1).strip(),
-                "prefix": attr_match.group(2),
-                "line": line,
-                "index": index,
-            }
-
-        global_match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)$", text_before_cursor)
-        if global_match:
-            return {
-                "type": "global",
-                "prefix": global_match.group(1),
-                "line": line,
-                "index": index,
-            }
-
-        return None
-
-    def request_completion(self):
-        context = self.get_completion_context()
-
-        if not context:
-            self.current_completion_context = None
-            self.completion_popup.hide()
-            return
-
-        self.current_completion_context = context
-        items = self.get_completion_items(context)
-        self.show_completion_popup(items)
-        self._request_jedi_completions(context)
-
-    def normalize_type(self, t):
-        return {
-            "function": "function",
-            "method": "method",
-            "module": "module",
-            "class": "class",
-            "instance": "variable",
-            "param": "param",
-            "keyword": "keyword",
-        }.get(t, "variable")
-
-    def score_item(self, item, context):
-        base = item.get("score", 0)
-        source = item.get("source", "")
-        item_type = item.get("type", "")
-
-        if source == "jedi":
-            base += 150
-        if source == "local":
-            base += 20
-        if source == "imported":
-            base += 15
-        if source == "keywords":
-            base += 5
-        if item_type == "variable":
-            base += 5
-
-        return base
-
-    def normalize_jedi_items(self, items):
-        seen = set()
-        result = []
-
-        for item in items:
-            key = (item.get("label"), item.get("type"), item.get("module"))
-            if key in seen:
-                continue
-            seen.add(key)
-            result.append(item)
-
-        return result
-
-    def add_item(self, items_by_label, item, context):
-        # normalize item immediately so all pipelines behave identically
-        item.setdefault("label", "")
-        item.setdefault("signature", "")
-        item.setdefault("doc", "")
-        item.setdefault("source", "")
-        item["type"] = self.normalize_type(item.get("type", "variable"))
-
-        label = item["label"]
-        existing = items_by_label.get(label)
-
-        if existing is None:
-            items_by_label[label] = item
-            return
-
-        old_score = self.score_item(existing, context)
-        new_score = self.score_item(item, context)
-
-        if new_score > old_score:
-            items_by_label[label] = item
-
-    def get_completion_items(self, context):
-        prefix = context["prefix"]
-        context_type = context.get("type", "global")
-        items_by_label = {}
-
-        def add(item):
-            self.add_item(items_by_label, item, context)
-
-        if context_type != "attribute":
-            for word, word_type in self.keyword_map.items():
-                if word.lower().startswith(prefix.lower()):
-                    add(
-                        {
-                            "label": word,
-                            "type": word_type,
-                            "source": "keywords",
-                            "score": 20,
-                        }
-                    )
-
-        for func_name in self.document_symbols["functions"]:
-            if func_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": func_name,
-                        "type": "function",
-                        "source": "local",
-                        "score": 80,
-                    }
-                )
-
-        for class_name in self.document_symbols["classes"]:
-            if class_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": class_name,
-                        "type": "class",
-                        "source": "local",
-                        "score": 75,
-                    }
-                )
-
-        for variable_name in self.document_symbols["variables"]:
-            if variable_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": variable_name,
-                        "type": "variable",
-                        "source": "local",
-                        "score": 70,
-                    }
-                )
-
-        for module_name in self.imported_modules:
-            if module_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": module_name,
-                        "type": "module",
-                        "source": "imported",
-                        "score": 72,
-                        "signature": f"module {module_name}",
-                        "doc": "",
-                    }
-                )
-
-        for symbol_name in self.imported_symbols:
-            if symbol_name.lower().startswith(prefix.lower()):
-                add(
-                    {
-                        "label": symbol_name,
-                        "type": "imported_symbol",
-                        "source": "imported",
-                        "score": 74,
-                    }
-                )
-
-        items = list(items_by_label.values())
-        items.sort(
-            key=lambda x: (
-                self.score_item(x, context),
-                x.get("score", 0),
-                x["label"].lower(),
-            ),
-            reverse=True,
-        )
-        return items
-
-    def insert_completion(self, completion_text):
-        context = self.current_completion_context
-        if not context:
-            return
-
-        line = context["line"]
-        index = context["index"]
-        prefix = context["prefix"]
-
-        start_index = max(0, index - len(prefix))
-
-        self.setSelection(line, start_index, line, index)
-        self.replaceSelectedText(completion_text)
-
-        self.current_completion_context = None
-        self.completion_popup.hide()
-        self.setFocus()
-
-    def clean_signature(self, signature):
-        if not signature:
-            return ""
-        return " ".join(signature.split())
-
-    def build_completion_display(self, item):
-        label = item.get("label") or ""
-        item_type = item.get("type") or ""
-        signature = self.clean_signature(item.get("signature", ""))
-
-        if signature.strip() == label.strip():
-            signature = ""
-
-        parts = [label]
-        if signature:
-            parts.append(signature)
-        if item_type:
-            parts.append(f"[{item_type}]")
-
-        return "    ".join(parts)
-
-    def _request_jedi_completions(self, context):
-        if self.language != "Python" or not self.jedi_enabled:
-            return
-        if not self.current_file_path:
-            return
-
-        win = self.window()
-        if not hasattr(win, "_jedi_worker"):
-            return
-
-        source = self.text()
-        line, index = self.getCursorPosition()
-        req_id = win._jedi_request_counter
-        win._jedi_request_counter += 1
-        win._pending_jedi_requests[req_id] = self
-        self._completion_request_id = req_id
-
-        win._jedi_worker.request_completion(
-            source, self.current_file_path, line + 1, index, req_id
-        )
-
-    def handle_jedi_completion_results(self, items):
-        if not items:
-            return
-        if not self.current_completion_context:
-            return
-
-        win = self.window()
-        if hasattr(win, "_pending_jedi_requests"):
-            to_remove = [
-                rid for rid, ed in win._pending_jedi_requests.items() if ed is self
-            ]
-            for rid in to_remove:
-                win._pending_jedi_requests.pop(rid, None)
-        self._completion_request_id = None
-
-        context = self.current_completion_context
-        prefix = context.get("prefix", "")
-        items_by_label = {}
-
-        def add(item):
-            self.add_item(items_by_label, item, context)
-
-        for item in items:
-            label = item.get("label", "")
-            if prefix and not label.lower().startswith(prefix.lower()):
-                continue
-            add(
-                {
-                    "label": label,
-                    "type": self.normalize_type(item.get("type", "variable")),
-                    "source": "jedi",
-                    "score": 200,
-                    "signature": label,
-                    "module": item.get("module", ""),
-                }
-            )
-
-        if not items_by_label:
-            return
-
-        existing_popup_items = []
-        if self.completion_popup.isVisible():
-            for i in range(self.completion_popup.count()):
-                existing_popup_items.append(
-                    self.completion_popup.item(i).data(Qt.ItemDataRole.UserRole)
-                )
-            self.completion_popup.clear()
-        else:
-            self.show_completion_popup(list(items_by_label.values()))
-            return
-
-        merged = {}
-        for item in existing_popup_items:
-            self.add_item(merged, item, context)
-        for item in items_by_label.values():
-            self.add_item(merged, item, context)
-
-        merged_items = list(merged.values())
-        merged_items.sort(
-            key=lambda x: (
-                self.score_item(x, context),
-                x.get("score", 0),
-                x["label"].lower(),
-            ),
-            reverse=True,
-        )
-        self.show_completion_popup(merged_items)
-
-    def load_from_file(self, file_path):
-        self.current_file_path = file_path
-
-        with open(file_path, "r", encoding="utf-8") as f:
-            self.setText(f.read())
-        self.setModified(False)
-
-        try:
-            import pathlib
-            import stat
-
-            p = pathlib.Path(file_path)
-            if not (p.stat().st_mode & stat.S_IWUSR):
-                self.setReadOnly(True)
-                self._pending_readonly = True
-        except Exception:
-            pass
-
-        self._run_complexity_analysis()
-
-    def set_editor_font(self, font):
+        if self._lexer and hasattr(self._lexer, "setFont"):
+            self._lexer.setFont(self._font, -1)
+
+    def set_editor_font(self, font) -> None:
+        """
+        Set the editor font family or QFont instance.
+
+        Args:
+            font: A ``QFont`` instance or a font family name string.
+        """
         if isinstance(font, QFont):
             self._font = QFont(font)
         else:
-            self._font = QFont(str(font), self.font_size)
+            self._font = QFont()
+            self._font.setFamilies([str(font), "Consolas", "Courier New", "monospace"])
+            self._font.setStyleHint(QFont.StyleHint.Monospace)
 
         self._font.setPointSize(self.font_size)
         self.setFont(self._font)
         self.setMarginsFont(self._font)
 
-        if self._lexer and hasattr(self._lexer, "apply_font"):
-            self._lexer.apply_font(self._font)
+        if self._lexer and hasattr(self._lexer, "setFont"):
+            self._lexer.setFont(self._font, -1)
 
-    def set_editor_font_size(self, font_size):
+    def set_editor_font_size(self, font_size: int) -> None:
+        """Set the editor font point size."""
         self.font_size = int(font_size)
 
-    def set_wrap_mode(self, enabled=False):
+    def set_wrap_mode(self, enabled: bool = False) -> None:
+        """Enable or disable word wrapping."""
         self.setWrapMode(
             QsciScintilla.WrapMode.WrapNone
             if not enabled
@@ -1535,46 +324,32 @@ class CodeEditor(QsciScintilla):
         if not enabled:
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
-    def keyPressEvent(self, e: QKeyEvent):
+    # ------------------------------------------------------------------
+    # Keyboard events
+    # ------------------------------------------------------------------
+
+    def keyPressEvent(self, e: QKeyEvent) -> None:
+        """Intercept key events for autocomplete trigger, goto definition,
+        and enhanced enter/return behaviour."""
+        # Dismiss hover popup on any key press.
+        self._dismiss_hover()
 
         if (
-            e.modifiers() & Qt.KeyboardModifier.ControlModifier
-            and e.modifiers() & Qt.KeyboardModifier.ShiftModifier
-            and e.key() == Qt.Key.Key_T
+            e.modifiers() == Qt.KeyboardModifier.ControlModifier
+            and e.key() == Qt.Key.Key_Space
         ):
-
-            self._parent.add_new_editor()
+            self._autocomplete_ext.trigger_autocomplete()
+            e.accept()
             return
 
-        if self.completion_popup.isVisible():
-            if e.key() == Qt.Key.Key_Down:
-                row = self.completion_popup.currentRow()
-                if row < self.completion_popup.count() - 1:
-                    self.completion_popup.setCurrentRow(row + 1)
-                return
-
-            if e.key() == Qt.Key.Key_Up:
-                row = self.completion_popup.currentRow()
-                if row > 0:
-                    self.completion_popup.setCurrentRow(row - 1)
-                return
-
-            if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Tab):
-                item = self.completion_popup.currentItem()
-                if item:
-                    data = item.data(Qt.ItemDataRole.UserRole)
-                    if isinstance(data, dict) and "label" in data:
-                        self.insert_completion(data["label"])
-                return
-
-            if e.key() == Qt.Key.Key_Escape:
-                self.current_completion_context = None
-                self.completion_popup.hide()
-                return
+        if e.key() == Qt.Key.Key_F12:
+            self.execute_goto_definition()
+            e.accept()
+            return
 
         if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             line, index = self.getCursorPosition()
-            current_line_text = self._get_line_text(line)
+            current_line_text = self.text(line)
 
             base_indent = ""
             for ch in current_line_text:
@@ -1584,259 +359,490 @@ class CodeEditor(QsciScintilla):
                     break
 
             if current_line_text.rstrip().endswith((":", "{", "(")):
-                indent = base_indent + (" " * self._indentation_spacing)
+                indent = base_indent + (" " * self._INDENTATION_SPACING)
             else:
                 indent = base_indent
 
             self.beginUndoAction()
             self.insert("\n" + indent)
             self.endUndoAction()
-
             self.setCursorPosition(line + 1, len(indent))
             return
 
         super().keyPressEvent(e)
 
-        if e.key() in (Qt.Key.Key_Backspace, Qt.Key.Key_Delete):
-            self._schedule_completion()
-            self._schedule_document_symbol_update()
+        if e.text() == "." or (e.text().isalnum() and not self.isListActive()):
+            self._autocomplete_ext.schedule_autocomplete()
 
-    def setLanguage(self, lang: str):
+    # ------------------------------------------------------------------
+    # Mouse events / hover
+    # ------------------------------------------------------------------
+
+    def mouseMoveEvent(self, e):
+        """Track cursor movement for the documentation hover window."""
+        super().mouseMoveEvent(e)
+        self._last_mouse_pos = e.position().toPoint()
+
+        self._hover_timer.stop()
+        if self.current_provider:
+            self._hover_timer.start(1000)
+
+    def leaveEvent(self, event):
+        """Mouse left the editor — start hover popup dismiss timer."""
+        self._hover_timer.stop()
+        if self._hover_popup and self._hover_popup.isVisible():
+            self._hover_popup._dismiss_timer.start()
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, e: QKeyEvent) -> None:
+        """Intercept Ctrl+Click for go-to-definition navigation."""
+        # Dismiss hover popup on any mouse click.
+        self._dismiss_hover()
+
+        if (
+            e.button() == Qt.MouseButton.LeftButton
+            and e.modifiers() == Qt.KeyboardModifier.ControlModifier
+        ):
+            px = int(e.position().x())
+            py = int(e.position().y())
+            position = self.SendScintilla(
+                QsciScintilla.SCI_POSITIONFROMPOINT, px, py
+            )
+            if position != -1:
+                line, col = self.lineIndexFromPosition(position)
+                self.setCursorPosition(line, col)
+                self.execute_goto_definition()
+                e.accept()
+                return
+
+        super().mousePressEvent(e)
+
+    def _on_hover_timeout(self) -> None:
+        """Show a scrollable documentation popup when the cursor hovers
+        over a symbol with a provider."""
+        if not self.current_provider or not self._last_mouse_pos:
+            return
+
+        try:
+            px = int(self._last_mouse_pos.x())
+            py = int(self._last_mouse_pos.y())
+            position = self.SendScintilla(
+                QsciScintilla.SCI_POSITIONFROMPOINT, px, py
+            )
+            if position == -1:
+                return
+            line, col = self.lineIndexFromPosition(position)
+
+            html = None
+            if hasattr(self.current_provider, "get_hover_html"):
+                html = self.current_provider.get_hover_html(self.text(), line, col)
+            if not html:
+                hint = self.current_provider.get_hover_hint(self.text(), line, col)
+                if hint:
+                    html = f"<pre style='margin:0; white-space:pre-wrap;'>{hint}</pre>"
+
+            if not html:
+                self._dismiss_hover()
+                return
+
+            if self._hover_popup is None:
+                self._hover_popup = HoverDocumentationPopup()
+
+            global_pos = self.mapToGlobal(self._last_mouse_pos)
+            self._hover_popup.show_html(html, global_pos)
+        except Exception as exc:
+            logger.debug("Hover query failed: %s", exc)
+
+    def _dismiss_hover(self) -> None:
+        """Immediately hide the hover documentation popup."""
+        if self._hover_popup and self._hover_popup.isVisible():
+            self._hover_popup.hide()
+
+    def _dismiss_all_popups(self) -> None:
+        """Dismiss every open sub‑menu (hover + autocomplete)."""
+        self._dismiss_hover()
+        ext = getattr(self, "_autocomplete_ext", None)
+        if ext is not None:
+            ext.cancel_autocomplete()
+
+    # ------------------------------------------------------------------
+    # Go-to definition
+    # ------------------------------------------------------------------
+
+    def execute_goto_definition(self) -> None:
+        """Resolve the symbol under the cursor and navigate to its definition.
+
+        Falls back gracefully if no provider is active or the symbol
+        cannot be resolved.  All provider errors are caught so that a
+        plugin failure never crashes the editor.
+        """
+        if not self.current_provider:
+            return
+
+        try:
+            line, col = self.getCursorPosition()
+            target = self.current_provider.get_definition_location(
+                self.text(), line, col
+            )
+
+            if not target:
+                return
+
+            file_path, target_line, target_col = target
+
+            # Guard: empty or None file path — nothing to navigate to.
+            if not file_path:
+                return
+
+            # Guard: already at the definition (same file + same line).
+            current_path = getattr(self, "current_file_path", "") or ""
+            if (
+                file_path == current_path
+                and target_line == line
+            ):
+                return
+
+            tab_widget = self._parent
+            if tab_widget and hasattr(tab_widget, "open_file_at_line"):
+                tab_widget.open_file_at_line(file_path, target_line)
+
+                current_editor = tab_widget.currentWidget()
+                if current_editor and hasattr(
+                    current_editor, "setCursorPosition"
+                ):
+                    current_editor.setCursorPosition(target_line, target_col)
+        except Exception as exc:
+            logger.debug("Go-to-definition failed: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Language / lexer
+    # ------------------------------------------------------------------
+
+    def setLanguage(self, lang: str) -> None:
+        """Assign a language to the editor.
+
+        Args:
+            lang: Language identifier (e.g. ``"python"``). When empty or
+                ``None``, all language support is removed.
+        """
         if not lang:
             self._lexer = None
             self.setLexer(None)
-            self.keyword_map = {}
-            if self.api is not None and hasattr(self.api, "clear"):
-                self.api.clear()
-            self.api = None
-            self.apply_theme()
-            self._run_complexity_analysis()
+            self.current_lang = None
+            self.current_provider = None
             return
 
-        if lang == "Python":
-            self._lexer = self.load_jedi_highlighter()
-            if self._lexer:
-                self._lexer.apply_font(self._font)
-                self.setLexer(self._lexer)
-                self._connect_jedi_analysis()
-                self.apply_theme()
-                self._schedule_document_symbol_update()
-                self._run_complexity_analysis()
-            else:
-                self._lexer = self.load_language_keywords("Python")
-                if self._lexer:
-                    self._lexer.apply_font(self._font)
-                    self.setLexer(self._lexer)
-                    self.apply_theme()
-                    self._schedule_document_symbol_update()
-                    self._run_complexity_analysis()
+        self.current_lang = lang
+        self.current_provider = LanguageRegistry.get_provider(lang)
+        config = LanguageRegistry.get_config(lang)
 
+        if config:
+            self._lexer = self._create_lexer(lang, config)
+            self.setLexer(self._lexer)
+            # Propagate editor font to ALL lexer style indices so
+            # QsciLexerPython doesn't keep its Bitstream Vera defaults.
+            if hasattr(self._lexer, "setFont"):
+                self._lexer.setFont(self._font, -1)
+            self._apply_semantic_indicators()
         else:
-            self._disconnect_jedi_analysis()
             self._lexer = None
             self.setLexer(None)
-            self.keyword_map = {}
-            if self.api is not None and hasattr(self.api, "clear"):
-                self.api.clear()
-            self.api = None
-            self.apply_theme()
-            self._run_complexity_analysis()
-            return
 
-    def apply_theme(self, t=None):
-        if t is not None:
-            bg = t.color("editor.background")
-            fg = t.color("editor.text")
-            sel_bg = t.color("editor.selection_bg")
-            sel_fg = t.color("editor.selection_fg")
-            caret = t.color("editor.caret")
-            margin_bg = t.color("editor.margin_bg")
-            margin_fg = t.color("editor.margin_fg")
-            edge_color = t.color("editor.edge", "#444444")
-        else:
-            bg = "#171717"
-            fg = "#D4D4D4"
-            sel_bg = "#264F78"
-            sel_fg = "#FFFFFF"
-            caret = "#FFFFFF"
-            margin_bg = "#171717"
-            margin_fg = "#D4D4D4"
-            edge_color = "#444444"
+    def _create_lexer(self, lang: str, config: dict):
+        """Create the best available lexer for *lang*.
 
-        solid_edge_qcolor = QColor(edge_color)
-        self.setPaper(QColor(bg))
-        self.setColor(QColor(fg))
-        self.setCaretForegroundColor(QColor(caret))
-        self.setSelectionBackgroundColor(QColor(sel_bg))
-        self.setSelectionForegroundColor(QColor())
-        caret_line = t.color("widget.border") if t is not None else "#323232"
-        self.setCaretLineBackgroundColor(QColor(caret_line))
-        self.setCaretLineVisible(True)
-        self.setMarginsBackgroundColor(QColor(margin_bg))
-        self.setMarginsForegroundColor(QColor(margin_fg))
+        For Python, prefer the built-in ``QsciLexerPython`` which
+        handles stateful syntax (comments, strings, f-strings) correctly.
+        Falls back to the generic ``LanguageLexer`` for other languages.
+        """
+        if lang == "python":
+            try:
+                from PyQt6.Qsci import QsciLexerPython
 
-        fold_fg = t.color("scrollbar.fg", "#B0B0B0") if t is not None else "#B0B0B0"
-        self.setFoldMarginColors(QColor(margin_bg), QColor(margin_bg))
-        self.setMarkerForegroundColor(QColor(fold_fg), QsciScintilla.SC_MARKNUM_FOLDER)
-        self.setMarkerForegroundColor(
-            QColor(fold_fg), QsciScintilla.SC_MARKNUM_FOLDEROPEN
-        )
-        self.setMarkerBackgroundColor(
-            QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDER
-        )
-        self.setMarkerBackgroundColor(
-            QColor(margin_bg), QsciScintilla.SC_MARKNUM_FOLDEROPEN
-        )
+                lexer = QsciLexerPython(self)
+                self._apply_config_to_builtin_lexer(lexer, config)
+                return lexer
+            except ImportError:
+                logger.debug(
+                    "QsciLexerPython not available, falling back to LanguageLexer"
+                )
 
-        if t is not None:
-            tip_bg = QColor(t.color("tooltip.background"))
-            tip_fg = QColor(t.color("tooltip.text"))
-            if hasattr(self, "_complexity_popup"):
-                self._complexity_popup.retheme(t)
-        else:
-            tip_bg = QColor("#25272B")
-            tip_fg = QColor("#FFFFFF")
-        self._palette.setColor(QPalette.ColorRole.ToolTipBase, tip_bg)
-        self._palette.setColor(QPalette.ColorRole.ToolTipText, tip_fg)
-        self.setPalette(self._palette)
+        return LanguageLexer(self, config)
 
-        self._apply_scrollbar_style(t is not None, t)
-        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 3)
-        self.setEdgeColor(solid_edge_qcolor)
+    def _apply_config_to_builtin_lexer(self, lexer, config: dict) -> None:
+        """Apply custom colours from a JSON config to a built-in QScintilla lexer.
 
-        if t is not None:
-            text_color = t.color("editor.text", "#D4D4D4")
-            ws_fg = QColor(text_color)
-            ws_fg.setAlpha(72)
-            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEFORE, True, ws_fg)
-            ws_bg = QColor(text_color)
-            ws_bg.setAlpha(20)
-            self.SendScintilla(QsciScintilla.SCI_SETWHITESPACEBACK, True, ws_bg)
+        Maps the config's ``"styles"`` dictionary onto the built-in
+        lexer's style indices using the colour values.  Also propagates
+        the ``string`` and ``comment`` colours to all variant styles
+        (single/double/triple-quoted, f-strings, block comments).
+        """
+        from PyQt6.QtGui import QColor
 
-            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, solid_edge_qcolor)
-        else:
-            self.SendScintilla(
-                QsciScintilla.SCI_SETWHITESPACEFORE, True, QColor("#3C3C3C")
-            )
-            self.SendScintilla(
-                QsciScintilla.SCI_SETWHITESPACEBACK, True, QColor("#171717")
-            )
+        styles = config.get("styles", {})
 
-            self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, 37, solid_edge_qcolor)
-
-        self.SendScintilla(QsciScintilla.SCI_STYLESETBACK, 37, QColor(bg))
-
-        if self._lexer and t is not None:
-            if hasattr(self._lexer, "apply_syntax_theme"):
-                self._lexer.apply_syntax_theme(t)
-            else:
-                self._lexer.setDefaultColor(QColor(fg))
-                for style in range(128):
-                    self._lexer.setPaper(QColor(bg), style)
-
-    def apply_syntax_only(self, t) -> None:
-        if not self._lexer or t is None:
-            return
-        if hasattr(self._lexer, "apply_syntax_theme"):
-            self._lexer.apply_syntax_theme(t)
-        else:
-            fg = t.color("editor.text", "#D4D4D4")
-            bg = t.color("editor.background", "#171717")
-            self._lexer.setDefaultColor(QColor(fg))
-            for style in range(128):
-                self._lexer.setPaper(QColor(bg), style)
-
-    def load_language_keywords(self, lang: str):
-        configs = {
-            "Python": ("editor/texteditor/keywords/python.json", DreamPythonLexer)
+        # Resolve collisions: use unique QsciLexerPython style indices
+        # that don't overlap.
+        colour_map = {
+            "keyword": lexer.Keyword,               # 5
+            "builtin": lexer.HighlightedIdentifier,  # 14
+            "definition": lexer.FunctionMethodName,  # 9
+            "class_def": lexer.ClassName,            # 8
+            "string": lexer.DoubleQuotedString,      # 3
+            "number": lexer.Number,                  # 2
+            "comment": lexer.Comment,                # 1
+            "decorator": lexer.Decorator,            # 15
+            "operator": lexer.Operator,              # 10
         }
 
-        if lang not in configs:
-            return None
+        for style_name, color_hex in styles.items():
+            style_idx = colour_map.get(style_name)
+            if style_idx is not None:
+                lexer.setColor(QColor(color_hex), style_idx)
 
-        path, lexer_class = configs[lang]
+        # Propagate "string" colour to ALL string style variants.
+        if "string" in styles:
+            string_color = QColor(styles["string"])
+            for idx in (
+                lexer.SingleQuotedString,           # 4
+                lexer.TripleDoubleQuotedString,     # 7
+                lexer.TripleSingleQuotedString,     # 6
+                lexer.UnclosedString,               # 13
+                lexer.DoubleQuotedFString,          # 16
+                lexer.SingleQuotedFString,          # 17
+                lexer.TripleDoubleQuotedFString,    # 19
+                lexer.TripleSingleQuotedFString,    # 18
+            ):
+                lexer.setColor(string_color, idx)
 
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception:
-            self.keyword_map = {}
-            return None
+        # Propagate "comment" colour to block comments.
+        if "comment" in styles:
+            lexer.setColor(QColor(styles["comment"]), lexer.CommentBlock)  # 12
 
-        classification_map = {}
-        for category in ["words", "types", "iterators", "exceptions"]:
-            items = data.get(category, {})
-            if isinstance(items, dict):
-                classification_map.update(items)
+    # ------------------------------------------------------------------
+    # Semantic indicators (imports, special keywords)
+    # ------------------------------------------------------------------
 
-        lexer = lexer_class(self, data)
+    @staticmethod
+    def _scintilla_rgb(hex_color: str) -> int:
+        """Convert a ``#RRGGBB`` CSS colour to Scintilla's ``0x00BBGGRR``."""
+        from PyQt6.QtGui import QColor
+        c = QColor(hex_color)
+        return ((c.blue() & 0xFF) << 16) | ((c.green() & 0xFF) << 8) | (c.red() & 0xFF)
 
-        if self.api is not None and hasattr(self.api, "clear"):
-            self.api.clear()
+    # Slot indices used for Scintilla indicators.
+    _IND_IMPORT_CLASS = 0   # greenish  #4EC9B0  (classes / modules)
+    _IND_IMPORT_FUNC  = 1   # yellowish #DCDCAA  (functions)
+    _IND_SPECIAL_KW   = 2   # blue      #569CD6  (None, self, True …)
 
-        self.api = QsciAPIs(lexer)
-        for word in classification_map.keys():
-            self.api.add(word)
-        self.api.prepare()
+    _SPECIAL_KEYWORDS = frozenset({
+        "None", "True", "False", "self", "cls",
+    })
+    _SPECIAL_DUNDER = True   # highlight dunder names like __name__
 
-        self.keyword_map = classification_map
-        return lexer
+    def _apply_semantic_indicators(self) -> None:
+        """Apply Scintilla indicators for import targets and special keywords.
 
-    def load_jedi_highlighter(self) -> Optional[DreamPythonHighlighter]:
-        path = "editor/texteditor/keywords/python_highlights.json"
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception:
-            return None
+        Indicator 0 → greenish  ``#4EC9B0`` (classes / modules)
+        Indicator 1 → yellowish ``#DCDCAA`` (functions)
+        Indicator 2 → blue      ``#569CD6`` (None, True, False, self …)
+        """
+        from PyQt6.QtGui import QColor
 
-        lexer = DreamPythonHighlighter(self, data)
+        if self.current_lang != "python":
+            return
 
-        if self.api is not None and hasattr(self.api, "clear"):
-            self.api.clear()
+        text = self.text()
+        if not text:
+            return
 
-        self.api = QsciAPIs(lexer)
-        for word in data.get("keyword_map", {}):
-            self.api.add(word)
-        for word in data.get("builtins", []):
-            self.api.add(word)
-        for word in data.get("builtin_types", []):
-            self.api.add(word)
-        self.api.prepare()
+        length = len(text)
 
-        classification_map = {}
-        for word, category in data.get("keyword_map", {}).items():
-            classification_map[word] = category
-        self.keyword_map = classification_map
+        # ── clear all indicator slots ────────────────────────────────
+        for ind in (self._IND_IMPORT_CLASS, self._IND_IMPORT_FUNC,
+                    self._IND_SPECIAL_KW):
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
+            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
 
-        return lexer
+        # ── configure indicator styles ───────────────────────────────
+        self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE,
+                           self._IND_IMPORT_CLASS, QsciScintilla.INDIC_TEXTFORE)
+        self.SendScintilla(QsciScintilla.SCI_INDICSETFORE,
+                           self._IND_IMPORT_CLASS,
+                           self._scintilla_rgb("#4EC9B0"))
 
-    def _disconnect_jedi_analysis(self) -> None:
-        try:
-            self.textChanged.disconnect(self._schedule_jedi_analysis)
-        except (TypeError, RuntimeError):
-            pass
+        self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE,
+                           self._IND_IMPORT_FUNC, QsciScintilla.INDIC_TEXTFORE)
+        self.SendScintilla(QsciScintilla.SCI_INDICSETFORE,
+                           self._IND_IMPORT_FUNC,
+                           self._scintilla_rgb("#DCDCAA"))
 
-    def _connect_jedi_analysis(self) -> None:
-        self._disconnect_jedi_analysis()
-        self.textChanged.connect(self._schedule_jedi_analysis)
+        self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE,
+                           self._IND_SPECIAL_KW, QsciScintilla.INDIC_TEXTFORE)
+        self.SendScintilla(QsciScintilla.SCI_INDICSETFORE,
+                           self._IND_SPECIAL_KW,
+                           self._scintilla_rgb("#569CD6"))
 
-    def _schedule_jedi_analysis(self) -> None:
-        if self._lexer is not None and hasattr(self._lexer, "schedule_analysis"):
-            self._lexer.schedule_analysis()
+        # ── import targets ───────────────────────────────────────────
+        _FROM_IMPORT_RE = re.compile(
+            r"from\s+([\w.]+)\s+import\s+(.+?)(?:\n|$)"
+        )
+        _PLAIN_IMPORT_RE = re.compile(
+            r"^import\s+(.+?)(?:\n|$)", re.MULTILINE
+        )
+        _IDENT_RE = re.compile(r"[\w]+")
 
-    def clear_dirty(self):
+        # from M import X, Y  → highlight M and each target
+        for m in _FROM_IMPORT_RE.finditer(text):
+            # Module name (e.g. "os", "os.path")
+            mod_name = m.group(1)
+            mod_start = text.find(mod_name, m.start(1))
+            if mod_start != -1:
+                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
+                                   self._IND_IMPORT_CLASS)
+                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
+                                   mod_start, len(mod_name))
+
+            # Individual targets after "import"
+            imports_str = m.group(2)
+            line_start = m.start(2)
+            for id_m in _IDENT_RE.finditer(imports_str):
+                target = id_m.group(0)
+                if target == "as":
+                    continue
+                idx = text.find(target, line_start)
+                if idx == -1 or idx >= length:
+                    continue
+                indicator = (self._IND_IMPORT_CLASS
+                             if target[0].isupper()
+                             else self._IND_IMPORT_FUNC)
+                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
+                                   indicator)
+                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
+                                   idx, len(target))
+                line_start = idx + len(target)
+
+        # import X, Y  → highlight each target
+        for m in _PLAIN_IMPORT_RE.finditer(text):
+            imports_str = m.group(1)
+            line_start = m.start(1)
+            for id_m in _IDENT_RE.finditer(imports_str):
+                target = id_m.group(0)
+                if target == "as":
+                    continue
+                idx = text.find(target, line_start)
+                if idx == -1 or idx >= length:
+                    continue
+                indicator = (self._IND_IMPORT_CLASS
+                             if target[0].isupper()
+                             else self._IND_IMPORT_FUNC)
+                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
+                                   indicator)
+                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
+                                   idx, len(target))
+                line_start = idx + len(target)
+
+        # ── special keywords / dunders ───────────────────────────────
+        _KW_RE = re.compile(r"\b(None|True|False|self|cls)\b")
+        _DUNDER_RE = re.compile(r"__\w+__")
+        for kw_m in _KW_RE.finditer(text):
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
+                               self._IND_SPECIAL_KW)
+            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
+                               kw_m.start(), kw_m.end() - kw_m.start())
+        if self._SPECIAL_DUNDER:
+            for du_m in _DUNDER_RE.finditer(text):
+                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
+                                   self._IND_SPECIAL_KW)
+                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
+                                   du_m.start(), du_m.end() - du_m.start())
+
+    # ------------------------------------------------------------------
+    # File I/O
+    # ------------------------------------------------------------------
+
+    def load_from_file(self, file_path: str) -> None:
+        """Load file contents into the editor.
+
+        Attempts UTF-8 decoding first, then falls back to the system
+        default encoding. Sets the editor to read-only when the file on
+        disk lacks write permissions.
+
+        Args:
+            file_path: Absolute path to the file to load.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            PermissionError: If the file cannot be read.
+            UnicodeDecodeError: If the file cannot be decoded (after
+                fallback attempt).
+        """
+        path_obj = pathlib.Path(file_path)
+        if not path_obj.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        # Try UTF-8 first, then fall back to system default.
+        content = None
+        for encoding in ("utf-8", "utf-8-sig", None):
+            try:
+                kwargs = {"encoding": encoding} if encoding else {}
+                with open(file_path, "r", **kwargs) as f:
+                    content = f.read()
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+
+        if content is None:
+            # Final fallback: read as bytes, replace errors.
+            with open(file_path, "rb") as f:
+                content = f.read().decode("utf-8", errors="replace")
+
+        self.current_file_path = file_path
+        self.setText(content)
         self.setModified(False)
+        self._is_dirty = False
+        self.dirty_state_changed.emit(False)
 
-    def is_dirty(self):
-        return self.isModified()
+        # Check read-only permissions.
+        try:
+            if not (path_obj.stat().st_mode & stat.S_IWUSR):
+                self.setReadOnly(True)
+        except OSError as exc:
+            logger.warning(
+                "Could not check file permissions for %s: %s", file_path, exc
+            )
 
-    def save(self):
+    def clear_dirty(self) -> None:
+        """Reset the editor's modified (dirty) flag."""
+        self.setModified(False)
+        if self._is_dirty:
+            self._is_dirty = False
+            self.dirty_state_changed.emit(False)
+
+    def is_dirty(self) -> bool:
+        """Return ``True`` if the editor buffer has been modified."""
+        return self._is_dirty
+
+    def save(self) -> bool:
+        """Save the current buffer to ``current_file_path``.
+
+        If no file path is set, delegates to ``save_as()``.
+
+        Returns:
+            ``True`` on success, ``False`` on failure or cancellation.
+        """
         if self.current_file_path:
             return self.save_to_file(self.current_file_path)
         return self.save_as()
 
-    def save_as(self):
+    def save_as(self) -> bool:
+        """Prompt the user for a path and save the buffer.
+
+        Returns:
+            ``True`` on success, ``False`` on failure or cancellation.
+        """
+        from PyQt6.QtWidgets import QFileDialog
+
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save File As",
@@ -1847,24 +853,46 @@ class CodeEditor(QsciScintilla):
             return False
         return self.save_to_file(file_path)
 
-    def save_to_file(self, file_path):
+    def save_to_file(self, file_path: str) -> bool:
+        """Write the editor buffer to *file_path*.
+
+        Args:
+            file_path: Destination path (overwritten if it exists).
+
+        Returns:
+            ``True`` on success, ``False`` on any I/O error.
+        """
         try:
+            content = self.text()
             with open(file_path, "w", encoding="utf-8") as f:
-                f.write(self.text())
+                f.write(content)
             self.current_file_path = file_path
             self.setModified(False)
+            if self._is_dirty:
+                self._is_dirty = False
+                self.dirty_state_changed.emit(False)
             return True
-        except Exception as e:
-            logger.error(f"Save failed: {e}")
+        except OSError as exc:
+            logger.error("Save failed for %s: %s", file_path, exc)
             return False
 
-    def copy_selection_as_plain_text(self):
+    # ------------------------------------------------------------------
+    # Clipboard helpers
+    # ------------------------------------------------------------------
+
+    def copy_selection_as_plain_text(self) -> None:
+        """Copy the current selection to the system clipboard as plain text."""
         selected_text = self.selectedText()
         if selected_text:
             clipboard = QApplication.clipboard()
             clipboard.setText(selected_text)
 
-    def make_file_readonly(self):
+    # ------------------------------------------------------------------
+    # Read-only management
+    # ------------------------------------------------------------------
+
+    def make_file_readonly(self) -> None:
+        """Toggle the file's read-only permission on disk and in the editor."""
         if not self.current_file_path:
             from editor.widgets.QExitDialog import ConfirmDialog
 
@@ -1876,17 +904,10 @@ class CodeEditor(QsciScintilla):
                 cancel_text="CANCEL",
                 destructive=False,
             )
-            t = getattr(self._parent, "_parent", None)
-            theme = getattr(t, "theme_manager", None) if t else None
-            if theme and hasattr(dialog, "retheme"):
-                dialog.retheme(theme)
             dialog.exec()
             return
 
         try:
-            import pathlib
-            import stat
-
             file_path = pathlib.Path(self.current_file_path)
             current_mode = file_path.stat().st_mode
 
@@ -1900,24 +921,22 @@ class CodeEditor(QsciScintilla):
                 self._update_readonly_tab_indicator(False)
 
             file_path.chmod(new_mode)
-        except Exception as e:
+        except OSError as exc:
+            logger.error("Could not change file permissions: %s", exc)
             from editor.widgets.QExitDialog import ConfirmDialog
 
             dialog = ConfirmDialog(
                 parent=self,
                 title="Read-Only Error",
-                message=f"Could not change file permissions: {e}",
+                message=f"Could not change file permissions: {exc}",
                 confirm_text="OK",
                 cancel_text="CANCEL",
                 destructive=False,
             )
-            t = getattr(self._parent, "_parent", None)
-            theme = getattr(t, "theme_manager", None) if t else None
-            if theme and hasattr(dialog, "retheme"):
-                dialog.retheme(theme)
             dialog.exec()
 
-    def _update_readonly_tab_indicator(self, is_readonly):
+    def _update_readonly_tab_indicator(self, is_readonly: bool) -> None:
+        """Notify the tab bar to show or hide the read-only lock icon."""
         tab_widget = self._parent
         if tab_widget is None:
             return
@@ -1926,3 +945,69 @@ class CodeEditor(QsciScintilla):
             if tab_widget.widget(i) is self:
                 tab_bar.mark_readonly(i, is_readonly)
                 break
+
+    # ------------------------------------------------------------------
+    # Completion callback
+    # ------------------------------------------------------------------
+
+    def _on_completion_selected(self, list_id: int, selection: int) -> None:
+        """Handle insertion when an item is selected from the built-in menu."""
+        if list_id != 1:
+            return
+
+        line, index = self.getCursorPosition()
+        current_line_text = self.text(line)[:index]
+
+        import re
+
+        match = re.search(r"(\w+)$", current_line_text)
+        word_len = len(match.group(1)) if match else 0
+
+        self.beginUndoAction()
+        if word_len > 0:
+            self.setSelection(line, index - word_len, line, index)
+            self.removeSelectedText()
+
+        self.insert(selection)
+        self.endUndoAction()
+        self.setCursorPosition(line, index - word_len + len(selection))
+
+    def trigger_autocomplete(self) -> None:
+        """Manually trigger the autocomplete popup."""
+        self._autocomplete_ext.trigger_autocomplete()
+
+    # ------------------------------------------------------------------
+    # Code formatting
+    # ------------------------------------------------------------------
+
+    def format_current_file(self) -> None:
+        """Pass the buffer through the current provider's formatter.
+
+        All provider errors are caught so that a plugin failure
+        never crashes the editor.
+        """
+        if not self.current_provider:
+            return
+
+        try:
+            raw_text = self.text()
+            formatted_text = self.current_provider.format_source(raw_text)
+
+            if formatted_text and formatted_text != raw_text:
+                line, col = self.getCursorPosition()
+                first_visible = self.SendScintilla(
+                    QsciScintilla.SCI_GETFIRSTVISIBLELINE
+                )
+
+                self.beginUndoAction()
+                self.setText(formatted_text)
+                self.endUndoAction()
+
+                total_lines = self.lines()
+                clamped_line = max(0, min(line, total_lines - 1))
+                self.setCursorPosition(clamped_line, col)
+                self.SendScintilla(
+                    QsciScintilla.SCI_SETFIRSTVISIBLELINE, first_visible
+                )
+        except Exception as exc:
+            logger.debug("Format query failed: %s", exc)

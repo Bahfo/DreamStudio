@@ -1,0 +1,247 @@
+[
+    {
+        "id":"btn",
+        "icon_path":"assets/system/new.png",
+        "tooltip":"Create a new file",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_new_file"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/open.png",
+        "tooltip":"Open an existing file",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_open_file"
+    },
+    {
+        "id":"sep"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/newsol.png",
+        "tooltip":"New Solution",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/opensol.png",
+        "tooltip":"Open an existing solution",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/newDir.png",
+        "tooltip":"Open a template",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    },
+    {
+        "id":"sep"
+    }, 
+    {
+        "id":"btn",
+        "icon_path":"assets/system/cut.png",
+        "tooltip":"Cut selected text",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_cut_text"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/copy.png",
+        "tooltip":"Copy selected text",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_copy_text"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/paste.png",
+        "tooltip":"Paste text",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_paste_text"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/undo.png",
+        "tooltip":"Undo action",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_undo_action"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/redo.png",
+        "tooltip":"Redo action",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_redo_action"
+    },
+    {
+        "id":"sep"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/save.png",
+        "tooltip":"Save current file",
+        "size":[30, 30],
+        "icon_size":[26, 26],
+        "callback": "_save_file"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/saveall.png",
+        "tooltip":"Save all files",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": "_save_all_files"
+    },
+    {
+        "id":"sep"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/run.png",
+        "tooltip":"Run Current File",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/bug.png",
+        "tooltip":"Debug Current File",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    },
+    {
+        "id": "menu",
+        "text": "Select Running Architecture",
+        "icon_path": "assets/system/edit_menu.png",
+        "tooltip": "Select OS architecture to run on",
+        "size": [180, 30],
+        "icon_size": [16, 16],
+        "options": [
+            {
+                "text": "Android x86 Architecture",
+                "icon_path": "assets/system/undo.png",
+                "callback": false
+            },
+            {
+                "text": "GreenLeaf x86 Architecture",
+                "icon_path": "assets/system/redo.png",
+                "callback": false
+            },
+            {
+                "text": "Local Operating System",
+                "icon_path": "assets/system/trash.png",
+                "callback": false
+            }
+        ]
+    },
+    {
+        "id": "sep"
+    },
+    {
+        "id": "menu",
+        "text": "Change Theme",
+        "icon_path": "assets/system/theme.png",
+        "tooltip": "Select a theme",
+        "size": [180, 30],
+        "icon_size": [16, 16],
+        "options": [
+            {
+                "text": "Dark",
+                "callback": "_set_theme_dark"
+            },
+            {
+                "text": "Light",
+                "callback": "_set_theme_light"
+            },
+            {
+                "text": "Moses",
+                "callback": "_set_theme_moses"
+            },
+            {
+                "text": "Davy",
+                "callback": "_set_theme_davy"
+            },
+            {
+                "text": "Tokyo Night",
+                "callback": "_set_theme_tokyonight"
+            },
+            {
+                "text": "Solarized Dark",
+                "callback": "_set_theme_solarized_dark"
+            },
+            {
+                "text": "Solarized Light",
+                "callback": "_set_theme_solarized_light"
+            },
+            {
+                "text": "Monokai",
+                "callback": "_set_theme_monokai"
+            },
+            {
+                "text": "Dark High Contrast",
+                "callback": "_set_theme_dark_hc"
+            },
+            {
+                "text": "Light High Contrast",
+                "callback": "_set_theme_light_hc"
+            },
+            {
+                "text": "Coffee Dark",
+                "callback": "_set_theme_coffee_dark"
+            },
+            {
+                "text": "Coffee Light",
+                "callback": "_set_theme_coffee_light"
+            }
+        ]
+    }, 
+    {
+        "id":"stretch"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/theme.png",
+        "tooltip":"Change Theme",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    }, 
+    {
+        "id":"btn",
+        "icon_path":"assets/system/theme.png",
+        "tooltip":"Change Theme",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    }, 
+    {
+        "id":"btn",
+        "icon_path":"assets/system/theme.png",
+        "tooltip":"Change Theme",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    }, 
+    {
+        "id":"btn",
+        "icon_path":"assets/system/theme.png",
+        "tooltip":"Change Theme",
+        "size":[30, 30],
+        "icon_size":[22, 22],
+        "callback": false
+    }
+]

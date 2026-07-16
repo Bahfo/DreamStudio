@@ -1,0 +1,45 @@
+[
+    {
+        "id":"btn",
+        "icon_path":"assets/system/folder.png",
+        "tooltip":"Open folder",
+        "size":[40, 40],
+        "icon_size":[30, 30],
+        "callback": "_toggle_file_explorer"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/find.png",
+        "tooltip":"Search files",
+        "size":[40, 40],
+        "icon_size":[30, 30],
+        "callback": false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/git.png",
+        "tooltip":"Version control",
+        "size":[40, 40],
+        "icon_size":[30, 30],
+        "callback": "_toggle_git_source_control"
+    },
+    {
+        "id":"stretch"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/terminal.png",
+        "tooltip":"Toggle terminal",
+        "size":[40, 40],
+        "icon_size":[25, 25],
+        "callback": "_toggle_terminal"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/settings.png",
+        "tooltip":"Settings",
+        "size":[40, 40],
+        "icon_size":[30, 30],
+        "callback": false
+    }
+]

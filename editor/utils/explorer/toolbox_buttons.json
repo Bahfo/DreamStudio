@@ -1,0 +1,8 @@
+{
+    "New File": ["_toolbar_new_file", "assets/menus/add.png"],
+    "New Folder": ["_toolbar_new_folder", "assets/menus/folder.png"],
+    "Delete Item": ["_toolbar_delete_item", "assets/menus/trash.png"],
+    "Refresh": ["_toolbar_refresh", "assets/menus/restart.png"],
+    "Collapse All": ["_toolbar_collapse_all", "assets/menus/collapse.png"],
+    "Expand All": ["_toolbar_expand_all", "assets/menus/expand.png"]
+}

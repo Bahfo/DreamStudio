@@ -1,79 +1,21 @@
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QMenu, QLineEdit, QWidgetAction, QLabel
+from PyQt6.QtWidgets import QMenu, QLabel, QLineEdit, QWidgetAction
 
 import json
 import logging
-
-from editor.terminal.commands_window import execute_command
 
 logger = logging.getLogger(__name__)
 
 
 class CommandWindow(QMenu):
-    def __init__(self, theme_manager, parent=None):
+    def __init__(self, hanging_widget, parent=None):
+        # hanging_widget: The widget that the commands window will hang under.
+        # Must be of type QPushButton or any type of its instance.
         super().__init__(parent=parent)
-        self._theme_manager = theme_manager
         self.setFixedWidth(600)
         self._build_actions()
-        self._apply_style()
-
-    def _apply_style(self):
-        t = self._theme_manager
-        self.setStyleSheet(
-            f"""
-            QMenu {{
-                background-color: {t.color("menu.background")};
-                color: {t.color("menu.text")};
-                border: 1px solid {t.color("menu.border")};
-                padding: 6px 0px;
-                font-family: 'inter', Arial;
-                font-size: 13px;
-            }}
-            QMenu::item {{
-                padding: 8px 28px 8px 18px;
-                background: transparent;
-            }}
-            QMenu::item:selected {{
-                background-color: {t.color("menu.selected")};
-            }}
-            QMenu::separator {{
-                height: 1px;
-                background: {t.color("menu.separator")};
-                margin: 6px 10px;
-            }}
-            QMenu::right-arrow {{
-                image: none;
-            }}
-            QMenu::indicator {{
-                width: 18px;
-                height: 18px;
-                margin-left: 6px;
-                margin-right: 4px;
-                border-radius: 4px;
-                border: 1px solid {t.color("menu.border")};
-                background-color: transparent;
-            }}
-            QMenu::indicator:checked {{
-                background-color: {t.color("menu.selected")};
-                border: 1px solid {t.color("menu.selected")};
-                image: url(assets/menus/check.png);
-            }}
-
-            QLineEdit {{
-                background-color: transparent;
-                color: {t.color("menu.text")};
-                border: none;
-                padding: 8px 18px;
-                font-family: 'inter', Arial;
-                font-size: 13px;
-            }}
-        """
-        )
-
-    def retheme(self, t):
-        self._theme_manager = t
-        self._apply_style()
+        self._parent = parent
+        self._hang_widget = hanging_widget
 
     def _build_actions(self):
         search_action = QWidgetAction(self)
@@ -87,12 +29,10 @@ class CommandWindow(QMenu):
         self.tip_label = QLabel(
             "TIP: Type to search a command, navigate by keyboard arrows."
         )
-        self.tip_label.setStyleSheet(
-            """background-color: transparent;
+        self.tip_label.setStyleSheet("""background-color: transparent;
             padding: 8px 18px 8px 18px;
             font-size: 12px;
-            font-family: 'inter';"""
-        )
+            font-family: 'Segoe UI';""")
         tip_action.setDefaultWidget(self.tip_label)
         self.addAction(tip_action)
 
@@ -102,7 +42,7 @@ class CommandWindow(QMenu):
 
     def _load_commands_list(self):
         try:
-            with open("editor/utils/tools/commands_list.json", "r") as file:
+            with open("editor/utils/tools/json/commands_list.json", "r") as file:
                 commands = json.load(file)
             for command, display in commands.items():
                 action = QAction(command, self)
@@ -128,4 +68,8 @@ class CommandWindow(QMenu):
 
     def _on_choosing_command(self, command):
         logger.info("Executing command: %s", command)
-        execute_command(command)
+
+    def _show(self, event):
+        corner_left = self._hang_widget.rect().bottomLeft()
+        global_pos = self._hang_widget.mapToGlobal(corner_left)
+        self.exec(global_pos)

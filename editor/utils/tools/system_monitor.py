@@ -1,42 +1,22 @@
 import time
 import psutil
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
+    QLabel,
     QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
     QTabWidget,
+    QVBoxLayout,
+    QGridLayout,
+    QHeaderView,
+    QScrollArea,
+    QProgressBar,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
-    QLabel,
-    QProgressBar,
-    QScrollArea,
 )
 
 from editor.widgets.QSystemGraphWidget import SystemGraphUtil
-
-_CORE_COLORS = [
-    "#E06C75",
-    "#61AFEF",
-    "#98C379",
-    "#E5C07B",
-    "#C678DD",
-    "#56B6C2",
-    "#D19A66",
-    "#ABB2BF",
-    "#BE5046",
-    "#3E7BCC",
-    "#7EC87E",
-    "#D4A05A",
-    "#F78C6C",
-    "#89DDFF",
-    "#C3E88D",
-    "#FF9CAC",
-]
 
 
 class SystemMonitor(QWidget):
@@ -100,14 +80,6 @@ class SystemMonitor(QWidget):
             bar.setTextVisible(False)
             bar.setFixedHeight(6)
 
-            bar_color = _CORE_COLORS[i % len(_CORE_COLORS)]
-            bar.setStyleSheet(
-                f"""
-                QProgressBar {{ background-color: {self._grid_color}; border-radius: 3px; border: none; }}
-                QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; }}
-            """
-            )
-
             row = i // cols
             col = (i % cols) * 2
             self._core_layout.addWidget(lbl, row, col)
@@ -138,14 +110,6 @@ class SystemMonitor(QWidget):
         perf_scroll = QScrollArea()
         perf_scroll.setWidgetResizable(True)
         perf_scroll.setWidget(self.perf_tab)
-        perf_scroll.setStyleSheet(
-            "QScrollArea { border: none; background: transparent; }"
-            "QScrollBar:vertical { background: transparent; width: 8px; margin: 0; border: none; }"
-            "QScrollBar::handle:vertical { background: #424242; min-height: 24px; border-radius: 4px; }"
-            "QScrollBar::handle:vertical:hover { background: #555555; }"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
-        )
 
         self.proc_tab = QWidget()
         self.proc_tab.setStyleSheet(f"background-color: {self._window_bg};")
@@ -184,73 +148,6 @@ class SystemMonitor(QWidget):
         self._timer.start(1000)
 
         QTimer.singleShot(100, self._collect)
-
-    def _apply_tab_styling(self):
-        self.tabs.setStyleSheet(
-            f"""
-            QTabWidget::pane {{ border: none; background-color: {self._window_bg}; }}
-            QTabBar::tab {{ background: {self._bg_color}; color: {self._text_color};
-            padding: 8px 20px; border-bottom: 2px solid transparent; }}
-            QTabBar::tab:selected {{ color: #FFFFFF; border-bottom: 2px solid #61AFEF; }}
-        """
-        )
-
-    def _apply_table_styling(self):
-        self.process_table.setStyleSheet(
-            f"""
-            QTableWidget {{ background-color: {self._window_bg};
-            color: {self._text_color}; border: 1px solid {self._grid_color}; }}
-            QHeaderView::section {{ background-color: {self._grid_color};
-            color: {self._text_color}; padding: 4px; border: none;
-            border-right: 1px solid {self._bg_color};
-            border-bottom: 1px solid {self._bg_color};
-            font-family: 'inter'; }}
-        """
-        )
-
-    def retheme(self, t):
-        self._theme = t
-        self._bg_color = t.color("editor.background", "#1E1E1E")
-        self._grid_color = t.color("widget.border", "#2A2D30")
-        self._text_color = t.color("editor.text", "#999999")
-        border = t.color("widget.border", "#3F4145")
-        self._window_bg = t.color("window.background", "#1E1E1E")
-
-        bg_qcol = QColor(self._bg_color)
-        grid_qcol = QColor(self._grid_color)
-        text_qcol = QColor(self._text_color)
-        border_qcol = QColor(border)
-
-        for g in (self._cpu_graph, self._ram_graph, self._net_graph, self._disk_graph):
-            g.bg = bg_qcol
-            g.grid_color = grid_qcol
-            g.text_color = text_qcol
-            g.border_color = border_qcol
-
-        self._apply_tab_styling()
-        self.perf_tab.setStyleSheet(f"background-color: {self._window_bg};")
-        self.proc_tab.setStyleSheet(f"background-color: {self._window_bg};")
-        self._apply_table_styling()
-
-        for i in range(self._num_cores):
-            self._core_labels[i].setStyleSheet(
-                f"color: {self._text_color}; background-color: transparent;"
-            )
-            bar_color = _CORE_COLORS[i % len(_CORE_COLORS)]
-            self._core_bars[i].setStyleSheet(
-                f"""
-                QProgressBar {{ background-color: {self._grid_color}; border-radius: 3px; border: none; }}
-                QProgressBar::chunk {{ background-color: {bar_color}; border-radius: 3px; }}
-            """
-            )
-
-        section_fg = t.color("widget.text", "#969696")
-        self.label.setStyleSheet(
-            f"color: {section_fg}; font-size: 11px; font-weight: bold; "
-            f"letter-spacing: 1px; padding: 4px 8px;"
-        )
-
-        self.update()
 
     def _collect(self):
         self._collect_cpu()

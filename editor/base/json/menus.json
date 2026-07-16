@@ -1,0 +1,652 @@
+{
+  "File": [
+    {
+      "text": "New File",
+      "icon": "assets/menus/new_file.png",
+      "action": "set_new_file"
+    },
+    {
+      "text": "New Project",
+      "icon": "assets/menus/new_project.png",
+      "action": "set_new_project"
+    },
+    {
+      "text": "New Window",
+      "icon": null,
+      "action": "set_new_window"
+    },
+    null,
+    {
+      "text": "Open...",
+      "icon": "assets/menus/open.png",
+      "action": "set_open_file"
+    },
+    {
+      "text": "Open Recent Project",
+      "icon": null,
+      "action": "set_open_recent_project"
+    },
+    null,
+    {
+      "text": "Save Current File",
+      "icon": "assets/menus/save.png",
+      "action": "set_save_current_file"
+    },
+    {
+      "text": "Save File As...",
+      "icon": null,
+      "action": "set_save_file_as"
+    },
+    {
+      "text": "Save All Files",
+      "icon": null,
+      "action": "set_save_all_files"
+    },
+    {
+      "text": "Save All and Close Window",
+      "icon": null,
+      "action": "set_save_all_and_close"
+    },
+    null,
+    {
+      "text": "Close Editor",
+      "icon": "assets/menus/close_editor.png",
+      "action": "set_close_editor"
+    },
+    {
+      "text": "Close DreamStudio",
+      "icon": null,
+      "action": "set_close_dreamstudio"
+    },
+    null,
+    {
+      "text": "Import...",
+      "icon": "assets/menus/import.png",
+      "action": "set_import_configurations"
+    },
+    {
+      "text": "Export...",
+      "icon": "assets/menus/export.png",
+      "action": "set_export_configurations"
+    },
+    {
+      "text": "Settings and Preferences",
+      "icon": "assets/menus/settings.png",
+      "action": "set_open_settings"
+    },
+    {
+      "text": "Exit",
+      "icon": null,
+      "action": "close"
+    }
+  ],
+  "Edit": [
+    {
+      "text": "Undo",
+      "icon": "assets/menus/undo.png",
+      "action": "set_undo"
+    },
+    {
+      "text": "Redo",
+      "icon": "assets/menus/redo.png",
+      "action": "set_redo"
+    },
+    null,
+    {
+      "text": "Cut Selection",
+      "icon": "assets/menus/cut.png",
+      "action": "set_cut"
+    },
+    {
+      "text": "Copy Selection",
+      "icon": "assets/menus/copy.png",
+      "action": "set_copy"
+    },
+    {
+      "text": "Copy Selection as Plain Text",
+      "icon": "assets/menus/copy_text.png",
+      "action": "set_copy_as_plain_text"
+    },
+    {
+      "text": "Paste Clipboard",
+      "icon": "assets/menus/paste.png",
+      "action": "set_paste"
+    },
+    {
+      "text": "Delete Selection",
+      "icon": null,
+      "action": "set_delete_selection"
+    },
+    null,
+    {
+      "text": "Find and Replace",
+      "icon": "assets/menus/find.png",
+      "action": "set_find_replace"
+    },
+    {
+      "text": "Search in Selected Text",
+      "icon": "assets/menus/search_sel.png",
+      "action": "set_search_in_selected"
+    },
+    {
+      "text": "Find and Replace in Files",
+      "icon": null,
+      "action": "set_find_replace_in_files"
+    },
+    null,
+    {
+      "text": "Select All",
+      "icon": null,
+      "action": "set_select_all"
+    },
+    {
+      "text": "Unselect All",
+      "icon": null,
+      "action": "set_unselect_all"
+    },
+    {
+      "text": "Indent Selection",
+      "icon": null,
+      "action": "set_indent_selection"
+    },
+    {
+      "text": "Unindent Selection",
+      "icon": null,
+      "action": "set_unindent_selection"
+    },
+    {
+      "text": "Manage Indentation",
+      "icon": null,
+      "action": "set_manage_indentation"
+    }
+  ],
+  "View": [
+    {
+      "text": "Appearance",
+      "icon": "assets/menus/appearance.png",
+      "submenu": [
+        {
+          "text": "Full Screen",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Zen Mode",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        null,
+        {
+          "text": "Show Left Bar",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Show Terminals",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Show Services Right Bar",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        null,
+        {
+          "text": "Move Sidebar to Right",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Hide Options Bar",
+          "icon": null,
+          "action": "generic_callback"
+        }
+      ]
+    },
+    {
+      "text": "Themes",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Recent Action",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Recent Opened File",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Recent Edited File",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Show Appearance Settings",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Reset Appearance Settings",
+      "icon": null,
+      "action": "generic_callback"
+    }
+  ],
+  "Tools": [
+    {
+      "text": "Command Window",
+      "icon": "assets/menus/command.png",
+      "action": "_show_command_window"
+    },
+    {
+      "text": "Tasks TODO List",
+      "icon": "assets/menus/todo.png",
+      "action": "set_tasks_todo"
+    },
+    {
+      "text": "Bookmarks Manager",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Notifications",
+      "icon": "assets/menus/notifications.png",
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Ether AI Chat Window",
+      "icon": "assets/menus/ai_chat.png",
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Python Console",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Python Packages",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Python Process Output",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Code Analysis Manager",
+      "icon": "assets/menus/analysis.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Code Snippets Manager",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Code Definition Window Browser",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Errors List",
+      "icon": "assets/menus/errors.png",
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Database Manager",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Data Manager",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Graphs Manager",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Object Window Viewer",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Outputs Window",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "System Monitor",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Version Control",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Server Explorer",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "SSH Connection Manager",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Web Browser",
+      "icon": "assets/menus/browser.png",
+      "action": "generic_callback"
+    }
+  ],
+  "Code": [
+    {
+      "text": "Format Code",
+      "icon": "assets/menus/format.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Minify Code in Current File",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Comment Current Line",
+      "icon": "assets/menus/comment.png",
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Comment Current Selection",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Uncomment Current Line",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Uncomment Current Selection",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Duplicate Current Line",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Duplicate Current Selection",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Sort Code",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Go to Definition",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Go to Declaration",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Go to Implementation",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Find Usages and References in Current File",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Go to Symbol",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Analyze Code",
+      "icon": null,
+      "submenu": [
+        {
+          "text": "Find Duplicated Names",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Delete Duplications",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Analyze Behavior",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Silent Code Cleanup",
+          "icon": null,
+          "action": "generic_callback"
+        }
+      ]
+    },
+    {
+      "text": "Folding",
+      "icon": null,
+      "submenu": [
+        {
+          "text": "Expand Current",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Expand All",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        null,
+        {
+          "text": "Collapse Current",
+          "icon": null,
+          "action": "generic_callback"
+        },
+        {
+          "text": "Collapse All",
+          "icon": null,
+          "action": "generic_callback"
+        }
+      ]
+    },
+    null,
+    {
+      "text": "Add a copyright",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Update copyright",
+      "icon": null,
+      "action": "generic_callback"
+    }
+  ],
+  "Run": [
+    {
+      "text": "Run Current File",
+      "icon": "assets/menus/run.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Run Current File with Configured Arguments",
+      "icon": "assets/menus/run_args.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Debug Current File",
+      "icon": "assets/menus/testing.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Run Current File without Debugging",
+      "icon": "assets/menus/run_no_debug.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Stop Current Execution",
+      "icon": "assets/menus/stop.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Restart Debugging",
+      "icon": "assets/menus/restart.png",
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Step Over",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Step Into",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Step Out",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Continue",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Add New Breakpoint at Current File",
+      "icon": "assets/menus/breakpoint.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Enable All Breakpoints",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Disable All Breakpoints",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Remove All Breakpoints",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Start Testing",
+      "icon": "assets/menus/testing.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Import Tests from a File",
+      "icon": "assets/menus/import.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Manage Reports",
+      "icon": "assets/menus/settings.png",
+      "action": "generic_callback"
+    }
+  ],
+  "Marketplace": [
+    {
+      "text": "Open Marketplace",
+      "icon": "assets/menus/manage_ext.png",
+      "action": "set_open_marketplace"
+    },
+    {
+      "text": "Refresh Extensions",
+      "icon": "assets/menus/refresh_ext.png",
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Check for Extensions Updates",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Show Running Extensions",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    null,
+    {
+      "text": "Backup Current Installed Extensions",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Uninstall All Extensions",
+      "icon": null,
+      "action": "generic_callback"
+    }
+  ],
+  "Help": [
+    {
+      "text": "Welcome",
+      "icon": null,
+      "action": "show_welcome"
+    },
+    {
+      "text": "Show All Commands",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "Documentation",
+      "icon": "assets/menus/docs.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "View License",
+      "icon": "assets/menus/license.png",
+      "action": "generic_callback"
+    },
+    {
+      "text": "Check for Updates",
+      "icon": null,
+      "action": "generic_callback"
+    },
+    {
+      "text": "About",
+      "icon": "assets/menus/info.png",
+      "action": "generic_callback"
+    }
+  ]
+}

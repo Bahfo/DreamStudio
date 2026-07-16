@@ -1,37 +1,41 @@
 """
 (C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
-Supervised by EXcellent TechStacks Co.
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors,
+and Supervised by EXcellent TechStacks Co.
 
-A Custom editor tab changer and code editor for DreamStudio.
+Tab management for the DreamStudio code editor.
+
+**Ownership Model:**
+
+The tab manager (``DreamTabbedEditor``) owns:
+
+- Tab titles, positions, and ordering.
+- The ``opened_files`` deduplication map (normalised path → index).
+- Keyboard shortcuts for save / save-as / save-all / format.
+- Close interceptors.
+- The tab bar dirty / read-only indicators.
+
+The editor widget (``CodeEditor``) owns:
+
+- Text content, cursor position, dirty flag.
+- Language and provider state.
+- The ``current_file_path`` (single source of truth for file identity).
 """
 
 # Written by Bahaa Nofal
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.Qsci import QsciScintilla
+from PyQt6.QtCore import Qt, QEvent, QTimer
 from PyQt6.QtWidgets import (
     QStyle,
     QLabel,
-    QFrame,
     QWidget,
-    QCheckBox,
-    QTabWidget,
     QFileDialog,
-    QHBoxLayout,
-    QGridLayout,
     QPushButton,
     QVBoxLayout,
 )
-from PyQt6.QtGui import (
-    QPixmap,
-    QPainter,
-    QShortcut,
-    QKeySequence,
-)
-from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtGui import QShortcut, QKeySequence, QPalette
 
-from editor.widgets.QDreamTabEditor import QDreamTabEditor, DreamStudioIDETabBar
+from editor.widgets.QDreamTabEditor import QDreamTabEditor
 
 import os
 import logging
@@ -39,13 +43,10 @@ import pathlib
 
 logger = logging.getLogger(__name__)
 
-### LOCAL IMPORTS
 from editor.texteditor.code_editor import CodeEditor
-from editor.texteditor.markdown_editor import MarkdownViewer
-from editor.texteditor.json_editor import EditConfigurationsTab
 
 CONFIG_CODE_EDITOR = {
-    "Set TextEditor Font": ("JetBrains Mono", 10),
+    "Set TextEditor Font": ("JetBrains Mono"),
     "Encoding": "UTF-8",
     "Identation_Spacing": 4,
     "Auto Ident": True,
@@ -57,17 +58,20 @@ CONFIG_CODE_EDITOR = {
 
 
 class DreamTabbedEditor(QDreamTabEditor):
-    def __init__(self, _parent, dirty_tracker=None):
+    """Tab container that manages the lifecycle of ``CodeEditor`` widgets.
+
+    Handles opening, closing, saving, and deduplication of file tabs,
+    and keeps the tab bar indicators (dirty dot, read-only lock) in
+    sync with the underlying editor state.
+    """
+
+    def __init__(self, _parent):
         super().__init__(_parent)
 
         self.setTabsClosable(True)
         self._parent = _parent
         self.currentDirectory = self._parent.currentDirectory
-        self.opened_files = {}
-        self._dirty_tracker = dirty_tracker
-
-        if dirty_tracker is not None:
-            dirty_tracker.dirty_state_changed.connect(self._on_dirty_state_changed)
+        self.opened_files: dict[str, int] = {}
 
         self.tab_counter = self.count()
 
@@ -87,44 +91,90 @@ class DreamTabbedEditor(QDreamTabEditor):
             image: url(assets/system/close.png);
             background: transparent;
         }}"""
-        self._apply_tab_style("white")
+        self._apply_tab_style_from_palette()
 
         self._close_interceptors = []
         self.tabCloseRequested.connect(self._on_close_requested)
+
+        # Save Current File
         self._save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         self._save_shortcut.activated.connect(self.save_current_file)
+
+        # Save Current File As
         self._save_as_shortcut = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
         self._save_as_shortcut.activated.connect(self.save_current_file_as)
+
+        # Save All
         self._save_all_shortcut = QShortcut(QKeySequence("Ctrl+Alt+S"), self)
         self._save_all_shortcut.activated.connect(self.save_all_files)
 
+        # Formatting
+        self._format_shortcut = QShortcut(QKeySequence("Ctrl+Alt+F"), self)
+        self._format_shortcut.activated.connect(self.format_current_file)
+
         self.currentChanged.connect(self._on_editor_tab_changed)
+
+    # ------------------------------------------------------------------
+    # Theme / style
+    # ------------------------------------------------------------------
 
     def _apply_tab_style(self, selected_color: str) -> None:
         self.setStyleSheet(self._base_tab_style.format(selected_color))
 
-    def _on_editor_tab_changed(self, index):
+    def _apply_tab_style_from_palette(self) -> None:
+        color = self.palette().color(QPalette.ColorRole.WindowText).name()
+        self._apply_tab_style(color)
+
+    def changeEvent(self, event) -> None:
+        if event.type() in (
+            QEvent.Type.StyleChange,
+            QEvent.Type.PaletteChange,
+        ):
+            if getattr(self, "_in_change_event", False):
+                return
+            self._in_change_event = True
+            try:
+                self._apply_tab_style_from_palette()
+            finally:
+                self._in_change_event = False
+        super().changeEvent(event)
+
+    # ------------------------------------------------------------------
+    # Tab change
+    # ------------------------------------------------------------------
+
+    def _on_editor_tab_changed(self, index: int) -> None:
+        """Update the status bar when the active tab changes."""
         self.return_file_info()
 
-    def retheme(self, t) -> None:
-        self._apply_tab_style(t.color("tab.text_selected"))
-
-    def _on_dirty_state_changed(self, editor: object, is_dirty: bool) -> None:
+    def _on_editor_dirty_changed(self, is_dirty: bool) -> None:
+        editor = self.sender()
+        if editor is None:
+            return
         for i in range(self.count()):
             if self.widget(i) is editor:
                 self.tabBar().mark_dirty(i, is_dirty)
                 break
 
-    def set_font_size(self, value):
-        main_win = self.window()
-        tabs = getattr(main_win, "tab_editors", None)
-        if not tabs:
-            return
+    # ------------------------------------------------------------------
+    # Font
+    # ------------------------------------------------------------------
 
-        for i in range(tabs.count()):
-            editor = tabs.widget(i)
-            if editor and hasattr(editor, "_set_font_size_"):
-                editor._set_font_size_(value)
+    def set_font_size(self, value: int) -> None:
+        """Propagate a font-size change to every open editor."""
+        for i in range(self.count()):
+            editor = self.widget(i)
+            if editor and hasattr(editor, "font_size"):
+                editor.font_size = value
+
+    # ------------------------------------------------------------------
+    # Tab creation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_fallback(widget) -> bool:
+        """Return ``True`` if *widget* is a ``FallBack`` placeholder."""
+        return isinstance(widget, FallBack)
 
     def add_new_editor(
         self,
@@ -132,108 +182,49 @@ class DreamTabbedEditor(QDreamTabEditor):
         content="",
         language=None,
         file_path=None,
-        welcome: bool = False,
     ):
+        """Create a new tab containing either a ``CodeEditor`` or a
+        ``FallBack`` placeholder.
 
-        if welcome:
-            new_editor = FastTutorialFrame(self._parent)
-            key = f"__welcome_{id(new_editor)}"
-            index = self.addTab(new_editor, "Welcome")
-            self.setCurrentIndex(index)
-            new_editor.file_path = None
-            new_editor.file_key = key
-            new_editor.viewer_type = "welcome"
-            self.opened_files[key] = index
-            self.setFocus()
-            self._parent.update_editor_visibility()
-            return new_editor
+        If *file_path* is already open the existing tab is raised instead
+        of creating a duplicate.
 
+        Args:
+            file_name: Display name for the tab.  When ``None`` a default
+                ``"untitled - N"`` name is generated.
+            content: Initial text for untitled (no *file_path*) tabs.
+            language: Language identifier for syntax highlighting.
+            file_path: Absolute path to the file on disk.
+
+        Returns:
+            The newly created widget (``CodeEditor`` or ``FallBack``).
+        """
         key = self.resolve_key(file_path) if file_path else None
-        viewer_type = self.resolve_viewer_type(file_path) if file_path else "code"
 
         if key and key in self.opened_files:
             index = self.opened_files[key]
-            if index != -1:
+            if index != -1 and index < self.count():
                 self.setCurrentIndex(index)
                 return self.widget(index)
             else:
                 del self.opened_files[key]
 
-        if viewer_type == "code":
-            new_editor = CodeEditor(self, language=language)
-            if file_path:
-                new_editor.load_from_file(file_path)
-            else:
-                new_editor.setText(content)
-                new_editor.clear_dirty()
-
-        elif viewer_type == "image":
+        if file_path:
             try:
-                from editor.texteditor.ImageViewer import ImageViewer
-
-                new_editor = ImageViewer(self)
-
-                if file_path:
-                    new_editor.load_image(file_path)
-                else:
-                    new_editor = FallBack(self)
-
-            except ImportError:
-                new_editor = FallBack(self)
-
-        elif viewer_type == "pdf":
-            try:
-                from editor.texteditor.PDFViewer import PDFViewer
-
-                new_editor = PDFViewer(self)
-
-                if file_path:
-                    new_editor.load_pdf(file_path)
-                else:
-                    new_editor = FallBack(self)
-
-            except ImportError:
-                new_editor = FallBack(self)
-
-        elif viewer_type == "metadata":
-            try:
-                new_editor = MarkdownViewer()
-                new_editor.load_file(file_path)
-            except Exception:
-                new_editor = FallBack(self)
-
-        else:
-            if file_path:
-                try:
-                    new_editor = CodeEditor(self, language=language)
-                    new_editor.load_from_file(file_path)
-
-                except (UnicodeDecodeError, OSError, ValueError):
-                    new_editor = FallBack(self)
-                    new_editor.setText(content)
-
-            else:
                 new_editor = CodeEditor(self, language=language)
+                new_editor.load_from_file(file_path)
+            except (UnicodeDecodeError, OSError, ValueError) as exc:
+                logger.warning("Failed to load %s: %s", file_path, exc)
+                new_editor = FallBack(self)
                 new_editor.setText(content)
-                new_editor.clear_dirty()
-
-        t = getattr(self._parent, "theme_manager", None)
-        if t is not None:
-            if isinstance(new_editor, CodeEditor):
-                new_editor.apply_theme(t)
-            elif isinstance(new_editor, FastTutorialFrame):
-                new_editor.retheme(t)
-            elif hasattr(new_editor, "apply_theme"):
-                new_editor.apply_theme(t)
-            elif hasattr(new_editor, "retheme"):
-                new_editor.retheme(t)
-
-        st = getattr(self._parent, "syntax_theme_manager", None)
-        if st is not None and isinstance(new_editor, CodeEditor):
-            new_editor.apply_syntax_only(st)
+        else:
+            new_editor = CodeEditor(self, language=language)
+            new_editor.setText(content)
+            new_editor.clear_dirty()
 
         if isinstance(new_editor, CodeEditor):
-            new_editor.position_changed.connect(self._parent.update_position_status)
+            if hasattr(self._parent, "update_position_status"):
+                new_editor.position_changed.connect(self._parent.update_position_status)
 
         if not key:
             key = f"__untitled_{id(new_editor)}"
@@ -244,68 +235,89 @@ class DreamTabbedEditor(QDreamTabEditor):
         index = self.addTab(new_editor, file_name)
         self.setCurrentIndex(index)
 
-        new_editor.file_path = file_path
+        # Stamp the tab-manager-owned key on the editor for dedup tracking.
         new_editor.file_key = key
-        new_editor.viewer_type = viewer_type
 
         self.opened_files[key] = index
 
-        if self._dirty_tracker is not None and hasattr(new_editor, "is_dirty"):
-            self._dirty_tracker.watch(new_editor)
+        if isinstance(new_editor, CodeEditor):
+            new_editor.dirty_state_changed.connect(self._on_editor_dirty_changed)
 
         self.tabBar().rebuild_dirty_indices()
 
-        if getattr(new_editor, "_pending_readonly", False):
-            new_editor._pending_readonly = False
+        # Sync read-only indicator from the editor's own state.
+        if isinstance(new_editor, CodeEditor) and new_editor.isReadOnly():
             self.tabBar().mark_readonly(index, True)
 
         self.setFocus()
-        self._parent.update_editor_visibility()
+        if hasattr(self._parent, "update_editor_visibility"):
+            self._parent.update_editor_visibility()
 
-        logger.debug(f"Opened files: {self.opened_files}")
+        logger.debug("Opened files: %s", self.opened_files)
 
-        self._parent.update_position_status()
+        if hasattr(self._parent, "update_position_status"):
+            self._parent.update_position_status()
         self.return_file_info()
 
         return new_editor
 
-    def add_close_interceptor(self, callback):
+    # ------------------------------------------------------------------
+    # Close interceptors
+    # ------------------------------------------------------------------
+
+    def add_close_interceptor(self, callback) -> None:
+        """Register a callback that is invoked before a tab is closed.
+
+        The callback receives ``(index, editor)`` and may return
+        ``False`` to prevent the close.
+        """
         self._close_interceptors.append(callback)
 
-    def remove_close_interceptor(self, callback):
+    def remove_close_interceptor(self, callback) -> None:
+        """Unregister a previously registered close interceptor."""
         if callback in self._close_interceptors:
             self._close_interceptors.remove(callback)
 
-    def _on_close_requested(self, index):
+    # ------------------------------------------------------------------
+    # Tab closing
+    # ------------------------------------------------------------------
+
+    def _on_close_requested(self, index: int) -> None:
+        """Handle the ``tabCloseRequested`` signal, delegating to :meth:`close_editor`."""
+        self.close_editor(index)
+
+    def close_editor(self, index: int) -> None:
+        """Close the tab at *index* and clean up all associated state.
+
+        Runs close interceptors first; if any return ``False`` the close
+        is aborted.  Removes the dirty-tracker watch, disconnects signals,
+        deletes the widget, and adjusts the ``opened_files`` index map.
+        """
         editor = self.widget(index)
+        if not editor:
+            return
+
         for cb in self._close_interceptors:
             try:
                 result = cb(index, editor)
                 if result is False:
                     return
             except Exception as e:
-                logger.debug(f"Close interceptor error: {e}")
-        self.close_editor(index)
+                logger.debug("Close interceptor error: %s", e)
 
-    def close_editor(self, index):
-        editor = self.widget(index)
-        if not editor:
-            return
+        if hasattr(editor, "dirty_state_changed"):
+            try:
+                editor.dirty_state_changed.disconnect()
+            except (TypeError, RuntimeError):
+                pass
 
-        if self._dirty_tracker is not None:
-            self._dirty_tracker.unwatch(editor)
+        if hasattr(editor, "_autocomplete_ext"):
+            editor._autocomplete_ext.cleanup()
 
         if hasattr(editor, "textChanged"):
             try:
                 editor.textChanged.disconnect()
             except (TypeError, RuntimeError):
-                pass
-
-        lexer = getattr(editor, "_lexer", None)
-        if lexer is not None and hasattr(lexer, "shutdown"):
-            try:
-                lexer.shutdown()
-            except Exception:
                 pass
 
         key = getattr(editor, "file_key", None)
@@ -320,32 +332,51 @@ class DreamTabbedEditor(QDreamTabEditor):
             if self.opened_files[k] > index:
                 self.opened_files[k] -= 1
 
-        logger.debug(f"Opened files after close: {self.opened_files}")
+        logger.debug("Opened files after close: %s", self.opened_files)
 
-        self._parent.update_editor_visibility()
+        if hasattr(self._parent, "update_editor_visibility"):
+            self._parent.update_editor_visibility()
 
-    def close_tab(self):
+    def close_tab(self) -> None:
+        """Close the currently active tab."""
         index = self.currentIndex()
         if index < 0 or index >= self.count():
             return
 
         self.close_editor(index)
-        self._parent.update_editor_visibility()
+        if hasattr(self._parent, "update_editor_visibility"):
+            self._parent.update_editor_visibility()
 
-    def open_file(self):
+    # ------------------------------------------------------------------
+    # File opening
+    # ------------------------------------------------------------------
+
+    def open_file(self) -> None:
+        """Open a file chooser dialog and load the selected file."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Open File",
             self.currentDirectory,
-            "All Supported Files (*.py *.pyw *.pyi *.txt *.json *.xml *.yaml *.yml *.md);;"
+            "All Supported Files "
+            "(*.py *.pyw *.pyi *.txt *.json *.xml "
+            "*.yaml *.yml *.md);;"
             "Python Files (*.py *.pyw *.pyi);;"
-            "Text/Config Files (*.txt *.json *.xml *.yaml *.yml);;"
+            "Text/Config Files "
+            "(*.txt *.json *.xml *.yaml *.yml);;"
             "All Files (*)",
         )
 
         if not file_path:
             return
 
+        self.open_file_by_path(file_path)
+
+    def open_file_by_path(self, file_path: str) -> None:
+        """Open *file_path* in a new (or existing) tab.
+
+        Args:
+            file_path: Absolute path to the file.
+        """
         file_name = pathlib.Path(file_path).name
         file_extn = pathlib.Path(file_path).suffix
 
@@ -356,9 +387,13 @@ class DreamTabbedEditor(QDreamTabEditor):
                 language=self.set_language(file_extn),
             )
         except Exception as e:
-            logger.error(f"Open file failed: {e}")
+            logger.error("Open file by path failed: %s", e)
 
-    def open_file_at_line(self, file_path, line):
+    def open_file_at_line(self, file_path: str, line: int) -> None:
+        """Open *file_path* and jump the cursor to *line*.
+
+        Used by go-to-definition navigation.
+        """
         file_name = pathlib.Path(file_path).name
         file_extn = pathlib.Path(file_path).suffix
 
@@ -371,53 +406,50 @@ class DreamTabbedEditor(QDreamTabEditor):
             if editor and hasattr(editor, "setCursorPosition"):
                 editor.setCursorPosition(line, 0)
                 editor.ensureLineVisible(line)
-                QTimer.singleShot(0, lambda: self._focus_and_flash(editor, line))
+                QTimer.singleShot(
+                    0,
+                    lambda e=editor, l=line: (
+                        e.setFocus() if hasattr(e, "setFocus") else None
+                    ),
+                )
         except Exception as e:
-            logger.error(f"Open file at line failed: {e}")
+            logger.error("Open file at line failed: %s", e)
 
-    def _focus_and_flash(self, editor, line):
-        if hasattr(editor, "setFocus"):
-            editor.setFocus()
-        if hasattr(editor, "_flash_definition_line"):
-            editor._flash_definition_line(line)
+    @staticmethod
+    def set_language(lang: str):
+        """Resolve a file extension to a language identifier.
 
-    def resolve_viewer_type(self, file_path):
-        ext = pathlib.Path(file_path).suffix.lower()
+        Args:
+            lang: File extension including the leading dot (e.g. ``".py"``).
+        """
+        from editor.texteditor.language_engine import LanguageRegistry
 
-        if ext in [".png", ".jpg", ".jpeg", ".bmp", ".gif"]:
-            return "image"
+        return LanguageRegistry.get_language_by_extension(lang)
 
-        if ext in [".pdf"]:
-            return "pdf"
-
-        if ext in [".py", ".pyi", ".pyw"]:
-            return "code"
-
-        if ext == ".md":
-            return "metadata"
-
-        return "default"
-
-    def set_language(self, lang):
-        match lang:
-            case ".py" | ".pyi" | ".pyw":
-                return "Python"
-            case ".txt":
-                return None
-            case ".md":
-                return "METADATA"
-            case _:
-                return None
-
-    def open_new_workspace(self, path):
+    def open_new_workspace(self, path: str) -> None:
+        """Update the current working directory for the file chooser."""
         self._parent.currentDirectory = path
 
-    def resolve_key(self, file_path):
+    @staticmethod
+    def resolve_key(file_path):
+        """Normalise a file path for use as a dedup key.
+
+        Returns ``None`` when *file_path* is ``None`` or empty.
+        """
         if not file_path:
             return None
         return os.path.normcase(os.path.normpath(file_path))
 
-    def save_current_file(self):
+    # ------------------------------------------------------------------
+    # Saving
+    # ------------------------------------------------------------------
+
+    def save_current_file(self) -> None:
+        """Save the currently active editor's buffer.
+
+        After a successful save of a previously-untitled file, the tab is
+        closed and re-opened to update the tab title and dedup key.
+        """
         editor = self.currentWidget()
         if not editor or not hasattr(editor, "save"):
             return
@@ -426,11 +458,10 @@ class DreamTabbedEditor(QDreamTabEditor):
         if was_unsaved and getattr(editor, "current_file_path", None):
             self._reopen_saved_tab(editor)
             return
-        if self._dirty_tracker is not None and hasattr(editor, "is_dirty"):
-            self._dirty_tracker.sync_state(editor)
         self.tabBar().rebuild_dirty_indices()
 
-    def save_current_file_as(self):
+    def save_current_file_as(self) -> None:
+        """Prompt for a new path and save the active editor."""
         editor = self.currentWidget()
         if not editor or not hasattr(editor, "save_as"):
             return
@@ -440,11 +471,11 @@ class DreamTabbedEditor(QDreamTabEditor):
         if new_path and new_path != old_path:
             self._reopen_saved_tab(editor)
             return
-        if self._dirty_tracker is not None and hasattr(editor, "is_dirty"):
-            self._dirty_tracker.sync_state(editor)
         self.tabBar().rebuild_dirty_indices()
 
-    def _reopen_saved_tab(self, editor):
+    def _reopen_saved_tab(self, editor) -> None:
+        """Close the current tab and re-open the file so that the tab
+        title, icon, and dedup key reflect the saved path."""
         file_path = editor.current_file_path
         current_idx = self.currentIndex()
         self.close_editor(current_idx)
@@ -454,21 +485,29 @@ class DreamTabbedEditor(QDreamTabEditor):
             language=self.set_language(pathlib.Path(file_path).suffix),
         )
 
-    def save_all_files(self):
+    def save_all_files(self) -> None:
+        """Save every open editor that has a file path."""
         for i in range(self.count()):
             editor = self.widget(i)
             if editor and hasattr(editor, "save") and editor.current_file_path:
                 editor.save()
-                if self._dirty_tracker is not None and hasattr(editor, "is_dirty"):
-                    self._dirty_tracker.sync_state(editor)
         self.tabBar().rebuild_dirty_indices()
 
-    def return_file_info(self):
+    # ------------------------------------------------------------------
+    # Status bar helpers
+    # ------------------------------------------------------------------
+
+    def return_file_info(self) -> None:
+        """Push the active editor's EOL and indentation info to the status bar."""
+        if not hasattr(self._parent, "_get_current_editor"):
+            return
         editor = self._parent._get_current_editor()
         if editor is None:
             return
 
-        eol_mode = editor.eolMode()
+        from PyQt6.Qsci import QsciScintilla
+
+        eol_mode = editor.eol_mode()
         if eol_mode == QsciScintilla.EolMode.EolWindows:
             line_ending = "CRLF"
         elif eol_mode == QsciScintilla.EolMode.EolMac:
@@ -476,22 +515,28 @@ class DreamTabbedEditor(QDreamTabEditor):
         else:
             line_ending = "LF"
 
-        tab_width = editor.indentationWidth()
-        uses_tabs = editor.indentationsUseTabs()
+        tab_width = editor.indentation_width()
+        uses_tabs = editor.uses_tabs()
 
         if uses_tabs:
-            indentation_width = f"Tabs"
+            indentation_width = "Tabs"
         else:
             indentation_width = f"{tab_width}"
 
-        self._parent.status_bar.EOL.setText(f"{line_ending}")
-        self._parent.status_bar.spacing_options.setText(
-            f"Indent {indentation_width} Spaces"
-        )
+        status = self._parent.status_bar
+        if status is not None:
+            status.EOL.setText(f"{line_ending}")
+            status.spacing_options.setText(f"Indent {indentation_width} Spaces")
+
+    def format_current_file(self) -> None:
+        """Delegate formatting to the active editor's language provider."""
+        editor = self.currentWidget()
+        if editor and hasattr(editor, "format_current_file"):
+            editor.format_current_file()
 
 
 class FallBack(QWidget):
-    """A fallback frame widget if the file to open is not supported."""
+    """Fallback frame for unsupported file types."""
 
     def __init__(self, _parent=None):
         super().__init__(_parent)
@@ -519,271 +564,9 @@ class FallBack(QWidget):
         self._layout.addWidget(self.icon_label)
         self._layout.addWidget(self.page_label)
         self._layout.addWidget(
-            self.action_button, alignment=Qt.AlignmentFlag.AlignCenter
+            self.action_button,
+            alignment=Qt.AlignmentFlag.AlignCenter,
         )
 
-    def setText(self, text: str):
+    def setText(self, text: str) -> None:
         self.page_label.setText(text)
-
-
-class WelcomeAction(QPushButton):
-    def __init__(self, text, parent=None, _event=None):
-        super().__init__(text, parent)
-        self._event = _event
-
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedWidth(200)
-        self.setStyleSheet(
-            """
-            QPushButton {
-                text-align: left;
-                color: #3794ef;
-                background: transparent;
-                border: none;
-                font-size: 14px;
-                padding-left: 10px;
-                padding-top: 10px;
-            }
-            QPushButton:hover {
-                text-decoration: underline;
-                color: #4daafc;
-            }
-        """
-        )
-        if self._event is not None:
-            self.clicked.connect(self._event)
-
-
-class FastTutorialFrame(QFrame):
-    def __init__(self, _parent=None):
-        super().__init__(_parent)
-
-        self.background_img = QPixmap("assets/logos/welcome_icon.png").scaled(
-            150,
-            150,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._parent = _parent
-
-        self.bg_svg = QSvgRenderer("assets/logos/welcome_mountains.svg")
-
-        self.setStyleSheet("background-color: transparent; border: none;")
-
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(40, 40, 40, 20)
-        main_layout.setSpacing(10)
-
-        title = QLabel("DreamStudio 2026")
-        title.setStyleSheet(
-            """color: #ffffff; 
-            font-size: 42px; 
-            font-weight: 300; 
-            font-family: montserrat, Arial; 
-            padding-left: 120px;"""
-        )
-
-        subtitle = QLabel("Get Started with")
-        subtitle.setStyleSheet(
-            """
-            color: #cccccc; 
-            font-size: 20px;
-            padding-left: 130px;"""
-        )
-
-        main_layout.addWidget(subtitle)
-        main_layout.addWidget(title)
-        main_layout.addSpacing(20)
-
-        start_label = QLabel("Start")
-        start_label.setStyleSheet(
-            """
-            color: #ffffff;
-            font-size: 18px;
-            font-weight: bold;
-            padding-left: 5px;
-            padding-top: 20px;
-        """
-        )
-
-        main_layout.addWidget(start_label)
-        main_layout.addSpacing(6)
-        main_layout.addWidget(
-            WelcomeAction("New File...", _event=self._parent.ui_build_add_new_editor)
-        )
-        main_layout.addWidget(
-            WelcomeAction("Open File...", _event=self._parent.ui_build_open_file)
-        )
-        main_layout.addWidget(
-            WelcomeAction("Open Folder...", _event=self._parent.open_directory)
-        )
-        main_layout.addWidget(WelcomeAction("Clone Git Repository..."))
-        main_layout.addSpacing(12)
-        main_layout.addStretch()
-
-        main_layout.addStretch()
-
-        footer = QHBoxLayout()
-        footer.setSpacing(0)
-        footer.setContentsMargins(0, 0, 0, 0)
-
-        startup_check = QCheckBox("Show welcome page on startup")
-        startup_check.setChecked(True)
-        startup_check.setStyleSheet("color: #cccccc; font-size: 12px;")
-
-        footer.addStretch()
-        footer.addWidget(startup_check)
-        footer.addStretch()
-
-        main_layout.addLayout(footer)
-
-    def retheme(self, t) -> None:
-        self.setStyleSheet(
-            f"background-color: {t.color('welcome.background_dark')}; border: none;"
-        )
-        for child in self.findChildren(QLabel):
-            txt = child.text()
-            if txt == "DreamStudio 2026":
-                child.setStyleSheet(
-                    f"""color: {t.color('welcome.title')}; font-size: 42px; 
-                    font-weight: 300; font-family: montserrat, Arial; padding-left: 120px;"""
-                )
-            elif txt == "Get Started with":
-                child.setStyleSheet(
-                    f"color: {t.color('welcome.subtitle')}; font-size: 20px; padding-left: 130px;"
-                )
-            elif txt == "Start":
-                child.setStyleSheet(
-                    f"""color: {t.color('welcome.start_label')}; font-size: 18px; 
-                    font-weight: bold; padding-left: 5px; padding-top: 20px;"""
-                )
-        for child in self.findChildren(QCheckBox):
-            child.setStyleSheet(f"color: {t.color('welcome.footer')}; font-size: 12px;")
-        for child in self.findChildren(WelcomeAction):
-            child.setStyleSheet(
-                f"""
-                QPushButton {{
-                    text-align: left;
-                    color: {t.color('welcome.action')};
-                    background: transparent;
-                    border: none;
-                    font-size: 14px;
-                    padding-left: 10px;
-                    padding-top: 10px;
-                }}
-                QPushButton:hover {{
-                    text-decoration: underline;
-                    color: {t.color('welcome.action_hover')};
-                }}
-            """
-            )
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-
-        if not self.background_img.isNull():
-            x = 10
-            y = 6
-            painter.drawPixmap(x, y, self.background_img)
-
-
-class BackgroundHintsFrame(QFrame):
-    BINDINGS = [
-        ("Ctrl + Alt + T", "Open New File"),
-        ("Ctrl + Alt + O", "Open Folder"),
-        ("Ctrl + Alt + W", "Close Tab"),
-        ("Ctrl + S", "Save File"),
-        ("Ctrl + Alt + S", "Save All"),
-    ]
-
-    def __init__(self, _parent=None):
-        super().__init__(_parent)
-        self._parent = _parent
-        self.setStyleSheet("background-color: #171717; border: none;")
-
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self._center_widget = QWidget()
-        self._center_widget.setFixedWidth(520)
-        center_layout = QVBoxLayout(self._center_widget)
-        center_layout.setSpacing(8)
-        center_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        hints_grid = QGridLayout()
-        hints_grid.setSpacing(10)
-        hints_grid.setHorizontalSpacing(40)
-
-        self._hint_labels = []
-        for row, (keys, desc) in enumerate(self.BINDINGS):
-            desc_label = QLabel(desc)
-            desc_label.setStyleSheet(
-                """
-                font-family: 'inter';
-                color: #CCCCCC;
-                font-size: 16px;
-            """
-            )
-            desc_label.setAlignment(
-                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-            )
-
-            key_label = QLabel(keys)
-            key_label.setStyleSheet(
-                """
-                color: #569CD6;
-                font-size: 16px;
-                font-family: 'JetBrains Mono', monospace;
-                padding: 4px 10px;
-                background-color: #2D2D2D;
-                border-radius: 3px;
-            """
-            )
-            key_label.setAlignment(
-                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-            )
-
-            hints_grid.addWidget(desc_label, row, 0)
-            hints_grid.addWidget(key_label, row, 1)
-            self._hint_labels.append((key_label, desc_label))
-
-        hints_grid.setColumnStretch(0, 0)
-        hints_grid.setColumnStretch(1, 1)
-
-        self._grid_container = QWidget()
-        self._grid_container.setLayout(hints_grid)
-        center_layout.addWidget(
-            self._grid_container, alignment=Qt.AlignmentFlag.AlignCenter
-        )
-        center_layout.addStretch()
-
-        main_layout.addWidget(
-            self._center_widget, alignment=Qt.AlignmentFlag.AlignCenter
-        )
-
-    def retheme(self, t) -> None:
-        bg = t.color("editor.background")
-        self.setStyleSheet(f"background-color: {bg}; border: none;")
-        self._center_widget.setStyleSheet(f"background-color: transparent;")
-        self._grid_container.setStyleSheet(f"background-color: transparent;")
-        for key_label, desc_label in self._hint_labels:
-            desc_label.setStyleSheet(
-                f"""
-                font-family: 'inter';
-                color: {t.color('hints.desc')};
-                font-size: 16px;
-            """
-            )
-            key_label.setStyleSheet(
-                f"""
-                color: {t.color('hints.text')};
-                font-size: 16px;
-                font-family: 'JetBrains Mono', monospace;
-                padding: 4px 10px;
-                background-color: {t.color('hints.key_bg')};
-                border-radius: 3px;
-            """
-            )

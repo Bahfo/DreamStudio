@@ -1,0 +1,28 @@
+{
+    "file": {
+        "label": "File",
+        "items": [
+            {"command": "file.new_file", "when": ""},
+            {"command": "file.save", "when": "editor_is_dirty"},
+            "---",
+            {"command": "file.close_studio", "when": ""}
+        ]
+    },
+    "edit": {
+        "label": "Edit",
+        "items": [
+            {"command": "edit.undo", "when": "editor_focused"},
+            "---",
+            {"command": "edit.cut", "when": "editor_focused && editor_has_selection"},
+            {"command": "edit.copy", "when": "editor_focused && editor_has_selection"},
+            {"command": "edit.paste", "when": "editor_focused"}
+        ]
+    },
+    "run": {
+        "label": "Run",
+        "items": [
+            {"command": "run.file", "when": "has_open_project && !is_debugging"},
+            {"command": "run.stop", "when": "is_debugging"}
+        ]
+    }
+}

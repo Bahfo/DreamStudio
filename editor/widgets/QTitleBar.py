@@ -10,7 +10,7 @@ from PyQt6.QtGui import QIcon
 class TitleBar(QWidget):
     def __init__(self, parent, title):
         super().__init__(parent)
-        self.parent = parent
+        self._title_parent = parent
         self.setFixedHeight(40)
         self.offset = None
 
@@ -79,5 +79,5 @@ class TitleBar(QWidget):
             }""")
         layout.addWidget(self.btn_close)
 
-        self.btn_minimize.clicked.connect(self.parent.showMinimized)
-        self.btn_close.clicked.connect(self.parent.close)
+        self.btn_minimize.clicked.connect(self._title_parent.showMinimized)
+        self.btn_close.clicked.connect(self._title_parent.close)

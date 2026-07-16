@@ -1,0 +1,107 @@
+QMainWindow {
+    background-color: #FFFFFF;
+}
+
+QWidget#BannerWidget {
+    background: qlineargradient(
+        x1: 0, y1: 0,
+        x2: 1, y2: 1,
+        stop: 0 #D2E3F7,
+        stop: 0.5 #EDF3F9,
+        stop: 1 #E5DCF3
+    );
+    border-bottom: 2px solid #B0C4DE;
+}
+
+QLabel#BannerTitle {
+    color: #E0E0E0;
+    font-family: 'roboto', Arial, sans-serif;
+    font-size: 40px;
+}
+
+QLabel#SectionHeader {
+    color: #555555;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    border-bottom: 1px solid #E0E0E0;
+    padding-bottom: 4px;
+}
+
+QPushButton#ActionLink, QPushButton#RecentLink {
+    background-color: transparent;
+    border: none;
+    color: #0066CC;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    text-align: left;
+    padding: 2px 0px;
+}
+
+QPushButton#RecentLink {
+    font-size: 13px;
+    color: #444444;
+}
+
+QPushButton#ActionLink:hover, QPushButton#RecentLink:hover {
+    color: #003399;
+    text-decoration: underline;
+}
+
+QCheckBox {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 12px;
+    color: #444444;
+}
+
+QLabel#ActiveTab {
+    color: #2B2B2B;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 18px;
+    padding: 4px 10px;
+    border-bottom: 2px solid #0066CC;
+}
+
+QLabel#InactiveTab {
+    color: #888888;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 18px;
+    padding: 4px 10px;
+    background-color: #F0F0F0;
+    border: 1px solid #E0E0E0;
+    border-radius: 3px;
+}
+
+QPushButton#SubNavLink {
+    background-color: transparent;
+    border: none;
+    color: #0066CC;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+QPushButton#SubNavLink:hover {
+    color: #003399;
+    text-decoration: underline;
+}
+
+QFrame#NewsBox {
+    background-color: #EDF5FA;
+    border: 1px solid #B9D1E4;
+    border-radius: 4px;
+}
+
+QLabel#NewsBoxTitle {
+    color: #2B2B2B;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+QLabel#NewsBoxDescription {
+    color: #444444;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    line-height: 18px;
+}
