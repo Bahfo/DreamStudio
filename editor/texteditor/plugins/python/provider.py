@@ -218,9 +218,9 @@ class PythonLanguageProvider(BaseLanguageProvider):
         if _is_inside_string(row, col):
             return None
 
-        match = re.search(r"[A-Za-z_]\w*", row[max(0, col - 40) : col + 40])
-        if match and match.start() <= col < match.end():
-            return match.group(0)
+        for match in re.finditer(r"[A-Za-z_]\w*", row):
+            if match.start() <= col < match.end():
+                return match.group(0)
         return None
 
     def get_hover_html(self, text: str, line: int, col: int) -> Optional[str]:
