@@ -16,6 +16,9 @@ from editor.texteditor.plugins.python.navigation import (
 from editor.texteditor.plugins.python.refactoring import RenameRefactoringService
 from editor.texteditor.plugins.python.complexity import ComplexityAnalysisService
 from editor.texteditor.plugins.python.hover_presenter import HoverPresenter
+from editor.texteditor.plugins.python.semantic_highlights import (
+    get_semantic_highlights,
+)
 from editor.texteditor.plugins.python.views import (
     ReferenceViewerWidget,
     RefactorDialog,
@@ -36,6 +39,7 @@ __all__ = [
     "RenameRefactoringService",
     "ComplexityAnalysisService",
     "HoverPresenter",
+    "get_semantic_highlights",
     "ReferenceViewerWidget",
     "RefactorDialog",
     "ComplexityDashboard",

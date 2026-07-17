@@ -152,6 +152,19 @@ class BaseLanguageProvider(ABC):
         """
         return source_code
 
+    def get_semantic_highlights(self, text: str):
+        """Return colour ranges for semantic tokens, or ``None``.
+
+        Optional method — providers that implement it return a list of
+        ``(start_offset, length, "#RRGGBB")`` tuples.  The editor uses
+        these to paint Scintilla indicators on top of the lexer.
+
+        Return ``None`` to indicate that the provider does not supply
+        semantic highlights (the editor falls back to its built-in
+        highlighting, if any).
+        """
+        return None
+
 
 # ------------------------------------------------------------------
 # Registry

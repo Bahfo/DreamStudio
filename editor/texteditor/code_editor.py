@@ -21,7 +21,10 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.Qsci import QsciScintilla
 
 from editor.texteditor.language_engine import LanguageRegistry, LanguageLexer
-from editor.texteditor.autocomplete_menu import EditorAutocompleteExtension, HoverDocumentationPopup
+from editor.texteditor.autocomplete_menu import (
+    EditorAutocompleteExtension,
+    HoverDocumentationPopup,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +90,9 @@ class CodeEditor(QsciScintilla):
         self.current_provider: Optional[Any] = None
 
         self._font = QFont()
-        self._font.setFamilies(["JetBrains Mono", "Consolas", "Courier New", "monospace"])
+        self._font.setFamilies(["firacode", "Consolas", "Courier New", "monospace"])
         self._font.setStyleHint(QFont.StyleHint.Monospace)
-        self._font.setPointSize(11)
+        self._font.setPointSize(10)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
@@ -191,6 +194,7 @@ class CodeEditor(QsciScintilla):
     def _apply_indent_guide_color(self, text_color) -> None:
         """Set indentation guide line to a smooth, semi-transparent tone."""
         from PyQt6.QtGui import QColor
+
         guide = QColor(text_color)
         guide.setAlpha(48)
         self.setIndentationGuidesForegroundColor(guide)
@@ -413,9 +417,7 @@ class CodeEditor(QsciScintilla):
         ):
             px = int(e.position().x())
             py = int(e.position().y())
-            position = self.SendScintilla(
-                QsciScintilla.SCI_POSITIONFROMPOINT, px, py
-            )
+            position = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, px, py)
             if position != -1:
                 line, col = self.lineIndexFromPosition(position)
                 self.setCursorPosition(line, col)
@@ -434,9 +436,7 @@ class CodeEditor(QsciScintilla):
         try:
             px = int(self._last_mouse_pos.x())
             py = int(self._last_mouse_pos.y())
-            position = self.SendScintilla(
-                QsciScintilla.SCI_POSITIONFROMPOINT, px, py
-            )
+            position = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, px, py)
             if position == -1:
                 return
             line, col = self.lineIndexFromPosition(position)
@@ -504,10 +504,7 @@ class CodeEditor(QsciScintilla):
 
             # Guard: already at the definition (same file + same line).
             current_path = getattr(self, "current_file_path", "") or ""
-            if (
-                file_path == current_path
-                and target_line == line
-            ):
+            if file_path == current_path and target_line == line:
                 return
 
             tab_widget = self._parent
@@ -515,9 +512,7 @@ class CodeEditor(QsciScintilla):
                 tab_widget.open_file_at_line(file_path, target_line)
 
                 current_editor = tab_widget.currentWidget()
-                if current_editor and hasattr(
-                    current_editor, "setCursorPosition"
-                ):
+                if current_editor and hasattr(current_editor, "setCursorPosition"):
                     current_editor.setCursorPosition(target_line, target_col)
         except Exception as exc:
             logger.debug("Go-to-definition failed: %s", exc)
@@ -592,15 +587,15 @@ class CodeEditor(QsciScintilla):
         # Resolve collisions: use unique QsciLexerPython style indices
         # that don't overlap.
         colour_map = {
-            "keyword": lexer.Keyword,               # 5
+            "keyword": lexer.Keyword,  # 5
             "builtin": lexer.HighlightedIdentifier,  # 14
             "definition": lexer.FunctionMethodName,  # 9
-            "class_def": lexer.ClassName,            # 8
-            "string": lexer.DoubleQuotedString,      # 3
-            "number": lexer.Number,                  # 2
-            "comment": lexer.Comment,                # 1
-            "decorator": lexer.Decorator,            # 15
-            "operator": lexer.Operator,              # 10
+            "class_def": lexer.ClassName,  # 8
+            "string": lexer.DoubleQuotedString,  # 3
+            "number": lexer.Number,  # 2
+            "comment": lexer.Comment,  # 1
+            "decorator": lexer.Decorator,  # 15
+            "operator": lexer.Operator,  # 10
         }
 
         for style_name, color_hex in styles.items():
@@ -612,14 +607,14 @@ class CodeEditor(QsciScintilla):
         if "string" in styles:
             string_color = QColor(styles["string"])
             for idx in (
-                lexer.SingleQuotedString,           # 4
-                lexer.TripleDoubleQuotedString,     # 7
-                lexer.TripleSingleQuotedString,     # 6
-                lexer.UnclosedString,               # 13
-                lexer.DoubleQuotedFString,          # 16
-                lexer.SingleQuotedFString,          # 17
-                lexer.TripleDoubleQuotedFString,    # 19
-                lexer.TripleSingleQuotedFString,    # 18
+                lexer.SingleQuotedString,  # 4
+                lexer.TripleDoubleQuotedString,  # 7
+                lexer.TripleSingleQuotedString,  # 6
+                lexer.UnclosedString,  # 13
+                lexer.DoubleQuotedFString,  # 16
+                lexer.SingleQuotedFString,  # 17
+                lexer.TripleDoubleQuotedFString,  # 19
+                lexer.TripleSingleQuotedFString,  # 18
             ):
                 lexer.setColor(string_color, idx)
 
@@ -635,89 +630,25 @@ class CodeEditor(QsciScintilla):
     def _scintilla_rgb(hex_color: str) -> int:
         """Convert a ``#RRGGBB`` CSS colour to Scintilla's ``0x00BBGGRR``."""
         from PyQt6.QtGui import QColor
+
         c = QColor(hex_color)
         return ((c.blue() & 0xFF) << 16) | ((c.green() & 0xFF) << 8) | (c.red() & 0xFF)
 
-    @staticmethod
-    def _build_string_ranges(text: str):
-        """Return a sorted list of ``(start, end)`` offsets for string literals.
-
-        Handles single/double/triple-quoted strings and comments.
-        Triple-quoted strings take priority over single quotes.
-        """
-        ranges = []
-        i = 0
-        n = len(text)
-        while i < n:
-            ch = text[i]
-            if ch == "#":
-                end = text.find("\n", i)
-                if end == -1:
-                    ranges.append((i, n))
-                    break
-                ranges.append((i, end))
-                i = end + 1
-            elif ch in ('"', "'"):
-                triple = ch * 3
-                if text[i : i + 3] == triple:
-                    end = text.find(triple, i + 3)
-                    if end == -1:
-                        ranges.append((i, n))
-                        break
-                    end += 3
-                    ranges.append((i, end))
-                    i = end
-                else:
-                    j = i + 1
-                    while j < n:
-                        if text[j] == "\\":
-                            j += 2
-                        elif text[j] == ch:
-                            j += 1
-                            break
-                        else:
-                            j += 1
-                    ranges.append((i, j))
-                    i = j
-            else:
-                i += 1
-        return ranges
-
-    @staticmethod
-    def _in_string(pos: int, ranges) -> bool:
-        """Binary-search check: is *pos* inside any of the sorted *ranges*?"""
-        lo, hi = 0, len(ranges) - 1
-        while lo <= hi:
-            mid = (lo + hi) // 2
-            start, end = ranges[mid]
-            if pos < start:
-                hi = mid - 1
-            elif pos >= end:
-                lo = mid + 1
-            else:
-                return True
-        return False
-
-    # Slot indices used for Scintilla indicators.
-    _IND_IMPORT_CLASS = 0   # greenish  #4EC9B0  (classes / modules)
-    _IND_IMPORT_FUNC  = 1   # yellowish #DCDCAA  (functions)
-    _IND_SPECIAL_KW   = 2   # blue      #569CD6  (None, self, True …)
-
-    _SPECIAL_KEYWORDS = frozenset({
-        "None", "True", "False", "self", "cls",
-    })
-    _SPECIAL_DUNDER = True   # highlight dunder names like __name__
+    # Slot indices used for Scintilla indicators (up to 8 reserved).
+    _IND_PROVIDER_BASE = 0
 
     def _apply_semantic_indicators(self) -> None:
-        """Apply Scintilla indicators for import targets and special keywords.
+        """Apply Scintilla indicators driven by the language provider.
 
-        Indicator 0 → greenish  ``#4EC9B0`` (classes / modules)
-        Indicator 1 → yellowish ``#DCDCAA`` (functions)
-        Indicator 2 → blue      ``#569CD6`` (None, True, False, self …)
+        Calls ``current_provider.get_semantic_highlights(text)`` if
+        available.  The provider returns a list of
+        ``(start, length, "#RRGGBB")`` tuples which are painted as
+        ``INDIC_TEXTFORE`` overlays.  Up to 8 concurrent indicator slots
+        are used (colour-keyed); excess shares the last slot.
         """
         from PyQt6.QtGui import QColor
 
-        if self.current_lang != "python":
+        if not self.current_provider:
             return
 
         text = self.text()
@@ -726,119 +657,48 @@ class CodeEditor(QsciScintilla):
 
         length = len(text)
 
-        # ── clear all indicator slots ────────────────────────────────
-        for ind in (self._IND_IMPORT_CLASS, self._IND_IMPORT_FUNC,
-                    self._IND_SPECIAL_KW):
+        # Ask the provider for semantic highlight ranges.
+        provider_fn = getattr(self.current_provider, "get_semantic_highlights", None)
+        if provider_fn is None:
+            return
+        try:
+            highlights = provider_fn(text)
+        except Exception:
+            return
+
+        if not highlights:
+            return
+
+        # ── clear all indicator slots ────────────────────────────
+        for ind in range(8):
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
             self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
 
-        # ── configure indicator styles ───────────────────────────────
-        self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE,
-                           self._IND_IMPORT_CLASS, QsciScintilla.INDIC_TEXTFORE)
-        self.SendScintilla(QsciScintilla.SCI_INDICSETFORE,
-                           self._IND_IMPORT_CLASS,
-                           self._scintilla_rgb("#4EC9B0"))
+        # ── group by colour → one indicator slot per colour ──────
+        _SLOTS = 8
+        colour_to_slot: dict = {}
+        next_slot = 0
 
-        self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE,
-                           self._IND_IMPORT_FUNC, QsciScintilla.INDIC_TEXTFORE)
-        self.SendScintilla(QsciScintilla.SCI_INDICSETFORE,
-                           self._IND_IMPORT_FUNC,
-                           self._scintilla_rgb("#DCDCAA"))
-
-        self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE,
-                           self._IND_SPECIAL_KW, QsciScintilla.INDIC_TEXTFORE)
-        self.SendScintilla(QsciScintilla.SCI_INDICSETFORE,
-                           self._IND_SPECIAL_KW,
-                           self._scintilla_rgb("#569CD6"))
-
-        # ── import targets ───────────────────────────────────────────
-        _FROM_IMPORT_RE = re.compile(
-            r"from\s+([\w.]+)\s+import\s+(.+?)(?:\n|$)"
-        )
-        _PLAIN_IMPORT_RE = re.compile(
-            r"^import\s+(.+?)(?:\n|$)", re.MULTILINE
-        )
-        _IDENT_RE = re.compile(r"[\w]+")
-
-        string_ranges = self._build_string_ranges(text)
-
-        # from M import X, Y  → highlight M and each target
-        for m in _FROM_IMPORT_RE.finditer(text):
-            if self._in_string(m.start(), string_ranges):
+        for start, token_len, colour_hex in highlights:
+            if start < 0 or token_len <= 0 or start + token_len > length:
                 continue
 
-            # Module name (e.g. "os", "os.path")
-            mod_name = m.group(1)
-            mod_start = text.find(mod_name, m.start(1))
-            if mod_start != -1 and not self._in_string(mod_start, string_ranges):
-                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
-                                   self._IND_IMPORT_CLASS)
-                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
-                                   mod_start, len(mod_name))
+            slot = colour_to_slot.get(colour_hex)
+            if slot is None:
+                slot = next_slot % _SLOTS
+                colour_to_slot[colour_hex] = slot
+                next_slot += 1
+                self.SendScintilla(
+                    QsciScintilla.SCI_INDICSETSTYLE, slot, QsciScintilla.INDIC_TEXTFORE
+                )
+                self.SendScintilla(
+                    QsciScintilla.SCI_INDICSETFORE,
+                    slot,
+                    self._scintilla_rgb(colour_hex),
+                )
 
-            # Individual targets after "import"
-            imports_str = m.group(2)
-            line_start = m.start(2)
-            for id_m in _IDENT_RE.finditer(imports_str):
-                target = id_m.group(0)
-                if target == "as":
-                    continue
-                idx = text.find(target, line_start)
-                if idx == -1 or idx >= length:
-                    continue
-                if self._in_string(idx, string_ranges):
-                    continue
-                indicator = (self._IND_IMPORT_CLASS
-                             if target[0].isupper()
-                             else self._IND_IMPORT_FUNC)
-                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
-                                   indicator)
-                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
-                                   idx, len(target))
-                line_start = idx + len(target)
-
-        # import X, Y  → highlight each target
-        for m in _PLAIN_IMPORT_RE.finditer(text):
-            if self._in_string(m.start(), string_ranges):
-                continue
-            imports_str = m.group(1)
-            line_start = m.start(1)
-            for id_m in _IDENT_RE.finditer(imports_str):
-                target = id_m.group(0)
-                if target == "as":
-                    continue
-                idx = text.find(target, line_start)
-                if idx == -1 or idx >= length:
-                    continue
-                if self._in_string(idx, string_ranges):
-                    continue
-                indicator = (self._IND_IMPORT_CLASS
-                             if target[0].isupper()
-                             else self._IND_IMPORT_FUNC)
-                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
-                                   indicator)
-                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
-                                   idx, len(target))
-                line_start = idx + len(target)
-
-        # ── special keywords / dunders ───────────────────────────────
-        _KW_RE = re.compile(r"\b(None|True|False|self|cls)\b")
-        _DUNDER_RE = re.compile(r"__\w+__")
-        for kw_m in _KW_RE.finditer(text):
-            if self._in_string(kw_m.start(), string_ranges):
-                continue
-            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
-                               self._IND_SPECIAL_KW)
-            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
-                               kw_m.start(), kw_m.end() - kw_m.start())
-        if self._SPECIAL_DUNDER:
-            for du_m in _DUNDER_RE.finditer(text):
-                if self._in_string(du_m.start(), string_ranges):
-                    continue
-                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
-                                   self._IND_SPECIAL_KW)
-                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
-                                   du_m.start(), du_m.end() - du_m.start())
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, start, token_len)
 
     # ------------------------------------------------------------------
     # File I/O
@@ -1089,8 +949,6 @@ class CodeEditor(QsciScintilla):
                 total_lines = self.lines()
                 clamped_line = max(0, min(line, total_lines - 1))
                 self.setCursorPosition(clamped_line, col)
-                self.SendScintilla(
-                    QsciScintilla.SCI_SETFIRSTVISIBLELINE, first_visible
-                )
+                self.SendScintilla(QsciScintilla.SCI_SETFIRSTVISIBLELINE, first_visible)
         except Exception as exc:
             logger.debug("Format query failed: %s", exc)

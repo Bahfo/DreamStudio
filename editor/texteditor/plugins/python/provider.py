@@ -280,6 +280,16 @@ class PythonLanguageProvider(BaseLanguageProvider):
         """Pass-through.  Formatting is handled externally."""
         return source_code
 
+    def get_semantic_highlights(self, text: str):
+        """Return colour ranges for Python semantic tokens.
+
+        Delegates to :func:`semantic_highlights.get_semantic_highlights`
+        which uses the ``ast`` module for reliable detection of imports,
+        function parameters, and variable definitions.
+        """
+        from .semantic_highlights import get_semantic_highlights
+        return get_semantic_highlights(text)
+
     # ------------------------------------------------------------------
     # Extended plugin services (not in BaseLanguageProvider contract,
     # used by the integration layer).
