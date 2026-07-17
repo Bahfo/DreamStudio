@@ -52,6 +52,37 @@ from .hover_presenter import HoverPresenter
 logger = logging.getLogger("DreamStudio.PythonSupport.Provider")
 
 
+def _is_inside_string(line_text: str, col: int) -> bool:
+    """Return ``True`` if *col* falls inside a string literal on *line_text*.
+
+    Handles single-quoted, double-quoted, and triple-quoted strings.
+    This is a best-effort check without a full tokenizer — it handles
+    the common cases that cause spurious hover popups.
+    """
+    i = 0
+    n = len(line_text)
+    while i < n:
+        ch = line_text[i]
+        if ch in ("'", '"'):
+            quote = ch * 3 if line_text[i : i + 3] == ch * 3 else ch
+            q_len = len(quote)
+            if i <= col < i + q_len:
+                return True
+            end = line_text.find(quote, i + q_len)
+            if end == -1:
+                # Unclosed string — everything to the right is inside it.
+                return col >= i
+            if i + q_len <= col <= end:
+                return True
+            i = end + q_len
+        elif ch == "#":
+            # Comment — stop scanning (nothing after it is a string).
+            break
+        else:
+            i += 1
+    return False
+
+
 class PythonLanguageProvider(BaseLanguageProvider):
     """
     Stateless provider.  This handles coordinate transformations and caching,
@@ -148,7 +179,9 @@ class PythonLanguageProvider(BaseLanguageProvider):
             return None
 
         symbol = self._symbol_at(text, line, col)
-        if symbol and keyword.iskeyword(symbol):
+        if not symbol:
+            return None
+        if keyword.iskeyword(symbol):
             return None
 
         context = self._build_context(text, line, col)
@@ -168,13 +201,23 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
     @staticmethod
     def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
-        """Extract the word under the cursor at (*line*, *col*)."""
+        """Extract the word under the cursor at (*line*, *col*).
+
+        Returns ``None`` if the cursor is not over a valid identifier
+        or if it is inside a string literal.
+        """
         lines = text.split("\n")
         if line < 0 or line >= len(lines):
             return None
         row = lines[line]
         if col < 0 or col > len(row):
             return None
+
+        # Check if the cursor is inside a string literal (single, double,
+        # or triple-quoted) by scanning for unescaped quote characters.
+        if _is_inside_string(row, col):
+            return None
+
         match = re.search(r"[A-Za-z_]\w*", row[max(0, col - 40) : col + 40])
         if match and match.start() <= col < match.end():
             return match.group(0)
@@ -191,7 +234,9 @@ class PythonLanguageProvider(BaseLanguageProvider):
             return None
 
         symbol = self._symbol_at(text, line, col)
-        if symbol and keyword.iskeyword(symbol):
+        if not symbol:
+            return None
+        if keyword.iskeyword(symbol):
             return None
 
         context = self._build_context(text, line, col)
