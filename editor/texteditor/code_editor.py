@@ -192,11 +192,10 @@ class CodeEditor(QsciScintilla):
         self._apply_indent_guide_color(text)
 
     def _apply_indent_guide_color(self, text_color) -> None:
-        """Set indentation guide line to a smooth, semi-transparent tone."""
+        """Set indentation guide line to a smooth, light neutral gray."""
         from PyQt6.QtGui import QColor
-
-        guide = QColor(text_color)
-        guide.setAlpha(48)
+        guide = QColor(160, 160, 160)
+        guide.setAlpha(30)
         self.setIndentationGuidesForegroundColor(guide)
 
     def _setup_caret(self) -> None:
@@ -440,6 +439,10 @@ class CodeEditor(QsciScintilla):
             if position == -1:
                 return
             line, col = self.lineIndexFromPosition(position)
+
+            # Guard: buffer may have been cleared during file load.
+            if not self.text():
+                return
 
             html = None
             if hasattr(self.current_provider, "get_hover_html"):
@@ -745,6 +748,8 @@ class CodeEditor(QsciScintilla):
         self.setModified(False)
         self._is_dirty = False
         self.dirty_state_changed.emit(False)
+        self._hover_timer.stop()
+        self._dismiss_hover()
 
         # Check read-only permissions.
         try:

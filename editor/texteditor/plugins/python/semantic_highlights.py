@@ -122,6 +122,13 @@ def get_semantic_highlights(
             (m.start(), m.end() - m.start(), _CLR_SELF)
         )
 
+    # ── None / True / False → dark blue ────────────────────────
+    _NONE_RE = re.compile(r"\b(None|True|False)\b")
+    for m in _NONE_RE.finditer(text):
+        highlights.append(
+            (m.start(), m.end() - m.start(), _CLR_SELF)
+        )
+
     # ── filter out anything that lands inside a comment or string ──
     _COMMENT_RE = re.compile(r"#[^\n]*")
     _STRING_RE = re.compile(

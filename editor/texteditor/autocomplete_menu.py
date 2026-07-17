@@ -531,6 +531,8 @@ class HoverDocumentationPopup(QWidget):
 
         # Constrain height to screen size.
         screen = QApplication.screenAt(pos)
+        if not screen:
+            screen = QApplication.primaryScreen()
         max_h = 500
         if screen:
             geo = screen.availableGeometry()
