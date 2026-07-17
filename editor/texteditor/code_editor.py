@@ -186,6 +186,14 @@ class CodeEditor(QsciScintilla):
         self.setMarginsBackgroundColor(bg)
         self.setMarginsForegroundColor(text)
         self.setFoldMarginColors(mid, mid)
+        self._apply_indent_guide_color(text)
+
+    def _apply_indent_guide_color(self, text_color) -> None:
+        """Set indentation guide line to a smooth, semi-transparent tone."""
+        from PyQt6.QtGui import QColor
+        guide = QColor(text_color)
+        guide.setAlpha(48)
+        self.setIndentationGuidesForegroundColor(guide)
 
     def _setup_caret(self) -> None:
         """Configure caret appearance."""
@@ -630,6 +638,66 @@ class CodeEditor(QsciScintilla):
         c = QColor(hex_color)
         return ((c.blue() & 0xFF) << 16) | ((c.green() & 0xFF) << 8) | (c.red() & 0xFF)
 
+    @staticmethod
+    def _build_string_ranges(text: str):
+        """Return a sorted list of ``(start, end)`` offsets for string literals.
+
+        Handles single/double/triple-quoted strings and comments.
+        Triple-quoted strings take priority over single quotes.
+        """
+        ranges = []
+        i = 0
+        n = len(text)
+        while i < n:
+            ch = text[i]
+            if ch == "#":
+                end = text.find("\n", i)
+                if end == -1:
+                    ranges.append((i, n))
+                    break
+                ranges.append((i, end))
+                i = end + 1
+            elif ch in ('"', "'"):
+                triple = ch * 3
+                if text[i : i + 3] == triple:
+                    end = text.find(triple, i + 3)
+                    if end == -1:
+                        ranges.append((i, n))
+                        break
+                    end += 3
+                    ranges.append((i, end))
+                    i = end
+                else:
+                    j = i + 1
+                    while j < n:
+                        if text[j] == "\\":
+                            j += 2
+                        elif text[j] == ch:
+                            j += 1
+                            break
+                        else:
+                            j += 1
+                    ranges.append((i, j))
+                    i = j
+            else:
+                i += 1
+        return ranges
+
+    @staticmethod
+    def _in_string(pos: int, ranges) -> bool:
+        """Binary-search check: is *pos* inside any of the sorted *ranges*?"""
+        lo, hi = 0, len(ranges) - 1
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            start, end = ranges[mid]
+            if pos < start:
+                hi = mid - 1
+            elif pos >= end:
+                lo = mid + 1
+            else:
+                return True
+        return False
+
     # Slot indices used for Scintilla indicators.
     _IND_IMPORT_CLASS = 0   # greenish  #4EC9B0  (classes / modules)
     _IND_IMPORT_FUNC  = 1   # yellowish #DCDCAA  (functions)
@@ -692,12 +760,17 @@ class CodeEditor(QsciScintilla):
         )
         _IDENT_RE = re.compile(r"[\w]+")
 
+        string_ranges = self._build_string_ranges(text)
+
         # from M import X, Y  → highlight M and each target
         for m in _FROM_IMPORT_RE.finditer(text):
+            if self._in_string(m.start(), string_ranges):
+                continue
+
             # Module name (e.g. "os", "os.path")
             mod_name = m.group(1)
             mod_start = text.find(mod_name, m.start(1))
-            if mod_start != -1:
+            if mod_start != -1 and not self._in_string(mod_start, string_ranges):
                 self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
                                    self._IND_IMPORT_CLASS)
                 self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
@@ -713,6 +786,8 @@ class CodeEditor(QsciScintilla):
                 idx = text.find(target, line_start)
                 if idx == -1 or idx >= length:
                     continue
+                if self._in_string(idx, string_ranges):
+                    continue
                 indicator = (self._IND_IMPORT_CLASS
                              if target[0].isupper()
                              else self._IND_IMPORT_FUNC)
@@ -724,6 +799,8 @@ class CodeEditor(QsciScintilla):
 
         # import X, Y  → highlight each target
         for m in _PLAIN_IMPORT_RE.finditer(text):
+            if self._in_string(m.start(), string_ranges):
+                continue
             imports_str = m.group(1)
             line_start = m.start(1)
             for id_m in _IDENT_RE.finditer(imports_str):
@@ -732,6 +809,8 @@ class CodeEditor(QsciScintilla):
                     continue
                 idx = text.find(target, line_start)
                 if idx == -1 or idx >= length:
+                    continue
+                if self._in_string(idx, string_ranges):
                     continue
                 indicator = (self._IND_IMPORT_CLASS
                              if target[0].isupper()
@@ -746,12 +825,16 @@ class CodeEditor(QsciScintilla):
         _KW_RE = re.compile(r"\b(None|True|False|self|cls)\b")
         _DUNDER_RE = re.compile(r"__\w+__")
         for kw_m in _KW_RE.finditer(text):
+            if self._in_string(kw_m.start(), string_ranges):
+                continue
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
                                self._IND_SPECIAL_KW)
             self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
                                kw_m.start(), kw_m.end() - kw_m.start())
         if self._SPECIAL_DUNDER:
             for du_m in _DUNDER_RE.finditer(text):
+                if self._in_string(du_m.start(), string_ranges):
+                    continue
                 self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT,
                                    self._IND_SPECIAL_KW)
                 self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE,
