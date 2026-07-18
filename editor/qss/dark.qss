@@ -274,38 +274,47 @@ QListWidget::item:selected {
 /* ==========================================================================
    Tables
    ========================================================================== */
+QTableWidget {
+    background-color: #1E1E1E;
+    color: #D4D4D4;
+    border: none;
+    gridline-color: transparent;
+    outline: none;
+}
+
 QHeaderView {
     background-color: #1E1E1E;
     border: none;
 }
 
-QTableWidget {
-    background-color: #1E1E1E;
-    color: #CCCCCC;
-    border: none;
-    outline: none;
-}
-
 QHeaderView::section {
     background-color: #1E1E1E;
-    color: #CCCCCC;
+    color: #858585; 
+    font-weight: bold;
+    padding: 8px 12px;
     border: none;
+    border-bottom: 1px solid #2D2D30; 
+    text-align: left;
 }
 
 QTableWidget::item {
-    padding: 4px;
+    padding: 8px 12px;
     border: none;
 }
 
 QTableWidget::item:hover {
-    background-color: #2A2D2E;
+    background-color: #262626; 
+    color: #E0E0E0;
 }
 
 QTableWidget::item:selected {
-    background-color: #37373D;
-    color: #F0F0F0;
-    border: none;
+    background-color: #2D3235; 
+    color: #FFFFFF;
+}
+
+QTableWidget::item:focus {
     outline: none;
+    border: none;
 }
 
 /* ==========================================================================
@@ -695,6 +704,37 @@ QFrame#ExplorerFrame,
 QFrame#GitFrame,
 QFrame#PanelFrame {
     background-color: #1E1E1E;
+}
+
+QFrame#TODOSearchFrame {
+    border: none;
+}
+
+QTableWidget#TODOSearchTable {
+    border: none;
+    background-color: #1E1E1E;
+    color: #D4D4D4;
+}
+
+QTableWidget#TODOSearchTable::item {
+    padding: 4px;
+}
+
+QTableWidget#TODOSearchTable::item:hover {
+    background-color: #262626;
+}
+
+QTableWidget#TODOSearchTable::item:selected {
+    background-color: #2D3235;
+    color: #FFFFFF;
+}
+
+QHeaderView#TODOSearchHeader::section {
+    border: none;
+    background: transparent;
+    color: #D4D4D4;
+    padding: 4px 8px;
+    font-size: 11px;
 }
 
 /* ==========================================================================

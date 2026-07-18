@@ -186,6 +186,37 @@ QFrame#PanelFrame {
     border: 1px solid #F0F0F0;
 }
 
+QFrame#TODOSearchFrame {
+    border: none;
+}
+
+QTableWidget#TODOSearchTable {
+    border: none;
+    background-color: #FFFFFF;
+    color: #000000;
+}
+
+QTableWidget#TODOSearchTable::item {
+    padding: 4px;
+}
+
+QTableWidget#TODOSearchTable::item:hover {
+    background-color: #D0D0D0;
+}
+
+QTableWidget#TODOSearchTable::item:selected {
+    background-color: #0066CC;
+    color: #FFFFFF;
+}
+
+QHeaderView#TODOSearchHeader::section {
+    border: none;
+    background: transparent;
+    color: #000000;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
 QLabel#PropertiesTitle,
 QLabel#ExplorerTitle,
 QLabel#GitTitle,

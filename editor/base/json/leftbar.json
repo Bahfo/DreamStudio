@@ -13,7 +13,7 @@
         "tooltip":"Search files",
         "size":[40, 40],
         "icon_size":[30, 30],
-        "callback": false
+        "callback": "_toggle_search_widget"
     },
     {
         "id":"btn",

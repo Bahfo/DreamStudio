@@ -24,6 +24,7 @@ class TODOSearch(PanelShell):
     PANEL_OBJECT_NAME = "TODOSearch"
     FRAME_OBJECT_NAME = "TODOSearchFrame"
     TITLE_OBJECT_NAME = "TODOSearchTitle"
+    TABLE_OBJECT_NAME = "TODOSearchTable"
     TITLE_TEXT = "TODO Search"
 
     def __init__(self, _parent=None):
@@ -33,6 +34,7 @@ class TODOSearch(PanelShell):
         main_window = self.window()
         self._base_dir = getattr(main_window, "currentDirectory", os.getcwd())
         self.path_input.setText(self._base_dir)
+        self.setMinimumWidth(350)
 
     def _build_shell(self) -> None:
         self._main_layout = QVBoxLayout(self)
@@ -80,6 +82,7 @@ class TODOSearch(PanelShell):
         self._frame_layout.addLayout(top_layout)
 
         self.table = QTableWidget(0, 3)
+        self.table.setObjectName(self.TABLE_OBJECT_NAME)
         self.table.setHorizontalHeaderLabels(["File Path", "Line", "TODO Text"])
         self.table.verticalHeader().setDefaultSectionSize(24)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -88,7 +91,11 @@ class TODOSearch(PanelShell):
         self.table.setShowGrid(False)
         self.table.cellDoubleClicked.connect(self.goto_definition)
 
+        self.table.setFrameShape(QFrame.Shape.NoFrame)
+        self.table.verticalHeader().setVisible(False)
+
         header = self.table.horizontalHeader()
+        header.setObjectName("TODOSearchHeader")
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
@@ -157,8 +164,14 @@ class TODOSearch(PanelShell):
         results = self._search_for_todos(root_dir)
         self.table.setRowCount(len(results))
 
+        import pathlib
+
         for row_idx, (file_path, line_num, text) in enumerate(results):
-            self.table.setItem(row_idx, 0, QTableWidgetItem(file_path))
+            display_path = pathlib.Path(file_path).name
+            path_item = QTableWidgetItem(display_path)
+            path_item.setData(Qt.ItemDataRole.UserRole, file_path)
+            path_item.setToolTip(file_path)
+            self.table.setItem(row_idx, 0, path_item)
             line_item = QTableWidgetItem(str(line_num))
             line_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row_idx, 1, line_item)
@@ -207,7 +220,10 @@ class TODOSearch(PanelShell):
         return found_todos
 
     def goto_definition(self, row: int, column: int) -> None:
-        file_path = self.table.item(row, 0).text()
+        path_item = self.table.item(row, 0)
+        file_path = (
+            path_item.data(Qt.ItemDataRole.UserRole) or path_item.toolTip() or ""
+        )
         line_num = int(self.table.item(row, 1).text())
         main_window = self.window()
         if hasattr(main_window, "tab_editors"):

@@ -19,6 +19,7 @@ from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont, QKeyEvent, QPalette
 from PyQt6.QtWidgets import QApplication
 from PyQt6.Qsci import QsciScintilla
+from PyQt6 import sip
 
 from editor.texteditor.language_engine import LanguageRegistry, LanguageLexer
 from editor.texteditor.autocomplete_menu import (
@@ -432,6 +433,13 @@ class CodeEditor(QsciScintilla):
         if not self.current_provider or not self._last_mouse_pos:
             return
 
+        # Guard: Ctrl is held — the user intends to Ctrl+Click for
+        # goto-definition, not to see hover documentation.  Without this
+        # guard the popup flashes between key-press dismiss and the click.
+        modifiers = QApplication.keyboardModifiers()
+        if modifiers & Qt.KeyboardModifier.ControlModifier:
+            return
+
         try:
             px = int(self._last_mouse_pos.x())
             py = int(self._last_mouse_pos.y())
@@ -445,20 +453,33 @@ class CodeEditor(QsciScintilla):
                 return
 
             html = None
-            if hasattr(self.current_provider, "get_hover_html"):
-                html = self.current_provider.get_hover_html(self.text(), line, col)
-            if not html:
-                hint = self.current_provider.get_hover_hint(self.text(), line, col)
-                if hint:
-                    html = f"<pre style='margin:0; white-space:pre-wrap;'>{hint}</pre>"
+            try:
+                if hasattr(self.current_provider, "get_hover_html"):
+                    html = self.current_provider.get_hover_html(self.text(), line, col)
+                if not html:
+                    hint = self.current_provider.get_hover_hint(self.text(), line, col)
+                    if hint:
+                        html = f"<pre style='margin:0; white-space:pre-wrap;'>{hint}</pre>"
+            except Exception as inner_exc:
+                logger.debug("Hover provider query failed: %s", inner_exc)
+                self._dismiss_hover()
+                return
 
             if not html:
                 self._dismiss_hover()
                 return
 
-            if self._hover_popup is None:
-                self._hover_popup = HoverDocumentationPopup()
+            # Guard: previous popup may have been orphaned after an editor
+            # reload or theme change — ensure it was properly deleted.
+            if self._hover_popup is not None:
+                try:
+                    if not sip.isdeleted(self._hover_popup):
+                        self._hover_popup.hide()
+                    self._hover_popup = None
+                except Exception:
+                    self._hover_popup = None
 
+            self._hover_popup = HoverDocumentationPopup(self)
             global_pos = self.mapToGlobal(self._last_mouse_pos)
             self._hover_popup.show_html(html, global_pos)
         except Exception as exc:
@@ -466,8 +487,13 @@ class CodeEditor(QsciScintilla):
 
     def _dismiss_hover(self) -> None:
         """Immediately hide the hover documentation popup."""
-        if self._hover_popup and self._hover_popup.isVisible():
-            self._hover_popup.hide()
+        if self._hover_popup is not None:
+            try:
+                if not sip.isdeleted(self._hover_popup):
+                    self._hover_popup.hide()
+            except Exception:
+                pass
+            self._hover_popup = None
 
     def _dismiss_all_popups(self) -> None:
         """Dismiss every open sub‑menu (hover + autocomplete)."""

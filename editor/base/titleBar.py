@@ -4,6 +4,7 @@ from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 
 from editor.utils.tools.commands_window import CommandWindow
+from editor.utils.find_replace.find_replace import FindReplace
 
 
 class DreamStudioTitleBar(QWidget):
@@ -38,6 +39,7 @@ class DreamStudioTitleBar(QWidget):
         self._ide_search.setPlaceholderText("Search Anywhere in DreamStudio")
         layout.addWidget(self._ide_search)
 
+        # The hanging widgets that will show under the QLineEdit if any is triggered.
         self._commands_window = CommandWindow(self._ide_search)
         self._ide_search.mousePressEvent = self._commands_window._show
 

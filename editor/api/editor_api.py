@@ -4,6 +4,8 @@ import re
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtGui import QColor
 
+from editor.utils.find_replace.find_replace import FindReplace
+
 
 class EditorAPI:
     """Mixin that holds all editor API callbacks (toggles, theme setters,
@@ -55,6 +57,11 @@ class EditorAPI:
             terminal.setVisible(True)
             splitter.setSizes([600, 400])
             terminal.switch_tab(0)
+
+    def _toggle_search_widget(self) -> None:
+        if not hasattr(self, "_find_replace_window") or self._find_replace_window is None:
+            self._find_replace_window = FindReplace(self.title_bar._ide_search)
+        self._find_replace_window._show(None)
 
     # ------------------------------------------------------------------
     # Sidebar button state
@@ -153,15 +160,22 @@ class EditorAPI:
         """
         self.setStyleSheet(content)
 
-        self._qss_bg = self._extract_qss_color(
-            content, r"QMainWindow\s*,\s*QWidget", "background-color"
-        ) or "#1E1E1E"
-        self._qss_fg = self._extract_qss_color(
-            content, r"QMainWindow\s*,\s*QWidget", "color"
-        ) or "#CCCCCC"
-        self._qss_sel = self._extract_qss_color(
-            content, r"UtilityTabBar::tab:selected", "background-color"
-        ) or self._qss_bg
+        self._qss_bg = (
+            self._extract_qss_color(
+                content, r"QMainWindow\s*,\s*QWidget", "background-color"
+            )
+            or "#1E1E1E"
+        )
+        self._qss_fg = (
+            self._extract_qss_color(content, r"QMainWindow\s*,\s*QWidget", "color")
+            or "#CCCCCC"
+        )
+        self._qss_sel = (
+            self._extract_qss_color(
+                content, r"UtilityTabBar::tab:selected", "background-color"
+            )
+            or self._qss_bg
+        )
 
         self.current_theme = (
             "dark" if QColor(self._qss_bg).lightness() < 128 else "light"
@@ -248,6 +262,7 @@ class EditorAPI:
         resource_manager = self._get_resource_manager()
         if resource_manager is not None:
             import os as _os
+
             theme_name = _os.path.splitext(_os.path.basename(qss_file))[0]
             content = resource_manager.load_theme(theme_name)
             if content:

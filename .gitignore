@@ -55,3 +55,6 @@ local.properties
 .android/
 *.keystore
 *.jks
+
+# Temporary Ignoring
+/docs

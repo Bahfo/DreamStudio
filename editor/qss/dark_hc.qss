@@ -686,6 +686,37 @@ QFrame#PanelFrame {
     border: 1px solid #1a1a1a;
 }
 
+QFrame#TODOSearchFrame {
+    border: none;
+}
+
+QTableWidget#TODOSearchTable {
+    border: none;
+    background-color: #000000;
+    color: #CCCCCC;
+}
+
+QTableWidget#TODOSearchTable::item {
+    padding: 4px;
+}
+
+QTableWidget#TODOSearchTable::item:hover {
+    background-color: #333333;
+}
+
+QTableWidget#TODOSearchTable::item:selected {
+    background-color: #003366;
+    color: #FFFFFF;
+}
+
+QHeaderView#TODOSearchHeader::section {
+    border: none;
+    background: transparent;
+    color: #CCCCCC;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
 /* ==========================================================================
    Sidebar Labels & Headers
    ========================================================================== */
