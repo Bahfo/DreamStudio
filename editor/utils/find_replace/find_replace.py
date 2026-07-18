@@ -4,45 +4,58 @@
 Find/Replace Widget for Global Solution Find and Replace.
 """
 
-from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
-    QMenu,
-    QLabel,
     QFrame,
+    QLabel,
     QWidget,
     QLineEdit,
     QPushButton,
     QHBoxLayout,
     QVBoxLayout,
-    QWidgetAction,
 )
 from PyQt6.QtCore import Qt
-
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class FindReplace(QMenu):
+class FindReplace(QFrame):
+    """
+    A global find and replace popup resembling modern IDE structure.
+
+    Attributes:
+        _parent: The parent widget.
+        _hang_widget (QWidget): The widget this popup visually hangs from.
+    """
+
     def __init__(self, hanging_widget, parent=None):
-        # hanging_widget: The widget that the items.
-        # Must be of type QPushButton or any type of its instance.
+        """
+        Initializes the FindReplace popup.
+
+        Args:
+            hanging_widget: The widget that anchors the popup.
+            parent: The parent widget for memory management.
+        """
         super().__init__(parent=parent)
+
+        # NOTE: Popup flag makes it act like a menu (auto-closes on click away)
+        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.setObjectName("FindReplaceMenu")
         self.setFixedWidth(600)
-        self._build_actions()
+
         self._parent = parent
         self._hang_widget = hanging_widget
+        self._build_ui()
 
-    def _build_actions(self):
-        form_action = QWidgetAction(self)
-        form_widget = QWidget()
-        form_layout = QVBoxLayout(form_widget)
-        form_layout.setContentsMargins(12, 12, 12, 12)
-        form_layout.setSpacing(8)
+    def _build_ui(self):
+        """Builds the internal UI components directly into the frame's layout."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(8)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search in Solution")
-        form_layout.addWidget(self.search_input)
+        main_layout.addWidget(self.search_input)
 
         options_layout = QHBoxLayout()
         options_layout.setContentsMargins(0, 0, 0, 4)
@@ -58,7 +71,7 @@ class FindReplace(QMenu):
             options_layout.addWidget(btn)
 
         options_layout.addStretch()
-        form_layout.addLayout(options_layout)
+        main_layout.addLayout(options_layout)
 
         self.replace_container = QFrame()
         self.replace_container.setObjectName("replaceContainer")
@@ -76,15 +89,16 @@ class FindReplace(QMenu):
 
         rc_layout.addWidget(self.replace_input)
         rc_layout.addWidget(self.btn_replace_all)
-        form_layout.addWidget(self.replace_container)
+        main_layout.addWidget(self.replace_container)
 
         self.btn_toggle_filters = QPushButton("▾ File Filters")
         self.btn_toggle_filters.setCheckable(True)
         self.btn_toggle_filters.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_toggle_filters.setObjectName("filterToggle")
-        form_layout.addWidget(self.btn_toggle_filters)
+        main_layout.addWidget(self.btn_toggle_filters)
 
         self.filters_container = QWidget()
+        self.filters_container.setStyleSheet("background-color: transparent;")
         f_layout = QVBoxLayout(self.filters_container)
         f_layout.setContentsMargins(8, 0, 0, 0)
         f_layout.setSpacing(6)
@@ -98,28 +112,36 @@ class FindReplace(QMenu):
         f_layout.addWidget(self.include_input)
         f_layout.addWidget(self.exclude_input)
         self.filters_container.setVisible(False)
-        form_layout.addWidget(self.filters_container)
+        main_layout.addWidget(self.filters_container)
 
-        self.btn_toggle_filters.toggled.connect(
-            lambda checked: (
-                self.filters_container.setVisible(checked),
-                self.btn_toggle_filters.setText(
-                    "▴ File Filters" if checked else "▾ File Filters"
-                ),
-            )
-        )
+        self.btn_toggle_filters.toggled.connect(self._on_filters_toggled)
 
-        form_action.setDefaultWidget(form_widget)
-        self.addAction(form_action)
-        self.addSeparator()
+        # Separator line replacement for QMenu.addSeparator()
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setObjectName("menuSeparator")
+        main_layout.addWidget(separator)
 
-        tip_action = QWidgetAction(self)
         self.tip_label = QLabel("TIP: Type to search, navigate by keyboard arrows.")
         self.tip_label.setObjectName("tipLabel")
-        tip_action.setDefaultWidget(self.tip_label)
-        self.addAction(tip_action)
+        main_layout.addWidget(self.tip_label)
 
-    def _show(self, event):
+    def _on_filters_toggled(self, checked: bool):
+        """
+        Handles the expansion of the filter UI and resizes the popup window.
+
+        Args:
+            checked: True if the filters should be visible, False otherwise.
+        """
+        self.filters_container.setVisible(checked)
+        self.btn_toggle_filters.setText(
+            "▴ File Filters" if checked else "▾ File Filters"
+        )
+        self.adjustSize()
+
+    def _show(self, event=None):
+        """Displays the popup precisely below the hanging widget."""
         corner_left = self._hang_widget.rect().bottomLeft()
         global_pos = self._hang_widget.mapToGlobal(corner_left)
-        self.exec(global_pos)
+        self.move(global_pos)
+        self.show()

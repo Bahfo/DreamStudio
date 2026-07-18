@@ -44,6 +44,7 @@ import pathlib
 logger = logging.getLogger(__name__)
 
 from editor.texteditor.code_editor import CodeEditor
+from editor.texteditor.minimap import MiniMapHostWidget
 
 CONFIG_CODE_EDITOR = {
     "Set TextEditor Font": ("JetBrains Mono"),
@@ -112,6 +113,13 @@ class DreamTabbedEditor(QDreamTabEditor):
         self._format_shortcut = QShortcut(QKeySequence("Ctrl+Alt+F"), self)
         self._format_shortcut.activated.connect(self.format_current_file)
 
+        # Minimap toggle (corner widget on the right side of the tab bar)
+        self._minimap_visible = True
+        self._minimap_toggle = QPushButton("Hide Minimap", self)
+        self._minimap_toggle.setFixedHeight(24)
+        self._minimap_toggle.clicked.connect(self._toggle_minimap)
+        self.setCornerWidget(self._minimap_toggle, Qt.Corner.TopRightCorner)
+
         self.currentChanged.connect(self._on_editor_tab_changed)
 
     # ------------------------------------------------------------------
@@ -124,6 +132,16 @@ class DreamTabbedEditor(QDreamTabEditor):
     def _apply_tab_style_from_palette(self) -> None:
         color = self.palette().color(QPalette.ColorRole.WindowText).name()
         self._apply_tab_style(color)
+
+    def _toggle_minimap(self) -> None:
+        self._minimap_visible = not self._minimap_visible
+        self._minimap_toggle.setText(
+            "Show Minimap" if not self._minimap_visible else "Hide Minimap"
+        )
+        for i in range(self.count()):
+            w = self.widget(i)
+            if isinstance(w, MiniMapHostWidget):
+                w.set_minimap_visible(self._minimap_visible)
 
     def changeEvent(self, event) -> None:
         if event.type() in (
@@ -183,8 +201,8 @@ class DreamTabbedEditor(QDreamTabEditor):
         language=None,
         file_path=None,
     ):
-        """Create a new tab containing either a ``CodeEditor`` or a
-        ``FallBack`` placeholder.
+        """Create a new tab containing either a ``MiniMapHostWidget`` (wrapping
+        a ``CodeEditor``) or a ``FallBack`` placeholder.
 
         If *file_path* is already open the existing tab is raised instead
         of creating a duplicate.
@@ -197,7 +215,7 @@ class DreamTabbedEditor(QDreamTabEditor):
             file_path: Absolute path to the file on disk.
 
         Returns:
-            The newly created widget (``CodeEditor`` or ``FallBack``).
+            The newly created widget (``MiniMapHostWidget`` or ``FallBack``).
         """
         key = self.resolve_key(file_path) if file_path else None
 
@@ -211,18 +229,20 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         if file_path:
             try:
-                new_editor = CodeEditor(self, language=language)
-                new_editor.load_from_file(file_path)
+                code_editor = CodeEditor(self, language=language)
+                code_editor.load_from_file(file_path)
+                new_editor = MiniMapHostWidget(code_editor, parent=self)
             except (UnicodeDecodeError, OSError, ValueError) as exc:
                 logger.warning("Failed to load %s: %s", file_path, exc)
                 new_editor = FallBack(self)
                 new_editor.setText(content)
         else:
-            new_editor = CodeEditor(self, language=language)
-            new_editor.setText(content)
-            new_editor.clear_dirty()
+            code_editor = CodeEditor(self, language=language)
+            code_editor.setText(content)
+            code_editor.clear_dirty()
+            new_editor = MiniMapHostWidget(code_editor, parent=self)
 
-        if isinstance(new_editor, CodeEditor):
+        if isinstance(new_editor, MiniMapHostWidget):
             if hasattr(self._parent, "update_position_status"):
                 new_editor.position_changed.connect(self._parent.update_position_status)
 
@@ -240,13 +260,13 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         self.opened_files[key] = index
 
-        if isinstance(new_editor, CodeEditor):
+        if isinstance(new_editor, MiniMapHostWidget):
             new_editor.dirty_state_changed.connect(self._on_editor_dirty_changed)
 
         self.tabBar().rebuild_dirty_indices()
 
         # Sync read-only indicator from the editor's own state.
-        if isinstance(new_editor, CodeEditor) and new_editor.isReadOnly():
+        if isinstance(new_editor, MiniMapHostWidget) and new_editor.isReadOnly():
             self.tabBar().mark_readonly(index, True)
 
         self.setFocus()

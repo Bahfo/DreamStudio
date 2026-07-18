@@ -59,9 +59,19 @@ class EditorAPI:
             terminal.switch_tab(0)
 
     def _toggle_search_widget(self) -> None:
-        if not hasattr(self, "_find_replace_window") or self._find_replace_window is None:
-            self._find_replace_window = FindReplace(self.title_bar._ide_search)
-        self._find_replace_window._show(None)
+        if (
+            not hasattr(self, "_find_replace_window")
+            or self._find_replace_window is None
+        ):
+            self._find_replace_window = FindReplace(
+                hanging_widget=self.title_bar._ide_search, parent=self
+            )
+            self._find_replace_window.setStyleSheet(self.styleSheet())
+
+        if self._find_replace_window.isVisible():
+            self._find_replace_window.hide()
+        else:
+            self._find_replace_window._show()
 
     # ------------------------------------------------------------------
     # Sidebar button state

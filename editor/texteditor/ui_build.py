@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
 from editor.texteditor.tab_editor import DreamTabbedEditor
 from editor.texteditor.api import EditorAPI
-from editor.texteditor.code_editor import CodeEditor
+from editor.texteditor.minimap import MiniMapHostWidget
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class EditorContainer(QWidget):
         widget = self._tabs.currentWidget()
         if widget is None:
             return None
-        if isinstance(widget, CodeEditor):
+        if isinstance(widget, MiniMapHostWidget):
             return EditorAPI(widget)
         return None
 

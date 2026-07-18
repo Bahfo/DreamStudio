@@ -888,6 +888,94 @@ QFrame#GitCommitBox {
 }
 
 /* ==========================================================================
+   Find and Replace
+   ========================================================================== */
+
+QFrame#FindReplaceMenu {
+    background-color: #252526;
+    border: 1px solid #454545;
+    border-radius: 6px;
+}
+
+QFrame#FindReplaceMenu QLineEdit {
+    background-color: #3C3C3C;
+    color: #CCCCCC;
+    border: 1px solid #3C3C3C;
+    border-radius: 3px;
+    padding: 5px 6px;
+    selection-background-color: #264F78;
+}
+
+QFrame#FindReplaceMenu QLineEdit:focus {
+    border: 1px solid #007FD4;
+    background-color: #3C3C3C;
+}
+
+QFrame#replaceContainer {
+    background-color: #3C3C3C;
+    border: 1px solid #3C3C3C;
+    border-radius: 3px;
+}
+
+QFrame#FindReplaceMenu QLineEdit#replaceInput {
+    border: none;
+    background-color: transparent;
+}
+
+QFrame#FindReplaceMenu QLineEdit#replaceInput:focus {
+    border: none;
+}
+
+QFrame#FindReplaceMenu QPushButton {
+    color: #C5C5C5;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 4px;
+    font-size: 12px;
+}
+
+QFrame#FindReplaceMenu QPushButton:hover {
+    background-color: #333333;
+    color: #FFFFFF;
+}
+
+QFrame#FindReplaceMenu QPushButton:pressed {
+    background-color: #0E639C;
+    color: #FFFFFF;
+}
+
+QFrame#FindReplaceMenu QPushButton:checked {
+    background-color: #333941;
+    border: 1px solid #007FD4;
+    color: #FFFFFF;
+}
+
+QFrame#FindReplaceMenu QPushButton#btnReplaceAll {
+    background-color: #2D2D2D;
+    border: 1px solid transparent;
+    padding: 2px 8px;
+    margin: 2px 0px;
+}
+
+QFrame#FindReplaceMenu QPushButton#btnReplaceAll:hover {
+    background-color: #0E639C;
+    color: #FFFFFF;
+}
+
+QFrame#menuSeparator {
+    background-color: #454545;
+    max-height: 1px;
+    margin: 4px 0px;
+}
+
+QFrame#FindReplaceMenu QLabel#tipLabel {
+    color: #858585;
+    font-size: 11px;
+    padding-bottom: 4px;
+}
+
+/* ==========================================================================
    Panels & Separators
    ========================================================================== */
 
