@@ -144,7 +144,7 @@ class StatusBar(QFrame):
         statusbar_layout.addWidget(self.EOL)
 
         self.terminalWindow = ToolbarButton(
-            icon_path="assets/system/code.png",
+            icon_path="assets/system/terminal.png",
             tooltip="Open Terminal",
             fixed_size=(120, 28),
             icon_size=(17, 17),

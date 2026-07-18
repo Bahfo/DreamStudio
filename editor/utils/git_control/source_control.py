@@ -226,7 +226,12 @@ class GitVersionControl(PanelShell):
 
     def _header_right_widgets(self) -> list[QWidget]:
         return [
-            ToolbarButton("assets/menus/dropdown.png", "Options", (20, 20), (15, 15)),
+            ToolbarButton(
+                "editor/utils/explorer/assets/icons/dropdown.png",
+                "Options",
+                (20, 20),
+                (15, 15),
+            ),
         ]
 
     def _build_init_page(self) -> None:

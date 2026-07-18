@@ -1,18 +1,17 @@
-###### Current Version: 1.0.2 (Quiet Vally Release)
+###### Current Version: 1.1.0 (Quiet Vally Release)
 
 <h1 align="left" style="font-size: 40px;">DreamStudio IDE</h1>
 
 ![Static Badge](https://img.shields.io/badge/Company-Excellent_TechStacks-006FCD?style=for-the-badge)
 ![Static Badge](https://img.shields.io/badge/Author-Bahaa_Nofal-CBA317?style=for-the-badge)
 ![](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![](https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)
 
 DreamStudio is an open-source Integrated Development Environment developed by *Excellent TechStacks* (known as _EX Techs_). It is the basis for Excellent TechStacks Integrated Platform Development Environment (IPDE).
 
 If you are new to the project and would like to get started quickly, please read the documentaiton provided in notebook forms (`.ipynb` format).
 
 You can see in the following picture **DreamStudio** in action.
-
-![DreamStudio in Action](assets/logos/dreamstudio_in_action.png)
 
 ---
 
@@ -22,8 +21,8 @@ The repository is available from at https://github.com/Bahfo/DreamJetPack-Offici
 Alternatively, follow the steps shown below in a terminal:
 
 ```bash
-git clone https://github.com/Bahfo/DreamJetPack-Official_Repository
-cd DreamJetPack-Official_Repository
+git clone https://github.com/Bahfo/DreamStudio
+cd DreamStudio
 ```
 
 > [!TIP]
@@ -39,7 +38,8 @@ Firstly you should build a virtual environment and install required libraries an
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-
+```
+```powershell
 # For Windows, see the following
 python -m venv venv
 venv\Scripts\activate
@@ -69,64 +69,10 @@ Just like with D-Lang, you are free to use any C-Language Compiler, but we suppo
 
 DreamStudio has a build tool in a script format available too inside the repository, you do not need to type-in commands to build the repository by hand. Just make sure you have the prerequisties from previous steps ready, and that the Python's Virtual Environment (venv) is available and activated.
 
-To run building, type the following command:
-
-```bash
-./build.sh  # If you are on UNIX Systems
-build.bat   # For Windows
-```
-
 > [!TIP]
 > You can also run with specific configurations for building. For example, you can build explicitly without a specific feature you do not want the IDE to have. The notebook's documentation provides a full article about it.
 
 --- 
-
-## Using DreamStudio
-
-### For Python Users
-
-You have several options of using DreamStudio. The IDE comes configured for Python mainly. 
-
-When you open DreamStudio, you are guided towards choosing an already made project or creating a new project. Suppose you are creating a new project. 
-
-There are several options. Including: 
-
-1. Python Server with Flask: Create a Python server, powered by *Flask* framework. DreamStudio does the heavy lifting for you, and manages your environment fully.
-
-2. Python Machine Learning Project: Run your machine learning projects easily with Python, with options to use **TensorFlow** or **PyTorch**. The studio has all time-consuming tasks already built, so scientists and programmers can jump right-away into coding.
-
-3. Python User Acitivty Applications for Desktop: You can use PyQt's latest technologies to build your applications for desktop configured for your operating system's environment. Note that the application built is configured by default to be for your native operating system.
-
-4. Python Android Activity Project: Use BeeWare, the native Python builder for Android, with Android SDK, inside DreamStudio, to build your applications for android mobile, we have you set up with emulators needed, required SDKs, and all tools to build your apps on mobile. 
-
-You can also create empty projects and set things up yourself. 
-
-### For C-Plus-Plus: 
-
-C++ Is currently not implemented, but under development. In the future, DreamStudio will also support C++ natively inside it.
-
-### Initializing a New Project: 
-
-This is straight-forward: Initializing a new project is done easily via the setup wizard: 
-
-- Open DreamStudio. 
-- Select `New Project`.
-- Choose the project you want from templates. 
-- Give it a new name (duplicated names inside same directory aren't allowed). Then give it a path. 
-- Click `Create` to create the project.
-
-## Marketplace
-
-DreamStudio is also heavily-customized. You can customize the studio and install additional packages, addons, and themes from the marketplace (*the forth option in the leftmost sidebar*). Addons are installed directly from GitHub repository (`Addons-for-DreamStudio`). 
-
-Addons are heavily monitored and checked. If you want to make a new addon, head towards *DreamStudio Documentations* where you can find all needed info.
-
-## Android Apps and Emulation
-
-DreamStudio supports Android activity creation! You can build your app using `BeeWare` framework to create applications natively supported on Android. Thanks to Android's SDK we are able to bring this inside DreamStudio so you have all the tools you need in one place, ready to go.
-
-> [!NOTE]
-> Android SDK tools does come by default configured within the studio. If you want a verison of DreamStudio where these tools aren't what you want, or you want custom setup, then install what you want from DSInstaller by navigating to `Install` -> `Advanced Installtion` and choose what you want.
 
 ## A Word to Users
 

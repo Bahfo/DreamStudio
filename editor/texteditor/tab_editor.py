@@ -88,7 +88,7 @@ class DreamTabbedEditor(QDreamTabEditor):
             color: {};
         }}
         QTabBar::close-button {{
-            image: url(assets/system/close.png);
+            image: url(assets/menus/close_editor.png);
             background: transparent;
         }}"""
         self._apply_tab_style_from_palette()

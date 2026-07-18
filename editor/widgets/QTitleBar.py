@@ -26,7 +26,7 @@ class TitleBar(QWidget):
         #################################
 
         self.icon_btn = QPushButton(title)
-        self.icon_btn.setIcon(QIcon("assets/logos/dreamStudio_icon.png"))
+        self.icon_btn.setIcon(QIcon("assets/dreamStudio_icon.png"))
         self.icon_btn.setIconSize(QSize(26, 26))
         self.icon_btn.setFixedHeight(30)
         self.icon_btn.setCursor(Qt.CursorShape.PointingHandCursor)
