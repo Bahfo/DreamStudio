@@ -29,6 +29,10 @@ from editor.texteditor.plugins.python.editor_integration import (
     ContextBuilder,
     ResultTranslator,
 )
+from editor.texteditor.plugins.python.folding import (
+    compute_fold_regions,
+    compute_folds_for_editor,
+)
 
 __all__ = [
     "PythonLanguageProvider",
@@ -46,4 +50,6 @@ __all__ = [
     "PythonIntegrationLayer",
     "ContextBuilder",
     "ResultTranslator",
+    "compute_fold_regions",
+    "compute_folds_for_editor",
 ]

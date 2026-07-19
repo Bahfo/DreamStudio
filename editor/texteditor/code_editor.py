@@ -208,23 +208,10 @@ class CodeEditor(QsciScintilla):
         self.setCaretWidth(2)
 
     def _setup_folding(self) -> None:
-        """Configure code folding markers."""
-        _, _, mid, _ = self._theme_colors()
-        self.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle)
-        self.setMarginType(1, QsciScintilla.MarginType.SymbolMargin)
-        self.setMarginWidth(1, 12)
-        self.setMarginSensitivity(1, True)
+        """Configure code folding markers and attach a ``FoldManager``."""
+        from editor.texteditor.api import FoldManager
 
-        self.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDER)
-        self.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDEROPEN)
-        self.markerDefine(
-            QsciScintilla.MarkerSymbol.Plus,
-            QsciScintilla.SC_MARKNUM_FOLDER,
-        )
-        self.markerDefine(
-            QsciScintilla.MarkerSymbol.Minus,
-            QsciScintilla.SC_MARKNUM_FOLDEROPEN,
-        )
+        self._fold_manager = FoldManager(self)
 
     def _setup_edge(self) -> None:
         """Configure the long-line edge marker."""
