@@ -1,16 +1,17 @@
 from PyQt6.QtCore import Qt, QEvent
 from PyQt6.QtWidgets import (
-    QApplication,
+    QFrame,
+    QLabel,
+    QWidget,
+    QSplitter,
+    QTabWidget,
+    QScrollArea,
+    QTreeWidget,
+    QHeaderView,
     QHBoxLayout,
     QVBoxLayout,
-    QWidget,
-    QFrame,
-    QPushButton,
-    QStackedWidget,
-    QTreeWidget,
+    QApplication,
     QTreeWidgetItem,
-    QHeaderView,
-    QLabel,
 )
 
 from editor.utils.panel_shell import PanelShell
@@ -20,6 +21,12 @@ from editor.utils.properties.get_env import (
     get_interpreter_path,
     get_env_variables,
 )
+from editor.texteditor.code_editor import CodeEditor
+from editor.utils.properties.project_data_engine import ProjectDataEngine
+from editor.utils.properties.properties_dialog import (
+    SolutionPropertiesGrid,
+    FilePropertiesGrid,
+)
 
 
 class PropertiesExplorer(PanelShell):
@@ -27,15 +34,16 @@ class PropertiesExplorer(PanelShell):
     FRAME_OBJECT_NAME = "PropertiesFrame"
     TITLE_OBJECT_NAME = "PropertiesTitle"
     DIRECTORY_LABEL_OBJECT_NAME = "PropertiesObjectLabel"
-    SEARCH_BAR_OBJECT_NAME = ""
-    TREE_VIEW_OBJECT_NAME = ""
-    RENAME_EDITOR_OBJECT_NAME = ""
     TITLE_TEXT = "Properties"
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._setup_focus_tracking()
         self.setMinimumWidth(350)
+
+        self.current_project_dir = None
+        self.data_engine = ProjectDataEngine()
+
+        self._setup_focus_tracking()
 
     def _setup_focus_tracking(self) -> None:
         QApplication.instance().focusChanged.connect(self._on_app_focus_changed)
@@ -55,6 +63,8 @@ class PropertiesExplorer(PanelShell):
 
         if not focused and hasattr(self, "env_tree"):
             self.env_tree.clearSelection()
+        if not focused and hasattr(self, "config_grid"):
+            self.config_grid.clearSelection()
 
     def _build_shell(self) -> None:
         self._main_layout = QVBoxLayout(self)
@@ -66,9 +76,8 @@ class PropertiesExplorer(PanelShell):
         self._frame.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         self._frame_layout = QVBoxLayout(self._frame)
-        self._frame_layout.setContentsMargins(10, 10, 10, 10)
-        self._frame_layout.setSpacing(8)
-
+        self._frame_layout.setContentsMargins(4, 4, 4, 4)
+        self._frame_layout.setSpacing(4)
         self._main_layout.addWidget(self._frame)
 
         self._build_header_row()
@@ -79,7 +88,7 @@ class PropertiesExplorer(PanelShell):
         return [
             ToolbarButton(
                 "editor/utils/explorer/assets/icons/dropdown.png",
-                "View more widget options",
+                "View more options",
                 (20, 20),
                 (15, 15),
             ),
@@ -87,73 +96,142 @@ class PropertiesExplorer(PanelShell):
 
     def _build_toolbar_row(self) -> None:
         self._toolbar_row = QHBoxLayout()
-        self._toolbar_row.setContentsMargins(0, 0, 0, 0)
-        self._toolbar_row.setSpacing(8)
+        self._toolbar_row.setContentsMargins(2, 0, 2, 0)
+        self._toolbar_row.setSpacing(4)
         self._toolbar_row.addStretch(1)
 
         self._explr_toolbox = ExplorerToolbar()
         self._toolbar_row.addLayout(self._explr_toolbox)
-
         self._frame_layout.addLayout(self._toolbar_row)
 
     def _build_body(self) -> None:
-        tab_nav_layout = QHBoxLayout()
-        tab_nav_layout.setContentsMargins(0, 0, 0, 0)
-        tab_nav_layout.setSpacing(4)
+        self.tabs_container = QTabWidget(self)
+        self.tabs_container.setObjectName("PropertiesTabWidget")
+        self.tabs_container.setStyleSheet("QTabWidget::pane { border: 0px; }")
 
-        self.btn_python_info = QPushButton("Python Info")
-        self.btn_project_info = QPushButton("Project Info")
+        self.solution_tab = QWidget()
+        self.file_tab = QWidget()
 
-        tab_nav_layout.addWidget(self.btn_python_info)
-        tab_nav_layout.addWidget(self.btn_project_info)
-        tab_nav_layout.addStretch()
-        self._frame_layout.addLayout(tab_nav_layout)
+        self.tabs_container.addTab(self.solution_tab, "Solution Properties")
+        self.tabs_container.addTab(self.file_tab, "File Properties")
+        self._frame_layout.addWidget(self.tabs_container)
 
-        self.body_stack = QStackedWidget(self)
-        self._frame_layout.addWidget(self.body_stack)
+        self._initialize_solution_tab()
+        self._initialize_file_tab()
 
-        self.btn_python_info.clicked.connect(
-            lambda: self.body_stack.setCurrentIndex(0)
+    def _initialize_solution_tab(self) -> None:
+        tab_layout = QVBoxLayout(self.solution_tab)
+        tab_layout.setContentsMargins(0, 4, 0, 0)
+        tab_layout.setSpacing(0)
+
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        splitter.setStyleSheet(
+            "QSplitter::handle { background-color: #3E3E42; height: 2px; }"
         )
-        self.btn_project_info.clicked.connect(
-            lambda: self.body_stack.setCurrentIndex(1)
-        )
 
-        self._build_python_info_tab()
-        self._build_project_info_tab()
+        top_container = QWidget()
+        top_layout = QVBoxLayout(top_container)
+        top_layout.setContentsMargins(4, 0, 4, 0)
+        top_layout.setSpacing(4)
 
-    def _build_python_info_tab(self) -> None:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 4, 0, 0)
-        layout.setSpacing(6)
+        global_label = QLabel("Global Properties")
+        top_layout.addWidget(global_label)
 
         self.env_tree = QTreeWidget()
         self.env_tree.setObjectName("PropertiesEnvTree")
-        self.env_tree.setHeaderLabels(["Property", "Value"])
+        self.env_tree.setColumnCount(2)
+        self.env_tree.setHeaderHidden(True)
+        self.env_tree.setFrameShape(QFrame.Shape.NoFrame)
         self.env_tree.setAnimated(True)
-        self.env_tree.setIndentation(4)
+        self.env_tree.setIndentation(12)
         self.env_tree.setRootIsDecorated(True)
         self.env_tree.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.env_tree.setMouseTracking(True)
+        self.env_tree.setStyleSheet(
+            "QTreeView { border: none; background: transparent; }"
+        )
 
         hdr = self.env_tree.header()
-        hdr.setStretchLastSection(False)
-        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setStretchLastSection(True)
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.env_tree.setColumnWidth(0, 140)
 
         self.env_tree.installEventFilter(self)
-
         self._populate_python_info()
+        top_layout.addWidget(self.env_tree)
 
-        layout.addWidget(self.env_tree)
-        self.body_stack.addWidget(page)
+        bottom_container = QWidget()
+        bottom_layout = QVBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(4, 0, 4, 0)
+        bottom_layout.setSpacing(4)
+
+        config_label = QLabel("Configuration")
+        bottom_layout.addWidget(config_label)
+
+        self.config_scroll_area = QScrollArea()
+        self.config_scroll_area.setWidgetResizable(True)
+        self.config_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.config_scroll_area.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+        )
+
+        self.config_container = QWidget()
+        self.config_layout = QVBoxLayout(self.config_container)
+        self.config_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.config_grid = SolutionPropertiesGrid(self.config_container)
+        self.config_grid.itemChanged.connect(self._on_config_property_changed)
+        self.config_layout.addWidget(self.config_grid)
+
+        self.config_scroll_area.setWidget(self.config_container)
+        bottom_layout.addWidget(self.config_scroll_area, 1)
+
+        splitter.addWidget(top_container)
+        splitter.addWidget(bottom_container)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        tab_layout.addWidget(splitter)
+
+    def _initialize_file_tab(self) -> None:
+        layout = QVBoxLayout(self.file_tab)
+        layout.setContentsMargins(4, 4, 4, 0)
+        layout.setSpacing(4)
+
+        file_label = QLabel("Active Object Metrics")
+        layout.addWidget(file_label)
+
+        # Attach the newly designed File Grid tracking utility
+        self.file_grid = FilePropertiesGrid(self.file_tab)
+        layout.addWidget(self.file_grid, 1)
+
+    def set_active_project_directory(self, project_dir: str) -> None:
+        """
+        Invoked by the main IDE layout infrastructure when switching workspaces.
+        """
+        self.current_project_dir = project_dir
+        self.data_engine.set_project_dir(project_dir)
+
+        if self.data_engine.is_valid_project():
+            self.config_grid.blockSignals(True)
+            project_data = self.data_engine.extract_solution_properties()
+            self.config_grid.load_grid_data(project_data)
+            self.config_grid.blockSignals(False)
+
+    def _on_config_property_changed(self, item: QTreeWidgetItem, column: int) -> None:
+        """Listens directly to the grid inputs to save modified values straight to disk."""
+        if column != 1 or not self.data_engine.is_valid_project():
+            return
+
+        updated_payload = self.config_grid.save_grid_data()
+        self.data_engine.commit_solution_properties(updated_payload)
+
+        item.setToolTip(1, item.text(1) if item.text(1) else "--")
 
     def eventFilter(self, source, event) -> bool:
         if source is self.env_tree and event.type() == QEvent.Type.MouseButtonPress:
             click_pos = event.position().toPoint()
-            item = self.env_tree.itemAt(click_pos)
-            if item is None:
+            if self.env_tree.itemAt(click_pos) is None:
                 self.env_tree.clearSelection()
                 return True
         return super().eventFilter(source, event)
@@ -169,7 +247,8 @@ class PropertiesExplorer(PanelShell):
             parent = QTreeWidgetItem(self.env_tree)
             parent.setText(0, section_title)
             parent.setFlags(parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
-            parent.setExpanded(True)
+
+            parent.setExpanded(False)
 
             for key, value in data.items():
                 child = QTreeWidgetItem(parent)
@@ -181,8 +260,15 @@ class PropertiesExplorer(PanelShell):
                 else:
                     text = str(value) if value is not None else "--"
                     if any(
-                        term in key.lower()
-                        for term in ("executable", "prefix", "stdlib", "purelib", "path", "dir")
+                        t in key.lower()
+                        for t in (
+                            "executable",
+                            "prefix",
+                            "stdlib",
+                            "purelib",
+                            "path",
+                            "dir",
+                        )
                     ):
                         child.setText(1, self._elide_string(text))
                         child.setToolTip(1, text)
@@ -190,33 +276,20 @@ class PropertiesExplorer(PanelShell):
                         child.setText(1, text)
                         child.setToolTip(1, text)
 
+    def set_active_editor(self, editor: CodeEditor | None) -> None:
+        """
+        Public API method for the main IDE window to update the explorer's
+        active file focus.
+        """
+        if hasattr(self, "file_grid"):
+            self.file_grid.set_active_editor(editor)
+
     @staticmethod
     def _elide_path_list(paths: list[str]) -> str:
         return "\n".join(PropertiesExplorer._elide_string(p) for p in paths)
 
     @staticmethod
-    def _elide_path(parent_path: str) -> str:
-        parts = parent_path.replace("\\", "/").split("/")
-        if len(parts) <= 3:
-            return parent_path
-        return parts[0] + "/.../" + parts[-1]
-
-    @staticmethod
     def _elide_string(text: str, max_len: int = 60) -> str:
         if len(text) <= max_len:
             return text
-        head = text[:30]
-        tail = text[-20:]
-        return f"{head}...{tail}"
-
-    def _build_project_info_tab(self) -> None:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 4, 0, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        placeholder = QLabel("Project info settings are coming soon.")
-        placeholder.setStyleSheet("color: #888888;")
-        layout.addWidget(placeholder)
-
-        self.body_stack.addWidget(page)
+        return f"{text[:30]}...{text[-20:]}"
