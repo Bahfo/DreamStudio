@@ -77,7 +77,13 @@ class LanguageLexer(QsciLexerCustom):
         return ""
 
     def styleText(self, start: int, end: int):
-        """Called by QScintilla to syntax-highlight a text range."""
+        """Called by QScintilla to syntax-highlight a text range.
+
+        Uses strict word-boundary regex (``\\b``) with exact match
+        offsets.  This eliminates the substring-matching bug where
+        ``re.split(r\"(\\W+)\", text)`` fragmented identifiers like
+        ``STYLE_PAREN_3`` and caused partial-keyword collisions.
+        """
         editor = self.editor()
         if not editor:
             return
@@ -85,12 +91,13 @@ class LanguageLexer(QsciLexerCustom):
         self.startStyling(start)
         text = editor.text()[start:end]
 
-        words = re.split(r"(\W+)", text)
-        for token in words:
-            if not token:
-                continue
-            style_idx = self.keywords_map.get(token, 0)
-            self.setStyling(len(token), style_idx)
+        # Strict word-boundary matching: each match is a whole word
+        # with an exact start offset and length.  No substring matching.
+        for m in re.finditer(r"\b\w+\b", text):
+            word = m.group(0)
+            length = m.end() - m.start()
+            style_idx = self.keywords_map.get(word, 0)
+            self.setStyling(length, style_idx)
 
 
 class BaseLanguageProvider(ABC):

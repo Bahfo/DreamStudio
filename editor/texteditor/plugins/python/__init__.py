@@ -33,6 +33,7 @@ from editor.texteditor.plugins.python.folding import (
     compute_fold_regions,
     compute_folds_for_editor,
 )
+from editor.texteditor.plugins.python.highlighter import install
 
 __all__ = [
     "PythonLanguageProvider",
@@ -52,4 +53,5 @@ __all__ = [
     "ResultTranslator",
     "compute_fold_regions",
     "compute_folds_for_editor",
+    "install",
 ]

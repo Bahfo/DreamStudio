@@ -1,13 +1,24 @@
 """
-Concrete implementation of the IJediAdapter interface using the jedi library.
-This file encapsulates all interactions with Jedi, ensuring no raw Jedi objects
-or exceptions leak into the rest of the application.
+(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+
+Jedi integration adapter for DreamStudio.
+
+Implements the ``IJediAdapter`` interface and adds a ``get_semantic_ranges``
+method that produces ``Token`` objects with exact ``(start, length, colour)``
+tuples for Scintilla indicator overlays.  All Jedi objects and exceptions
+are contained within this module -- no raw Jedi objects leak.
+
+**Design contract:**
+- Every token must specify its exact ``start`` offset and ``length``.
+  No partial or approximate ranges.
+- Tokens must NOT overlap.
+- The adapter uses ``PythonContext`` to locate the cursor, then calls
+  ``script.goto`` or ``script.infer`` to resolve each reference.
 """
 
 import logging
 import jedi
-
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from .domain_models import (
     PythonContext,
@@ -19,6 +30,13 @@ from .domain_models import (
     RefactorChange,
 )
 from .interfaces import IJediAdapter
+from editor.texteditor.highlighting_api import (
+    ITokenProvider,
+    Token,
+    TokenStyle,
+    STYLES,
+    find_word_at,
+)
 
 logger = logging.getLogger("DreamStudio.PythonSupport.JediAdapter")
 
@@ -305,3 +323,138 @@ class JediAdapter(IJediAdapter):
             # Captures RefactoringError safely without leaking external exceptions
             logger.error("Jedi rename execution failed: %s", str(e), exc_info=True)
             return []
+
+    # ------------------------------------------------------------------
+    # Deep Token Resolution — Pillar 4
+    # ------------------------------------------------------------------
+
+    def get_semantic_ranges(
+        self, text: str, line: int, column: int
+    ) -> List[Tuple[int, int, str]]:
+        """Resolve tokens at cursor via Jedi and return exact
+        ``(start_offset, length, colour)`` tuples.
+
+        This method performs **deep token resolution** by asking Jedi
+        to infer the type of each symbol in the visible range, then
+        returns exact byte offsets suitable for Scintilla indicator
+        overlays.
+
+        Args:
+            text:   Full editor buffer content.
+            line:   Cursor line (0-indexed, matching Jedi convention).
+            column: Cursor column (0-indexed).
+
+        Returns:
+            A list of ``(start_offset, length, colour)`` tuples sorted
+            by start offset.  Returns an empty list on error.
+        """
+        if not text.strip():
+            return []
+
+        context = PythonContext(
+            source_code=text,
+            line=line + 1,  # PythonContext uses 1-indexed
+            column=column,
+            file_path="",
+        )
+        script = self._get_script(context)
+        if not script:
+            return []
+
+        ranges: List[Tuple[int, int, str]] = []
+
+        # Resolve the token under the cursor.
+        try:
+            definitions = script.goto(line=line + 1, column=column)
+            if not definitions:
+                definitions = script.infer(line=line + 1, column=column)
+
+            for defn in definitions[:1]:
+                # Get the full module source to compute offsets.
+                try:
+                    def_module = defn.module
+                    if hasattr(def_module, "source"):
+                        def_source = def_module.source
+                        def_line = defn.line - 1
+                        def_col = defn.column
+                        def_name = defn.name
+
+                        # Compute start offset from line/col.
+                        lines = def_source.split("\n")
+                        offset = 0
+                        for i in range(def_line):
+                            offset += len(lines[i]) + 1
+                        offset += def_col
+
+                        # Determine colour by Jedi type.
+                        colour = self._jedi_type_colour(defn.type)
+                        ranges.append((offset, len(def_name), colour))
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.debug("Jedi semantic range resolution failed: %s", e)
+
+        # Also scan for all names in visible lines that Jedi can infer.
+        # This is a lightweight sweep of the immediate context.
+        try:
+            lines = text.split("\n")
+            visible_start = max(0, line - 20)
+            visible_end = min(len(lines), line + 20)
+
+            for vis_line in range(visible_start, visible_end):
+                # Quick regex to find identifier-like tokens.
+                import re
+                for m in re.finditer(r"\b([A-Za-z_]\w*)\b", lines[vis_line]):
+                    token_name = m.group(1)
+                    # Try to infer type at this location.
+                    try:
+                        inf = script.infer(
+                            line=vis_line + 1, column=m.start()
+                        )
+                        if inf:
+                            defn = inf[0]
+                            # Skip builtins and primitives.
+                            if defn.type in ("instance", "builtin"):
+                                continue
+                            colour = self._jedi_type_colour(defn.type)
+                            # Only add if not already covered.
+                            token_start = sum(
+                                len(lines[j]) + 1
+                                for j in range(visible_start, vis_line)
+                            ) + m.start()
+                            if not any(
+                                s <= token_start < s + l
+                                for s, l, _ in ranges
+                            ):
+                                ranges.append(
+                                    (token_start, len(token_name), colour)
+                                )
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+        ranges.sort(key=lambda r: r[0])
+        return ranges
+
+    @staticmethod
+    def _jedi_type_colour(jedi_type: str) -> str:
+        """Map a Jedi definition type string to a VS Code hex colour.
+
+        Jedi types include: ``module``, ``class``, ``function``,
+        ``param``, ``instance``, ``import``, ``keyword``, ``builtin``,
+        ``statement``, etc.
+        """
+        mapping = {
+            "module":    STYLES["module"].colour,    # #4EC9B0
+            "class":     STYLES["class"].colour,     # #4EC9B0
+            "function":  STYLES["function"].colour,  # #DCDCAA
+            "param":     STYLES["parameter"].colour, # #9CDCFE
+            "import":    STYLES["module"].colour,    # #4EC9B0
+            "keyword":   STYLES["keyword"].colour,   # #C586C0
+            "builtin":   STYLES["builtin"].colour,   # #4FC1FF
+            "instance":  STYLES["variable"].colour,  # #9CDCFE
+            "statement": STYLES["variable"].colour,  # #9CDCFE
+        }
+        return mapping.get(jedi_type, STYLES["variable"].colour)

@@ -209,7 +209,7 @@ class CodeEditor(QsciScintilla):
 
     def _setup_folding(self) -> None:
         """Configure code folding markers and attach a ``FoldManager``."""
-        from editor.texteditor.api import FoldManager
+        from editor.texteditor.folding import FoldManager
 
         self._fold_manager = FoldManager(self)
 

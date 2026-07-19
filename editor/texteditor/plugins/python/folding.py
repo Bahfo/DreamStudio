@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # Import the FoldRegion dataclass from the core API
 # ------------------------------------------------------------------
-from editor.texteditor.api import FoldRegion
+from editor.texteditor.folding import FoldRegion
 
 # ------------------------------------------------------------------
 # Regex patterns for Python block headers
