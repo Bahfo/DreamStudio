@@ -242,6 +242,18 @@ class DreamTabbedEditor(QDreamTabEditor):
             code_editor.clear_dirty()
             new_editor = MiniMapHostWidget(code_editor, parent=self)
 
+        # Attach background diagnostics for Python files.
+        if isinstance(new_editor, MiniMapHostWidget) and language == "python":
+            from editor.texteditor.plugins.python.jedi_worker import (
+                DiagnosticManager,
+            )
+
+            code_editor._diag_manager = DiagnosticManager(
+                editor=code_editor,
+                file_path=file_path,
+                parent=code_editor,
+            )
+
         if isinstance(new_editor, MiniMapHostWidget):
             if hasattr(self._parent, "update_position_status"):
                 new_editor.position_changed.connect(self._parent.update_position_status)
@@ -333,6 +345,9 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         if hasattr(editor, "_autocomplete_ext"):
             editor._autocomplete_ext.cleanup()
+
+        if hasattr(editor, "_diag_manager"):
+            editor._diag_manager.shutdown()
 
         if hasattr(editor, "textChanged"):
             try:

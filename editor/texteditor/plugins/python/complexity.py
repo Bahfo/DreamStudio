@@ -17,7 +17,6 @@ class ASTComplexityVisitor(ast.NodeVisitor):
         self._current_nesting = 0
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        # Initial complexity is always 1 (single entry path)
         complexity = 1
         max_nesting = 0
 
@@ -33,7 +32,6 @@ class ASTComplexityVisitor(ast.NodeVisitor):
             ):  # Logical checking (and/or splits paths)
                 complexity += len(child.values) - 1
 
-        # Track nesting depth by iterating children hierarchically
         def find_max_nesting(parent_node: ast.AST, current: int) -> int:
             nest_types = (ast.If, ast.For, ast.While, ast.Try)
             next_nest = current + 1 if isinstance(parent_node, nest_types) else current
