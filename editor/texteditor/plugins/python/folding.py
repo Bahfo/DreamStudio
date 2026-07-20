@@ -6,21 +6,6 @@ Python-specific folding logic for DreamStudio.
 Parses Python source code to detect collapsible regions based on
 indentation depth (Python's native scope mechanism) and feeds
 them into the core :class:`FoldManager` API.
-
-**Target Regions**
-
-- **Imports:** Contiguous ``import`` / ``from ... import`` blocks.
-- **Classes:** ``class`` definitions; body determined by indentation.
-- **Functions:** ``def`` / ``async def`` definitions; body by indentation.
-
-**Design Principles**
-
-- Pure Python — no Qt imports, no editor dependency.  The parser
-  operates on raw text and returns ``FoldRegion`` data objects.
-- Debounce-friendly: callers invoke ``compute_fold_regions(text)``
-  on a timer; the function is fast enough for 10k-line files in <5 ms.
-- The returned ``FoldRegion`` list is ready to pass directly to
-  ``FoldManager.set_fold_regions()``.
 """
 
 from __future__ import annotations
@@ -31,38 +16,21 @@ from typing import List
 
 logger = logging.getLogger(__name__)
 
-# ------------------------------------------------------------------
-# Import the FoldRegion dataclass from the core API
-# ------------------------------------------------------------------
 from editor.texteditor.folding import FoldRegion
 
 # ------------------------------------------------------------------
 # Regex patterns for Python block headers
 # ------------------------------------------------------------------
-_RE_IMPORT = re.compile(
-    r"^\s*(?:from\s+\S+\s+)?import\s+"
-)
-
-_RE_CLASS = re.compile(
-    r"^\s*class\s+\w+"
-)
-
-_RE_DEF = re.compile(
-    r"^\s*(?:async\s+)?def\s+\w+"
-)
-
+_RE_IMPORT = re.compile(r"^\s*(?:from\s+\S+\s+)?import\s+")
+_RE_CLASS = re.compile(r"^\s*class\s+\w+")
+_RE_DEF = re.compile(r"^\s*(?:async\s+)?def\s+\w+")
+_RE_DECORATOR = re.compile(r"^\s*@\w+")
 _RE_BLANK = re.compile(r"^\s*$")
-
 _RE_COMMENT = re.compile(r"^\s*#")
 
 
 def _indent_level(line: str) -> int:
-    """Return the number of leading spaces in *line*.
-
-    Tabs are converted to 4 spaces for consistent comparison with
-    Python's default indentation.  This matches the editor's
-    ``_INDENTATION_SPACING = 4`` convention.
-    """
+    """Return the number of leading spaces in *line*."""
     count = 0
     for ch in line:
         if ch == " ":
@@ -75,14 +43,7 @@ def _indent_level(line: str) -> int:
 
 
 def _is_block_header(line: str) -> str | None:
-    """Classify *line* as a block header.
-
-    Returns:
-        ``"import"``  — if the line is an import statement.
-        ``"class"``   — if the line starts a class definition.
-        ``"function"``— if the line starts a def/async def.
-        ``None``      — if the line is not a block header.
-    """
+    """Classify *line* as a block header."""
     if _RE_IMPORT.match(line):
         return "import"
     if _RE_CLASS.match(line):
@@ -93,33 +54,7 @@ def _is_block_header(line: str) -> str | None:
 
 
 def compute_fold_regions(text: str) -> List[FoldRegion]:
-    """Parse Python source *text* and return a list of fold regions.
-
-    The algorithm scans every line once (O(n)) and uses indentation
-    tracking to determine the end of each block:
-
-    1. When a block header is found (import/class/def), record its
-       line number and expected body indentation.
-    2. Continue scanning subsequent lines.  A block ends when:
-       a. A line at the *same* indentation level as the header is
-          encountered (sibling block).
-       b. A line at a *lower* indentation level is encountered
-          (returning to an outer scope).
-       c. End-of-file is reached.
-    3. Blank lines and comment-only lines inside a block are included
-       in the block but do not terminate it.
-
-    **Import blocks** are special-cased: contiguous import lines at
-    the same indentation level are grouped, regardless of whether
-    they have non-import lines between them (as long as those lines
-    are blank or comments).
-
-    Args:
-        text: The full Python source code.
-
-    Returns:
-        A list of ``FoldRegion`` objects sorted by start line.
-    """
+    """Parse Python source *text* and return a list of fold regions."""
     if not text:
         return []
 
@@ -127,9 +62,42 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
     total = len(lines)
     regions: List[FoldRegion] = []
 
-    # Current scanning state.
+    # ── Step 1: Pre-calculate lines located within multi-line triple-quotes ──
+    is_inside_string = [False] * total
+    in_triple_double = False
+    in_triple_single = False
+
+    for idx, line in enumerate(lines):
+        # Disregard comments when calculating triple-quote entry boundaries
+        line_code = (
+            line if (in_triple_double or in_triple_single) else line.split("#")[0]
+        )
+
+        if in_triple_double:
+            is_inside_string[idx] = True
+            if '"""' in line_code:
+                in_triple_double = False
+        elif in_triple_single:
+            is_inside_string[idx] = True
+            if "'''" in line_code:
+                in_triple_single = False
+        else:
+            td_pos = line_code.find('"""')
+            ts_pos = line_code.find("'''")
+            if td_pos != -1 and (ts_pos == -1 or td_pos < ts_pos):
+                if line_code.count('"""') % 2 != 0:
+                    in_triple_double = True
+            elif ts_pos != -1 and (td_pos == -1 or ts_pos < td_pos):
+                if line_code.count("'''") % 2 != 0:
+                    in_triple_single = True
+
+    # ── Step 2: Scan through layout and compute regions ──
     i = 0
     while i < total:
+        if is_inside_string[i]:
+            i += 1
+            continue
+
         line = lines[i]
         header_kind = _is_block_header(line)
 
@@ -137,114 +105,125 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
             i += 1
             continue
 
+        # Check for decorators preceding def/class blocks
+        decorator_start = i
+        k = i - 1
+        while k >= 0:
+            if is_inside_string[k]:
+                break
+            prev_line = lines[k]
+            if _RE_DECORATOR.match(prev_line):
+                decorator_start = k
+                k -= 1
+            elif _RE_BLANK.match(prev_line) or _RE_COMMENT.match(prev_line):
+                k -= 1
+            else:
+                break
+
         header_indent = _indent_level(line)
-        start_line = i
+        start_line = decorator_start
 
         if header_kind == "import":
-            # ── Import block: gather contiguous imports ────────────
             end_line = i
             j = i + 1
             while j < total:
+                if is_inside_string[j]:
+                    break
                 next_line = lines[j]
                 next_indent = _indent_level(next_line)
 
-                # Same or deeper indent + is an import → continue block.
                 if next_indent >= header_indent and _RE_IMPORT.match(next_line):
                     end_line = j
                     j += 1
                     continue
 
-                # Blank line or comment at deeper indent → still inside.
                 if next_indent > header_indent and (
                     _RE_BLANK.match(next_line) or _RE_COMMENT.match(next_line)
                 ):
                     end_line = j
                     j += 1
                     continue
-
                 break
 
             if end_line > start_line:
                 regions.append(
-                    FoldRegion(
-                        start_line=start_line,
-                        end_line=end_line,
-                        label=f"... {end_line - start_line + 1} imports",
-                        kind="import",
-                    )
+                    FoldRegion(start_line=start_line, end_line=end_line, kind="import")
                 )
             i = j
 
         elif header_kind in ("class", "function"):
-            # ── Class / function block: body by indentation ────────
-            # The body starts on the line after the header and must
-            # be indented more than the header.
-            body_indent = None  # detected from first non-blank body line
+            # Robust scan forward across multi-line method signatures targeting trailing colon
+            colon_line = i
+            for idx in range(i, total):
+                if is_inside_string[idx]:
+                    colon_line = idx
+                    continue
+                l_no_comment = lines[idx].split("#")[0].rstrip()
+                if l_no_comment.endswith(":"):
+                    colon_line = idx
+                    break
+                if ":" in l_no_comment:
+                    colon_line = idx
+
+            body_search_start = colon_line + 1
             end_line = start_line
 
-            j = i + 1
+            j = body_search_start
             while j < total:
+                if is_inside_string[j]:
+                    end_line = j
+                    j += 1
+                    continue
+
                 next_line = lines[j]
                 next_indent = _indent_level(next_line)
 
-                # Blank lines inside block — include but don't set indent.
+                # Lines containing nested code matching scope limits
+                if next_indent > header_indent:
+                    end_line = j
+                    j += 1
+                    continue
+
+                # Empty whitespace structural evaluation check
                 if _RE_BLANK.match(next_line) or _RE_COMMENT.match(next_line):
-                    end_line = j
-                    j += 1
-                    continue
-
-                # First non-blank body line sets the block's indent.
-                if body_indent is None:
-                    if next_indent <= header_indent:
-                        # No body — single-line definition (e.g. ``class Foo: pass``)
+                    has_more_body = False
+                    for k in range(j + 1, total):
+                        if is_inside_string[k]:
+                            has_more_body = True
+                            break
+                        nk_line = lines[k]
+                        if _RE_BLANK.match(nk_line) or _RE_COMMENT.match(nk_line):
+                            continue
+                        if _indent_level(nk_line) > header_indent:
+                            has_more_body = True
                         break
-                    body_indent = next_indent
-
-                # Subsequent body line must be indented at least as much
-                # as the body indent.
-                if next_indent >= body_indent:
-                    end_line = j
-                    j += 1
-                    continue
-
-                # Dedented to header level or less → block ended.
+                    if has_more_body:
+                        end_line = j
+                        j += 1
+                        continue
                 break
 
             if end_line > start_line:
-                label_kind = "class" if header_kind == "class" else "def"
-                label = f"... {label_kind} body"
                 regions.append(
                     FoldRegion(
-                        start_line=start_line,
-                        end_line=end_line,
-                        label=label,
-                        kind=header_kind,
+                        start_line=start_line, end_line=end_line, kind=header_kind
                     )
                 )
-            i = j
-
+            i = i + 1
         else:
             i += 1
 
-    # Sort by start line for deterministic output.
     regions.sort(key=lambda r: r.start_line)
     return regions
 
 
 def compute_folds_for_editor(editor) -> None:
-    """Convenience function: compute fold regions from the editor's
-    text buffer and apply them via the ``FoldManager``.
-
-    Args:
-        editor: A ``CodeEditor`` instance with a ``_fold_manager``
-                attribute.
-    """
+    """Compute fold regions from editor buffer and update FoldManager."""
     text = editor.text()
     if not text:
         return
 
     regions = compute_fold_regions(text)
-
     fm = getattr(editor, "_fold_manager", None)
     if fm is not None:
         fm.set_fold_regions(regions)

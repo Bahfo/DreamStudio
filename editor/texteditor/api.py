@@ -469,7 +469,6 @@ class EditorAPI:
         self,
         start_line: int,
         end_line: int,
-        label: str = "...",
         kind: str = "block",
     ) -> Optional[FoldRegion]:
         """Register a single fold region on this editor.
@@ -482,7 +481,7 @@ class EditorAPI:
         if fm is None:
             logger.debug("fold_region: no FoldManager on editor")
             return None
-        return fm.register_fold_region(start_line, end_line, label, kind)
+        return fm.register_fold_region(start_line, end_line, kind)
 
     def apply_folds(self, regions: List[FoldRegion]) -> None:
         """Bulk-apply fold regions and update the margin.

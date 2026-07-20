@@ -2,7 +2,6 @@
 (C) COPYRIGHT 2026 - EXcellent TechStacks, All Rights Reserved.
 
 Ironica Code Editor - Lightweight static text editor for DreamStudio.
-
 This code is protected under the GPLv3 License.
 """
 
@@ -81,6 +80,9 @@ class CodeEditor(QsciScintilla):
         self.current_file_path = None
         self._font_size = 10
         self._is_dirty = False
+        self._diagnostic_indicators = {}
+        self._next_diag_slot = 8  # Slots 8-15 allocated for diagnostics to avoid
+        # semantic overlaps
 
         self.setObjectName("CodeEditor")
 
@@ -122,6 +124,12 @@ class CodeEditor(QsciScintilla):
         self._import_highlight_timer.setInterval(300)
         self._import_highlight_timer.timeout.connect(self._apply_semantic_indicators)
 
+        # Fold recomputation (debounced).
+        self._fold_recompute_timer = QTimer(self)
+        self._fold_recompute_timer.setSingleShot(True)
+        self._fold_recompute_timer.setInterval(500)
+        self._fold_recompute_timer.timeout.connect(self._recompute_folds)
+
         self.cursorPositionChanged.connect(self._emit_position)
 
         # QScintilla AutoCompletion configuration.
@@ -155,6 +163,27 @@ class CodeEditor(QsciScintilla):
             self.dirty_state_changed.emit(True)
         if self.current_lang == "python":
             self._import_highlight_timer.start()
+            self._schedule_fold_recompute()
+
+    def _schedule_fold_recompute(self) -> None:
+        """Debounce fold recomputation on text change."""
+        self._fold_recompute_timer.start()
+
+    def _recompute_folds(self) -> None:
+        """Recompute fold regions for the current language and push
+        them to the FoldManager."""
+        if not self.current_lang or not self._fold_manager:
+            return
+
+        try:
+            if self.current_lang == "python":
+                from editor.texteditor.plugins.python.folding import (
+                    compute_folds_for_editor,
+                )
+
+                compute_folds_for_editor(self)
+        except Exception as exc:
+            logger.debug("Fold recomputation failed: %s", exc)
 
     # ------------------------------------------------------------------
     # Setup helpers
@@ -180,7 +209,7 @@ class CodeEditor(QsciScintilla):
         return bg, text, mid, border
 
     def _setup_margins(self) -> None:
-        """Configure line-number and folding margins."""
+        """Configure line-number margin."""
         bg, text, mid, border = self._theme_colors()
         self.setPaper(bg)
         self.setColor(text)
@@ -189,12 +218,12 @@ class CodeEditor(QsciScintilla):
         self.setMarginLineNumbers(0, True)
         self.setMarginsBackgroundColor(bg)
         self.setMarginsForegroundColor(text)
-        self.setFoldMarginColors(mid, mid)
         self._apply_indent_guide_color(text)
 
     def _apply_indent_guide_color(self, text_color) -> None:
         """Set indentation guide line to a smooth, light neutral gray."""
         from PyQt6.QtGui import QColor
+
         guide = QColor(160, 160, 160)
         guide.setAlpha(30)
         self.setIndentationGuidesForegroundColor(guide)
@@ -446,7 +475,9 @@ class CodeEditor(QsciScintilla):
                 if not html:
                     hint = self.current_provider.get_hover_hint(self.text(), line, col)
                     if hint:
-                        html = f"<pre style='margin:0; white-space:pre-wrap;'>{hint}</pre>"
+                        html = (
+                            f"<pre style='margin:0; white-space:pre-wrap;'>{hint}</pre>"
+                        )
             except Exception as inner_exc:
                 logger.debug("Hover provider query failed: %s", inner_exc)
                 self._dismiss_hover()
@@ -538,12 +569,7 @@ class CodeEditor(QsciScintilla):
     # ------------------------------------------------------------------
 
     def setLanguage(self, lang: str) -> None:
-        """Assign a language to the editor.
-
-        Args:
-            lang: Language identifier (e.g. ``"python"``). When empty or
-                ``None``, all language support is removed.
-        """
+        """Assign a language to the editor and isolate native folding features."""
         if not lang:
             self._lexer = None
             self.setLexer(None)
@@ -558,11 +584,24 @@ class CodeEditor(QsciScintilla):
         if config:
             self._lexer = self._create_lexer(lang, config)
             self.setLexer(self._lexer)
-            # Propagate editor font to ALL lexer style indices so
-            # QsciLexerPython doesn't keep its Bitstream Vera defaults.
+
+            if lang == "python" and self._lexer:
+                if hasattr(self._lexer, "setFoldComments"):
+                    self._lexer.setFoldComments(False)
+                if hasattr(self._lexer, "setFoldCompact"):
+                    self._lexer.setFoldCompact(False)
+                if hasattr(self._lexer, "setFoldQuotes"):
+                    self._lexer.setFoldQuotes(False)
+
+                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold", b"0")
+                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold.comment", b"0")
+                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold.quotes", b"0")
+                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold.compact", b"0")
+
             if hasattr(self._lexer, "setFont"):
                 self._lexer.setFont(self._font, -1)
             self._apply_semantic_indicators()
+            self._recompute_folds()
         else:
             self._lexer = None
             self.setLexer(None)
@@ -763,6 +802,7 @@ class CodeEditor(QsciScintilla):
         self.dirty_state_changed.emit(False)
         self._hover_timer.stop()
         self._dismiss_hover()
+        self._recompute_folds()
 
         # Check read-only permissions.
         try:
@@ -970,3 +1010,115 @@ class CodeEditor(QsciScintilla):
                 self.SendScintilla(QsciScintilla.SCI_SETFIRSTVISIBLELINE, first_visible)
         except Exception as exc:
             logger.debug("Format query failed: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Diagnostic Underlining
+    # ------------------------------------------------------------------
+
+    def add_diagnostic_underline(
+        self, line: int, start_col: int, end_col: int, color_hex: str = "#FF0000"
+    ) -> None:
+        """
+        Applies a precise squiggly error underline to the selected text block bounds.
+        Splits coordinates to strictly target valid non-whitespace text strings,
+        avoiding spaces. Calculates character indices to UTF-8 byte mapping to avoid offset
+        drift with special characters.
+        """
+        if line < 0 or line >= self.lines():
+            return
+
+        line_text = self.text(line)
+        start_col = max(0, min(start_col, len(line_text)))
+        end_col = max(start_col, min(end_col, len(line_text)))
+
+        # Dynamic indicator registration for colors
+        if color_hex not in self._diagnostic_indicators:
+            slot = self._next_diag_slot
+            self._diagnostic_indicators[color_hex] = slot
+
+            # Rotate slot keys within the 8-15 allocation block
+            self._next_diag_slot = 8 + ((self._next_diag_slot - 7) % 8)
+
+            # Configure indicator format parameters (1 = INDIC_SQUIGGLE)
+            self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE, slot, 1)
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETFORE, slot, self._scintilla_rgb(color_hex)
+            )
+        else:
+            slot = self._diagnostic_indicators[color_hex]
+
+        target_substring = line_text[start_col:end_col]
+        line_start_byte = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
+        if line_start_byte == -1:
+            return
+
+        for match in re.finditer(r"[^\s]+", target_substring):
+            match_start_char = start_col + match.start()
+            match_end_char = start_col + match.end()
+
+            byte_start = line_start_byte + len(
+                line_text[:match_start_char].encode("utf-8")
+            )
+            byte_len = len(line_text[match_start_char:match_end_char].encode("utf-8"))
+
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_len
+            )
+
+    def clear_diagnostic_underlines(self) -> None:
+        """
+        Instantly wipe out all diagnostic squiggle decorations across the
+        entire buffer.
+        """
+        doc_length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+        if doc_length <= 0:
+            return
+
+        for slot in range(8, 16):
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, doc_length)
+
+    # ------------------------------------------------------------------
+    # Ghost Text System (End-of-Line and Inline Annotations)
+    # ------------------------------------------------------------------
+
+    def set_ghost_text(self, line: int, text: str, color_hex: str = "#8a8a8a") -> None:
+        """
+        Renders light gray overlay annotation text directly beneath or after a
+        target line. Perfect for structural descriptions like "(+5 more imports)" or
+        custom inline messages.
+        """
+        if line < 0 or line >= self.lines():
+            return
+
+        style_id = 140
+        self.SendScintilla(
+            QsciScintilla.SCI_STYLESETFORE, style_id, self._scintilla_rgb(color_hex)
+        )
+
+        if hasattr(self._font, "family"):
+            self.SendScintilla(
+                QsciScintilla.SCI_STYLESETFONT,
+                style_id,
+                self._font.family().encode("utf-8"),
+            )
+        self.SendScintilla(
+            QsciScintilla.SCI_STYLESETSIZE, style_id, self._font.pointSize()
+        )
+
+        self.SendScintilla(2540, line, text.encode("utf-8"))
+        self.SendScintilla(2542, line, style_id)
+
+        self.SendScintilla(2544, 1)
+
+    def clear_ghost_text(self, line: int) -> None:
+        """Clear custom ghost text rendered on a specific line index."""
+        if line < 0 or line >= self.lines():
+            return
+        self.SendScintilla(2540, line, b"")
+
+    def clear_all_ghost_text(self) -> None:
+        """Clear every active ghost text annotation throughout the entire document buffer."""
+        # SCI_ANNOTATIONCLEARALL = 2546
+        self.SendScintilla(2546)
