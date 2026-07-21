@@ -19,7 +19,7 @@ from editor.utils.explorer.explorer import SolutionExplorer
 from editor.utils.properties.properties import PropertiesExplorer
 from editor.utils.git_control.source_control import GitVersionControl
 
-from editor.texteditor.ui_build import EditorContainer
+from editor.Ironica.ui_build import EditorContainer
 
 
 class WorkspaceContainer(QWidget):

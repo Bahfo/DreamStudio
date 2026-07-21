@@ -21,7 +21,7 @@ from editor.utils.properties.get_env import (
     get_interpreter_path,
     get_env_variables,
 )
-from editor.texteditor.code_editor import CodeEditor
+from editor.Ironica.code_editor import CodeEditor
 from editor.utils.properties.project_data_engine import ProjectDataEngine
 from editor.utils.properties.properties_dialog import (
     SolutionPropertiesGrid,

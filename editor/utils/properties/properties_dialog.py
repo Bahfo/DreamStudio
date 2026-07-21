@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 # Local Imports
-from editor.texteditor.code_editor import CodeEditor
+from editor.Ironica.code_editor import CodeEditor
 
 
 class PropertyGridDelegate(QStyledItemDelegate):

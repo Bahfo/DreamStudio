@@ -545,7 +545,7 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background-color: #c8c1a8;
+    background-color: transparent;
     min-height: 24px;
     border-radius: 5px;
 }
@@ -562,7 +562,7 @@ QScrollBar:horizontal {
 }
 
 QScrollBar::handle:horizontal {
-    background-color: #c8c1a8;
+    background-color: transparent;
     min-width: 24px;
     border-radius: 5px;
 }
@@ -931,7 +931,7 @@ QPlainTextEdit#terminalTextEdit QScrollBar:vertical {
 
 QScrollBar#terminalViewScrollbar::handle:vertical,
 QPlainTextEdit#terminalTextEdit QScrollBar::handle:vertical {
-    background: #c8c1a8;
+    background: transparent;
     min-height: 24px;
     border-radius: 4px;
 }
@@ -951,7 +951,7 @@ QPlainTextEdit#terminalTextEdit QScrollBar:horizontal {
 
 QScrollBar#terminalViewScrollbar::handle:horizontal,
 QPlainTextEdit#terminalTextEdit QScrollBar::handle:horizontal {
-    background: #c8c1a8;
+    background: transparent;
     min-width: 24px;
     border-radius: 4px;
 }

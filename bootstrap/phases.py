@@ -206,7 +206,7 @@ def phase_language_plugins(ctx: PhaseContext) -> None:
     logger.info("Phase 7: Language plugins")
 
     try:
-        from editor.texteditor.plugins.registration import register_python_language
+        from editor.Ironica.plugins.registration import register_python_language
 
         success = register_python_language()
         if success:
