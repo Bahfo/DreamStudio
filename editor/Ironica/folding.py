@@ -125,7 +125,6 @@ class FoldManager:
         )
 
         e.setFoldMarginColors(mid, mid)
-        e.setFolding(QsciScintilla.FoldStyle.NoFoldStyle)
 
     def _connect_signals(self) -> None:
         self._editor.marginClicked.connect(self._on_margin_clicked)

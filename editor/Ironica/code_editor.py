@@ -253,6 +253,8 @@ class CodeEditor(QsciScintilla):
         mask = (1 << self.MARKER_BREAKPOINT) | (1 << self.MARKER_HOVER)
         self.setMarginMarkerMask(self.MARGIN_BREAKPOINT, mask)
 
+        self.SendScintilla(QsciScintilla.SCI_SETMARGINLEFT, 0, 10)
+
     def _apply_indent_guide_color(self, text_color) -> None:
         """Set indentation guide line to a smooth, light neutral gray."""
         from PyQt6.QtGui import QColor
@@ -448,10 +450,9 @@ class CodeEditor(QsciScintilla):
         # Breakpoint Margin Hover Preview
         w0 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 0)
         w1 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 1)
-        w2 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 2)
 
-        margin_start = w0 + w1
-        margin_end = margin_start + w2
+        margin_start = w0
+        margin_end = w0 + w1
 
         x = self._last_mouse_pos.x()
         y = self._last_mouse_pos.y()
@@ -636,6 +637,26 @@ class CodeEditor(QsciScintilla):
                 self.markerDelete(line, self.MARKER_HOVER)
                 self.markerAdd(line, self.MARKER_BREAKPOINT)
                 self._hovered_breakpoint_line = None
+
+    def get_breakpoint_lines(self, one_based: bool = True) -> list[int]:
+        """
+        Returns a list of line numbers where breakpoints are currently active.
+
+        :param one_based: Set to True for debuggers (PDB/debugpy) that
+        use 1-based indexing.
+        """
+        breakpoints = []
+        mask = 1 << self.MARKER_BREAKPOINT
+        line = 0
+
+        while True:
+            line = self.markerFindNext(line, mask)
+            if line == -1:
+                break
+
+            breakpoints.append(line + 1 if one_based else line)
+            line += 1
+        return breakpoints
 
     # ------------------------------------------------------------------
     # Go-to definition
