@@ -14,8 +14,8 @@ import stat
 
 from typing import Optional, Any
 
+from PyQt6.QtGui import QFont, QKeyEvent, QPalette, QColor, QImage, QBrush, QPainter
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont, QKeyEvent, QPalette
 from PyQt6.QtWidgets import QApplication
 from PyQt6.Qsci import QsciScintilla
 from PyQt6 import sip
@@ -62,6 +62,14 @@ class CodeEditor(QsciScintilla):
 
     _INDENTATION_SPACING = 4
 
+    MARGIN_BREAKPOINT = 1
+    MARKER_BREAKPOINT = 1
+    MARKER_HOVER = 3
+
+    COLOR_BREAKPOINT = QColor("#E53935")
+    COLOR_HOVER = QColor(229, 57, 53, 100)
+    CIRCLE_RADIUS = 4
+
     def __init__(self, _parent=None, language=None, file_path=None):
         """
         Initialise the editor widget.
@@ -83,6 +91,14 @@ class CodeEditor(QsciScintilla):
         self._diagnostic_indicators = {}
         self._next_diag_slot = 8  # Slots 8-15 allocated for diagnostics to avoid
         # semantic overlaps
+
+        # For breakpoints hover:
+        self._hovered_breakpoint_line = None
+
+        ###############################################
+        # Margins for Debugger Breakpoints
+        ###############################################
+        self.MARKER_BREAKPOINT = 2  # Becuase lines margin is 0 and folding is 1
 
         self.setObjectName("CodeEditor")
 
@@ -140,6 +156,7 @@ class CodeEditor(QsciScintilla):
         self.setAutoCompletionUseSingle(QsciScintilla.AutoCompletionUseSingle.AcusNever)
 
         self.userListActivated.connect(self._on_completion_selected)
+        self.marginClicked.connect(self._on_margin_clicked)
 
         # Autocomplete extension — event filter + popup controller.
         self._autocomplete_ext = EditorAutocompleteExtension(self)
@@ -220,6 +237,22 @@ class CodeEditor(QsciScintilla):
         self.setMarginsForegroundColor(text)
         self._apply_indent_guide_color(text)
 
+        self.setMarginType(
+            self.MARGIN_BREAKPOINT, QsciScintilla.MarginType.SymbolMargin
+        )
+        self.setMarginSensitivity(self.MARGIN_BREAKPOINT, True)
+        self.setMarginWidth(self.MARGIN_BREAKPOINT, 18)
+        img_breakpoint = self._create_circle_image(
+            18, self.CIRCLE_RADIUS, self.COLOR_BREAKPOINT
+        )
+        img_hover = self._create_circle_image(18, self.CIRCLE_RADIUS, self.COLOR_HOVER)
+
+        self.markerDefine(img_breakpoint, self.MARKER_BREAKPOINT)
+        self.markerDefine(img_hover, self.MARKER_HOVER)
+
+        mask = (1 << self.MARKER_BREAKPOINT) | (1 << self.MARKER_HOVER)
+        self.setMarginMarkerMask(self.MARGIN_BREAKPOINT, mask)
+
     def _apply_indent_guide_color(self, text_color) -> None:
         """Set indentation guide line to a smooth, light neutral gray."""
         from PyQt6.QtGui import QColor
@@ -237,10 +270,11 @@ class CodeEditor(QsciScintilla):
         self.setCaretWidth(2)
 
     def _setup_folding(self) -> None:
-        """Configure code folding markers and attach a ``FoldManager``."""
-        from editor.Ironica.folding import FoldManager
+        """Configure code folding markers and attach a FoldManager once."""
+        if not hasattr(self, "_fold_manager") or self._fold_manager is None:
+            from editor.Ironica.folding import FoldManager
 
-        self._fold_manager = FoldManager(self)
+            self._fold_manager = FoldManager(self)
 
     def _setup_edge(self) -> None:
         """Configure the long-line edge marker."""
@@ -407,19 +441,45 @@ class CodeEditor(QsciScintilla):
     # ------------------------------------------------------------------
 
     def mouseMoveEvent(self, e):
-        """Track cursor movement for the documentation hover window."""
+        """Track cursor movement for documentation tooltips and breakpoint margin hover."""
         super().mouseMoveEvent(e)
         self._last_mouse_pos = e.position().toPoint()
 
+        # Breakpoint Margin Hover Preview
+        w0 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 0)
+        w1 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 1)
+        w2 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 2)
+
+        margin_start = w0 + w1
+        margin_end = margin_start + w2
+
+        x = self._last_mouse_pos.x()
+        y = self._last_mouse_pos.y()
+
+        if margin_start <= x < margin_end:
+            pos = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, x, y)
+            if pos != -1:
+                line = self.SendScintilla(QsciScintilla.SCI_LINEFROMPOSITION, pos)
+                self._update_hover_breakpoint(line)
+            else:
+                self._clear_hover_breakpoint()
+        else:
+            self._clear_hover_breakpoint()
+
+        # Documentation Hover Timer (Preserved)
         self._hover_timer.stop()
         if self.current_provider:
             self._hover_timer.start(1000)
 
     def leaveEvent(self, event):
-        """Mouse left the editor — start hover popup dismiss timer."""
+        """Mouse left the editor — clear margin hover and start
+        documentation popup dismiss timer."""
+        self._clear_hover_breakpoint()
+
         self._hover_timer.stop()
         if self._hover_popup and self._hover_popup.isVisible():
             self._hover_popup._dismiss_timer.start()
+
         super().leaveEvent(event)
 
     def mousePressEvent(self, e: QKeyEvent) -> None:
@@ -519,6 +579,63 @@ class CodeEditor(QsciScintilla):
         ext = getattr(self, "_autocomplete_ext", None)
         if ext is not None:
             ext.cancel_autocomplete()
+
+    # ------------------------------------------------------------------
+    # Debugger and Breakpoints
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _create_circle_image(size: int, radius: int, color: QColor) -> QImage:
+        """Draws a centered anti-aliased circle on a transparent QImage."""
+        image = QImage(size, size, QImage.Format.Format_ARGB32)
+        image.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(color))
+
+        center = size // 2
+        painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
+        painter.end()
+        return image
+
+    def _update_hover_breakpoint(self, line: int) -> None:
+        """Render semi-transparent hover circle if line has no active breakpoint."""
+        if line < 0 or line >= self.lines():
+            self._clear_hover_breakpoint()
+            return
+
+        if self._hovered_breakpoint_line == line:
+            return
+
+        self._clear_hover_breakpoint()
+
+        mask = self.markersAtLine(line)
+        if not (mask & (1 << self.MARKER_BREAKPOINT)):
+            self.markerAdd(line, self.MARKER_HOVER)
+            self._hovered_breakpoint_line = line
+
+    def _clear_hover_breakpoint(self) -> None:
+        """Remove active hover preview circle."""
+        if self._hovered_breakpoint_line is not None:
+            self.markerDelete(self._hovered_breakpoint_line, self.MARKER_HOVER)
+            self._hovered_breakpoint_line = None
+
+    def _on_margin_clicked(
+        self, margin: int, line: int, modifiers: Qt.KeyboardModifier
+    ) -> None:
+        """Toggle solid breakpoint circle on click."""
+        if margin == self.MARGIN_BREAKPOINT:
+            mask = self.markersAtLine(line)
+            if mask & (1 << self.MARKER_BREAKPOINT):
+                self.markerDelete(line, self.MARKER_BREAKPOINT)
+                self.markerAdd(line, self.MARKER_HOVER)
+                self._hovered_breakpoint_line = line
+            else:
+                self.markerDelete(line, self.MARKER_HOVER)
+                self.markerAdd(line, self.MARKER_BREAKPOINT)
+                self._hovered_breakpoint_line = None
 
     # ------------------------------------------------------------------
     # Go-to definition

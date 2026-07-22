@@ -91,7 +91,7 @@ class HoverPresenter:
             "<tr>"
             f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
             f'font-family:monospace; font-size:12px;">'
-            f"<pre style=\"margin:0; white-space:pre-wrap;\">{sig_esc}</pre>"
+            f'<pre style="margin:0; white-space:pre-wrap;">{sig_esc}</pre>'
             "</td>"
             "</tr>"
             "</table>"
@@ -110,7 +110,7 @@ class HoverPresenter:
                     )
                 if param.default_value is not None:
                     line += (
-                        f' = <font color="#B5CEA8;">'
+                        f' = <font color="#B5CEA8">'
                         f"{_html.escape(param.default_value)}</font>"
                     )
                 parts.append(line)
@@ -128,8 +128,7 @@ class HoverPresenter:
             doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
             parts.append(f'<hr style="margin:6px 0;"/>')
             parts.append(
-                f'<font style="color:#A9A9A9; font-style:italic;">'
-                f"{doc_esc}</font>"
+                f'<font style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</font>"
             )
 
         return "".join(parts)
@@ -168,7 +167,7 @@ class HoverPresenter:
             "<tr>"
             f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
             f'font-family:monospace; font-size:12px; border-radius:4px;">'
-            f"<pre style=\"margin:0; white-space:pre-wrap;\">{sig_esc}</pre>"
+            f'<pre style="margin:0; white-space:pre-wrap;">{sig_esc}</pre>'
             "</td>"
             "</tr>"
             "</table>"
@@ -176,12 +175,8 @@ class HoverPresenter:
 
         # -- Parameters --
         if details.parameters:
-            parts.append(
-                '<p style="margin:8px 0 4px 0;"><b>Parameters:</b></p>'
-            )
-            parts.append(
-                '<table style="margin:0;" cellspacing="0" cellpadding="2">'
-            )
+            parts.append('<p style="margin:8px 0 4px 0;"><b>Parameters:</b></p>')
+            parts.append('<table style="margin:0;" cellspacing="0" cellpadding="2">')
             for param in details.parameters:
                 p_name = _html.escape(param.name)
                 cells = f'<td style="padding-right:8px;"><b style="color:#9CDCFE;">{p_name}</b></td>'
@@ -195,7 +190,7 @@ class HoverPresenter:
                     cells += "<td></td>"
                 if param.default_value is not None:
                     cells += (
-                        f'<td><font color="#B5CEA8;">'
+                        f'<td><font color="#B5CEA8">'
                         f"= {_html.escape(param.default_value)}</font></td>"
                     )
                 parts.append(f"<tr>{cells}</tr>")
@@ -214,12 +209,10 @@ class HoverPresenter:
             cleaned = HoverPresenter._clean_docstring(details.docstring)
             doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
             parts.append(
-                '<hr style="border:0; border-top:1px solid #444444; '
-                'margin:8px 0;"/>'
+                '<hr style="border:0; border-top:1px solid #444444; ' 'margin:8px 0;"/>'
             )
             parts.append(
-                f'<p style="color:#A9A9A9; font-style:italic;">'
-                f"{doc_esc}</p>"
+                f'<p style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</p>"
             )
 
         return "\n".join(parts)
