@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
 from editor.Ironica.tab_editor import DreamTabbedEditor
 from editor.Ironica.api import EditorAPI
-from editor.Ironica.minimap import MiniMapHostWidget
+from editor.Ironica.utils.minimap import MiniMapHostWidget
 
 logger = logging.getLogger(__name__)
 

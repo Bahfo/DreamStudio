@@ -20,7 +20,7 @@ from typing import List, Optional
 
 from PyQt6.Qsci import QsciScintilla
 
-from editor.Ironica.folding import FoldRegion, FoldManager  # noqa: F401
+from editor.Ironica.utils.folding import FoldRegion, FoldManager  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

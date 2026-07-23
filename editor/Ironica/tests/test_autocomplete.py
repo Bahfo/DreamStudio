@@ -13,7 +13,7 @@ class TestCompletionItem:
     """Test CompletionItem dataclass."""
 
     def test_creation(self):
-        from editor.Ironica.autocomplete_menu import CompletionItem
+        from editor.Ironica.utils.autocomplete_menu import CompletionItem
 
         item = CompletionItem(name="test", kind="variable")
         assert item.name == "test"
@@ -22,7 +22,7 @@ class TestCompletionItem:
         assert item.score == 0
 
     def test_with_documentation(self):
-        from editor.Ironica.autocomplete_menu import CompletionItem
+        from editor.Ironica.utils.autocomplete_menu import CompletionItem
 
         item = CompletionItem(name="fn", kind="function", documentation="A function")
         assert item.documentation == "A function"
@@ -32,14 +32,17 @@ class TestCompletionModel:
     """Test CompletionModel."""
 
     def test_empty_model(self):
-        from editor.Ironica.autocomplete_menu import CompletionModel
+        from editor.Ironica.utils.autocomplete_menu import CompletionModel
 
         model = CompletionModel()
         assert model.rowCount() == 0
         assert model.all_items() == []
 
     def test_set_items(self):
-        from editor.Ironica.autocomplete_menu import CompletionModel, CompletionItem
+        from editor.Ironica.utils.autocomplete_menu import (
+            CompletionModel,
+            CompletionItem,
+        )
 
         model = CompletionModel()
         items = [
@@ -51,7 +54,10 @@ class TestCompletionModel:
         assert model.all_items() == items
 
     def test_item_at_row(self):
-        from editor.Ironica.autocomplete_menu import CompletionModel, CompletionItem
+        from editor.Ironica.utils.autocomplete_menu import (
+            CompletionModel,
+            CompletionItem,
+        )
 
         model = CompletionModel()
         item = CompletionItem(name="x", kind="text")
@@ -60,7 +66,10 @@ class TestCompletionModel:
         assert model.item_at_row(5) is None
 
     def test_data_display_role(self):
-        from editor.Ironica.autocomplete_menu import CompletionModel, CompletionItem
+        from editor.Ironica.utils.autocomplete_menu import (
+            CompletionModel,
+            CompletionItem,
+        )
         from PyQt6.QtCore import QModelIndex
 
         model = CompletionModel()
@@ -70,7 +79,10 @@ class TestCompletionModel:
         assert model.data(index) == "hello"
 
     def test_data_user_role(self):
-        from editor.Ironica.autocomplete_menu import CompletionModel, CompletionItem
+        from editor.Ironica.utils.autocomplete_menu import (
+            CompletionModel,
+            CompletionItem,
+        )
         from PyQt6.QtCore import QModelIndex, Qt
 
         model = CompletionModel()
@@ -80,7 +92,7 @@ class TestCompletionModel:
         assert model.data(index, Qt.ItemDataRole.UserRole) is item
 
     def test_data_invalid_index(self):
-        from editor.Ironica.autocomplete_menu import CompletionModel
+        from editor.Ironica.utils.autocomplete_menu import CompletionModel
         from PyQt6.QtCore import QModelIndex
 
         model = CompletionModel()
@@ -91,14 +103,14 @@ class TestIntelliSenseMenu:
     """Test IntelliSenseMenu creation and item display."""
 
     def test_menu_creation(self, qapp_instance):
-        from editor.Ironica.autocomplete_menu import IntelliSenseMenu
+        from editor.Ironica.utils.autocomplete_menu import IntelliSenseMenu
 
         menu = IntelliSenseMenu()
         assert not menu.isVisible()
         menu.deleteLater()
 
     def test_show_items(self, qapp_instance):
-        from editor.Ironica.autocomplete_menu import (
+        from editor.Ironica.utils.autocomplete_menu import (
             IntelliSenseMenu,
             CompletionItem,
         )
@@ -115,7 +127,7 @@ class TestIntelliSenseMenu:
         menu.deleteLater()
 
     def test_show_items_empty_hides(self, qapp_instance):
-        from editor.Ironica.autocomplete_menu import IntelliSenseMenu
+        from editor.Ironica.utils.autocomplete_menu import IntelliSenseMenu
 
         menu = IntelliSenseMenu()
         menu.show_items([])
@@ -123,7 +135,7 @@ class TestIntelliSenseMenu:
         menu.deleteLater()
 
     def test_navigate_up_down(self, qapp_instance):
-        from editor.Ironica.autocomplete_menu import (
+        from editor.Ironica.utils.autocomplete_menu import (
             IntelliSenseMenu,
             CompletionItem,
         )
@@ -143,7 +155,7 @@ class TestIntelliSenseMenu:
         menu.deleteLater()
 
     def test_accept_selection(self, qapp_instance):
-        from editor.Ironica.autocomplete_menu import (
+        from editor.Ironica.utils.autocomplete_menu import (
             IntelliSenseMenu,
             CompletionItem,
         )
@@ -257,7 +269,7 @@ class TestFlyout:
     """Test DocumentationFlyout creation."""
 
     def test_flyout_creation(self, qapp_instance):
-        from editor.Ironica.autocomplete_menu import (
+        from editor.Ironica.utils.autocomplete_menu import (
             DocumentationFlyout,
             CompletionItem,
         )
@@ -272,7 +284,7 @@ class TestCompletionDelegate:
     """Test CompletionDelegate creation."""
 
     def test_delegate_creation(self, qapp_instance):
-        from editor.Ironica.autocomplete_menu import (
+        from editor.Ironica.utils.autocomplete_menu import (
             CompletionDelegate,
             IntelliSenseMenu,
         )

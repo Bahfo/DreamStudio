@@ -161,7 +161,7 @@ class TestAutocompleteSurvival:
     def test_autocomplete_cancelled_on_tab_change(self, qapp_instance):
         from PyQt6.QtWidgets import QWidget, QVBoxLayout
         from editor.Ironica.tab_editor import DreamTabbedEditor
-        from editor.Ironica.autocomplete_menu import (
+        from editor.Ironica.utils.autocomplete_menu import (
             IntelliSenseMenu,
             CompletionItem,
         )

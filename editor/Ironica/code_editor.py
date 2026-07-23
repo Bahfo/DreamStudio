@@ -21,10 +21,11 @@ from PyQt6.Qsci import QsciScintilla
 from PyQt6 import sip
 
 from editor.Ironica.language_engine import LanguageRegistry, LanguageLexer
-from editor.Ironica.autocomplete_menu import (
+from editor.Ironica.utils.autocomplete_menu import (
     EditorAutocompleteExtension,
     HoverDocumentationPopup,
 )
+from editor.Ironica.utils.debug_frame import StackInfoFrame
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +97,16 @@ class CodeEditor(QsciScintilla):
         self._hovered_breakpoint_line = None
 
         ###############################################
-        # Margins for Debugger Breakpoints
+        # Breakpoint Helpers
         ###############################################
         self.MARKER_BREAKPOINT = 2  # Becuase lines margin is 0 and folding is 1
+        self._debug_stack_widget = None
+        self._paused_line = -1
+
+        self.verticalScrollBar().valueChanged.connect(self._update_debug_stack_position)
+        self.horizontalScrollBar().valueChanged.connect(
+            self._update_debug_stack_position
+        )
 
         self.setObjectName("CodeEditor")
 
@@ -274,7 +282,7 @@ class CodeEditor(QsciScintilla):
     def _setup_folding(self) -> None:
         """Configure code folding markers and attach a FoldManager once."""
         if not hasattr(self, "_fold_manager") or self._fold_manager is None:
-            from editor.Ironica.folding import FoldManager
+            from editor.Ironica.utils.folding import FoldManager
 
             self._fold_manager = FoldManager(self)
 
@@ -304,6 +312,7 @@ class CodeEditor(QsciScintilla):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
+        self._update_debug_stack_position()
 
     def wheelEvent(self, event) -> None:
         """Dismiss all popups and cancel hover when the editor scrolls."""
@@ -657,6 +666,92 @@ class CodeEditor(QsciScintilla):
             breakpoints.append(line + 1 if one_based else line)
             line += 1
         return breakpoints
+
+    def get_breakpoint_lines(self) -> set[int]:
+        """
+        Scans the document and returns a set of 1-based line numbers where
+        breakpoint markers currently exist.
+        """
+        breakpoint_lines = set()
+
+        mask = 1 << self.MARGIN_BREAKPOINT
+        current_line = 0
+        total_lines = self.lines()
+
+        while current_line < total_lines:
+            found_line = self.markerFindNext(current_line, mask)
+            if found_line == -1:
+                break
+
+            breakpoint_lines.add(found_line + 1)
+
+            current_line = found_line + 1
+
+        return breakpoint_lines
+
+    def show_debug_stack_frame(
+        self, line: int, info_text: str = "Stack Info Placeholder"
+    ):
+        """Displays a red-bordered frame widget directly below the given
+        1-based line number.
+        Pushes lower lines down to make space.
+        """
+        self._paused_line = line
+        line_idx = line - 1  # Convert to 0-based for QScintilla
+
+        if self._debug_stack_widget is None:
+            self._debug_stack_widget = StackInfoFrame(self)
+
+        self._debug_stack_widget.content_label.setText(info_text)
+        self.annotate(line_idx, "\n\n", 0)
+
+        self._debug_stack_widget.show()
+        self._update_debug_stack_position()
+
+    def hide_debug_stack_frame(self):
+        """
+        Removes the debug stack frame and collapses reserved space back
+        together.
+        """
+        if self._paused_line != -1:
+            line_idx = self._paused_line - 1
+            # Clear annotation gap
+            self.clearAnnotations(line_idx)
+            self._paused_line = -1
+
+        if self._debug_stack_widget:
+            self._debug_stack_widget.hide()
+
+    def _update_debug_stack_position(self):
+        """
+        Calculates exact viewport coordinates and moves/resizes frame
+        on viewport scroll or resize.
+        """
+        if self._paused_line < 1 or self._debug_stack_widget is None:
+            return
+
+        line_idx = self._paused_line - 1
+
+        char_pos = self.positionFromLineIndex(line_idx, 0)
+        line_y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, char_pos)
+        line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT, line_idx)
+
+        margin_offset = sum(
+            self.marginWidth(i) for i in range(5) if self.marginWidth(i) > 0
+        )
+
+        frame_x = margin_offset + 10
+        frame_y = line_y + line_height + 2
+        frame_width = max(300, self.viewport().width() - frame_x - 35)
+        frame_height = 55
+
+        if frame_y < 0 or frame_y > self.viewport().height():
+            self._debug_stack_widget.hide()
+        else:
+            self._debug_stack_widget.show()
+            self._debug_stack_widget.setGeometry(
+                frame_x, frame_y, frame_width, frame_height
+            )
 
     # ------------------------------------------------------------------
     # Go-to definition

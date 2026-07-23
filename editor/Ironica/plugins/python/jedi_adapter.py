@@ -30,7 +30,7 @@ from .domain_models import (
     RefactorChange,
 )
 from .interfaces import IJediAdapter
-from editor.Ironica.highlighting_api import (
+from editor.Ironica.utils.highlighting_api import (
     ITokenProvider,
     Token,
     TokenStyle,
@@ -96,7 +96,17 @@ class JediAdapter(IJediAdapter):
             return []
 
         try:
-            jedi_completions = script.complete(line=context.line, column=context.column)
+            try:
+                jedi_completions = script.complete(
+                    line=context.line, column=context.column
+                )
+            except Exception as e:
+                # Catches _pickle.UnpicklingError, EOFError,
+                # ProcessLookupError, and BrokenPipeError from Jedi's
+                # subprocess IPC pipe when the worker thread is interrupted
+                # mid-query or the subprocess pipe is closed prematurely.
+                logger.warning("Jedi subprocess completion failed: %s", e)
+                return []
 
             results: List[CompletionItem] = []
             for item in jedi_completions:
@@ -141,10 +151,13 @@ class JediAdapter(IJediAdapter):
             return None
 
         try:
-            definitions = script.help(line=context.line, column=context.column)
-            if not definitions:
-                # Fallback to type inference if standard help yields nothing
-                definitions = script.infer(line=context.line, column=context.column)
+            try:
+                definitions = script.help(line=context.line, column=context.column)
+                if not definitions:
+                    definitions = script.infer(line=context.line, column=context.column)
+            except Exception as e:
+                logger.warning("Jedi subprocess hover failed: %s", e)
+                return None
 
             if not definitions:
                 return None
@@ -208,11 +221,13 @@ class JediAdapter(IJediAdapter):
             return None
 
         try:
-            # Trace the reference definition assignment
-            definitions = script.goto(line=context.line, column=context.column)
-            if not definitions:
-                # Analytical infer fallback
-                definitions = script.infer(line=context.line, column=context.column)
+            try:
+                definitions = script.goto(line=context.line, column=context.column)
+                if not definitions:
+                    definitions = script.infer(line=context.line, column=context.column)
+            except Exception as e:
+                logger.warning("Jedi subprocess goto failed: %s", e)
+                return None
 
             if not definitions:
                 return None
@@ -249,8 +264,13 @@ class JediAdapter(IJediAdapter):
             return []
 
         try:
-            # Query Jedi for usages of the symbol under the cursor
-            jedi_refs = script.get_references(line=context.line, column=context.column)
+            try:
+                jedi_refs = script.get_references(
+                    line=context.line, column=context.column
+                )
+            except Exception as e:
+                logger.warning("Jedi subprocess references failed: %s", e)
+                return []
 
             results: List[ReferenceLocation] = []
             for ref in jedi_refs:
@@ -297,10 +317,13 @@ class JediAdapter(IJediAdapter):
             return []
 
         try:
-            # Perform renaming calculation
-            refactoring = script.rename(
-                line=context.line, column=context.column, new_name=new_name
-            )
+            try:
+                refactoring = script.rename(
+                    line=context.line, column=context.column, new_name=new_name
+                )
+            except Exception as e:
+                logger.warning("Jedi subprocess rename failed: %s", e)
+                return []
 
             changes: List[RefactorChange] = []
             for path, changed_file in refactoring.get_changed_files().items():

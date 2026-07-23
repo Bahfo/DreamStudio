@@ -24,7 +24,7 @@ import ast
 import re
 from typing import List, Optional, Tuple
 
-from editor.Ironica.highlighting_api import (
+from editor.Ironica.utils.highlighting_api import (
     ITokenProvider,
     Token,
     TokenStyle,

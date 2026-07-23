@@ -55,6 +55,7 @@ from PyQt6.QtCore import (
     QEvent,
     QAbstractListModel,
     QModelIndex,
+    QThread,
 )
 from PyQt6.QtGui import (
     QColor,
@@ -130,6 +131,8 @@ DEBOUNCE_MS = 150
 BUFFER_LINE_WINDOW = 100
 MIN_MENU_WIDTH = 360
 MAX_MENU_WIDTH = 600
+RESIZE_SAMPLE_SIZE = 30
+FLYOUT_LAZY_DELAY_MS = 200
 WORD_REGEX = re.compile(r"\b[a-zA-Z_]\w*\b")
 
 
@@ -151,6 +154,84 @@ def load_icon(kind: str) -> Optional[QPixmap]:
     )
     ICON_CACHE[path] = scaled
     return scaled
+
+
+class AutocompleteWorker(QThread):
+    """Background thread that runs Jedi completion queries off the UI thread.
+
+    Emits ``results_ready`` with a ``(request_id, items)`` tuple once the
+    provider returns completions.  Stale requests are detected by comparing
+    ``request_id`` against the editor's internal counter.
+
+    Uses ``requestInterruption()`` / ``isInterruptionRequested()`` for
+    cooperative cancellation so that ``cleanup()`` can stop the thread
+    without relying on ``QThread.quit()`` (which only works with
+    ``exec()``-based event loops).
+    """
+
+    results_ready = pyqtSignal(int, list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._current_req = None
+
+    def request_autocomplete(
+        self,
+        req_id: int,
+        provider,
+        text: str,
+        line: int,
+        col: int,
+        prefix: str,
+    ):
+        self._current_req = (req_id, provider, text, line, col, prefix)
+        if not self.isRunning():
+            self.start()
+
+    def stop(self):
+        """Request the thread to stop and clear pending work."""
+        self._current_req = None
+        self.requestInterruption()
+
+    def run(self):
+        while self._current_req is not None and not self.isInterruptionRequested():
+            req_id, provider, text, line, col, prefix = self._current_req
+            self._current_req = None
+
+            items = []
+            try:
+                if self.isInterruptionRequested():
+                    break
+
+                raw = provider.get_auto_completions(text, line, col)
+                lower_prefix = prefix.lower()
+                for name in raw:
+                    if self.isInterruptionRequested():
+                        break
+                    if not isinstance(name, str):
+                        continue
+                    if lower_prefix and lower_prefix not in name.lower():
+                        continue
+                    kind = _infer_kind_from_name(name)
+                    items.append(
+                        CompletionItem(name=name, kind=kind, documentation="")
+                    )
+            except Exception as e:
+                logger.debug("Async completion query failed: %s", e)
+
+            if self._current_req is None and not self.isInterruptionRequested():
+                self.results_ready.emit(req_id, items)
+
+
+def _infer_kind_from_name(name: str) -> str:
+    """Heuristic kind inference for a completion name string."""
+    if name[0:1].isupper() and not name.isupper():
+        return "class"
+    if "(" in name or name.endswith("()"):
+        return "function"
+    if name.isupper():
+        return "constant"
+    return "variable"
 
 
 @dataclass
@@ -348,14 +429,25 @@ class CompletionDelegate(QStyledItemDelegate):
                 f.setBold(False)
                 painter.setFont(f)
 
-            for ch in text:
-                cw = fm.horizontalAdvance(ch)
-                if x + cw > rect.right():
+            tw = fm.horizontalAdvance(text)
+            if x + tw > rect.right():
+                text_w = rect.right() - x
+                if text_w <= 0:
                     break
+                ell = "…"
+                ew = fm.horizontalAdvance(ell)
                 painter.drawText(
-                    QRect(x, y, cw, rect.height()), Qt.AlignmentFlag.AlignVCenter, ch
+                    QRect(x, y, text_w, rect.height()),
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+                    text + ell,
                 )
-                x += cw
+                break
+            painter.drawText(
+                QRect(x, y, tw, rect.height()),
+                Qt.AlignmentFlag.AlignVCenter,
+                text,
+            )
+            x += tw
 
     def sizeHint(self, option, index):
         return QSize(0, ITEM_HEIGHT)
@@ -609,6 +701,11 @@ class IntelliSenseMenu(QWidget):
         self._editor_ref = None
         self._init_line = -1
 
+        self._flyout_lazy_timer = QTimer(self)
+        self._flyout_lazy_timer.setSingleShot(True)
+        self._flyout_lazy_timer.setInterval(FLYOUT_LAZY_DELAY_MS)
+        self._flyout_lazy_timer.timeout.connect(self._show_flyout_for_selected)
+
         self._setup_ui()
         self._apply_shadow()
 
@@ -745,7 +842,7 @@ class IntelliSenseMenu(QWidget):
 
         fm = QFontMetrics(self._delegate._editor_font(11))
         max_w = 0
-        for item in self._filtered:
+        for item in self._filtered[:RESIZE_SAMPLE_SIZE]:
             text_w = fm.horizontalAdvance(item.name)
             kind_w = fm.horizontalAdvance(item.kind.lower())
             row_w = 6 + 16 + 8 + text_w + 12 + kind_w + 28 + 24
@@ -820,6 +917,22 @@ class IntelliSenseMenu(QWidget):
             else:
                 self._hide_flyout()
 
+    def _request_flyout_doc(self):
+        """Schedule flyout documentation loading after a short delay."""
+        self._flyout_lazy_timer.start()
+
+    def _show_flyout_for_selected(self):
+        """Slot: show flyout for the currently selected item after delay."""
+        if (
+            self._flyout_visible
+            and self._selected_index < len(self._filtered)
+        ):
+            item = self._filtered[self._selected_index]
+            if item.documentation:
+                self._show_flyout(item)
+            else:
+                self._hide_flyout()
+
     def _on_item_clicked(self, index: QModelIndex):
         row = index.row()
         if 0 <= row < len(self._filtered):
@@ -855,6 +968,7 @@ class IntelliSenseMenu(QWidget):
             if self._flyout_visible:
                 self._hide_flyout()
             else:
+                self._flyout_lazy_timer.stop()
                 self._show_flyout(item)
 
     def navigate_up(self):
@@ -865,9 +979,7 @@ class IntelliSenseMenu(QWidget):
             self._delegate.set_selected_row(self._selected_index)
             self._list_view.viewport().update()
             if self._flyout_visible:
-                item = self._filtered[self._selected_index]
-                if item.documentation:
-                    self._show_flyout(item)
+                self._request_flyout_doc()
 
     def navigate_down(self):
         if self._selected_index < len(self._filtered) - 1:
@@ -877,9 +989,7 @@ class IntelliSenseMenu(QWidget):
             self._delegate.set_selected_row(self._selected_index)
             self._list_view.viewport().update()
             if self._flyout_visible:
-                item = self._filtered[self._selected_index]
-                if item.documentation:
-                    self._show_flyout(item)
+                self._request_flyout_doc()
 
     def _accept_selection(self):
         if self._filtered and self._selected_index < len(self._filtered):
@@ -944,6 +1054,7 @@ class IntelliSenseMenu(QWidget):
         )
 
     def hideEvent(self, event):
+        self._flyout_lazy_timer.stop()
         self._hide_flyout()
         super().hideEvent(event)
 
@@ -974,6 +1085,9 @@ class EditorAutocompleteExtension(QObject):
         self._init_line = -1
         self._cleaned_up = False
         self._position_signal_connected = False
+        self._request_counter = 0
+        self._worker = AutocompleteWorker(editor)
+        self._worker.results_ready.connect(self._on_worker_results)
 
     @property
     def menu(self) -> IntelliSenseMenu:
@@ -1003,7 +1117,23 @@ class EditorAutocompleteExtension(QObject):
         self._cleaned_up = True
 
         self._debounce_timer.stop()
-        self._debounce_timer.timeout.disconnect()
+        try:
+            self._debounce_timer.timeout.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+
+        if self._worker is not None:
+            try:
+                self._worker.results_ready.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+
+            self._worker.stop()
+            if self._worker.isRunning():
+                self._worker.wait(2000)
+
+            self._worker.deleteLater()
+            self._worker = None
 
         if self._position_signal_connected:
             try:
@@ -1118,6 +1248,8 @@ class EditorAutocompleteExtension(QObject):
         if self._cleaned_up:
             return
         self._debounce_timer.stop()
+        if self._worker is not None:
+            self._worker._current_req = None
         if self._menu and self._menu.isVisible():
             self._menu.hide()
         self._init_line = -1
@@ -1134,9 +1266,33 @@ class EditorAutocompleteExtension(QObject):
             self.cancel_autocomplete()
             return
 
-        provider_items = []
-        if getattr(self._editor, "current_provider", None):
-            provider_items = self._query_provider(full_text, line, col, word_prefix)
+        buffer_items = self._scan_buffer(full_text, line, word_prefix)
+
+        provider = getattr(self._editor, "current_provider", None)
+        if provider:
+            self._request_counter += 1
+            self._worker.request_autocomplete(
+                self._request_counter, provider, full_text, line, col, word_prefix
+            )
+        else:
+            if not buffer_items:
+                self.cancel_autocomplete()
+                return
+            self._init_line = line
+            self.menu.set_editor(self._editor)
+            self.menu.show_items(buffer_items, word_prefix, init_line=line)
+
+    def _on_worker_results(self, req_id: int, provider_items: List[CompletionItem]):
+        """Slot: receives completion results from the background worker."""
+        if self._cleaned_up:
+            return
+        if req_id < self._request_counter:
+            return
+
+        line, col = self._editor.getCursorPosition()
+        full_text = self._editor.text()
+        word_prefix = self._get_word_prefix(full_text, line, col)
+
         buffer_items = self._scan_buffer(full_text, line, word_prefix)
 
         seen = set()
@@ -1174,24 +1330,13 @@ class EditorAutocompleteExtension(QObject):
             items = []
             lower_prefix = prefix.lower()
 
-            hover_html = None
-            provider = self._editor.current_provider
-            try:
-                if hasattr(provider, "get_hover_html"):
-                    hover_html = provider.get_hover_html(text, line, col)
-                elif hasattr(provider, "get_hover_hint"):
-                    hover_html = provider.get_hover_hint(text, line, col)
-            except Exception:
-                pass
-
             for name in raw:
                 if not isinstance(name, str):
                     continue
                 if lower_prefix and lower_prefix not in name.lower():
                     continue
                 kind = self._infer_kind(name)
-                doc = hover_html if hover_html else ""
-                items.append(CompletionItem(name=name, kind=kind, documentation=doc))
+                items.append(CompletionItem(name=name, kind=kind, documentation=""))
             return items
         except Exception as e:
             logger.debug("Provider query failed: %s", e)

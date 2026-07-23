@@ -16,7 +16,7 @@ from typing import List
 
 logger = logging.getLogger(__name__)
 
-from editor.Ironica.folding import FoldRegion
+from editor.Ironica.utils.folding import FoldRegion
 
 # ------------------------------------------------------------------
 # Regex patterns for Python block headers

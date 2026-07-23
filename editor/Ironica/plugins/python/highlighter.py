@@ -22,7 +22,7 @@ from editor.Ironica.language_engine import (
     LanguageLexer,
     LanguageRegistry,
 )
-from editor.Ironica.highlighting_api import (
+from editor.Ironica.utils.highlighting_api import (
     HighlightingRegistry,
     STYLES,
 )
