@@ -452,6 +452,34 @@ class DreamTabbedEditor(QDreamTabEditor):
         except Exception as e:
             logger.error("Open file at line failed: %s", e)
 
+    def get_editor_for_path(self, file_path: str):
+        """Return the ``CodeEditor`` widget for *file_path*, or ``None``.
+
+        Resolves the path via the dedup key and unwraps
+        ``MiniMapHostWidget`` if needed so that the caller always
+        receives the underlying ``CodeEditor`` directly.
+        """
+        key = self.resolve_key(file_path)
+        if key is None or key not in self.opened_files:
+            return None
+
+        index = self.opened_files[key]
+        if index < 0 or index >= self.count():
+            return None
+
+        widget = self.widget(index)
+        if widget is None:
+            return None
+
+        # Unwrap MiniMapHostWidget → CodeEditor.
+        if isinstance(widget, MiniMapHostWidget):
+            return widget.editor
+
+        if isinstance(widget, CodeEditor):
+            return widget
+
+        return None
+
     @staticmethod
     def set_language(lang: str):
         """Resolve a file extension to a language identifier.

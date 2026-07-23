@@ -240,3 +240,14 @@ class StatusBar(QFrame):
             editor = tabs.widget(i)
             if editor and hasattr(editor, "zoomTo"):
                 editor.zoomTo(zoom_level)
+
+    def set_debug_background(self) -> None:
+        """Paint the entire status bar orange to indicate an active debug session."""
+        self.setStyleSheet(
+            "StatusBar { background-color: #FF9800; }"
+            "StatusBar QLabel { color: white; }"
+        )
+
+    def reset_background(self) -> None:
+        """Restore the status bar to its theme-default appearance."""
+        self.setStyleSheet("")

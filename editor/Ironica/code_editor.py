@@ -66,9 +66,11 @@ class CodeEditor(QsciScintilla):
     MARGIN_BREAKPOINT = 1
     MARKER_BREAKPOINT = 1
     MARKER_HOVER = 3
+    MARKER_EXEC_LINE = 4
 
     COLOR_BREAKPOINT = QColor("#E53935")
     COLOR_HOVER = QColor(229, 57, 53, 100)
+    COLOR_EXEC_LINE = QColor("#FFD54F")
     CIRCLE_RADIUS = 4
 
     def __init__(self, _parent=None, language=None, file_path=None):
@@ -258,7 +260,18 @@ class CodeEditor(QsciScintilla):
         self.markerDefine(img_breakpoint, self.MARKER_BREAKPOINT)
         self.markerDefine(img_hover, self.MARKER_HOVER)
 
-        mask = (1 << self.MARKER_BREAKPOINT) | (1 << self.MARKER_HOVER)
+        self.markerDefine(
+            QsciScintilla.MarkerSymbol.FullRectangle,
+            self.MARKER_EXEC_LINE,
+        )
+        self.setMarkerForegroundColor(self.COLOR_EXEC_LINE, self.MARKER_EXEC_LINE)
+        self.setMarkerBackgroundColor(self.COLOR_EXEC_LINE, self.MARKER_EXEC_LINE)
+
+        mask = (
+            (1 << self.MARKER_BREAKPOINT)
+            | (1 << self.MARKER_HOVER)
+            | (1 << self.MARKER_EXEC_LINE)
+        )
         self.setMarginMarkerMask(self.MARGIN_BREAKPOINT, mask)
 
         self.SendScintilla(QsciScintilla.SCI_SETMARGINLEFT, 0, 10)
@@ -647,26 +660,6 @@ class CodeEditor(QsciScintilla):
                 self.markerAdd(line, self.MARKER_BREAKPOINT)
                 self._hovered_breakpoint_line = None
 
-    def get_breakpoint_lines(self, one_based: bool = True) -> list[int]:
-        """
-        Returns a list of line numbers where breakpoints are currently active.
-
-        :param one_based: Set to True for debuggers (PDB/debugpy) that
-        use 1-based indexing.
-        """
-        breakpoints = []
-        mask = 1 << self.MARKER_BREAKPOINT
-        line = 0
-
-        while True:
-            line = self.markerFindNext(line, mask)
-            if line == -1:
-                break
-
-            breakpoints.append(line + 1 if one_based else line)
-            line += 1
-        return breakpoints
-
     def get_breakpoint_lines(self) -> set[int]:
         """
         Scans the document and returns a set of 1-based line numbers where
@@ -674,7 +667,7 @@ class CodeEditor(QsciScintilla):
         """
         breakpoint_lines = set()
 
-        mask = 1 << self.MARGIN_BREAKPOINT
+        mask = 1 << self.MARKER_BREAKPOINT
         current_line = 0
         total_lines = self.lines()
 
@@ -688,6 +681,25 @@ class CodeEditor(QsciScintilla):
             current_line = found_line + 1
 
         return breakpoint_lines
+
+    def set_execution_line_highlight(self, line: int) -> None:
+        """Highlight the given 1-based line as the current execution point.
+
+        Removes any previous execution highlight before applying the new
+        one so that only a single line is highlighted at any time.
+
+        Args:
+            line: 1-based line number to highlight.
+        """
+        self.clear_all_execution_highlights()
+        line_idx = line - 1
+        if 0 <= line_idx < self.lines():
+            self.markerAdd(line_idx, self.MARKER_EXEC_LINE)
+            self.ensureLineVisible(line_idx)
+
+    def clear_all_execution_highlights(self) -> None:
+        """Remove every execution-line highlight marker from the document."""
+        self.markerDeleteAll(self.MARKER_EXEC_LINE)
 
     def show_debug_stack_frame(
         self, line: int, info_text: str = "Stack Info Placeholder"

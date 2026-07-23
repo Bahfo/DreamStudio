@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt
 from editor.widgets.QOptionsMenu import ToolbarMenuButton
 from editor.widgets.QToolButton import ToolbarButton
 from editor.widgets.QSeparator import Separator
+from editor.debugger.debug_frame import DebugControlFrame
 
 
 class OptionsMenu(QFrame):
@@ -44,6 +45,11 @@ class OptionsMenu(QFrame):
         if json_file and os.path.exists(json_file):
             self._build_bar(json_file)
         # TODO: Add a guard method of json is not found
+
+        # Debug control frame — hidden until a debug session is active.
+        self.debug_frame = DebugControlFrame(self)
+        self.debug_frame.hide()
+        self._insert_debug_frame()
 
     def _validate_config(self, menu_data: list) -> None:
         """
@@ -112,6 +118,11 @@ class OptionsMenu(QFrame):
                 )
                 self.optionsMenu_layout.addWidget(btn)
 
+                # Keep a reference to the debug button so the session can
+                # disable/re-enable it (Edge Case 3 — button state collision).
+                if tooltip == "Debug Current File":
+                    self._debug_button = btn
+
             elif widget_id == "sep":
                 width = item.get("width", 2)
                 height = item.get("height", 25)
@@ -158,3 +169,18 @@ class OptionsMenu(QFrame):
 
             elif widget_id == "stretch":
                 self.optionsMenu_layout.addStretch(1)
+
+    def _insert_debug_frame(self):
+        """Insert the debug control frame before the trailing stretch.
+
+        Walks backwards through the layout to find the last real widget
+        (button or separator) and inserts the frame immediately after it,
+        keeping the stretch spacer at the very end.
+        """
+        count = self.optionsMenu_layout.count()
+        for i in range(count - 1, -1, -1):
+            item = self.optionsMenu_layout.itemAt(i)
+            if item is not None and item.widget() is not None:
+                self.optionsMenu_layout.insertWidget(i + 1, self.debug_frame)
+                return
+        self.optionsMenu_layout.addWidget(self.debug_frame)

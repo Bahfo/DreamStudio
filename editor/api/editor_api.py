@@ -315,3 +315,93 @@ class EditorAPI:
         editor = api.editor
         line, col = editor.getCursorPosition()
         self.status_bar.lines_and_cols.setText(f"Ln {line + 1} : Col {col + 1}")
+
+    # ------------------------------------------------------------------
+    # Debugging
+    # ------------------------------------------------------------------
+
+    def _debug_current_file(self) -> None:
+        """Launch a debug session for the active editor.
+
+        Guard conditions (Edge Case 3 — button state collision):
+        If a debug session is already running, this is a no-op so that
+        switching tabs and re-clicking cannot launch a second session.
+
+        Auto-save (Edge Case 2 — unsaved changes):
+        If the editor buffer is dirty the file is saved to disk before
+        breakpoints are collected so that the on-disk file and the
+        editor display stay in sync.
+        """
+        # Edge Case 3: prevent double-launch while session is active.
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None and active.is_running():
+            return
+
+        tabs = self.hero_window._text_editor_center.tabs
+        widget = tabs.currentWidget()
+
+        # No file open.
+        if widget is None:
+            return
+
+        file_path = getattr(widget, "current_file_path", None)
+        if not file_path:
+            return
+
+        # Not a .py file.
+        if not file_path.endswith(".py"):
+            return
+
+        # Edge Case 2: auto-save dirty buffer before debugging.
+        if hasattr(widget, "isModified") and widget.isModified():
+            if hasattr(widget, "save"):
+                widget.save()
+
+        # Gather breakpoints from the editor.
+        breakpoints = set()
+        if hasattr(widget, "get_breakpoint_lines"):
+            breakpoints = widget.get_breakpoint_lines()
+
+        from editor.debugger.python_debug import DebugSession
+
+        session = DebugSession(file_path, breakpoints, self)
+        self._active_debug_session = session
+
+        # Expose the options-bar debug button so the session can
+        # re-enable it on stop (Edge Case 3).
+        self._debug_btn_ref = getattr(
+            self.options_menu, "_debug_button", None
+        )
+
+        session.start()
+
+    def _stop_debug(self) -> None:
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None and active.is_running():
+            active.stop()
+        self._active_debug_session = None
+
+    def _continue_debug(self) -> None:
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None and active.is_running():
+            active.continue_execution()
+
+    def _restart_debug(self) -> None:
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None:
+            active.restart()
+
+    def _step_over(self) -> None:
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None and active.is_running():
+            active.step_over()
+
+    def _step_into(self) -> None:
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None and active.is_running():
+            active.step_into()
+
+    def _step_out(self) -> None:
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None and active.is_running():
+            active.step_out()

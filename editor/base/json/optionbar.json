@@ -121,7 +121,7 @@
         "tooltip":"Debug Current File",
         "size":[30, 30],
         "icon_size":[22, 22],
-        "callback": false
+        "callback": "_debug_current_file"
     },
     {
         "id": "menu",
