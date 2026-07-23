@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt
 from editor.widgets.QOptionsMenu import ToolbarMenuButton
 from editor.widgets.QToolButton import ToolbarButton
 from editor.widgets.QSeparator import Separator
-from editor.debugger.debug_frame import DebugControlFrame
+from editor.Ironica.utils.debug_frame import DebugControlFrame
 
 
 class OptionsMenu(QFrame):

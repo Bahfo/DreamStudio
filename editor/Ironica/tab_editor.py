@@ -339,6 +339,22 @@ class DreamTabbedEditor(QDreamTabEditor):
             except Exception as e:
                 logger.debug("Close interceptor error: %s", e)
 
+        # Stop any active debug session whose target file is being closed.
+        closing_path = getattr(editor, "current_file_path", None)
+        if closing_path:
+            parent = self._parent
+            while parent is not None:
+                session = getattr(parent, "_active_debug_session", None)
+                if session is not None:
+                    if getattr(session, "file_path", None) == closing_path:
+                        try:
+                            session.stop()
+                        except Exception:
+                            pass
+                        parent._active_debug_session = None
+                    break
+                parent = getattr(parent, "parent", lambda: None)()
+
         if hasattr(editor, "dirty_state_changed"):
             try:
                 editor.dirty_state_changed.disconnect()

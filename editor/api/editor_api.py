@@ -362,6 +362,21 @@ class EditorAPI:
         if hasattr(widget, "get_breakpoint_lines"):
             breakpoints = widget.get_breakpoint_lines()
 
+        # Warn if no breakpoints are set.
+        if not breakpoints:
+            from editor.widgets.QExitDialog import ConfirmDialog
+
+            dlg = ConfirmDialog(
+                parent=self,
+                title="Warning",
+                message="No breakpoints are initialized.\nStart debugging anyway?",
+                confirm_text="START",
+                cancel_text="CANCEL",
+            )
+            if dlg.exec() != ConfirmDialog.DialogCode.Accepted:
+                return
+
+
         from editor.debugger.python_debug import DebugSession
 
         session = DebugSession(file_path, breakpoints, self)
@@ -405,3 +420,13 @@ class EditorAPI:
         active = getattr(self, "_active_debug_session", None)
         if active is not None and active.is_running():
             active.step_out()
+
+    def stop_all_debug_utils(self) -> None:
+        """Terminate any active debug session and reset all debug UI."""
+        active = getattr(self, "_active_debug_session", None)
+        if active is not None:
+            try:
+                active.stop()
+            except Exception:
+                pass
+            self._active_debug_session = None

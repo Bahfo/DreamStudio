@@ -708,6 +708,13 @@ class CodeEditor(QsciScintilla):
         1-based line number.
         Pushes lower lines down to make space.
         """
+        # Clear the annotation at the previous paused line so that the
+        # editor layout doesn't accumulate orphaned gaps when stepping.
+        if self._paused_line != -1 and self._paused_line != line:
+            old_idx = self._paused_line - 1
+            if 0 <= old_idx < self.lines():
+                self.clearAnnotations(old_idx)
+
         self._paused_line = line
         line_idx = line - 1  # Convert to 0-based for QScintilla
 

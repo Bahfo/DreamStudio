@@ -44,13 +44,18 @@ def resolve_breakpoints(
 
     try:
         code_obj = compile(source_code, file_path, "exec")
-        executable_lines = sorted(
-            {
-                line
-                for _, _, line in code_obj.co_lines()
-                if line is not None and line > 0
-            }
-        )
+
+        def _collect_executable_lines(code, acc: set) -> None:
+            for _, _, line in code.co_lines():
+                if line is not None and line > 0:
+                    acc.add(line)
+            for const in code.co_consts:
+                if hasattr(const, "co_lines"):
+                    _collect_executable_lines(const, acc)
+
+        _lines: set[int] = set()
+        _collect_executable_lines(code_obj, _lines)
+        executable_lines = sorted(_lines)
     except SyntaxError:
         # If can't compile -> return raw line as fallback
         return {line: line for line in raw_line_numbers}
@@ -213,11 +218,15 @@ class DebugSession(QObject):
         if self.target_editor is None:
             return
 
-        self.target_editor.set_execution_line_highlight(line)
+        try:
+            self.target_editor.set_execution_line_highlight(line)
 
-        info = frame_info or f"Paused at line {line}"
-        self.target_editor.show_debug_stack_frame(line, info)
-        self.target_editor._update_debug_stack_position()
+            info = frame_info or f"Paused at line {line}"
+            self.target_editor.show_debug_stack_frame(line, info)
+            self.target_editor._update_debug_stack_position()
+        except RuntimeError:
+            self.stop()
+            return
 
         self.session_paused.emit(line, info)
 
@@ -268,9 +277,13 @@ class DebugSession(QObject):
     def _cleanup_ui(self):
         """Reset all debug-related UI elements to their idle state."""
         # Clear execution highlights and stack frame on the target editor.
+        # The C/C++ widget may already be deleted if the file tab was closed.
         if self.target_editor is not None:
-            self.target_editor.clear_all_execution_highlights()
-            self.target_editor.hide_debug_stack_frame()
+            try:
+                self.target_editor.clear_all_execution_highlights()
+                self.target_editor.hide_debug_stack_frame()
+            except RuntimeError:
+                pass
 
         # Reset the entire status bar to theme default.
         self.main_window.status_bar.reset_background()
