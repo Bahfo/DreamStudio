@@ -49,10 +49,10 @@
     },
     {
         "id":"btn",
-        "icon_path":"assets/system/ai.png",
-        "tooltip":"Ether AI",
+        "icon_path":"assets/system/toolbox.png",
+        "tooltip":"Toolbox",
         "size":[40, 40],
         "icon_size":[27, 27],
-        "callback": false
+        "callback": "_open_toolbox"
     }
 ]

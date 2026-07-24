@@ -112,7 +112,7 @@
         "icon_path":"assets/system/run.png",
         "tooltip":"Run Current File",
         "size":[30, 30],
-        "icon_size":[22, 22],
+        "icon_size":[19, 19],
         "callback": false
     },
     {
@@ -120,7 +120,7 @@
         "icon_path":"assets/system/bug.png",
         "tooltip":"Debug Current File",
         "size":[30, 30],
-        "icon_size":[22, 22],
+        "icon_size":[19, 19],
         "callback": "_debug_current_file"
     },
     {
@@ -208,9 +208,12 @@
                 "callback": "_set_theme_coffee_light"
             }
         ]
-    }, 
+    },
     {
         "id":"stretch"
+    },
+    {
+        "id":"frame"
     },
     {
         "id":"btn",

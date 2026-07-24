@@ -1,6 +1,6 @@
 import os
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QEvent, QPoint
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 from editor.widgets.QToolButton import ToolbarButton
@@ -18,7 +18,7 @@ class StackInfoFrame(QFrame):
         self.setStyleSheet("""
             StackInfoFrame {
                 border: 2px solid #E53935;
-                border-radius: 6px;
+                border-radius: 0px;
                 background-color: #1E1E1E;
             }
             QLabel {
@@ -54,47 +54,47 @@ class DebugControlFrame(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
         self.setObjectName("DebugControlFrame")
+
         self.setStyleSheet("""
             DebugControlFrame {
-                background-color: rgba(255, 152, 0, 0.08);
-                border: 1px solid rgba(255, 152, 0, 0.25);
-                border-radius: 4px;
+                border: 1px solid #5F5F5F;
+                border-radius: 3px;
             }
         """)
-        self.setFixedHeight(30)
+        self.setFixedSize(150, 30)
+
+        # Hide by default until called
+        self.hide()
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(2)
 
+        self._is_dragging = False
+        self._drag_start_position = QPoint()
+
+        self.drag_handle = QLabel("⣿")
+        self.drag_handle.setStyleSheet("color: #555; padding-right: 4px;")
+        self.drag_handle.setCursor(Qt.CursorShape.SizeAllCursor)
+        layout.addWidget(self.drag_handle)
+
         self._session = None
 
-        self.btn_continue = self._make_btn(
-            "step_forward.png", "Continue (F5)", "_on_continue"
-        )
-        self.btn_step_over = self._make_btn(
+        self.btn_next_breakpoint = self._make_btn(
             "step_forward.png", "Step Over (F10)", "_on_step_over"
         )
-        self.btn_step_into = self._make_btn(
-            "run.png", "Step Into (F11)", "_on_step_into"
-        )
-        self.btn_step_out = self._make_btn(
-            "step_back.png", "Step Out (Shift+F11)", "_on_step_out"
+        self.btn_previous_breakpoint = self._make_btn(
+            "step_back.png", "Step Into (F11)", "_on_step_into"
         )
         self.btn_restart = self._make_btn(
             "replay.png", "Restart (Ctrl+Shift+F5)", "_on_restart"
         )
-        self.btn_stop = self._make_btn(
-            "stop.png", "Stop (Shift+F5)", "_on_stop"
-        )
+        self.btn_stop = self._make_btn("stop.png", "Stop (Shift+F5)", "_on_stop")
 
         for btn in (
-            self.btn_continue,
-            self.btn_step_over,
-            self.btn_step_into,
-            self.btn_step_out,
+            self.btn_previous_breakpoint,
+            self.btn_next_breakpoint,
             self.btn_restart,
             self.btn_stop,
         ):
@@ -102,9 +102,61 @@ class DebugControlFrame(QFrame):
 
         self.disable_controls()
 
-    # ------------------------------------------------------------------
-    # Factory
-    # ------------------------------------------------------------------
+        if self.parentWidget():
+            self.parentWidget().installEventFilter(self)
+
+    def show_at_default_position(self):
+        """Shows the widget at 20% from the left and 10% from
+        the top of the parent."""
+        parent = self.parentWidget()
+        if parent:
+            x = int(parent.width() * 0.815)
+            y = int(parent.height() * 0.10)
+            self.move(x, y)
+
+        self.show()
+        self.raise_()
+
+    def _constrain_to_parent(self):
+        """Keeps the widget inside the parent's boundaries."""
+        parent = self.parentWidget()
+        if not parent:
+            return
+
+        parent_rect = parent.rect()
+
+        # Calculate bounds
+        max_x = parent_rect.width() - self.width()
+        max_y = parent_rect.height() - self.height()
+
+        new_x = max(0, min(self.x(), max_x))
+        new_y = max(0, min(self.y(), max_y))
+
+        if new_x != self.x() or new_y != self.y():
+            self.move(new_x, new_y)
+
+    def eventFilter(self, obj, event):
+        """Listens to the parent's resize events to adjust position automatically."""
+        if obj == self.parentWidget() and event.type() == QEvent.Type.Resize:
+            self._constrain_to_parent()
+        return super().eventFilter(obj, event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._is_dragging = True
+            self._drag_start_position = event.pos()
+            self.raise_()
+
+    def mouseMoveEvent(self, event):
+        if self._is_dragging and event.buttons() & Qt.MouseButton.LeftButton:
+            # Calculate new position relative to the parent
+            new_pos = self.mapToParent(event.pos() - self._drag_start_position)
+            self.move(new_pos)
+            self._constrain_to_parent()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._is_dragging = False
 
     def _make_btn(self, icon_name, tooltip, handler_name):
         icon_path = os.path.join(self._ASSET_BASE, icon_name)
@@ -112,28 +164,18 @@ class DebugControlFrame(QFrame):
             icon_path=icon_path,
             tooltip=tooltip,
             fixed_size=(28, 26),
-            icon_size=(16, 16),
+            icon_size=(19, 19),
         )
         btn.clicked.connect(getattr(self, handler_name))
         return btn
 
-    # ------------------------------------------------------------------
-    # Session binding
-    # ------------------------------------------------------------------
-
     def set_session(self, session):
         self._session = session
 
-    # ------------------------------------------------------------------
-    # Button state management
-    # ------------------------------------------------------------------
-
     def enable_controls(self):
         for btn in (
-            self.btn_continue,
-            self.btn_step_over,
-            self.btn_step_into,
-            self.btn_step_out,
+            self.btn_next_breakpoint,
+            self.btn_previous_breakpoint,
             self.btn_restart,
             self.btn_stop,
         ):
@@ -141,22 +183,12 @@ class DebugControlFrame(QFrame):
 
     def disable_controls(self):
         for btn in (
-            self.btn_continue,
-            self.btn_step_over,
-            self.btn_step_into,
-            self.btn_step_out,
+            self.btn_next_breakpoint,
+            self.btn_previous_breakpoint,
             self.btn_restart,
             self.btn_stop,
         ):
             btn.setEnabled(False)
-
-    # ------------------------------------------------------------------
-    # Button handlers (delegate to session)
-    # ------------------------------------------------------------------
-
-    def _on_continue(self):
-        if self._session:
-            self._session.continue_execution()
 
     def _on_step_over(self):
         if self._session:
@@ -165,10 +197,6 @@ class DebugControlFrame(QFrame):
     def _on_step_into(self):
         if self._session:
             self._session.step_into()
-
-    def _on_step_out(self):
-        if self._session:
-            self._session.step_out()
 
     def _on_restart(self):
         if self._session:

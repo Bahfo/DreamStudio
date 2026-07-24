@@ -6,10 +6,10 @@ from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt
 
 # Local Imports
+from editor.Ironica.utils.debug_frame import DebugControlFrame
 from editor.widgets.QOptionsMenu import ToolbarMenuButton
 from editor.widgets.QToolButton import ToolbarButton
 from editor.widgets.QSeparator import Separator
-from editor.Ironica.utils.debug_frame import DebugControlFrame
 
 
 class OptionsMenu(QFrame):
@@ -46,10 +46,13 @@ class OptionsMenu(QFrame):
             self._build_bar(json_file)
         # TODO: Add a guard method of json is not found
 
-        # Debug control frame — hidden until a debug session is active.
-        self.debug_frame = DebugControlFrame(self)
+        # Method to add the debug session without activation so it floats inside the hero
+        # container without guards.
+        # Debug control frame is hidden until a debug session is active.
+        # Parented to the main window (self.master) so it can be positioned
+        # and dragged across the entire window, not just the options bar.
+        self.debug_frame = DebugControlFrame(self.master)
         self.debug_frame.hide()
-        self._insert_debug_frame()
 
     def _validate_config(self, menu_data: list) -> None:
         """
@@ -170,17 +173,7 @@ class OptionsMenu(QFrame):
             elif widget_id == "stretch":
                 self.optionsMenu_layout.addStretch(1)
 
-    def _insert_debug_frame(self):
-        """Insert the debug control frame before the trailing stretch.
-
-        Walks backwards through the layout to find the last real widget
-        (button or separator) and inserts the frame immediately after it,
-        keeping the stretch spacer at the very end.
-        """
-        count = self.optionsMenu_layout.count()
-        for i in range(count - 1, -1, -1):
-            item = self.optionsMenu_layout.itemAt(i)
-            if item is not None and item.widget() is not None:
-                self.optionsMenu_layout.insertWidget(i + 1, self.debug_frame)
-                return
-        self.optionsMenu_layout.addWidget(self.debug_frame)
+            elif widget_id == "frame":
+                self.frame = QHBoxLayout()
+                self.frame.setContentsMargins(0, 0, 0, 0)
+                self.optionsMenu_layout.addLayout(self.frame)

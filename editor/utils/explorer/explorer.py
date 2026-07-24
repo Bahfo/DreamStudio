@@ -21,14 +21,11 @@ from PyQt6.QtCore import QModelIndex, QTimer, QDir, Qt
 from PyQt6.QtGui import QFileSystemModel
 
 # Local Imports
+from editor.utils.explorer.proxy import ExplorerFilterProxy, DreamTreeView
+from editor.utils.explorer.menu import ExplorerClickMenu, MenuRegistry
+from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
 from editor.utils.explorer.icons import DreamStudioIconProvider
-from editor.utils.explorer.proxy import ExplorerFilterProxy
 from editor.utils.explorer.packages import DependenciesView
-from editor.utils.explorer.menu import ExplorerClickMenu
-from editor.utils.explorer.proxy import DreamTreeView
-from editor.widgets.QToolBox import ExplorerToolbar
-from editor.utils.explorer.menu import MenuRegistry
-from editor.widgets.QToolBox import ToolbarButton
 from editor.utils.explorer.api import ExplorerAPI
 from editor.utils.panel_shell import PanelShell
 

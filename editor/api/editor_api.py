@@ -73,6 +73,9 @@ class EditorAPI:
         else:
             self._find_replace_window._show()
 
+    def _open_toolbox(self) -> None:
+        self.hero_window._text_editor_center.tabs.open_designer_tab()
+
     # ------------------------------------------------------------------
     # Sidebar button state
     # ------------------------------------------------------------------
@@ -376,7 +379,6 @@ class EditorAPI:
             if dlg.exec() != ConfirmDialog.DialogCode.Accepted:
                 return
 
-
         from editor.debugger.python_debug import DebugSession
 
         session = DebugSession(file_path, breakpoints, self)
@@ -384,9 +386,7 @@ class EditorAPI:
 
         # Expose the options-bar debug button so the session can
         # re-enable it on stop (Edge Case 3).
-        self._debug_btn_ref = getattr(
-            self.options_menu, "_debug_button", None
-        )
+        self._debug_btn_ref = getattr(self.options_menu, "_debug_button", None)
 
         session.start()
 

@@ -1193,3 +1193,11 @@ QMenu#TitleBarMenu {
 QMenu#TitleBarMenu::item {
     padding: 8px 14px;
 }
+
+/* ==========================================================================
+   ToolBox & Designer Canvas
+   ========================================================================== */
+
+QWidget#ToolBox {
+    background-color: #eaeaea;
+}

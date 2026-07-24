@@ -123,18 +123,14 @@ class DebugSession(QObject):
         self.main_window = main_window
 
         # Resolve breakpoints to executable lines.
-        self.resolved_breakpoints = resolve_breakpoints(
-            file_path, breakpoints
-        )
+        self.resolved_breakpoints = resolve_breakpoints(file_path, breakpoints)
 
         # Sorted list of executable breakpoint lines for navigation.
         self._sorted_bp_lines = sorted(self.resolved_breakpoints.values())
         self._current_bp_index = -1
 
         # Direct reference to the target editor (Edge Case 1 — tab switching).
-        self.target_editor = main_window.tab_editors.get_editor_for_path(
-            file_path
-        )
+        self.target_editor = main_window.tab_editors.get_editor_for_path(file_path)
 
         self._process = None
         self._is_running = False
@@ -162,7 +158,7 @@ class DebugSession(QObject):
         self.main_window.status_bar.set_debug_background()
 
         # Show the debug frame and enable its controls.
-        self.main_window.options_menu.debug_frame.show()
+        self.main_window.options_menu.debug_frame.show_at_default_position()
         self.main_window.options_menu.debug_frame.set_session(self)
         self.main_window.options_menu.debug_frame.enable_controls()
 
@@ -265,10 +261,6 @@ class DebugSession(QObject):
         self._current_bp_index = prev_idx
         line = self._sorted_bp_lines[prev_idx]
         self.on_debugger_paused(line)
-
-    def step_out(self):
-        """Step out of the current function. (Placeholder)"""
-        pass
 
     # ------------------------------------------------------------------
     # Internal helpers

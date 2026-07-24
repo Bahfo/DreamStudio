@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 from editor.Ironica.code_editor import CodeEditor
 from editor.Ironica.utils.minimap import MiniMapHostWidget
+from editor.utils.toolbox.designer import DesignerTab
 
 CONFIG_CODE_EDITOR = {
     "Set TextEditor Font": ("JetBrains Mono"),
@@ -112,6 +113,10 @@ class DreamTabbedEditor(QDreamTabEditor):
         # Formatting
         self._format_shortcut = QShortcut(QKeySequence("Ctrl+Alt+F"), self)
         self._format_shortcut.activated.connect(self.format_current_file)
+
+        # Visual Designer
+        self._designer_shortcut = QShortcut(QKeySequence("Ctrl+Shift+U"), self)
+        self._designer_shortcut.activated.connect(self.open_designer_tab)
 
         # Minimap toggle (corner widget on the right side of the tab bar)
         self._minimap_visible = True
@@ -294,6 +299,22 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.return_file_info()
 
         return new_editor
+
+    def open_designer_tab(self) -> None:
+        """Open or focus a Visual Designer tab.
+
+        If a designer tab is already open it is raised instead of creating
+        a duplicate.
+        """
+        for i in range(self.count()):
+            if isinstance(self.widget(i), DesignerTab):
+                self.setCurrentIndex(i)
+                return
+
+        tab = DesignerTab(self)
+        index = self.addTab(tab, "Designer")
+        self.setCurrentIndex(index)
+        self.setFocus()
 
     # ------------------------------------------------------------------
     # Close interceptors

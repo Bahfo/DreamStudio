@@ -34,10 +34,10 @@ class DreamStudio(EditorAPI, QMainWindow):
             self._parse_styleSheet("editor/qss/dark.qss")
 
     def setup_layout(self) -> None:
-        main_layout = self._build_main_layout()
-        self._build_title_bar(main_layout)
+        self.main_layout = self._build_main_layout()
+        self._build_title_bar(self.main_layout)
         self._build_hero()
-        self._build_status_bar(main_layout)
+        self._build_status_bar(self.main_layout)
 
     def _build_main_layout(self) -> QVBoxLayout:
         main_layout = QVBoxLayout(self.central_widget)
@@ -101,4 +101,3 @@ class DreamStudio(EditorAPI, QMainWindow):
     def _build_status_bar(self, main_layout: QVBoxLayout) -> None:
         self.status_bar = StatusBar(self)
         main_layout.addWidget(self.status_bar)
-
