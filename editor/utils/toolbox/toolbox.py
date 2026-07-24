@@ -60,7 +60,8 @@ class ToolBox(PanelShell):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMaximumWidth(100)
+        self.setFixedWidth(104)
+        self.setStyleSheet("border: 1px solid #636363;")
 
     def _header_right_widgets(self) -> list[QWidget]:
         return []
@@ -70,14 +71,14 @@ class ToolBox(PanelShell):
         self.section_widgets = []
 
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(3, 3, 3, 3)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
 
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setContentsMargins(8, 5, 5, 5)
 
         sections = [
             ("COMMON", common_tools),
@@ -87,7 +88,9 @@ class ToolBox(PanelShell):
 
         for section_title, tool_list in sections:
             label = QLabel(section_title)
-            label.setStyleSheet("background-color: transparent; font-size: 12px;")
+            label.setStyleSheet(
+                "background-color: transparent; font-size: 12px; border: none;"
+            )
             scroll_layout.addWidget(label)
 
             grid = QGridLayout()
@@ -103,6 +106,7 @@ class ToolBox(PanelShell):
                 btn.setFixedSize(40, 40)
                 btn.setIcon(QIcon(icon_path))
                 btn.setIconSize(ICON_SIZE)
+                btn.setStyleSheet("border: none;")
                 btn.setToolTip(tool_name)
                 btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 

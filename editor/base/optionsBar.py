@@ -106,6 +106,7 @@ class OptionsMenu(QFrame):
                 tooltip = item.get("tooltip", "")
                 size = tuple(item.get("size", [26, 26]))
                 icon_size = tuple(item.get("icon_size", [16, 16]))
+                text = item.get("text", "")
 
                 callback_name = item.get("callback")
                 callback_func = None
@@ -118,6 +119,7 @@ class OptionsMenu(QFrame):
                     fixed_size=size,
                     icon_size=icon_size,
                     callback=callback_func,
+                    text=text,
                 )
                 self.optionsMenu_layout.addWidget(btn)
 
