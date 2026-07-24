@@ -1,20 +1,19 @@
 """
 RecoveryWindow: displays unrecoverable startup failures.
 
-Shows human-readable diagnostics and recovery actions.
-Never instantiates the entire IDE.
+Uses assets/error_crash.svg as a full-window background with overlaid
+widgets for the error details textbox and action buttons.
 """
 
 import logging
+import os
 import traceback
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont, QPainter
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QLabel,
     QPushButton,
     QTextEdit,
     QApplication,
@@ -22,9 +21,21 @@ from PyQt6.QtWidgets import (
 
 logger = logging.getLogger(__name__)
 
+_ASSETS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "assets",
+)
+_SVG_PATH = os.path.join(_ASSETS_DIR, "error_crash.svg")
+
 
 class RecoveryWindow(QMainWindow):
-    """Minimal window shown when startup fails critically."""
+    """Window shown when startup fails critically.
+
+    Renders error_crash.svg as the full background and overlays a
+    scrollable textbox for the error details plus Retry/Quit buttons.
+    """
+
+    _W, _H = 800, 533
 
     def __init__(
         self,
@@ -37,65 +48,116 @@ class RecoveryWindow(QMainWindow):
         self._recovery_actions = recovery_actions or []
         self._message = message
         self._details = details
+        self._renderer = QSvgRenderer(_SVG_PATH)
         self.setWindowTitle(title)
-        self.setMinimumSize(600, 420)
+        self.setFixedSize(self._W, self._H)
         self.setWindowFlags(Qt.WindowType.Window)
         self._build_ui()
         logger.warning("RecoveryWindow created: %s", message)
 
+    # ------------------------------------------------------------------
+    # Background
+    # ------------------------------------------------------------------
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        if self._renderer.isValid():
+            self._renderer.render(painter)
+        else:
+            painter.fillRect(0, 0, self._W, self._H, Qt.GlobalColor.darkBlue)
+        painter.end()
+
+    # ------------------------------------------------------------------
+    # UI
+    # ------------------------------------------------------------------
+
     def _build_ui(self) -> None:
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(16)
-
-        self.setStyleSheet("background-color: #1a1a2e; color: #e0e0e0;")
-
-        title_label = QLabel("Startup Error")
-        title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: #e94560;")
-        layout.addWidget(title_label)
-
-        msg_label = QLabel(self._message)
-        msg_label.setFont(QFont("Segoe UI", 11))
-        msg_label.setWordWrap(True)
-        msg_label.setStyleSheet("color: #cccccc;")
-        layout.addWidget(msg_label)
-
+        text_content = self._message
         if self._details:
-            details_edit = QTextEdit()
-            details_edit.setReadOnly(True)
-            details_edit.setFont(QFont("Consolas", 9))
-            details_edit.setStyleSheet(
-                "background-color: #0f0f23; color: #aaaaaa; border: 1px solid #333333; padding: 8px;"
-            )
-            details_edit.setText(self._details)
-            details_edit.setMaximumHeight(180)
-            layout.addWidget(details_edit)
+            if text_content:
+                text_content += "\n\n"
+            text_content += self._details
 
-        btn_layout = QVBoxLayout()
-        btn_layout.setSpacing(8)
+        # -- Error details textbox (between the two SVG label lines) --
+        self._text_edit = QTextEdit(self)
+        self._text_edit.setReadOnly(True)
+        self._text_edit.setPlainText(text_content)
+        self._text_edit.setGeometry(48, 232, 704, 180)
+        self._text_edit.setStyleSheet(
+            "QTextEdit {"
+            "  background: transparent;"
+            "  color: #c8c8c8;"
+            "  border: none;"
+            "  font-family: Consolas, monospace;"
+            "  font-size: 10pt;"
+            "  selection-background-color: #1a5276;"
+            "}"
+            "QScrollBar:vertical {"
+            "  background: transparent;"
+            "  width: 3px;"
+            "  margin: 0;"
+            "}"
+            "QScrollBar::handle:vertical {"
+            "  background: rgba(255,255,255,0.15);"
+            "  border-radius: 1px;"
+            "  min-height: 20px;"
+            "}"
+            "QScrollBar::add-line:vertical,"
+            "QScrollBar::sub-line:vertical {"
+            "  height: 0;"
+            "  border: none;"
+            "}"
+            "QScrollBar::add-page:vertical,"
+            "QScrollBar::sub-page:vertical {"
+            "  background: none;"
+            "}"
+        )
 
-        retry_btn = QPushButton("Retry Startup")
+        # -- Retry button (right side, above the causality-fix text) --
+        retry_btn = QPushButton("Retry", self)
+        retry_btn.setGeometry(560, 430, 100, 32)
         retry_btn.setStyleSheet(
-            "QPushButton { background-color: #0f3460; color: white; padding: 10px 24px; "
-            "border: none; border-radius: 4px; font-size: 12px; }"
-            "QPushButton:hover { background-color: #1a5276; }"
+            "QPushButton {"
+            "  background-color: rgba(255,255,255,0.18);"
+            "  color: white;"
+            "  border: 1px solid rgba(255,255,255,0.3);"
+            "  border-radius: 4px;"
+            "  font-size: 11px;"
+            "  font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: rgba(255,255,255,0.28);"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: rgba(255,255,255,0.10);"
+            "}"
         )
         retry_btn.clicked.connect(self._on_retry)
-        btn_layout.addWidget(retry_btn)
 
-        quit_btn = QPushButton("Quit")
+        # -- Quit button (right side, next to Retry) --
+        quit_btn = QPushButton("Quit", self)
+        quit_btn.setGeometry(672, 430, 80, 32)
         quit_btn.setStyleSheet(
-            "QPushButton { background-color: #333333; color: #cccccc; padding: 10px 24px; "
-            "border: none; border-radius: 4px; font-size: 12px; }"
-            "QPushButton:hover { background-color: #555555; }"
+            "QPushButton {"
+            "  background-color: rgba(255,255,255,0.08);"
+            "  color: #cccccc;"
+            "  border: 1px solid rgba(255,255,255,0.2);"
+            "  border-radius: 4px;"
+            "  font-size: 11px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: rgba(255,255,255,0.16);"
+            "  color: white;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: rgba(255,255,255,0.06);"
+            "}"
         )
         quit_btn.clicked.connect(self._on_quit)
-        btn_layout.addWidget(quit_btn)
 
-        layout.addLayout(btn_layout)
+    # ------------------------------------------------------------------
+    # Actions
+    # ------------------------------------------------------------------
 
     def _on_retry(self) -> None:
         for label, action in self._recovery_actions:

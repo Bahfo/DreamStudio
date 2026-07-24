@@ -67,6 +67,7 @@ class BootstrapManager:
         self._phases = list(self._DEFAULT_PHASES)
         self._custom_phases: list[tuple[str, Callable]] = []
         self._ctx = PhaseContext(base_dir=self._base_dir)
+        self._recovery_window = None
         logger.info("BootstrapManager created (base_dir=%s)", self._base_dir)
 
     # ------------------------------------------------------------------
@@ -161,16 +162,20 @@ class BootstrapManager:
 
         from bootstrap.recovery import RecoveryWindow
 
-        window = RecoveryWindow(
+        self._recovery_window = RecoveryWindow(
             message=message,
             details=details,
             recovery_actions=[("retry", self._retry)],
         )
-        window.show()
+        self._recovery_window.show()
 
     def _retry(self) -> None:
         """Attempt startup again from scratch."""
         from PyQt6.QtWidgets import QApplication
+
+        if self._recovery_window:
+            self._recovery_window.close()
+            self._recovery_window = None
 
         app = QApplication.instance()
         if app:
