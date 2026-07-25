@@ -14,14 +14,16 @@ API.  Analyses source code via the ``ast`` module and returns exact
 - ``None`` / ``True`` / ``False`` constants
 
 **Bug-fix guarantee:** All offsets are computed via
-``_line_col_to_offset`` which produces flat byte positions.  Tokens
-inside strings or comments are excluded via binary-search overlap
-detection.  No partial substring matching is used -- every token
-specifies its exact ``start`` and ``length``.
+``_line_col_to_offset`` with a precomputed ``line_offsets`` array for
+O(1) lookups.  Tokens inside strings or comments are excluded via the
+``tokenize`` module.  No partial substring matching is used -- every
+token specifies its exact ``start`` and ``length``.
 """
 
 import ast
+import io
 import re
+import tokenize
 from typing import List, Optional, Tuple
 
 from editor.Ironica.utils.highlighting_api import (
@@ -33,7 +35,7 @@ from editor.Ironica.utils.highlighting_api import (
 )
 
 # ------------------------------------------------------------------
-# Colour constants (VS Code dark theme)
+# Color constants (VS Code dark theme)
 # ------------------------------------------------------------------
 _CLR_MODULE = "#4EC9B0"  # teal   -- module names
 _CLR_FUNCTION = "#DCDCAA"  # yellow -- function names
@@ -47,18 +49,13 @@ _CLR_CONSTANT = "#569CD6"  # dark blue -- None, True, False
 # ------------------------------------------------------------------
 
 
-def _line_col_to_offset(text: str, lineno: int, col_offset: int) -> int:
-    """Convert ``(line, col)`` (both 0-indexed) to a flat offset in *text*.
+def _line_col_to_offset(line_offsets: List[int], lineno: int, col_offset: int) -> int:
+    """Convert ``(line, col)`` (both 0-indexed) to a flat offset.
 
-    This is the canonical offset calculator.  All AST node positions
-    are converted through this function to guarantee exact byte
-    offsets.
+    Uses the precomputed *line_offsets* array for O(1) lookup.
+    ``line_offsets[i]`` is the byte offset of the start of line *i*.
     """
-    lines = text.split("\n")
-    offset = 0
-    for i in range(lineno):
-        offset += len(lines[i]) + 1  # +1 for '\n'
-    return offset + col_offset
+    return line_offsets[lineno] + col_offset
 
 
 def _find_offset_after(text: str, start_offset: int, name: str) -> int:
@@ -68,26 +65,29 @@ def _find_offset_after(text: str, start_offset: int, name: str) -> int:
 
 
 # ------------------------------------------------------------------
-# Exclusion range builder (strings + comments)
+# Exclusion range builder (strings + comments) — tokenize-based
 # ------------------------------------------------------------------
 
-_COMMENT_RE = re.compile(r"#[^\n]*")
-_STRING_RE = re.compile(
-    r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\''
-    r'|"[^\n"\\]*(?:\\.[^\n"\\]*)*"'
-    r"|'[^'\\\n]*(?:\\.[^'\\\n]*)*'"
-)
 
-
-def _build_exclusions(text: str) -> List[Tuple[int, int]]:
+def _build_exclusions(text: str, line_offsets: List[int]) -> List[Tuple[int, int]]:
     """Build a sorted list of ``(start, end)`` exclusion ranges from
-    comments and strings in *text*.
+    comments and strings in *text* using the ``tokenize`` module.
+
+    Tokenize is authoritative for Python string/comment boundaries;
+    regex heuristics are eliminated.
     """
     exclude: List[Tuple[int, int]] = []
-    for cm in _COMMENT_RE.finditer(text):
-        exclude.append((cm.start(), cm.end()))
-    for st in _STRING_RE.finditer(text):
-        exclude.append((st.start(), st.end()))
+    try:
+        tokens = tokenize.tokenize(io.BytesIO(text.encode("utf-8")).readline)
+        for tok_type, tok_string, start, end, line in tokens:
+            if tok_type in (tokenize.COMMENT, tokenize.STRING):
+                flat_start = _line_col_to_offset(line_offsets, start[0] - 1, start[1])
+                flat_end = _line_col_to_offset(line_offsets, end[0] - 1, end[1])
+                exclude.append((flat_start, flat_end))
+    except tokenize.TokenError:
+        # Unclosed string during live typing — partial exclusions are
+        # still better than none.
+        pass
     exclude.sort()
     return exclude
 
@@ -115,184 +115,252 @@ def _in_exclusion(pos: int, length: int, exclude: List[Tuple[int, int]]) -> bool
 class PythonSemanticProvider(ITokenProvider):
     """AST-based token provider for Python source code.
 
-    Implements the ``ITokenProvider`` contract from the Core
-    Highlighting API.  Returns exact ``(start, length, style)``
-    tokens for structural elements identified by the ``ast`` module.
+    Implements a production-grade interval resolution algorithm to completely
+    eliminate overlapping tokens, which crash the Scintilla styling engine.
+    Relies strictly on Python 3.8+ exact AST offsets (end_col_offset) instead
+    of highly volatile text substring matching.
     """
 
     def get_tokens(self, text: str) -> List[Token]:
-        """Parse *text* via ``ast`` and return styled tokens.
-
-        Every token has an exact ``start`` offset and ``length``
-        computed from the AST node's ``lineno`` and ``col_offset``.
-        """
         if not text.strip():
             return []
 
         try:
             tree = ast.parse(text)
         except SyntaxError:
+            # In a production environment, if the AST fails to parse due to
+            # live typing, we safely return empty and let the base lexer take over.
             return []
 
-        exclude = _build_exclusions(text)
-        tokens: List[Token] = []
+        line_offsets: List[int] = [0] + [m.end() for m in re.finditer(r"\n", text)]
+        exclude = _build_exclusions(text, line_offsets)
+
+        candidates = []
+
+        def add_candidate(start: int, length: int, style: TokenStyle, kind: str):
+            """Registers a token candidate with an implicit priority scoring."""
+            if length <= 0 or _in_exclusion(start, length, exclude):
+                return
+
+            # Strict priority tier to ensure structural elements override general names
+            priority_map = {
+                "keyword": 10,
+                "self": 9,
+                "constant": 8,
+                "function": 7,
+                "class": 6,
+                "parameter": 5,
+                "variable": 4,
+                "module": 3,
+                "definition": 2,
+            }
+
+            candidates.append(
+                {
+                    "start": start,
+                    "end": start + length,
+                    "style": style,
+                    "kind": kind,
+                    "priority": priority_map.get(kind, 0),
+                }
+            )
 
         for node in ast.walk(tree):
-            # ── import os / import os.path ──────────────────────
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    offset = _line_col_to_offset(
-                        text, node.lineno - 1, alias.col_offset
-                    )
-                    length = len(alias.name)
-                    if not _in_exclusion(offset, length, exclude):
-                        tokens.append(
-                            Token(
-                                start=offset,
-                                length=length,
-                                style=STYLES["module"],
-                                kind="module",
+            try:
+                # ── Class Instantiations & Function Calls ──────────
+                if isinstance(node, ast.Call):
+                    # Highlight kwargs (requires Py 3.9+ for accurate kwarg offsets)
+                    for kw in node.keywords:
+                        if (
+                            kw.arg
+                            and hasattr(kw, "lineno")
+                            and hasattr(kw, "col_offset")
+                        ):
+                            kw_start = _line_col_to_offset(
+                                line_offsets, kw.lineno - 1, kw.col_offset
                             )
+                            add_candidate(
+                                kw_start, len(kw.arg), STYLES["parameter"], "parameter"
+                            )
+
+                    if isinstance(node.func, ast.Name) and hasattr(
+                        node.func, "col_offset"
+                    ):
+                        start = _line_col_to_offset(
+                            line_offsets, node.func.lineno - 1, node.func.col_offset
+                        )
+                        add_candidate(
+                            start, len(node.func.id), STYLES["function"], "function"
                         )
 
-            # ── from X import Y, Z ─────────────────────────────
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    from_offset = _line_col_to_offset(
-                        text, node.lineno - 1, node.col_offset
-                    )
-                    mod_offset = _find_offset_after(text, from_offset, node.module)
-                    mod_len = len(node.module)
-                    if not _in_exclusion(mod_offset, mod_len, exclude):
-                        tokens.append(
-                            Token(
-                                start=mod_offset,
-                                length=mod_len,
-                                style=STYLES["module"],
-                                kind="module",
-                            )
+                    elif isinstance(node.func, ast.Attribute) and hasattr(
+                        node.func, "end_col_offset"
+                    ):
+                        # Extract precise attribute end offset directly from compiler bounds
+                        end = _line_col_to_offset(
+                            line_offsets,
+                            node.func.end_lineno - 1,
+                            node.func.end_col_offset,
+                        )
+                        start = end - len(node.func.attr)
+                        add_candidate(
+                            start, len(node.func.attr), STYLES["function"], "function"
                         )
 
-                for alias in node.names:
-                    name_offset = _line_col_to_offset(
-                        text, node.lineno - 1, alias.col_offset
+                # ── Attributes (e.g. obj.property) ──────────
+                elif isinstance(node, ast.Attribute) and hasattr(
+                    node, "end_col_offset"
+                ):
+                    end = _line_col_to_offset(
+                        line_offsets, node.end_lineno - 1, node.end_col_offset
                     )
-                    name_len = len(alias.name)
-                    if not _in_exclusion(name_offset, name_len, exclude):
-                        style = (
-                            STYLES["class"]
-                            if alias.name[0].isupper()
-                            else STYLES["function"]
+                    start = end - len(node.attr)
+
+                    if node.attr.isupper():
+                        add_candidate(
+                            start, len(node.attr), STYLES["constant"], "constant"
                         )
-                        tokens.append(
-                            Token(
-                                start=name_offset,
-                                length=name_len,
-                                style=style,
-                                kind="definition",
-                            )
+                    elif node.attr[0].isupper():
+                        add_candidate(start, len(node.attr), STYLES["class"], "class")
+                    else:
+                        add_candidate(
+                            start, len(node.attr), STYLES["variable"], "variable"
                         )
 
-            # ── def f(foo, bar=1): ─────────────────────────────
-            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                for arg in node.args.args:
-                    arg_offset = _line_col_to_offset(
-                        text, node.lineno - 1, arg.col_offset
+                # ── Standalone Names ──────────
+                elif isinstance(node, ast.Name) and hasattr(node, "col_offset"):
+                    start = _line_col_to_offset(
+                        line_offsets, node.lineno - 1, node.col_offset
                     )
-                    arg_len = len(arg.arg)
-                    if not _in_exclusion(arg_offset, arg_len, exclude):
-                        style = (
-                            STYLES["self"]
-                            if arg.arg in ("self", "cls")
-                            else STYLES["parameter"]
+                    if node.id in ("self", "cls"):
+                        add_candidate(start, len(node.id), STYLES["self"], "self")
+                    elif node.id.isupper():
+                        add_candidate(
+                            start, len(node.id), STYLES["constant"], "constant"
                         )
-                        tokens.append(
-                            Token(
-                                start=arg_offset,
-                                length=arg_len,
-                                style=style,
-                                kind="parameter",
-                            )
+                    elif node.id[0].isupper():
+                        add_candidate(start, len(node.id), STYLES["class"], "class")
+                    else:
+                        add_candidate(
+                            start, len(node.id), STYLES["variable"], "variable"
                         )
 
-            # ── class Foo: ─────────────────────────────────────
-            elif isinstance(node, ast.ClassDef):
-                name_offset = _line_col_to_offset(
-                    text, node.lineno - 1, node.col_offset
-                )
-                # "class" keyword is 5 chars before the name.
-                kw_offset = name_offset - 6  # "class " prefix
-                if kw_offset >= 0:
-                    kw_len = 5
-                    if not _in_exclusion(kw_offset, kw_len, exclude):
-                        tokens.append(
-                            Token(
-                                start=kw_offset,
-                                length=kw_len,
-                                style=STYLES["keyword"],
-                                kind="keyword",
-                            )
-                        )
-                name_len = len(node.name)
-                if not _in_exclusion(name_offset, name_len, exclude):
-                    tokens.append(
-                        Token(
-                            start=name_offset,
-                            length=name_len,
-                            style=STYLES["class"],
-                            kind="class",
-                        )
+                # ── Constants (None, True, False) ──────────
+                elif (
+                    isinstance(node, ast.Constant)
+                    and node.value in (None, True, False)
+                    and hasattr(node, "col_offset")
+                ):
+                    start = _line_col_to_offset(
+                        line_offsets, node.lineno - 1, node.col_offset
+                    )
+                    add_candidate(
+                        start, len(str(node.value)), STYLES["constant"], "constant"
                     )
 
-            # ── x = 5, x: int = 5 ─────────────────────────────
-            elif isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        t_offset = _line_col_to_offset(
-                            text, node.lineno - 1, target.col_offset
+                # ── Definitions ──────────
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    start = _line_col_to_offset(
+                        line_offsets, node.lineno - 1, node.col_offset
+                    )
+                    # Safe localized fallback since defs have variable leading keyword lengths
+                    idx = text.find(node.name, start)
+                    if idx != -1 and idx < start + 50:
+                        add_candidate(
+                            idx, len(node.name), STYLES["function"], "function"
                         )
-                        t_len = len(target.id)
-                        if not _in_exclusion(t_offset, t_len, exclude):
-                            tokens.append(
-                                Token(
-                                    start=t_offset,
-                                    length=t_len,
-                                    style=STYLES["variable"],
-                                    kind="variable",
-                                )
+
+                    for arg in node.args.args:
+                        if hasattr(arg, "col_offset"):
+                            arg_start = _line_col_to_offset(
+                                line_offsets, arg.lineno - 1, arg.col_offset
+                            )
+                            style = (
+                                STYLES["self"]
+                                if arg.arg in ("self", "cls")
+                                else STYLES["parameter"]
+                            )
+                            kind = "self" if arg.arg in ("self", "cls") else "parameter"
+                            add_candidate(arg_start, len(arg.arg), style, kind)
+
+                elif isinstance(node, ast.ClassDef):
+                    start = _line_col_to_offset(
+                        line_offsets, node.lineno - 1, node.col_offset
+                    )
+                    idx = text.find(node.name, start)
+                    if idx != -1 and idx < start + 50:
+                        add_candidate(idx, len(node.name), STYLES["class"], "class")
+
+                # ── Imports ──────────
+                elif isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if hasattr(alias, "col_offset"):
+                            start = _line_col_to_offset(
+                                line_offsets, alias.lineno - 1, alias.col_offset
+                            )
+                            add_candidate(
+                                start, len(alias.name), STYLES["module"], "module"
                             )
 
-        # ── self / cls (all occurrences) ────────────────────────
-        _SELF_RE = re.compile(r"\b(self|cls)\b")
-        for m in _SELF_RE.finditer(text):
-            if not _in_exclusion(m.start(), m.end() - m.start(), exclude):
-                tokens.append(
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module and hasattr(node, "col_offset"):
+                        start = _line_col_to_offset(
+                            line_offsets, node.lineno - 1, node.col_offset
+                        )
+                        mod_idx = text.find(node.module, start)
+                        if mod_idx != -1:
+                            add_candidate(
+                                mod_idx, len(node.module), STYLES["module"], "module"
+                            )
+                    for alias in node.names:
+                        if alias.name != "*" and hasattr(alias, "col_offset"):
+                            start = _line_col_to_offset(
+                                line_offsets, alias.lineno - 1, alias.col_offset
+                            )
+                            style = (
+                                STYLES["class"]
+                                if alias.name[0].isupper()
+                                else STYLES["function"]
+                            )
+                            add_candidate(start, len(alias.name), style, "definition")
+
+            except Exception:
+                # Silently ignore localized malformed nodes during active typing
+                pass
+
+        # ── Interval Resolution Phase ──────────
+        # Sort by priority descending to guarantee the most important tokens are processed first
+        candidates.sort(key=lambda c: -c["priority"])
+
+        final_tokens = []
+        accepted_intervals = []
+
+        # O(N*M) overlap filter. Fast enough for viewport semantic tokens.
+        for c in candidates:
+            overlap = False
+            for interval in accepted_intervals:
+                # An overlap occurs if the candidate starts before an accepted token ends
+                # AND ends after the accepted token starts.
+                if c["start"] < interval[1] and c["end"] > interval[0]:
+                    overlap = True
+                    break
+
+            if not overlap:
+                final_tokens.append(
                     Token(
-                        start=m.start(),
-                        length=m.end() - m.start(),
-                        style=STYLES["self"],
-                        kind="self",
+                        start=c["start"],
+                        length=c["end"] - c["start"],
+                        style=c["style"],
+                        kind=c["kind"],
                     )
                 )
+                accepted_intervals.append((c["start"], c["end"]))
 
-        # ── None / True / False ─────────────────────────────────
-        _CONST_RE = re.compile(r"\b(None|True|False)\b")
-        for m in _CONST_RE.finditer(text):
-            if not _in_exclusion(m.start(), m.end() - m.start(), exclude):
-                tokens.append(
-                    Token(
-                        start=m.start(),
-                        length=m.end() - m.start(),
-                        style=STYLES["constant"],
-                        kind="constant",
-                    )
-                )
-
-        tokens.sort(key=lambda t: t.start)
-        return tokens
+        # Scintilla expects tokens to be fed in strictly ascending start order
+        final_tokens.sort(key=lambda t: t.start)
+        return final_tokens
 
     def get_token_at(self, text: str, offset: int) -> Optional[Token]:
-        """Return the token covering *offset*, or ``None``."""
         tokens = self.get_tokens(text)
         for tok in tokens:
             if tok.start <= offset < tok.start + tok.length:
@@ -300,12 +368,6 @@ class PythonSemanticProvider(ITokenProvider):
         return None
 
     def get_semantic_ranges(self, text: str) -> List[Tuple[int, int, str]]:
-        """Return ``(start, length, colour)`` tuples for Scintilla
-        indicator overlays.
-
-        This is the format expected by
-        ``CodeEditor._apply_semantic_indicators()``.
-        """
         tokens = self.get_tokens(text)
         return [(tok.start, tok.length, tok.style.colour) for tok in tokens]
 

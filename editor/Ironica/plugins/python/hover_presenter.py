@@ -19,10 +19,6 @@ from .domain_models import HoverDetails
 class HoverPresenter:
     """Converts ``HoverDetails`` domain models into display-ready text."""
 
-    # ------------------------------------------------------------------
-    # Markdown
-    # ------------------------------------------------------------------
-
     @staticmethod
     def to_markdown(details: Optional[HoverDetails]) -> str:
         """Return a Markdown representation of *details*."""
@@ -58,10 +54,6 @@ class HoverPresenter:
 
         return "\n".join(lines)
 
-    # ------------------------------------------------------------------
-    # Qt-compatible tooltip HTML (for QToolTip.showText)
-    # ------------------------------------------------------------------
-
     @staticmethod
     def to_qt_tooltip(details: Optional[HoverDetails]) -> str:
         """Return an HTML string safe for ``QToolTip.showText()``.
@@ -84,14 +76,17 @@ class HoverPresenter:
             f' <font style="color:#888888;">({kind_label})</font>'
         )
 
-        # -- Signature code block (rendered as a table with bg colour) --
-        sig_esc = _html.escape(details.signature)
+        sig_esc = (
+            _html.escape(details.signature)
+            .replace("\n", "<br/>")
+            .replace("  ", "&nbsp;&nbsp;")
+        )
         parts.append(
             '<table style="margin-top:4px;" cellspacing="0" cellpadding="4">'
             "<tr>"
             f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
             f'font-family:monospace; font-size:12px;">'
-            f'<pre style="margin:0; white-space:pre-wrap;">{sig_esc}</pre>'
+            f"{sig_esc}"
             "</td>"
             "</tr>"
             "</table>"
@@ -126,16 +121,14 @@ class HoverPresenter:
         if details.docstring:
             cleaned = HoverPresenter._clean_docstring(details.docstring)
             doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
-            parts.append(f'<hr style="margin:6px 0;"/>')
+            parts.append(
+                '<br/><font color="#555555">──────────────────────</font><br/>'
+            )
             parts.append(
                 f'<font style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</font>"
             )
 
         return "".join(parts)
-
-    # ------------------------------------------------------------------
-    # QLabel-compatible HTML (for DocumentationFlyout)
-    # ------------------------------------------------------------------
 
     @staticmethod
     def to_html(details: Optional[HoverDetails]) -> str:
@@ -216,10 +209,6 @@ class HoverPresenter:
             )
 
         return "\n".join(parts)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _clean_docstring(docstring: str) -> str:

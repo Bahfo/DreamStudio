@@ -17,6 +17,7 @@ are contained within this module -- no raw Jedi objects leak.
 """
 
 import logging
+import re
 import jedi
 from typing import List, Optional, Tuple
 
@@ -354,13 +355,12 @@ class JediAdapter(IJediAdapter):
     def get_semantic_ranges(
         self, text: str, line: int, column: int
     ) -> List[Tuple[int, int, str]]:
-        """Resolve tokens at cursor via Jedi and return exact
-        ``(start_offset, length, colour)`` tuples.
+        """Resolve the single token under the cursor via Jedi.
 
-        This method performs **deep token resolution** by asking Jedi
-        to infer the type of each symbol in the visible range, then
-        returns exact byte offsets suitable for Scintilla indicator
-        overlays.
+        Returns exact ``(start_offset, length, colour)`` tuples for
+        the token at the given cursor position.  This is intended
+        for hover / click operations only.  Real-time syntax colouring
+        is handled entirely by the AST-based ``PythonSemanticProvider``.
 
         Args:
             text:   Full editor buffer content.
@@ -368,8 +368,9 @@ class JediAdapter(IJediAdapter):
             column: Cursor column (0-indexed).
 
         Returns:
-            A list of ``(start_offset, length, colour)`` tuples sorted
-            by start offset.  Returns an empty list on error.
+            A list containing at most one ``(start_offset, length,
+            colour)`` tuple, or an empty list if the token cannot be
+            resolved.
         """
         if not text.strip():
             return []
@@ -384,16 +385,12 @@ class JediAdapter(IJediAdapter):
         if not script:
             return []
 
-        ranges: List[Tuple[int, int, str]] = []
-
-        # Resolve the token under the cursor.
         try:
             definitions = script.goto(line=line + 1, column=column)
             if not definitions:
                 definitions = script.infer(line=line + 1, column=column)
 
             for defn in definitions[:1]:
-                # Get the full module source to compute offsets.
                 try:
                     def_module = defn.module
                     if hasattr(def_module, "source"):
@@ -402,61 +399,20 @@ class JediAdapter(IJediAdapter):
                         def_col = defn.column
                         def_name = defn.name
 
-                        # Compute start offset from line/col.
-                        lines = def_source.split("\n")
-                        offset = 0
-                        for i in range(def_line):
-                            offset += len(lines[i]) + 1
-                        offset += def_col
+                        line_offsets = [0] + [
+                            m.end() for m in re.finditer(r"\n", def_source)
+                        ]
+                        offset = line_offsets[def_line] + def_col
 
-                        # Determine colour by Jedi type.
                         colour = self._jedi_type_colour(defn.type)
-                        ranges.append((offset, len(def_name), colour))
+                        return [(offset, len(def_name), colour)]
                 except Exception:
                     pass
 
         except Exception as e:
             logger.debug("Jedi semantic range resolution failed: %s", e)
 
-        # Also scan for all names in visible lines that Jedi can infer.
-        # This is a lightweight sweep of the immediate context.
-        try:
-            lines = text.split("\n")
-            visible_start = max(0, line - 20)
-            visible_end = min(len(lines), line + 20)
-
-            for vis_line in range(visible_start, visible_end):
-                # Quick regex to find identifier-like tokens.
-                import re
-
-                for m in re.finditer(r"\b([A-Za-z_]\w*)\b", lines[vis_line]):
-                    token_name = m.group(1)
-                    # Try to infer type at this location.
-                    try:
-                        inf = script.infer(line=vis_line + 1, column=m.start())
-                        if inf:
-                            defn = inf[0]
-                            # Skip builtins and primitives.
-                            if defn.type in ("instance", "builtin"):
-                                continue
-                            colour = self._jedi_type_colour(defn.type)
-                            # Only add if not already covered.
-                            token_start = (
-                                sum(
-                                    len(lines[j]) + 1
-                                    for j in range(visible_start, vis_line)
-                                )
-                                + m.start()
-                            )
-                            if not any(s <= token_start < s + l for s, l, _ in ranges):
-                                ranges.append((token_start, len(token_name), colour))
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-        ranges.sort(key=lambda r: r[0])
-        return ranges
+        return []
 
     @staticmethod
     def _jedi_type_colour(jedi_type: str) -> str:
