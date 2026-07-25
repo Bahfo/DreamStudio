@@ -25,6 +25,7 @@ from editor.Ironica.utils.autocomplete_menu import (
     EditorAutocompleteExtension,
     HoverDocumentationPopup,
 )
+from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
 from editor.Ironica.utils.debug_frame import StackInfoFrame
 
 logger = logging.getLogger(__name__)
@@ -1056,9 +1057,7 @@ class CodeEditor(QsciScintilla):
         # Invalidate the semantic provider cache before setText so the
         # debounced refresh always computes fresh results for the new
         # buffer content.
-        if self.current_provider and hasattr(
-            self.current_provider, "invalidate_cache"
-        ):
+        if self.current_provider and hasattr(self.current_provider, "invalidate_cache"):
             try:
                 self.current_provider.invalidate_cache()
             except Exception:

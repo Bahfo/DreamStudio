@@ -44,7 +44,7 @@ except ImportError:
             return source_code
 
 
-from .domain_models import PythonContext
+from .domain_models import PythonContext, HoverDetails
 from .interfaces import IJediAdapter
 from .cache import LanguageCache
 from .hover_presenter import HoverPresenter
@@ -53,12 +53,7 @@ logger = logging.getLogger("DreamStudio.PythonSupport.Provider")
 
 
 def _is_inside_string(line_text: str, col: int) -> bool:
-    """Return ``True`` if *col* falls inside a string literal on *line_text*.
-
-    Handles single-quoted, double-quoted, and triple-quoted strings.
-    This is a best-effort check without a full tokenizer — it handles
-    the common cases that cause spurious hover popups.
-    """
+    """Return ``True`` if *col* falls inside a string literal on *line_text*."""
     i = 0
     n = len(line_text)
     while i < n:
@@ -70,13 +65,11 @@ def _is_inside_string(line_text: str, col: int) -> bool:
                 return True
             end = line_text.find(quote, i + q_len)
             if end == -1:
-                # Unclosed string — everything to the right is inside it.
                 return col >= i
             if i + q_len <= col <= end:
                 return True
             i = end + q_len
         elif ch == "#":
-            # Comment — stop scanning (nothing after it is a string).
             break
         else:
             i += 1
@@ -85,12 +78,8 @@ def _is_inside_string(line_text: str, col: int) -> bool:
 
 class PythonLanguageProvider(BaseLanguageProvider):
     """
-    Stateless provider.  This handles coordinate transformations and caching,
-    while delegating source code analysis tasks entirely to an IJediAdapter.
-
-    **Coordinate translation:** The editor passes 0-indexed lines.  Jedi
-    expects 1-indexed lines.  Every ``_build_context`` call converts
-    ``editor_line`` to ``jedi_line = editor_line + 1``.
+    Stateless provider. Handles coordinate transformations and caching,
+    delegating source code analysis tasks entirely to an IJediAdapter.
     """
 
     def __init__(
@@ -104,19 +93,52 @@ class PythonLanguageProvider(BaseLanguageProvider):
         self._cache = cache if cache is not None else LanguageCache()
         self._file_path = file_path
 
-    # ------------------------------------------------------------------
-    # Public property for file_path (allows the integration layer to
-    # set it when an editor tab is focused).
-    # ------------------------------------------------------------------
-
     @property
     def file_path(self) -> Optional[str]:
-        """Return the currently active file path, if known."""
         return self._file_path
 
     @file_path.setter
     def file_path(self, value: Optional[str]) -> None:
         self._file_path = value
+
+    # ------------------------------------------------------------------
+    # Provider Initialization & UI Setup Helper
+    # ------------------------------------------------------------------
+
+    def setup_hover_engine(self, editor) -> Tuple[object, object]:
+        """
+        Instantiates and wires up DocumentationFlyout and HoverController
+        directly onto the target editor instance.
+        """
+        from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
+        from editor.Ironica.utils.hover_controller import HoverController
+
+        flyout = DocumentationFlyout(parent=editor)
+        controller = HoverController(editor=editor, flyout=flyout, provider=self)
+
+        # Wire Jump-To-Declaration toolbar action
+        flyout.jump_to_source_requested.connect(
+            lambda: self._handle_flyout_jump(editor, controller)
+        )
+
+        return flyout, controller
+
+    def _handle_flyout_jump(self, editor, controller) -> None:
+        """Handle definition jump triggered from the flyout toolbar."""
+        controller.flyout.dismiss(force=True)
+        line = controller._target_line
+        col = controller._target_col
+        text = editor.text()
+
+        if line >= 0 and col >= 0:
+            loc = self.get_definition_location(text, line, col)
+            if loc and loc[0]:
+                file_path, target_line, target_col = loc
+                if hasattr(editor, "open_file_at_line"):
+                    editor.open_file_at_line(file_path, target_line, target_col)
+                else:
+                    editor.setCursorPosition(target_line, target_col)
+                    editor.ensureLineVisible(target_line)
 
     # ------------------------------------------------------------------
     # Context translation
@@ -125,11 +147,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
     def _build_context(
         self, text: str, line: int, col: int, file_path: Optional[str] = None
     ) -> PythonContext:
-        """Build an immutable ``PythonContext`` with correct coordinates.
-
-        Converts the editor's 0-indexed line to Jedi's 1-indexed line.
-        Columns are already 0-indexed in both systems.
-        """
         effective_path = file_path or self._file_path
         return PythonContext(
             source_code=text,
@@ -139,17 +156,24 @@ class PythonLanguageProvider(BaseLanguageProvider):
         )
 
     # ------------------------------------------------------------------
-    # BaseLanguageProvider contract
+    # Domain Hover Support
     # ------------------------------------------------------------------
 
-    def get_auto_completions(self, text: str, line: int, col: int) -> List[str]:
-        """Return completion strings for the cursor position.
+    def get_hover_details(
+        self, text: str, line: int, col: int
+    ) -> Optional[HoverDetails]:
+        """Return raw HoverDetails domain model for structured UI rendering."""
+        if not text:
+            return None
 
-        Args:
-            text: Full buffer content.
-            line: 0-indexed cursor line (editor convention).
-            col: 0-indexed cursor column.
-        """
+        symbol = self._symbol_at(text, line, col)
+        if not symbol or keyword.iskeyword(symbol):
+            return None
+
+        context = self._build_context(text, line, col)
+        return self._adapter.get_hover(context)
+
+    def get_auto_completions(self, text: str, line: int, col: int) -> List[str]:
         if not text:
             return []
 
@@ -166,46 +190,17 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return completions_list
 
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
-        """Return a Qt-tooltip-compatible HTML string for the symbol under the cursor.
-
-        Uses ``HoverPresenter.to_qt_tooltip()`` which produces HTML safe
-        for ``QToolTip.showText()`` -- only ``<b>``, ``<i>``, ``<font>``,
-        ``<br>``, ``<table>`` tags with inline CSS.
-
-        Returns ``None`` for Python keywords (``if``, ``def``, ``class``,
-        etc.) since they carry no useful documentation.
-        """
         if not text:
             return None
 
-        symbol = self._symbol_at(text, line, col)
-        if not symbol:
-            return None
-        if keyword.iskeyword(symbol):
-            return None
-
-        context = self._build_context(text, line, col)
-
-        cached_result = self._cache.get(context, "hover")
-        if cached_result is not None:
-            return cached_result
-
-        hover_details = self._adapter.get_hover(context)
+        hover_details = self.get_hover_details(text, line, col)
         if not hover_details:
             return None
 
-        formatted_hint = HoverPresenter.to_qt_tooltip(hover_details)
-
-        self._cache.set(context, "hover", formatted_hint)
-        return formatted_hint
+        return HoverPresenter.to_qt_tooltip(hover_details)
 
     @staticmethod
     def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
-        """Extract the word under the cursor at (*line*, *col*).
-
-        Returns ``None`` if the cursor is not over a valid identifier
-        or if it is inside a string literal.
-        """
         lines = text.split("\n")
         if line < 0 or line >= len(lines):
             return None
@@ -213,8 +208,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
         if col < 0 or col > len(row):
             return None
 
-        # Check if the cursor is inside a string literal (single, double,
-        # or triple-quoted) by scanning for unescaped quote characters.
         if _is_inside_string(row, col):
             return None
 
@@ -224,24 +217,10 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return None
 
     def get_hover_html(self, text: str, line: int, col: int) -> Optional[str]:
-        """Return an HTML string for rich hover tooltip rendering.
-
-        This is an extension beyond the ``BaseLanguageProvider`` contract,
-        used by the integration layer for Qt rich-text tooltips.
-        Returns ``None`` for Python keywords.
-        """
         if not text:
             return None
 
-        symbol = self._symbol_at(text, line, col)
-        if not symbol:
-            return None
-        if keyword.iskeyword(symbol):
-            return None
-
-        context = self._build_context(text, line, col)
-
-        hover_details = self._adapter.get_hover(context)
+        hover_details = self.get_hover_details(text, line, col)
         if not hover_details:
             return None
 
@@ -250,14 +229,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
     def get_definition_location(
         self, text: str, line: int, col: int
     ) -> Optional[Tuple[str, int, int]]:
-        """Return ``(file_path, line, col)`` for the symbol's definition.
-
-        Lines are returned as 1-indexed from Jedi.  The editor's
-        ``open_file_at_line`` will use this directly.
-
-        All values are严格ly typed: ``str``, ``int``, ``int``.
-        This prevents segmentation faults in the C++ QScintilla backend.
-        """
         context = self._build_context(text, line, col)
 
         cached_result = self._cache.get(context, "definition")
@@ -277,32 +248,20 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return result
 
     def format_source(self, source_code: str) -> str:
-        """Pass-through.  Formatting is handled externally."""
         return source_code
 
     def get_semantic_highlights(self, text: str):
-        """Return colour ranges for Python semantic tokens.
-
-        Delegates to :func:`semantic_highlights.get_semantic_highlights`
-        which uses the ``ast`` module for reliable detection of imports,
-        function parameters, and variable definitions.
-        """
         from .semantic_highlights import get_semantic_highlights
 
         return get_semantic_highlights(text)
 
     # ------------------------------------------------------------------
-    # Extended plugin services (not in BaseLanguageProvider contract,
-    # used by the integration layer).
+    # Extended plugin services
     # ------------------------------------------------------------------
 
     def get_references(
         self, text: str, line: int, col: int, file_path: Optional[str] = None
     ):
-        """Find all references to the symbol at the cursor position.
-
-        Returns a list of ``ReferenceLocation`` domain models.
-        """
         context = self._build_context(text, line, col, file_path)
         try:
             return self._adapter.get_references(context)
@@ -318,10 +277,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
         new_name: str,
         file_path: Optional[str] = None,
     ):
-        """Calculate rename refactoring changes.
-
-        Returns a list of ``RefactorChange`` domain models.
-        """
         context = self._build_context(text, line, col, file_path)
         try:
             return self._adapter.get_rename_changes(context, new_name)
@@ -330,10 +285,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
             return []
 
     def get_complexity(self, source_code: str):
-        """Analyze source code complexity.
-
-        Returns a ``ComplexityReport`` domain model.
-        """
         try:
             from .complexity import ComplexityAnalysisService
 
