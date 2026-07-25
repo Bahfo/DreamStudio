@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 from editor.Ironica.code_editor import CodeEditor
 from editor.Ironica.utils.minimap import MiniMapHostWidget
-from editor.utils.toolbox.designer import DesignerTab
+from designer.toolbox.designer import DesignerTab
 
 CONFIG_CODE_EDITOR = {
     "Set TextEditor Font": ("JetBrains Mono"),

@@ -43,15 +43,12 @@ def install(editor, config_path: str) -> None:
         editor:      The ``CodeEditor`` instance.
         config_path: Absolute path to ``keywords/python.json``.
     """
-    # 1. Register with LanguageRegistry.
     provider = None  # Future: PythonLanguageProvider()
     LanguageRegistry.register_language(config_path, provider)
 
-    # 2. Register the semantic provider with the HighlightingRegistry.
     semantic = PythonSemanticProvider()
     HighlightingRegistry.register("python", semantic)
 
-    # 3. Install the LanguageLexer into the editor.
     config = LanguageRegistry.get_config("python")
     if config is None:
         logger.warning("Python config not loaded -- skipping lexer install")
@@ -62,14 +59,12 @@ def install(editor, config_path: str) -> None:
     lexer.setDefaultFont(editor.font())
     editor.setLexer(lexer)
 
-    # Apply bracket matching colours from the config.
     styles = config.get("styles", {})
     depth_colours = [
         styles.get("bracket", "#FFD700"),
         styles.get("bracket_2", "#C678DD"),
         styles.get("bracket_3", "#61AFEF"),
     ]
-    # Store for later use by the bracket depth manager.
     editor._bracket_depth_colours = depth_colours
 
     logger.info("Python highlighter installed")
