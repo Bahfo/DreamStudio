@@ -1052,6 +1052,18 @@ class CodeEditor(QsciScintilla):
                 content = f.read().decode("utf-8", errors="replace")
 
         self.current_file_path = file_path
+
+        # Invalidate the semantic provider cache before setText so the
+        # debounced refresh always computes fresh results for the new
+        # buffer content.
+        if self.current_provider and hasattr(
+            self.current_provider, "invalidate_cache"
+        ):
+            try:
+                self.current_provider.invalidate_cache()
+            except Exception:
+                pass
+
         self.setText(content)
         self.setModified(False)
         self._is_dirty = False

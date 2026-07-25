@@ -351,45 +351,30 @@ class JediAdapter(IJediAdapter):
     # Deep Token Resolution — Pillar 4
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Deep Token Resolution — Pillar 4
+    # ------------------------------------------------------------------
+
     def get_semantic_ranges(
         self, text: str, line: int, column: int
     ) -> List[Tuple[int, int, str]]:
-        """Resolve the single token under the cursor via Jedi.
-
-        Returns exact ``(start_offset, length, colour)`` tuples for
-        the token at the given cursor position.  This is intended
-        for hover / click operations only.  Real-time syntax colouring
-        is handled entirely by the AST-based ``PythonSemanticProvider``.
-
-        Args:
-            text:   Full editor buffer content.
-            line:   Cursor line (0-indexed, matching Jedi convention).
-            column: Cursor column (0-indexed).
-
-        Returns:
-            A list containing at most one ``(start_offset, length,
-            colour)`` tuple, or an empty list if the token cannot be
-            resolved.
-        """
         if not text.strip():
             return []
 
-        # Anchor the returned span to the *current* buffer first.
-        # script.goto()/infer() below may resolve to a symbol defined
-        # in a completely different file (a stdlib function, an
-        # imported class, ...); that target's line/column describe a
-        # position in *that* file, not in `text`, so they must never
-        # be used to compute the offset returned here. find_word_at
-        # gives us the exact on-screen span of the identifier the
-        # cursor is actually sitting on, in the buffer being edited.
         word_span = find_word_at(text, line, column)
         if word_span is None:
             return []
-        word_start, word_length = word_span
+
+        word_start_char, word_length_char = word_span
+
+        byte_start = len(text[:word_start_char].encode("utf-8"))
+        byte_length = len(
+            text[word_start_char : word_start_char + word_length_char].encode("utf-8")
+        )
 
         context = PythonContext(
             source_code=text,
-            line=line + 1,  # PythonContext uses 1-indexed
+            line=line + 1,
             column=column,
             file_path="",
         )
@@ -409,7 +394,7 @@ class JediAdapter(IJediAdapter):
             return []
 
         colour = self._jedi_type_colour(definitions[0].type)
-        return [(word_start, word_length, colour)]
+        return [(byte_start, byte_length, colour)]
 
     @staticmethod
     def _jedi_type_colour(jedi_type: str) -> str:
