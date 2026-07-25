@@ -948,10 +948,14 @@ class CodeEditor(QsciScintilla):
         """Apply Scintilla indicators driven by the language provider.
 
         Calls ``current_provider.get_semantic_highlights(text)`` if
-        available.  The provider returns a list of
+        available.  The provider returns semantic-only
         ``(start, length, "#RRGGBB")`` tuples which are painted as
         ``INDIC_TEXTFORE`` overlays.  Up to 8 concurrent indicator slots
         are used (colour-keyed); excess shares the last slot.
+
+        Always clears all indicator slots before reapplying so that
+        stale overlays from a previous buffer state are never left
+        behind.
         """
         from PyQt6.QtGui import QColor
 
@@ -964,6 +968,11 @@ class CodeEditor(QsciScintilla):
 
         length = len(text)
 
+        # ── always clear all indicator slots first ────────────────
+        for ind in range(8):
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
+            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
+
         # Ask the provider for semantic highlight ranges.
         provider_fn = getattr(self.current_provider, "get_semantic_highlights", None)
         if provider_fn is None:
@@ -975,11 +984,6 @@ class CodeEditor(QsciScintilla):
 
         if not highlights:
             return
-
-        # ── clear all indicator slots ────────────────────────────
-        for ind in range(8):
-            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
-            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
 
         # ── group by colour → one indicator slot per colour ──────
         _SLOTS = 8

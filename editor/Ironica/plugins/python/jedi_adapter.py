@@ -17,7 +17,6 @@ are contained within this module -- no raw Jedi objects leak.
 """
 
 import logging
-import re
 import jedi
 from typing import List, Optional, Tuple
 
@@ -375,6 +374,19 @@ class JediAdapter(IJediAdapter):
         if not text.strip():
             return []
 
+        # Anchor the returned span to the *current* buffer first.
+        # script.goto()/infer() below may resolve to a symbol defined
+        # in a completely different file (a stdlib function, an
+        # imported class, ...); that target's line/column describe a
+        # position in *that* file, not in `text`, so they must never
+        # be used to compute the offset returned here. find_word_at
+        # gives us the exact on-screen span of the identifier the
+        # cursor is actually sitting on, in the buffer being edited.
+        word_span = find_word_at(text, line, column)
+        if word_span is None:
+            return []
+        word_start, word_length = word_span
+
         context = PythonContext(
             source_code=text,
             line=line + 1,  # PythonContext uses 1-indexed
@@ -389,30 +401,15 @@ class JediAdapter(IJediAdapter):
             definitions = script.goto(line=line + 1, column=column)
             if not definitions:
                 definitions = script.infer(line=line + 1, column=column)
-
-            for defn in definitions[:1]:
-                try:
-                    def_module = defn.module
-                    if hasattr(def_module, "source"):
-                        def_source = def_module.source
-                        def_line = defn.line - 1
-                        def_col = defn.column
-                        def_name = defn.name
-
-                        line_offsets = [0] + [
-                            m.end() for m in re.finditer(r"\n", def_source)
-                        ]
-                        offset = line_offsets[def_line] + def_col
-
-                        colour = self._jedi_type_colour(defn.type)
-                        return [(offset, len(def_name), colour)]
-                except Exception:
-                    pass
-
         except Exception as e:
             logger.debug("Jedi semantic range resolution failed: %s", e)
+            return []
 
-        return []
+        if not definitions:
+            return []
+
+        colour = self._jedi_type_colour(definitions[0].type)
+        return [(word_start, word_length, colour)]
 
     @staticmethod
     def _jedi_type_colour(jedi_type: str) -> str:
