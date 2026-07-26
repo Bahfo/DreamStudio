@@ -7,8 +7,6 @@ HoverController: Non-blocking manager for the Documentation Flyout.
 from PyQt6.QtCore import QObject, QTimer, QPoint, Qt, QEvent
 from PyQt6.QtWidgets import QWidget
 
-from editor.Ironica.plugins.python.hover_presenter import HoverPresenter
-
 
 class HoverController(QObject):
     """
@@ -136,22 +134,16 @@ class HoverController(QObject):
         self.flyout.show()
 
     def _resolve_hover_content(self, text: str, line: int, col: int):
-        """Build IntelliJ-styled title and body strings."""
-        details = None
-        if self.provider and hasattr(self.provider, "get_hover_details"):
-            try:
-                details = self.provider.get_hover_details(text, line, col)
-            except Exception:
-                details = None
-
-        if not details:
+        """Delegate formatting entirely to the language provider."""
+        if not self.provider or not hasattr(self.provider, "get_hover_display"):
             return None, None
 
-        kind_str = f"<i>({details.kind})</i>" if details.kind else ""
-        title_html = (
-            f'<span style="font-weight:bold; font-size:13px;">{details.name}</span> '
-            f'<span style="color:#888888; font-style:italic;">{kind_str}</span>'
-        )
+        try:
+            result = self.provider.get_hover_display(text, line, col)
+        except Exception:
+            return None, None
 
-        body_html = HoverPresenter.to_html(details)
-        return title_html, body_html
+        if not result:
+            return None, None
+
+        return result

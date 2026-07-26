@@ -13,6 +13,7 @@ neither the editor nor the adapter needs to know about the other's
 coordinate convention.
 """
 
+import html as _html
 import keyword
 import logging
 import re
@@ -47,7 +48,6 @@ except ImportError:
 from .domain_models import PythonContext, HoverDetails
 from .interfaces import IJediAdapter
 from .cache import LanguageCache
-from .hover_presenter import HoverPresenter
 
 logger = logging.getLogger("DreamStudio.PythonSupport.Provider")
 
@@ -76,6 +76,171 @@ def _is_inside_string(line_text: str, col: int) -> bool:
     return False
 
 
+# ------------------------------------------------------------------
+# Hover formatting (language-specific, lives in the plugin)
+# ------------------------------------------------------------------
+
+
+def _clean_docstring(docstring: str) -> str:
+    """Strip common leading indentation from a docstring."""
+    lines = docstring.expandtabs(4).splitlines()
+    if not lines:
+        return ""
+
+    margin = 99999
+    for line in lines[1:]:
+        content = len(line) - len(line.lstrip())
+        if line.strip() and content < margin:
+            margin = content
+
+    trimmed = [lines[0].strip()]
+    if margin < 99999:
+        for line in lines[1:]:
+            trimmed.append(line[margin:].rstrip())
+
+    while trimmed and not trimmed[0]:
+        trimmed.pop(0)
+    while trimmed and not trimmed[-1]:
+        trimmed.pop()
+
+    return "\n".join(trimmed)
+
+
+def _format_qt_tooltip(details: HoverDetails) -> str:
+    """Minimal HTML4 subset safe for ``QToolTip.showText()``.
+
+    Qt's tooltip renderer only supports ``<b>``, ``<i>``, ``<u>``,
+    ``<font>``, ``<br>``, ``<p>``, and ``<table>``/``<tr>``/``<td>``.
+    """
+    parts = []
+
+    kind_label = _html.escape(details.kind.upper() if details.kind else "SYMBOL")
+    name_esc = _html.escape(details.name)
+    parts.append(
+        f'<b style="color:#569CD6;">{name_esc}</b>'
+        f' <font style="color:#888888;">({kind_label})</font>'
+    )
+
+    sig_esc = (
+        _html.escape(details.signature)
+        .replace("\n", "<br/>")
+        .replace("  ", "&nbsp;&nbsp;")
+    )
+    parts.append(
+        '<table style="margin-top:4px;" cellspacing="0" cellpadding="4">'
+        "<tr>"
+        f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
+        f'font-family:monospace; font-size:12px;">'
+        f"{sig_esc}"
+        "</td>"
+        "</tr>"
+        "</table>"
+    )
+
+    if details.parameters:
+        parts.append("<br/><b>Parameters:</b>")
+        for param in details.parameters:
+            p_name = _html.escape(param.name)
+            line = f"<br/>&nbsp;&nbsp;&#8226;&nbsp;<b>{p_name}</b>"
+            if param.type_hint:
+                line += (
+                    f' <font color="#4EC9B0;">'
+                    f"{_html.escape(param.type_hint)}</font>"
+                )
+            if param.default_value is not None:
+                line += (
+                    f' = <font color="#B5CEA8">'
+                    f"{_html.escape(param.default_value)}</font>"
+                )
+            parts.append(line)
+
+    if details.return_type:
+        ret_esc = _html.escape(details.return_type)
+        parts.append(
+            f'<br/><b>Returns:</b> <font color="#4EC9B0;">{ret_esc}</font>'
+        )
+
+    if details.docstring:
+        cleaned = _clean_docstring(details.docstring)
+        doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
+        parts.append(
+            '<br/><font color="#555555">──────────────────────</font><br/>'
+        )
+        parts.append(
+            f'<font style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</font>"
+        )
+
+    return "".join(parts)
+
+
+def _format_hover_html(details: HoverDetails) -> str:
+    """Rich HTML suitable for ``QTextBrowser`` or ``QLabel`` with rich-text."""
+    parts = []
+
+    kind_label = _html.escape(details.kind.upper() if details.kind else "SYMBOL")
+    name_esc = _html.escape(details.name)
+    parts.append(
+        f'<p style="margin:0;">'
+        f'<b style="color:#569CD6; font-size:14px;">{name_esc}</b>'
+        f' <span style="color:#888888; font-size:12px;">({kind_label})</span>'
+        f"</p>"
+    )
+
+    sig_esc = _html.escape(details.signature)
+    parts.append(
+        '<table style="margin:4px 0;" cellspacing="0" cellpadding="6" '
+        'width="100%">'
+        "<tr>"
+        f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
+        f'font-family:monospace; font-size:12px; border-radius:4px;">'
+        f'<pre style="margin:0; white-space:pre-wrap;">{sig_esc}</pre>'
+        "</td>"
+        "</tr>"
+        "</table>"
+    )
+
+    if details.parameters:
+        parts.append('<p style="margin:8px 0 4px 0;"><b>Parameters:</b></p>')
+        parts.append('<table style="margin:0;" cellspacing="0" cellpadding="2">')
+        for param in details.parameters:
+            p_name = _html.escape(param.name)
+            cells = f'<td style="padding-right:8px;"><b style="color:#9CDCFE;">{p_name}</b></td>'
+            if param.type_hint:
+                cells += (
+                    f'<td style="padding-right:8px;">'
+                    f'<font color="#4EC9B0;">'
+                    f"{_html.escape(param.type_hint)}</font></td>"
+                )
+            else:
+                cells += "<td></td>"
+            if param.default_value is not None:
+                cells += (
+                    f'<td><font color="#B5CEA8">'
+                    f"= {_html.escape(param.default_value)}</font></td>"
+                )
+            parts.append(f"<tr>{cells}</tr>")
+        parts.append("</table>")
+
+    if details.return_type:
+        ret_esc = _html.escape(details.return_type)
+        parts.append(
+            f'<p style="margin:8px 0 4px 0;"><b>Returns:</b> '
+            f'<font color="#4EC9B0;">{ret_esc}</font></p>'
+        )
+
+    if details.docstring:
+        cleaned = _clean_docstring(details.docstring)
+        doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
+        parts.append(
+            '<hr style="border:0; border-top:1px solid #444444; ' 'margin:8px 0;"/>'
+        )
+        parts.append(
+            f'<p style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</p>"
+        )
+
+    return "\n".join(parts)
+
+
 class PythonLanguageProvider(BaseLanguageProvider):
     """
     Stateless provider. Handles coordinate transformations and caching,
@@ -100,45 +265,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
     @file_path.setter
     def file_path(self, value: Optional[str]) -> None:
         self._file_path = value
-
-    # ------------------------------------------------------------------
-    # Provider Initialization & UI Setup Helper
-    # ------------------------------------------------------------------
-
-    def setup_hover_engine(self, editor) -> Tuple[object, object]:
-        """
-        Instantiates and wires up DocumentationFlyout and HoverController
-        directly onto the target editor instance.
-        """
-        from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
-        from editor.Ironica.utils.hover_controller import HoverController
-
-        flyout = DocumentationFlyout(parent=editor)
-        controller = HoverController(editor=editor, flyout=flyout, provider=self)
-
-        # Wire Jump-To-Declaration toolbar action
-        flyout.jump_to_source_requested.connect(
-            lambda: self._handle_flyout_jump(editor, controller)
-        )
-
-        return flyout, controller
-
-    def _handle_flyout_jump(self, editor, controller) -> None:
-        """Handle definition jump triggered from the flyout toolbar."""
-        controller.flyout.dismiss(force=True)
-        line = controller._target_line
-        col = controller._target_col
-        text = editor.text()
-
-        if line >= 0 and col >= 0:
-            loc = self.get_definition_location(text, line, col)
-            if loc and loc[0]:
-                file_path, target_line, target_col = loc
-                if hasattr(editor, "open_file_at_line"):
-                    editor.open_file_at_line(file_path, target_line, target_col)
-                else:
-                    editor.setCursorPosition(target_line, target_col)
-                    editor.ensureLineVisible(target_line)
 
     # ------------------------------------------------------------------
     # Context translation
@@ -197,7 +323,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         if not hover_details:
             return None
 
-        return HoverPresenter.to_qt_tooltip(hover_details)
+        return _format_qt_tooltip(hover_details)
 
     @staticmethod
     def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
@@ -224,7 +350,23 @@ class PythonLanguageProvider(BaseLanguageProvider):
         if not hover_details:
             return None
 
-        return HoverPresenter.to_html(hover_details)
+        return _format_hover_html(hover_details)
+
+    def get_hover_display(
+        self, text: str, line: int, col: int
+    ) -> Optional[tuple]:
+        """Return ``(title_html, body_html)`` for the DocumentationFlyout."""
+        details = self.get_hover_details(text, line, col)
+        if not details:
+            return None
+
+        kind_str = f"<i>({details.kind})</i>" if details.kind else ""
+        title_html = (
+            f'<span style="font-weight:bold; font-size:13px;">{details.name}</span> '
+            f'<span style="color:#888888; font-style:italic;">{kind_str}</span>'
+        )
+        body_html = _format_hover_html(details)
+        return title_html, body_html
 
     def get_definition_location(
         self, text: str, line: int, col: int

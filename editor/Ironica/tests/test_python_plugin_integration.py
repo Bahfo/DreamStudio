@@ -326,9 +326,6 @@ class TestPluginModuleImports:
     def test_import_complexity(self):
         from editor.Ironica.plugins.python.complexity import ComplexityAnalysisService
 
-    def test_import_hover_presenter(self):
-        from editor.Ironica.plugins.python.hover_presenter import HoverPresenter
-
     def test_import_views(self):
         from editor.Ironica.plugins.python.views import (
             ReferenceViewerWidget,
@@ -345,7 +342,6 @@ class TestPluginModuleImports:
             ReferenceFinderService,
             RenameRefactoringService,
             ComplexityAnalysisService,
-            HoverPresenter,
             ReferenceViewerWidget,
             RefactorDialog,
             ComplexityDashboard,

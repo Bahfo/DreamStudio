@@ -159,6 +159,20 @@ class BaseLanguageProvider(ABC):
         """
         return source_code
 
+    def get_hover_display(
+        self, text: str, line: int, col: int
+    ) -> Optional[tuple]:
+        """Return ``(title_html, body_html)`` for the symbol under the cursor.
+
+        The *title_html* is a short rich-text fragment shown in the flyout
+        header.  The *body_html* is the full documentation body suitable
+        for a ``QTextBrowser`` or ``QLabel`` with rich-text support.
+
+        Optional method — return ``None`` when hover documentation is
+        unavailable or the provider does not support it.
+        """
+        return None
+
     def get_semantic_highlights(self, text: str):
         """Return colour ranges for semantic tokens, or ``None``.
 

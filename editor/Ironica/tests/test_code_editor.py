@@ -226,10 +226,11 @@ class TestGotoDefinition:
 
 
 class TestHover:
-    """Test hover timeout with no provider."""
+    """Test hover flyout with no provider."""
 
-    def test_hover_timeout_no_provider(self, editor):
-        editor._on_hover_timeout()  # should be a no-op
+    def test_hover_flyout_no_provider(self, editor):
+        editor._setup_hover_engine()  # should be a no-op (no provider)
+        editor._dismiss_hover_flyout()  # should be a no-op (no flyout)
 
 
 class TestFormatCurrentFile:

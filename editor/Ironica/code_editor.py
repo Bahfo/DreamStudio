@@ -18,14 +18,11 @@ from PyQt6.QtGui import QFont, QKeyEvent, QPalette, QColor, QImage, QBrush, QPai
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QApplication
 from PyQt6.Qsci import QsciScintilla
-from PyQt6 import sip
 
 from editor.Ironica.language_engine import LanguageRegistry, LanguageLexer
-from editor.Ironica.utils.autocomplete_menu import (
-    EditorAutocompleteExtension,
-    HoverDocumentationPopup,
-)
+from editor.Ironica.utils.autocomplete_menu import EditorAutocompleteExtension
 from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
+from editor.Ironica.utils.hover_controller import HoverController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
 
 logger = logging.getLogger(__name__)
@@ -138,12 +135,10 @@ class CodeEditor(QsciScintilla):
         self._setup_edge()
         self._setup_wrap()
 
-        # Hover timer for documentation tooltips.
-        self._hover_timer = QTimer(self)
-        self._hover_timer.setSingleShot(True)
-        self._hover_timer.timeout.connect(self._on_hover_timeout)
+        # Hover flyout state (DocumentationFlyout + HoverController).
+        self._hover_flyout: Optional[DocumentationFlyout] = None
+        self._hover_controller: Optional[HoverController] = None
         self._last_mouse_pos = None
-        self._hover_popup: Optional[HoverDocumentationPopup] = None
 
         # Import highlighting indicators (debounced).
         self._import_highlight_timer = QTimer(self)
@@ -212,6 +207,41 @@ class CodeEditor(QsciScintilla):
                 compute_folds_for_editor(self)
         except Exception as exc:
             logger.debug("Fold recomputation failed: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Hover flyout engine
+    # ------------------------------------------------------------------
+
+    def _setup_hover_engine(self) -> None:
+        """Create and attach the DocumentationFlyout + HoverController."""
+        if not self.current_provider:
+            return
+        if not hasattr(self.current_provider, "get_hover_display"):
+            return
+
+        self._hover_flyout = DocumentationFlyout(parent=self)
+        self._hover_controller = HoverController(
+            editor=self, flyout=self._hover_flyout, provider=self.current_provider
+        )
+        self._hover_flyout.jump_to_source_requested.connect(
+            lambda: self.execute_goto_definition(
+                self._hover_controller._target_line,
+                self._hover_controller._target_col,
+            )
+        )
+
+    def _teardown_hover_engine(self) -> None:
+        """Destroy the current hover flyout and controller."""
+        if self._hover_controller:
+            self._hover_controller = None
+        if self._hover_flyout:
+            self._hover_flyout.hide()
+            self._hover_flyout = None
+
+    def _dismiss_hover_flyout(self) -> None:
+        """Dismiss the flyout unless pinned or mouse is inside."""
+        if self._hover_flyout and self._hover_flyout.isVisible():
+            self._hover_flyout.dismiss(force=False)
 
     # ------------------------------------------------------------------
     # Setup helpers
@@ -329,8 +359,7 @@ class CodeEditor(QsciScintilla):
         self._update_debug_stack_position()
 
     def wheelEvent(self, event) -> None:
-        """Dismiss all popups and cancel hover when the editor scrolls."""
-        self._hover_timer.stop()
+        """Dismiss all popups when the editor scrolls."""
         self._dismiss_all_popups()
         super().wheelEvent(event)
 
@@ -354,8 +383,8 @@ class CodeEditor(QsciScintilla):
         super().changeEvent(event)
 
     def focusOutEvent(self, event) -> None:
-        """Dismiss hover popup when the editor loses focus."""
-        self._dismiss_hover()
+        """Dismiss hover flyout when the editor loses focus."""
+        self._dismiss_hover_flyout()
         super().focusOutEvent(event)
 
     # ------------------------------------------------------------------
@@ -418,9 +447,6 @@ class CodeEditor(QsciScintilla):
     def keyPressEvent(self, e: QKeyEvent) -> None:
         """Intercept key events for autocomplete trigger, goto definition,
         and enhanced enter/return behaviour."""
-        # Dismiss hover popup on any key press.
-        self._dismiss_hover()
-
         if (
             e.modifiers() == Qt.KeyboardModifier.ControlModifier
             and e.key() == Qt.Key.Key_Space
@@ -466,7 +492,7 @@ class CodeEditor(QsciScintilla):
     # ------------------------------------------------------------------
 
     def mouseMoveEvent(self, e):
-        """Track cursor movement for documentation tooltips and breakpoint margin hover."""
+        """Track cursor movement for breakpoint margin hover."""
         super().mouseMoveEvent(e)
         self._last_mouse_pos = e.position().toPoint()
 
@@ -490,27 +516,13 @@ class CodeEditor(QsciScintilla):
         else:
             self._clear_hover_breakpoint()
 
-        # Documentation Hover Timer (Preserved)
-        self._hover_timer.stop()
-        if self.current_provider:
-            self._hover_timer.start(1000)
-
     def leaveEvent(self, event):
-        """Mouse left the editor — clear margin hover and start
-        documentation popup dismiss timer."""
+        """Mouse left the editor — clear margin hover."""
         self._clear_hover_breakpoint()
-
-        self._hover_timer.stop()
-        if self._hover_popup and self._hover_popup.isVisible():
-            self._hover_popup._dismiss_timer.start()
-
         super().leaveEvent(event)
 
     def mousePressEvent(self, e: QKeyEvent) -> None:
         """Intercept Ctrl+Click for go-to-definition navigation."""
-        # Dismiss hover popup on any mouse click.
-        self._dismiss_hover()
-
         if (
             e.button() == Qt.MouseButton.LeftButton
             and e.modifiers() == Qt.KeyboardModifier.ControlModifier
@@ -527,79 +539,9 @@ class CodeEditor(QsciScintilla):
 
         super().mousePressEvent(e)
 
-    def _on_hover_timeout(self) -> None:
-        """Show a scrollable documentation popup when the cursor hovers
-        over a symbol with a provider."""
-        if not self.current_provider or not self._last_mouse_pos:
-            return
-
-        # Guard: Ctrl is held — the user intends to Ctrl+Click for
-        # goto-definition, not to see hover documentation.  Without this
-        # guard the popup flashes between key-press dismiss and the click.
-        modifiers = QApplication.keyboardModifiers()
-        if modifiers & Qt.KeyboardModifier.ControlModifier:
-            return
-
-        try:
-            px = int(self._last_mouse_pos.x())
-            py = int(self._last_mouse_pos.y())
-            position = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, px, py)
-            if position == -1:
-                return
-            line, col = self.lineIndexFromPosition(position)
-
-            # Guard: buffer may have been cleared during file load.
-            if not self.text():
-                return
-
-            html = None
-            try:
-                if hasattr(self.current_provider, "get_hover_html"):
-                    html = self.current_provider.get_hover_html(self.text(), line, col)
-                if not html:
-                    hint = self.current_provider.get_hover_hint(self.text(), line, col)
-                    if hint:
-                        html = (
-                            f"<pre style='margin:0; white-space:pre-wrap;'>{hint}</pre>"
-                        )
-            except Exception as inner_exc:
-                logger.debug("Hover provider query failed: %s", inner_exc)
-                self._dismiss_hover()
-                return
-
-            if not html:
-                self._dismiss_hover()
-                return
-
-            # Guard: previous popup may have been orphaned after an editor
-            # reload or theme change — ensure it was properly deleted.
-            if self._hover_popup is not None:
-                try:
-                    if not sip.isdeleted(self._hover_popup):
-                        self._hover_popup.hide()
-                    self._hover_popup = None
-                except Exception:
-                    self._hover_popup = None
-
-            self._hover_popup = HoverDocumentationPopup(self)
-            global_pos = self.mapToGlobal(self._last_mouse_pos)
-            self._hover_popup.show_html(html, global_pos)
-        except Exception as exc:
-            logger.debug("Hover query failed: %s", exc)
-
-    def _dismiss_hover(self) -> None:
-        """Immediately hide the hover documentation popup."""
-        if self._hover_popup is not None:
-            try:
-                if not sip.isdeleted(self._hover_popup):
-                    self._hover_popup.hide()
-            except Exception:
-                pass
-            self._hover_popup = None
-
     def _dismiss_all_popups(self) -> None:
-        """Dismiss every open sub‑menu (hover + autocomplete)."""
-        self._dismiss_hover()
+        """Dismiss every open sub-menu (hover flyout + autocomplete)."""
+        self._dismiss_hover_flyout()
         ext = getattr(self, "_autocomplete_ext", None)
         if ext is not None:
             ext.cancel_autocomplete()
@@ -777,8 +719,12 @@ class CodeEditor(QsciScintilla):
     # Go-to definition
     # ------------------------------------------------------------------
 
-    def execute_goto_definition(self) -> None:
+    def execute_goto_definition(self, line: int = None, col: int = None) -> None:
         """Resolve the symbol under the cursor and navigate to its definition.
+
+        When *line* and *col* are ``None`` (the default), the current
+        cursor position is used.  Callers that know the exact position
+        — e.g. the documentation flyout — can pass explicit coordinates.
 
         Falls back gracefully if no provider is active or the symbol
         cannot be resolved.  All provider errors are caught so that a
@@ -788,7 +734,8 @@ class CodeEditor(QsciScintilla):
             return
 
         try:
-            line, col = self.getCursorPosition()
+            if line is None or col is None:
+                line, col = self.getCursorPosition()
             target = self.current_provider.get_definition_location(
                 self.text(), line, col
             )
@@ -823,6 +770,8 @@ class CodeEditor(QsciScintilla):
 
     def setLanguage(self, lang: str) -> None:
         """Assign a language to the editor and isolate native folding features."""
+        self._teardown_hover_engine()
+
         if not lang:
             self._lexer = None
             self.setLexer(None)
@@ -858,6 +807,8 @@ class CodeEditor(QsciScintilla):
         else:
             self._lexer = None
             self.setLexer(None)
+
+        self._setup_hover_engine()
 
     def _create_lexer(self, lang: str, config: dict):
         """Create the best available lexer for *lang*.
@@ -1067,8 +1018,7 @@ class CodeEditor(QsciScintilla):
         self.setModified(False)
         self._is_dirty = False
         self.dirty_state_changed.emit(False)
-        self._hover_timer.stop()
-        self._dismiss_hover()
+        self._dismiss_hover_flyout()
         self._recompute_folds()
 
         # Check read-only permissions.

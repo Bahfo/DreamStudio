@@ -15,7 +15,6 @@ from editor.Ironica.plugins.python.navigation import (
 )
 from editor.Ironica.plugins.python.refactoring import RenameRefactoringService
 from editor.Ironica.plugins.python.complexity import ComplexityAnalysisService
-from editor.Ironica.plugins.python.hover_presenter import HoverPresenter
 from editor.Ironica.plugins.python.semantic_highlights import (
     get_semantic_highlights,
 )
@@ -43,7 +42,6 @@ __all__ = [
     "ReferenceFinderService",
     "RenameRefactoringService",
     "ComplexityAnalysisService",
-    "HoverPresenter",
     "get_semantic_highlights",
     "ReferenceViewerWidget",
     "RefactorDialog",
