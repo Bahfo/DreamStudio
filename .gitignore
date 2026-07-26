@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+/.ruff_cache
 
 # Virtual environments
 venv/
@@ -57,5 +58,4 @@ local.properties
 *.jks
 
 # Temporary Ignoring
-/docs
-/designer
+# Nothing for now
