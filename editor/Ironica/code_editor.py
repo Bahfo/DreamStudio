@@ -9,14 +9,24 @@ This code is protected under the GPLv3 License.
 
 import logging
 import pathlib
-import re
 import stat
+import re
 
 from typing import Optional, Any
 
-from PyQt6.QtGui import QFont, QKeyEvent, QPalette, QColor, QImage, QBrush, QPainter
+from PyQt6.QtGui import (
+    QKeyEvent,
+    QPalette,
+    QPainter,
+    QPixmap,
+    QColor,
+    QImage,
+    QBrush,
+    QFont,
+    QPen,
+)
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QColorDialog
 from PyQt6.Qsci import QsciScintilla
 
 from editor.Ironica.language_engine import LanguageRegistry, LanguageLexer
@@ -63,6 +73,7 @@ class CodeEditor(QsciScintilla):
 
     MARGIN_BREAKPOINT = 1
     MARKER_BREAKPOINT = 1
+    COLOR_MARGIN = 2
     MARKER_HOVER = 3
     MARKER_EXEC_LINE = 4
 
@@ -70,6 +81,14 @@ class CodeEditor(QsciScintilla):
     COLOR_HOVER = QColor(229, 57, 53, 100)
     COLOR_EXEC_LINE = QColor("#FFD54F")
     CIRCLE_RADIUS = 4
+
+    # Works for three types: Hex, RGB, and RGBA
+    COLOR_REGEX = re.compile(
+        r"(#(?:[0-9a-fA-F]{3,4}){1,2}\b|"
+        r"rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*(?:0?\.\d+|\d+(?:\.\d+)?)\s*)?\))"
+    )
+    COLOR_MARKER_START = 10
+    COLOR_MARKER_END = 24
 
     def __init__(self, _parent=None, language=None, file_path=None):
         """
@@ -84,6 +103,7 @@ class CodeEditor(QsciScintilla):
         """
         super().__init__(_parent)
 
+        self.setObjectName("CodeEditor")
         self._lexer = None
         self._parent = _parent
         self.current_file_path = None
@@ -99,7 +119,6 @@ class CodeEditor(QsciScintilla):
         ###############################################
         # Breakpoint Helpers
         ###############################################
-        self.MARKER_BREAKPOINT = 2  # Becuase lines margin is 0 and folding is 1
         self._debug_stack_widget = None
         self._paused_line = -1
 
@@ -108,9 +127,18 @@ class CodeEditor(QsciScintilla):
             self._update_debug_stack_position
         )
 
-        self.setObjectName("CodeEditor")
-
         self.textChanged.connect(self._on_text_changed)
+
+        ###############################################
+        # Color Wheel and Indicators
+        ###############################################
+        self._color_marker_cache = {}
+        self._next_color_marker_id = self.COLOR_MARKER_START
+
+        self.textChanged.connect(self.update_visible_color_indicators)
+        self.verticalScrollBar().valueChanged.connect(
+            self.update_visible_color_indicators
+        )
 
         # Language state — single source of truth.
         self.current_lang: Optional[str] = None
@@ -266,11 +294,25 @@ class CodeEditor(QsciScintilla):
         border = bg.lighter(150) if bg.lightness() < 128 else bg.darker(130)
         return bg, text, mid, border
 
+    def setup_symbol_margin(
+        self, margin: int, *marker_ids: int, width: int = 18
+    ) -> None:
+        self.setMarginType(margin, QsciScintilla.MarginType.SymbolMargin)
+        self.setMarginSensitivity(margin, True)
+        self.setMarginWidth(margin, width)
+
+        mask = 0
+        for m in marker_ids:
+            mask |= 1 << m
+        self.setMarginMarkerMask(margin, mask)
+
     def _setup_margins(self) -> None:
-        """Configure line-number margin."""
-        bg, text, mid, border = self._theme_colors()
+        """Configure line numbers, breakpoints, and colorwheel margins."""
+        bg, text, _, _ = self._theme_colors()
         self.setPaper(bg)
         self.setColor(text)
+
+        # Line Numbers
         self.setMarginType(0, QsciScintilla.MarginType.NumberMargin)
         self.setMarginWidth(0, "000000")
         self.setMarginLineNumbers(0, True)
@@ -278,19 +320,15 @@ class CodeEditor(QsciScintilla):
         self.setMarginsForegroundColor(text)
         self._apply_indent_guide_color(text)
 
-        self.setMarginType(
-            self.MARGIN_BREAKPOINT, QsciScintilla.MarginType.SymbolMargin
+        # Breakpoints Margin
+        self.markerDefine(
+            self._create_circle_image(18, self.CIRCLE_RADIUS, self.COLOR_BREAKPOINT),
+            self.MARKER_BREAKPOINT,
         )
-        self.setMarginSensitivity(self.MARGIN_BREAKPOINT, True)
-        self.setMarginWidth(self.MARGIN_BREAKPOINT, 18)
-        img_breakpoint = self._create_circle_image(
-            18, self.CIRCLE_RADIUS, self.COLOR_BREAKPOINT
+        self.markerDefine(
+            self._create_circle_image(18, self.CIRCLE_RADIUS, self.COLOR_HOVER),
+            self.MARKER_HOVER,
         )
-        img_hover = self._create_circle_image(18, self.CIRCLE_RADIUS, self.COLOR_HOVER)
-
-        self.markerDefine(img_breakpoint, self.MARKER_BREAKPOINT)
-        self.markerDefine(img_hover, self.MARKER_HOVER)
-
         self.markerDefine(
             QsciScintilla.MarkerSymbol.FullRectangle,
             self.MARKER_EXEC_LINE,
@@ -298,13 +336,20 @@ class CodeEditor(QsciScintilla):
         self.setMarkerForegroundColor(self.COLOR_EXEC_LINE, self.MARKER_EXEC_LINE)
         self.setMarkerBackgroundColor(self.COLOR_EXEC_LINE, self.MARKER_EXEC_LINE)
 
-        mask = (
-            (1 << self.MARKER_BREAKPOINT)
-            | (1 << self.MARKER_HOVER)
-            | (1 << self.MARKER_EXEC_LINE)
+        self.setup_symbol_margin(
+            self.MARGIN_BREAKPOINT,
+            self.MARKER_BREAKPOINT,
+            self.MARKER_HOVER,
+            self.MARKER_EXEC_LINE,
         )
-        self.setMarginMarkerMask(self.MARGIN_BREAKPOINT, mask)
 
+        # Colorwheel Margin
+        color_marker_ids = list(
+            range(self.COLOR_MARKER_START, self.COLOR_MARKER_END + 1)
+        )
+        self.setup_symbol_margin(self.COLOR_MARGIN, *color_marker_ids)
+
+        # Left padding offset
         self.SendScintilla(QsciScintilla.SCI_SETMARGINLEFT, 0, 10)
 
     def _apply_indent_guide_color(self, text_color) -> None:
@@ -591,7 +636,9 @@ class CodeEditor(QsciScintilla):
     def _on_margin_clicked(
         self, margin: int, line: int, modifiers: Qt.KeyboardModifier
     ) -> None:
-        """Toggle solid breakpoint circle on click."""
+        """Handles click actions for breakpoints and colorpicker margins."""
+
+        # BREAKPOINTS
         if margin == self.MARGIN_BREAKPOINT:
             mask = self.markersAtLine(line)
             if mask & (1 << self.MARKER_BREAKPOINT):
@@ -602,6 +649,22 @@ class CodeEditor(QsciScintilla):
                 self.markerDelete(line, self.MARKER_HOVER)
                 self.markerAdd(line, self.MARKER_BREAKPOINT)
                 self._hovered_breakpoint_line = None
+
+        # COLORWHEEL
+        elif margin == self.COLOR_MARGIN:
+            info = self._get_color_by_line(line)
+            if not info:
+                return
+
+            current_color, old_str, start_col, end_col = info
+
+            options = QColorDialog.ColorDialogOption.ShowAlphaChannel
+            new_color = QColorDialog.getColor(
+                current_color, self, "Select Color", options
+            )
+
+            if new_color.isValid() and new_color != current_color:
+                self._apply_color_to_line(line, old_str, new_color, start_col, end_col)
 
     def get_breakpoint_lines(self) -> set[int]:
         """
@@ -714,6 +777,179 @@ class CodeEditor(QsciScintilla):
             self._debug_stack_widget.setGeometry(
                 frame_x, frame_y, frame_width, frame_height
             )
+
+    # ------------------------------------------------------------------
+    # ColorWheel
+    # ------------------------------------------------------------------
+
+    def _get_color_by_line(self, line_number: int) -> tuple[Any, str, int, int] | None:
+        """
+        Scans a specific line and extracts the indicated color from it by
+        using a set of compiled regular expressions (COLOR_REGEX)
+        """
+        line_text = self.text(line_number)
+        match = self.COLOR_REGEX.search(line_text)
+        if not match:
+            return None
+
+        color_str = match.group(0)
+        color = self._parse_color(color_str)
+
+        if color and color.isValid():
+            return (color, color_str, match.start(), match.end())
+
+        return None
+
+    def _parse_color(self, color_str: str) -> QColor | None:
+        """
+        Parses Hex, RGB, or RGBA string colors into QColor instances.
+        """
+        color_str = color_str.strip()
+
+        if color_str.startswith("#"):  # HEX
+            hex_body = color_str[1:]
+            if len(hex_body) in (3, 4):
+                expanded = "".join(c * 2 for c in hex_body)
+                # This case is for shortened hex colors, e.g.: #333
+                color_str = f"#{expanded}"
+
+            color = QColor(color_str)
+            return color if color.isValid() else None
+
+        if color_str.startswith("rgb"):  # RGB / RGBA
+            nums = re.findall(r"[\d\.]+", color_str)
+            if len(nums) in (3, 4):
+                r, g, b = map(int, nums[:3])
+                a = int(float(nums[3]) * 255) if len(nums) == 4 else 255
+                return QColor(r, g, b, a)
+
+        return None
+
+    def _create_color_swatch(self, color: QColor, size: int = 14) -> QPixmap:
+        """Draws a clean, rounded square color preview with a border."""
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if color.alpha() < 255:
+            painter.fillRect(0, 0, size, size, QColor(220, 220, 220))
+            painter.fillRect(0, 0, size // 2, size // 2, QColor(255, 255, 255))
+            painter.fillRect(
+                size // 2, size // 2, size // 2, size // 2, QColor(255, 255, 255)
+            )
+
+        painter.setBrush(QBrush(color))
+        painter.setPen(QPen(QColor(120, 120, 120, 200), 1))
+        painter.drawRoundedRect(1, 1, size - 2, size - 2, 3, 3)
+        painter.end()
+
+        return pixmap
+
+    def _get_or_create_color_marker(self, color: QColor) -> int:
+        """Returns an existing marker ID for this color, or defines a new one."""
+        rgba = color.rgba()
+        if rgba in self._color_marker_cache:
+            return self._color_marker_cache[rgba]
+
+        marker_id = self._next_color_marker_id
+        self._next_color_marker_id += 1
+        if self._next_color_marker_id > self.COLOR_MARKER_END:
+            self._next_color_marker_id = self.COLOR_MARKER_START
+
+        for cached_rgba, m_id in list(self._color_marker_cache.items()):
+            if m_id == marker_id:
+                del self._color_marker_cache[cached_rgba]
+                break
+
+        swatch = self._create_color_swatch(color)
+        self.markerDefine(swatch, marker_id)
+
+        self._color_marker_cache[rgba] = marker_id
+        return marker_id
+
+    def update_line_color_indicator(self, line_number: int) -> None:
+        """Checks a line for a color string and updates its margin marker."""
+        info = self._get_color_by_line(line_number)
+
+        for m_id in range(self.COLOR_MARKER_START, self.COLOR_MARKER_END + 1):
+            self.markerDelete(line_number, m_id)
+
+        if info:
+            color, _, _, _ = info
+            marker_id = self._get_or_create_color_marker(color)
+            self.markerAdd(line_number, marker_id)
+
+    def update_visible_color_indicators(self) -> None:
+        """Scans and updates color markers only for lines currently visible in the editor."""
+        first_line = self.firstVisibleLine()
+        visible_count = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+
+        if visible_count <= 0:
+            last_line = self.lines()
+        else:
+            last_line = min(self.lines(), first_line + visible_count + 1)
+
+        for line in range(first_line, last_line):
+            self.update_line_color_indicator(line)
+
+    def _on_margin_clicked(self, margin: int, line: int, state) -> None:
+        """Handles clicks on editor margins."""
+        if margin != self.COLOR_MARGIN:
+            return
+
+        info = self._get_color_by_line(line)
+        if not info:
+            return
+
+        current_color, color_str, start_col, end_col = info
+
+        options = QColorDialog.ColorDialogOption.ShowAlphaChannel
+        new_color = QColorDialog.getColor(current_color, self, "Select Color", options)
+
+        if new_color.isValid() and new_color != current_color:
+            self._apply_color_to_line(line, color_str, new_color, start_col, end_col)
+
+    def _apply_color_to_line(
+        self, line: int, old_str: str, new_color: QColor, start_col: int, end_col: int
+    ) -> None:
+        """Replaces the color string in the editor while preserving undo history."""
+        new_str = self._format_color_string(old_str, new_color)
+
+        self.beginUndoAction()
+        self.setSelection(line, start_col, line, end_col)
+        self.replaceSelectedText(new_str)
+        self.endUndoAction()
+
+    def _format_color_string(self, old_str: str, new_color: QColor) -> str:
+        """
+        Formats new_color to match the format (Hex/RGB/RGBA) and case of
+        old_str.
+        """
+        r, g, b, a = (
+            new_color.red(),
+            new_color.green(),
+            new_color.blue(),
+            new_color.alpha(),
+        )
+
+        # RGB/RGBA
+        if old_str.strip().startswith("rgb"):
+            if "rgba" in old_str or a < 255:
+                alpha_str = f"{a / 255.0:.2f}".rstrip("0").rstrip(".")
+                return f"rgba({r}, {g}, {b}, {alpha_str})"
+            return f"rgb({r}, {g}, {b})"
+
+        is_uppercase = any(c.isupper() for c in old_str)
+
+        # HEX RGB/RGBA/RRGGBB/RRGGBBAA
+        if a < 255:
+            hex_str = f"#{r:02x}{g:02x}{b:02x}{a:02x}"
+        else:
+            hex_str = f"#{r:02x}{g:02x}{b:02x}"
+
+        return hex_str.upper() if is_uppercase else hex_str
 
     # ------------------------------------------------------------------
     # Go-to definition
