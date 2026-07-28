@@ -68,7 +68,7 @@ class FoldMarginMarker(QWidget):
 class FoldManager:
     """Language-agnostic fold region manager for a QsciScintilla editor."""
 
-    FOLD_MARGIN = 2
+    FOLD_MARGIN = 3
     FOLD_MARGIN_WIDTH = 16
 
     def __init__(self, editor: QsciScintilla) -> None:
