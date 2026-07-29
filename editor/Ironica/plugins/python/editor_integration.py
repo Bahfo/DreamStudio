@@ -7,11 +7,10 @@ provider and adapter layers.
 """
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from .domain_models import (
     PythonContext,
-    CompletionItem,
     HoverDetails,
     DefinitionLocation,
 )
@@ -46,11 +45,6 @@ class ResultTranslator:
     """Translates adapter domain models to editor-expected formats."""
 
     @staticmethod
-    def completions_to_strings(items: List[CompletionItem]) -> List[str]:
-        """Extract label strings from completion items."""
-        return [item.label for item in items]
-
-    @staticmethod
     def definition_to_tuple(
         loc: Optional[DefinitionLocation],
     ) -> Optional[Tuple[str, int, int]]:
@@ -83,25 +77,25 @@ class PythonIntegrationLayer:
     def adapter(self) -> IJediAdapter:
         return self._adapter
 
-    def get_completions(
-        self, text: str, line: int, col: int
-    ) -> List[str]:
-        """Return completion label strings for the cursor position."""
-        ctx = ContextBuilder.from_editor(text, line, col)
-        items = self._adapter.get_completions(ctx)
-        return ResultTranslator.completions_to_strings(items)
-
     def get_hover(
         self, text: str, line: int, col: int
     ) -> Optional[HoverDetails]:
         """Return rich hover details for the symbol under the cursor."""
-        ctx = ContextBuilder.from_editor(text, line, col)
-        return self._adapter.get_hover(ctx)
+        try:
+            ctx = ContextBuilder.from_editor(text, line, col)
+            return self._adapter.get_hover(ctx)
+        except Exception:
+            logger.exception("get_hover failed")
+            return None
 
     def get_definition(
         self, text: str, line: int, col: int
     ) -> Optional[Tuple[str, int, int]]:
         """Return a strict (file_path, line, col) tuple for the definition."""
-        ctx = ContextBuilder.from_editor(text, line, col)
-        loc = self._adapter.get_definition(ctx)
-        return ResultTranslator.definition_to_tuple(loc)
+        try:
+            ctx = ContextBuilder.from_editor(text, line, col)
+            loc = self._adapter.get_definition(ctx)
+            return ResultTranslator.definition_to_tuple(loc)
+        except Exception:
+            logger.exception("get_definition failed")
+            return None

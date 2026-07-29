@@ -23,18 +23,6 @@ class PythonContext:
     file_path: Optional[str] = None
 
 
-@dataclass
-class CompletionItem:
-    """
-    A language-agnostic autocomplete suggestion.
-    """
-
-    label: str
-    insert_text: str
-    kind: str
-    documentation: Optional[str] = None
-
-
 @dataclass(frozen=True)
 class ParameterInfo:
     """

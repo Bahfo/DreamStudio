@@ -19,13 +19,6 @@ class IJediAdapter(ABC):
     """
 
     @abstractmethod
-    def get_completions(self, context: PythonContext) -> List[CompletionItem]:
-        """
-        Retrieves completion items for the given context.
-        Must catch all internal parser exceptions and return an empty list.
-        """
-
-    @abstractmethod
     def get_hover(self, context: PythonContext) -> Optional[HoverDetails]:
         """
         Retrieves hovering signature and docstring information for the cursor location.

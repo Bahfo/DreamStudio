@@ -137,9 +137,6 @@ class TestLanguageAssignment:
         from editor.Ironica.language_engine import BaseLanguageProvider
 
         class DummyProvider(BaseLanguageProvider):
-            def get_auto_completions(self, text, line, col):
-                return []
-
             def get_hover_hint(self, text, line, col):
                 return None
 
@@ -187,16 +184,6 @@ class TestFontManagement:
         # Should not crash
 
 
-class TestAutocompleteHooks:
-    """Test that trigger_autocomplete does not crash."""
-
-    def test_trigger_autocomplete_no_provider(self, editor):
-        editor.trigger_autocomplete()  # should not crash
-
-    def test_autocomplete_ext_exists(self, editor):
-        assert editor._autocomplete_ext is not None
-
-
 class TestGotoDefinition:
     """Test execute_goto_definition with no provider."""
 
@@ -209,9 +196,6 @@ class TestGotoDefinition:
         from editor.Ironica.language_engine import BaseLanguageProvider
 
         class NoOpProvider(BaseLanguageProvider):
-            def get_auto_completions(self, text, line, col):
-                return []
-
             def get_hover_hint(self, text, line, col):
                 return None
 

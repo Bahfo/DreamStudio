@@ -133,62 +133,6 @@ class TestDuplicateTabEntries:
         parent.deleteLater()
 
 
-class TestAutocompleteSurvival:
-    """Test autocomplete behaviour after tab/editor changes."""
-
-    def test_cleanup_on_close(self, qapp_instance):
-        from PyQt6.QtWidgets import QWidget, QVBoxLayout
-        from editor.Ironica.tab_editor import DreamTabbedEditor
-
-        parent = QWidget()
-        parent.currentDirectory = "/tmp"
-        parent.status_bar = None
-
-        layout = QVBoxLayout(parent)
-        tabs = DreamTabbedEditor(parent)
-        layout.addWidget(tabs)
-
-        editor = tabs.add_new_editor(content="test")
-        ext = editor._autocomplete_ext
-        assert ext is not None
-
-        tabs.close_editor(0)
-        # The extension should have been cleaned up before deletion
-        assert ext._cleaned_up
-
-        parent.deleteLater()
-
-    def test_autocomplete_cancelled_on_tab_change(self, qapp_instance):
-        from PyQt6.QtWidgets import QWidget, QVBoxLayout
-        from editor.Ironica.tab_editor import DreamTabbedEditor
-        from editor.Ironica.utils.autocomplete_menu import (
-            IntelliSenseMenu,
-            CompletionItem,
-        )
-
-        parent = QWidget()
-        parent.currentDirectory = "/tmp"
-        parent.status_bar = None
-
-        layout = QVBoxLayout(parent)
-        tabs = DreamTabbedEditor(parent)
-        layout.addWidget(tabs)
-
-        editor1 = tabs.add_new_editor(content="tab1")
-        tabs.add_new_editor(content="tab2")
-
-        # Simulate autocomplete open on editor1
-        items = [CompletionItem(name="test", kind="text")]
-        editor1._autocomplete_ext.menu.show_items(items, "test")
-
-        # Manually cancel autocomplete (tab change in headless mode
-        # doesn't trigger the event filter hide)
-        editor1._autocomplete_ext.cancel_autocomplete()
-        assert not editor1._autocomplete_ext.menu.isVisible()
-
-        parent.deleteLater()
-
-
 class TestReplaceAllInfiniteLoop:
     """Test that replace_all terminates correctly in edge cases."""
 

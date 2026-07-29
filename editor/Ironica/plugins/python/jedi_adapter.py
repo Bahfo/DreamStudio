@@ -22,7 +22,6 @@ from typing import List, Optional, Tuple
 
 from .domain_models import (
     PythonContext,
-    CompletionItem,
     HoverDetails,
     ParameterInfo,
     DefinitionLocation,
@@ -85,62 +84,6 @@ class JediAdapter(IJediAdapter):
                 exc_info=True,
             )
             return None
-
-    def get_completions(self, context: PythonContext) -> List[CompletionItem]:
-        """
-        Queries Jedi for completions and maps them to domain CompletionItems.
-        Guarantees no raw Jedi objects or exceptions escape.
-        """
-        script = self._get_script(context)
-        if not script:
-            return []
-
-        try:
-            try:
-                jedi_completions = script.complete(
-                    line=context.line, column=context.column
-                )
-            except Exception as e:
-                # Catches _pickle.UnpicklingError, EOFError,
-                # ProcessLookupError, and BrokenPipeError from Jedi's
-                # subprocess IPC pipe when the worker thread is interrupted
-                # mid-query or the subprocess pipe is closed prematurely.
-                logger.warning("Jedi subprocess completion failed: %s", e)
-                return []
-
-            results: List[CompletionItem] = []
-            for item in jedi_completions:
-                try:
-                    # Capture documentation safely to avoid rendering slowdowns later
-                    doc = item.docstring(raw=True)
-                    results.append(
-                        CompletionItem(
-                            label=item.name,
-                            insert_text=item.name_with_symbols,
-                            kind=item.type,
-                            documentation=doc if doc else None,
-                        )
-                    )
-                except Exception as inner_ex:
-                    logger.warning(
-                        "Failed parsing individual completion item '%s': %s",
-                        item.name,
-                        str(inner_ex),
-                    )
-                    # Fallback to a bare-minimum model if extraction of details fails
-                    results.append(
-                        CompletionItem(
-                            label=item.name,
-                            insert_text=item.name,
-                            kind="value",
-                            documentation=None,
-                        )
-                    )
-            return results
-
-        except Exception as e:
-            logger.error("Jedi completion execution failed: %s", str(e), exc_info=True)
-            return []
 
     def get_hover(self, context: PythonContext) -> Optional[HoverDetails]:
         """

@@ -9,7 +9,6 @@ from editor.Ironica.tab_editor import *
 from editor.Ironica.code_editor import *
 from editor.Ironica.language_engine import *
 from editor.Ironica.utils.highlighting_api import *
-from editor.Ironica.utils.autocomplete_menu import *
 
 _KEYWORDS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "keywords")
 

@@ -40,6 +40,7 @@ class TestTabEditorConstruction:
         from PyQt6.QtWidgets import QVBoxLayout
         from editor.Ironica.tab_editor import DreamTabbedEditor
         from editor.Ironica.code_editor import CodeEditor
+        from editor.Ironica.utils.minimap import MiniMapHostWidget
 
         parent = _make_tab_parent()
 
@@ -47,11 +48,11 @@ class TestTabEditorConstruction:
         tabs = DreamTabbedEditor(parent)
         layout.addWidget(tabs)
 
-        editor = tabs.add_new_editor()
-        assert isinstance(editor, CodeEditor)
+        widget = tabs.add_new_editor()
+        assert isinstance(widget, MiniMapHostWidget)
+        assert isinstance(widget.editor, CodeEditor)
         assert tabs.count() == 1
 
-        editor._autocomplete_ext.cleanup()
         parent.deleteLater()
 
 

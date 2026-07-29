@@ -117,17 +117,6 @@ class BaseLanguageProvider(ABC):
     """
 
     @abstractmethod
-    def get_auto_completions(self, text: str, line: int, col: int) -> List[str]:
-        """Return a list of candidate completion strings.
-
-        Args:
-            text: The full editor buffer content.
-            line: 0-indexed cursor line.
-            col: 0-indexed cursor column.
-        """
-        return []
-
-    @abstractmethod
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
         """Return a documentation / signature string for the symbol under the cursor.
 

@@ -17,7 +17,7 @@ import html as _html
 import keyword
 import logging
 import re
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 try:
     from editor.Ironica.language_engine import BaseLanguageProvider
@@ -26,10 +26,6 @@ except ImportError:
     from abc import ABC, abstractmethod
 
     class BaseLanguageProvider(ABC):
-        @abstractmethod
-        def get_auto_completions(self, text: str, line: int, col: int) -> List[str]:
-            return []
-
         @abstractmethod
         def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
             return None
@@ -298,22 +294,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
         context = self._build_context(text, line, col)
         return self._adapter.get_hover(context)
-
-    def get_auto_completions(self, text: str, line: int, col: int) -> List[str]:
-        if not text:
-            return []
-
-        context = self._build_context(text, line, col)
-
-        cached_result = self._cache.get(context, "completions")
-        if cached_result is not None:
-            return cached_result
-
-        items = self._adapter.get_completions(context)
-        completions_list = [item.label for item in items]
-
-        self._cache.set(context, "completions", completions_list)
-        return completions_list
 
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
         if not text:

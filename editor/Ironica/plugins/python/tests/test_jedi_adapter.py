@@ -11,19 +11,6 @@ from editor.Ironica.plugins.python.domain_models import PythonContext
 from editor.Ironica.plugins.python.jedi_adapter import JediAdapter
 
 
-def test_get_completions_basic() -> None:
-    """Verifies completions can be retrieved for built-in methods on objects."""
-    code = "text = 'hello'\ntext.up"
-    context = PythonContext(source_code=code, line=2, column=7)
-
-    adapter = JediAdapter()
-    completions = adapter.get_completions(context)
-
-    assert len(completions) > 0
-    labels = [item.label for item in completions]
-    assert "upper" in labels
-
-
 def test_get_hover_signature() -> None:
     """Verifies that hover details can resolve detailed python signatures."""
     code = "def calc_sum(a: int, b: int = 10) -> int:\n    return a + b\n\ncalc_sum"
@@ -61,10 +48,8 @@ def test_error_resiliency() -> None:
     context = PythonContext(source_code="import os", line=999, column=999)
 
     adapter = JediAdapter()
-    completions = adapter.get_completions(context)
     hover = adapter.get_hover(context)
     definition = adapter.get_definition(context)
 
-    assert completions == []
     assert hover is None
     assert definition is None

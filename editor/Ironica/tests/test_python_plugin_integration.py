@@ -98,7 +98,6 @@ class TestProviderType:
 
         register_python_language()
         provider = LanguageRegistry.get_provider("python")
-        assert hasattr(provider, "get_auto_completions")
         assert hasattr(provider, "get_hover_hint")
         assert hasattr(provider, "get_definition_location")
         assert hasattr(provider, "format_source")
@@ -113,17 +112,6 @@ class TestProviderFeatures:
 
         register_python_language()
         self.provider = LanguageRegistry.get_provider("python")
-
-    def test_completions_returns_list(self):
-        code = "text = 'hello'\ntext.up"
-        result = self.provider.get_auto_completions(code, 1, 5)
-        assert isinstance(result, list)
-        assert len(result) > 0
-
-    def test_completions_contains_upper(self):
-        code = "text = 'hello'\ntext.up"
-        result = self.provider.get_auto_completions(code, 1, 5)
-        assert "upper" in result
 
     def test_hover_returns_string_or_none(self):
         code = "def foo(): pass\nfoo"
@@ -146,10 +134,6 @@ class TestProviderFeatures:
         code = "x = 1\ny = 2\n"
         result = self.provider.format_source(code)
         assert result == code  # Python plugin is a passthrough formatter
-
-    def test_completions_no_crash_on_bad_position(self):
-        result = self.provider.get_auto_completions("import os", 999, 999)
-        assert result == []
 
     def test_hover_no_crash_on_bad_position(self):
         result = self.provider.get_hover_hint("import os", 999, 999)
@@ -175,8 +159,6 @@ class TestEditorIntegration:
             assert editor.current_provider is not None
             assert isinstance(editor.current_provider, BaseLanguageProvider)
         finally:
-            if hasattr(editor, "_autocomplete_ext"):
-                editor._autocomplete_ext.cleanup()
             editor.deleteLater()
 
     def test_editor_no_provider_for_unknown(self, qapp_instance, language_registry):
@@ -187,8 +169,6 @@ class TestEditorIntegration:
             assert editor.current_lang == "nonexistent"
             assert editor.current_provider is None
         finally:
-            if hasattr(editor, "_autocomplete_ext"):
-                editor._autocomplete_ext.cleanup()
             editor.deleteLater()
 
     def test_editor_clears_provider_on_empty_language(
@@ -206,8 +186,6 @@ class TestEditorIntegration:
             assert editor.current_lang is None
             assert editor.current_provider is None
         finally:
-            if hasattr(editor, "_autocomplete_ext"):
-                editor._autocomplete_ext.cleanup()
             editor.deleteLater()
 
 
@@ -274,7 +252,6 @@ class TestErrorRecovery:
         provider = LanguageRegistry.get_provider("python")
 
         # All methods should handle empty code gracefully
-        assert provider.get_auto_completions("", 0, 0) == []
         assert provider.get_hover_hint("", 0, 0) is None
         assert provider.get_definition_location("", 0, 0) is None
         assert provider.format_source("") == ""
@@ -286,7 +263,6 @@ class TestPluginModuleImports:
     def test_import_domain_models(self):
         from editor.Ironica.plugins.python.domain_models import (
             PythonContext,
-            CompletionItem,
             HoverDetails,
             DefinitionLocation,
             ReferenceLocation,

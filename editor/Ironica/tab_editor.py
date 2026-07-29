@@ -382,9 +382,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             except (TypeError, RuntimeError):
                 pass
 
-        if hasattr(editor, "_autocomplete_ext"):
-            editor._autocomplete_ext.cleanup()
-
         if hasattr(editor, "_diag_manager"):
             editor._diag_manager.shutdown()
 

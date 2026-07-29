@@ -91,9 +91,6 @@ class TestLanguageRegistryProvider:
         from editor.Ironica.language_engine import BaseLanguageProvider
 
         class DummyProvider(BaseLanguageProvider):
-            def get_auto_completions(self, text, line, col):
-                return []
-
             def get_hover_hint(self, text, line, col):
                 return None
 
@@ -236,7 +233,6 @@ class TestLanguageLexer:
         assert lexer.description(1) == "keyword"
         assert lexer.description(2) == "string"
         assert lexer.description(999) == ""
-        editor._autocomplete_ext.cleanup()
         editor.deleteLater()
 
     def test_lexer_empty_config(self, qapp_instance):
@@ -246,5 +242,4 @@ class TestLanguageLexer:
         editor = CodeEditor()
         lexer = LanguageLexer(editor, {})
         assert lexer.description(0) == ""
-        editor._autocomplete_ext.cleanup()
         editor.deleteLater()

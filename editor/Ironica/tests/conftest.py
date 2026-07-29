@@ -98,8 +98,6 @@ def editor(qapp_instance):
 
     w = CodeEditor()
     yield w
-    if hasattr(w, "_autocomplete_ext"):
-        w._autocomplete_ext.cleanup()
     w.deleteLater()
 
 
@@ -112,8 +110,6 @@ def editor_api(qapp_instance):
     ed = CodeEditor()
     api = EditorAPI(ed)
     yield api
-    if hasattr(ed, "_autocomplete_ext"):
-        ed._autocomplete_ext.cleanup()
     ed.deleteLater()
 
 

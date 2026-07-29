@@ -30,7 +30,6 @@ from PyQt6.QtWidgets import QApplication, QColorDialog
 from PyQt6.Qsci import QsciScintilla
 
 from editor.Ironica.language_engine import LanguageRegistry, LanguageLexer
-from editor.Ironica.utils.autocomplete_menu import EditorAutocompleteExtension
 from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
 from editor.Ironica.utils.hover_controller import HoverController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
@@ -182,19 +181,7 @@ class CodeEditor(QsciScintilla):
 
         self.cursorPositionChanged.connect(self._emit_position)
 
-        # QScintilla AutoCompletion configuration.
-        self.setAutoCompletionSource(QsciScintilla.AutoCompletionSource.AcsNone)
-        self.setAutoCompletionThreshold(2)
-        self.setAutoCompletionCaseSensitivity(True)
-        self.setAutoCompletionReplaceWord(True)
-        self.setAutoCompletionUseSingle(QsciScintilla.AutoCompletionUseSingle.AcusNever)
-
-        self.userListActivated.connect(self._on_completion_selected)
         self.marginClicked.connect(self._on_margin_clicked)
-
-        # Autocomplete extension — event filter + popup controller.
-        self._autocomplete_ext = EditorAutocompleteExtension(self)
-        self._autocomplete_ext.install()
 
         # Apply language if provided.
         if language:
@@ -490,16 +477,7 @@ class CodeEditor(QsciScintilla):
     # ------------------------------------------------------------------
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
-        """Intercept key events for autocomplete trigger, goto definition,
-        and enhanced enter/return behaviour."""
-        if (
-            e.modifiers() == Qt.KeyboardModifier.ControlModifier
-            and e.key() == Qt.Key.Key_Space
-        ):
-            self._autocomplete_ext.trigger_autocomplete()
-            e.accept()
-            return
-
+        """Intercept key events for goto definition and enhanced enter/return behaviour."""
         if e.key() == Qt.Key.Key_F12:
             self.execute_goto_definition()
             e.accept()
@@ -528,9 +506,6 @@ class CodeEditor(QsciScintilla):
             return
 
         super().keyPressEvent(e)
-
-        if e.text() == "." or (e.text().isalnum() and not self.isListActive()):
-            self._autocomplete_ext.schedule_autocomplete()
 
     # ------------------------------------------------------------------
     # Mouse events / hover
@@ -585,11 +560,8 @@ class CodeEditor(QsciScintilla):
         super().mousePressEvent(e)
 
     def _dismiss_all_popups(self) -> None:
-        """Dismiss every open sub-menu (hover flyout + autocomplete)."""
+        """Dismiss every open sub-menu (hover flyout)."""
         self._dismiss_hover_flyout()
-        ext = getattr(self, "_autocomplete_ext", None)
-        if ext is not None:
-            ext.cancel_autocomplete()
 
     # ------------------------------------------------------------------
     # Debugger and Breakpoints
@@ -1382,36 +1354,6 @@ class CodeEditor(QsciScintilla):
             if tab_widget.widget(i) is self:
                 tab_bar.mark_readonly(i, is_readonly)
                 break
-
-    # ------------------------------------------------------------------
-    # Completion callback
-    # ------------------------------------------------------------------
-
-    def _on_completion_selected(self, list_id: int, selection: int) -> None:
-        """Handle insertion when an item is selected from the built-in menu."""
-        if list_id != 1:
-            return
-
-        line, index = self.getCursorPosition()
-        current_line_text = self.text(line)[:index]
-
-        import re
-
-        match = re.search(r"(\w+)$", current_line_text)
-        word_len = len(match.group(1)) if match else 0
-
-        self.beginUndoAction()
-        if word_len > 0:
-            self.setSelection(line, index - word_len, line, index)
-            self.removeSelectedText()
-
-        self.insert(selection)
-        self.endUndoAction()
-        self.setCursorPosition(line, index - word_len + len(selection))
-
-    def trigger_autocomplete(self) -> None:
-        """Manually trigger the autocomplete popup."""
-        self._autocomplete_ext.trigger_autocomplete()
 
     # ------------------------------------------------------------------
     # Code formatting
