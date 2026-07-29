@@ -29,7 +29,8 @@ from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QApplication, QColorDialog
 from PyQt6.Qsci import QsciScintilla
 
-from editor.Ironica.language_engine import LanguageRegistry, LanguageLexer
+from editor.Ironica.language_engine import LanguageRegistry
+from editor.Ironica.regex import IronicaLexer
 from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
 from editor.Ironica.utils.hover_controller import HoverController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
@@ -978,19 +979,6 @@ class CodeEditor(QsciScintilla):
             self._lexer = self._create_lexer(lang, config)
             self.setLexer(self._lexer)
 
-            if lang == "python" and self._lexer:
-                if hasattr(self._lexer, "setFoldComments"):
-                    self._lexer.setFoldComments(False)
-                if hasattr(self._lexer, "setFoldCompact"):
-                    self._lexer.setFoldCompact(False)
-                if hasattr(self._lexer, "setFoldQuotes"):
-                    self._lexer.setFoldQuotes(False)
-
-                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold", b"0")
-                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold.comment", b"0")
-                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold.quotes", b"0")
-                self.SendScintilla(QsciScintilla.SCI_SETPROPERTY, b"fold.compact", b"0")
-
             if hasattr(self._lexer, "setFont"):
                 self._lexer.setFont(self._font, -1)
             self._apply_semantic_indicators()
@@ -1002,75 +990,14 @@ class CodeEditor(QsciScintilla):
         self._setup_hover_engine()
 
     def _create_lexer(self, lang: str, config: dict):
-        """Create the best available lexer for *lang*.
+        """Create an ``IronicaLexer`` for *lang*.
 
-        For Python, prefer the built-in ``QsciLexerPython`` which
-        handles stateful syntax (comments, strings, f-strings) correctly.
-        Falls back to the generic ``LanguageLexer`` for other languages.
+        ``IronicaLexer`` is a combined lexer that handles keyword
+        highlighting, bracket pair colorization with depth tracking,
+        numeric literals, and operators — all with colours read from
+        the language JSON config.
         """
-        if lang == "python":
-            try:
-                from PyQt6.Qsci import QsciLexerPython
-
-                lexer = QsciLexerPython(self)
-                self._apply_config_to_builtin_lexer(lexer, config)
-                return lexer
-            except ImportError:
-                logger.debug(
-                    "QsciLexerPython not available, falling back to LanguageLexer"
-                )
-
-        return LanguageLexer(self, config)
-
-    def _apply_config_to_builtin_lexer(self, lexer, config: dict) -> None:
-        """Apply custom colours from a JSON config to a built-in QScintilla lexer.
-
-        Maps the config's ``"styles"`` dictionary onto the built-in
-        lexer's style indices using the colour values.  Also propagates
-        the ``string`` and ``comment`` colours to all variant styles
-        (single/double/triple-quoted, f-strings, block comments).
-        """
-        from PyQt6.QtGui import QColor
-
-        styles = config.get("styles", {})
-
-        # Resolve collisions: use unique QsciLexerPython style indices
-        # that don't overlap.
-        colour_map = {
-            "keyword": lexer.Keyword,  # 5
-            "builtin": lexer.HighlightedIdentifier,  # 14
-            "definition": lexer.FunctionMethodName,  # 9
-            "class_def": lexer.ClassName,  # 8
-            "string": lexer.DoubleQuotedString,  # 3
-            "number": lexer.Number,  # 2
-            "comment": lexer.Comment,  # 1
-            "decorator": lexer.Decorator,  # 15
-            "operator": lexer.Operator,  # 10
-        }
-
-        for style_name, color_hex in styles.items():
-            style_idx = colour_map.get(style_name)
-            if style_idx is not None:
-                lexer.setColor(QColor(color_hex), style_idx)
-
-        # Propagate "string" colour to ALL string style variants.
-        if "string" in styles:
-            string_color = QColor(styles["string"])
-            for idx in (
-                lexer.SingleQuotedString,  # 4
-                lexer.TripleDoubleQuotedString,  # 7
-                lexer.TripleSingleQuotedString,  # 6
-                lexer.UnclosedString,  # 13
-                lexer.DoubleQuotedFString,  # 16
-                lexer.SingleQuotedFString,  # 17
-                lexer.TripleDoubleQuotedFString,  # 19
-                lexer.TripleSingleQuotedFString,  # 18
-            ):
-                lexer.setColor(string_color, idx)
-
-        # Propagate "comment" colour to block comments.
-        if "comment" in styles:
-            lexer.setColor(QColor(styles["comment"]), lexer.CommentBlock)  # 12
+        return IronicaLexer(self, config)
 
     # ------------------------------------------------------------------
     # Semantic indicators (imports, special keywords)

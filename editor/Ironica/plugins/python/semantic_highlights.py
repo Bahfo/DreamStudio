@@ -27,13 +27,15 @@ import ast
 import io
 import keyword
 import tokenize
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from editor.Ironica.utils.highlighting_api import (
     ITokenProvider,
     Token,
-    STYLES,
+    TokenStyle,
+    styles_from_config,
 )
+from editor.Ironica.language_engine import LanguageRegistry
 
 _FSTRING_TOKEN_TYPES = frozenset(
     t
@@ -138,6 +140,16 @@ class PythonSemanticProvider(ITokenProvider):
         self._cache_text: str = ""
         self._cache_lexical: List[Token] = []
         self._cache_semantic: List[Token] = []
+        self._styles: Dict[str, TokenStyle] = {}
+
+    def _get_styles(self) -> Dict[str, TokenStyle]:
+        if not self._styles:
+            config = LanguageRegistry.get_config("python")
+            if config:
+                self._styles = styles_from_config(config)
+            else:
+                self._styles = styles_from_config({})
+        return self._styles
 
     def invalidate_cache(self) -> None:
         self._cache_text = ""
@@ -183,22 +195,40 @@ class PythonSemanticProvider(ITokenProvider):
                 continue
 
             if tok.type == tokenize.COMMENT:
-                tokens.append(Token(start_byte, length, STYLES["comment"], "comment"))
+                tokens.append(
+                    Token(start_byte, length, self._get_styles()["comment"], "comment")
+                )
             elif tok.type == tokenize.STRING or tok.type in _FSTRING_TOKEN_TYPES:
-                tokens.append(Token(start_byte, length, STYLES["string"], "string"))
+                tokens.append(
+                    Token(start_byte, length, self._get_styles()["string"], "string")
+                )
             elif tok.type == tokenize.NUMBER:
-                tokens.append(Token(start_byte, length, STYLES["number"], "number"))
+                tokens.append(
+                    Token(start_byte, length, self._get_styles()["number"], "number")
+                )
             elif tok.type == tokenize.OP:
                 if tok.string == "@":
                     tokens.append(
-                        Token(start_byte, length, STYLES["decorator"], "decorator")
+                        Token(
+                            start_byte,
+                            length,
+                            self._get_styles()["decorator"],
+                            "decorator",
+                        )
                     )
                 else:
                     tokens.append(
-                        Token(start_byte, length, STYLES["operator"], "operator")
+                        Token(
+                            start_byte,
+                            length,
+                            self._get_styles()["operator"],
+                            "operator",
+                        )
                     )
             elif tok.type == tokenize.NAME and keyword.iskeyword(tok.string):
-                tokens.append(Token(start_byte, length, STYLES["keyword"], "keyword"))
+                tokens.append(
+                    Token(start_byte, length, self._get_styles()["keyword"], "keyword")
+                )
         return tokens
 
     def _semantic(
@@ -248,28 +278,37 @@ class PythonSemanticProvider(ITokenProvider):
                 elif tok.string in ("import", "from"):
                     state = "import"
                 elif tok.string in ("self", "cls"):
-                    tokens.append(Token(start_byte, length, STYLES["self"], "self"))
+                    tokens.append(
+                        Token(start_byte, length, self._get_styles()["self"], "self")
+                    )
                 else:
                     if state == "def":
                         tokens.append(
-                            Token(start_byte, length, STYLES["function"], "function")
+                            Token(
+                                start_byte,
+                                length,
+                                self._get_styles()["function"],
+                                "function",
+                            )
                         )
                         state = "def_args"
                     elif state == "class":
                         tokens.append(
-                            Token(start_byte, length, STYLES["class"], "class")
+                            Token(
+                                start_byte, length, self._get_styles()["class"], "class"
+                            )
                         )
                         state = None
                     elif state == "def_args" and paren_depth > 0:
                         tokens.append(
-                            Token(start_byte, length, STYLES["parameter"], "parameter")
+                            Token(start_byte, length, self._get_styles()["parameter"], "parameter")
                         )
                     elif state == "import":
                         if tok.string != "as":
                             style = (
-                                STYLES["class"]
+                                self._get_styles()["class"]
                                 if tok.string[:1].isupper()
-                                else STYLES["module"]
+                                else self._get_styles()["module"]
                             )
                             tokens.append(
                                 Token(start_byte, length, style, "definition")
@@ -299,6 +338,29 @@ class PythonSemanticProvider(ITokenProvider):
                 out.append(tok)
                 last_end = end
         return out
+
+    def _add_self_attr_var(
+        self,
+        target: ast.Attribute,
+        line_offsets: List[int],
+        exclude: List[Tuple[int, int]],
+        tokens: List[Token],
+    ) -> None:
+        if (
+            isinstance(target.value, ast.Name)
+            and target.value.id in ("self", "cls")
+        ):
+            attr_start = (
+                line_offsets[target.lineno - 1]
+                + target.col_offset
+                + len(target.value.id)
+                + 1  # skip "self."
+            )
+            attr_len = len(target.attr.encode("utf-8"))
+            if attr_start >= 0 and not _in_exclusion(attr_start, attr_len, exclude):
+                tokens.append(
+                    Token(attr_start, attr_len, self._get_styles()["variable"], "variable")
+                )
 
     def _find_next_name_after_token(self, tok_stream, lineno: int, keyword_text: str):
         seen_keyword = False
@@ -367,7 +429,9 @@ class PythonSemanticProvider(ITokenProvider):
                     and length > 0
                     and not _in_exclusion(start, length, exclude)
                 ):
-                    tokens.append(Token(start, length, STYLES["function"], "function"))
+                    tokens.append(
+                        Token(start, length, self._get_styles()["function"], "function")
+                    )
 
             for arg in _iter_param_args(node.args):
                 if not hasattr(arg, "col_offset"):
@@ -375,12 +439,9 @@ class PythonSemanticProvider(ITokenProvider):
                 start = line_offsets[arg.lineno - 1] + arg.col_offset
                 length = len(arg.arg.encode("utf-8"))
                 if start >= 0 and not _in_exclusion(start, length, exclude):
-                    style = (
-                        STYLES["self"]
-                        if arg.arg in ("self", "cls")
-                        else STYLES["parameter"]
-                    )
-                    tokens.append(Token(start, length, style, "parameter"))
+                    kind = "self" if arg.arg in ("self", "cls") else "parameter"
+                    style = self._get_styles()[kind]
+                    tokens.append(Token(start, length, style, kind))
 
         elif isinstance(node, ast.ClassDef):
             name_tok = self._find_next_name_after_token(
@@ -396,7 +457,9 @@ class PythonSemanticProvider(ITokenProvider):
                     and length > 0
                     and not _in_exclusion(start, length, exclude)
                 ):
-                    tokens.append(Token(start, length, STYLES["class"], "class"))
+                    tokens.append(
+                        Token(start, length, self._get_styles()["class"], "class")
+                    )
 
         elif isinstance(node, ast.Import):
             for alias in node.names:
@@ -405,7 +468,9 @@ class PythonSemanticProvider(ITokenProvider):
                 start = line_offsets[alias.lineno - 1] + alias.col_offset
                 length = len(alias.name.encode("utf-8"))
                 if start >= 0 and not _in_exclusion(start, length, exclude):
-                    tokens.append(Token(start, length, STYLES["module"], "module"))
+                    tokens.append(
+                        Token(start, length, self._get_styles()["module"], "module")
+                    )
 
         elif isinstance(node, ast.ImportFrom):
             mod_span = self._find_importfrom_module_span(tok_stream, node.lineno)
@@ -423,7 +488,9 @@ class PythonSemanticProvider(ITokenProvider):
                     and length > 0
                     and not _in_exclusion(start, length, exclude)
                 ):
-                    tokens.append(Token(start, length, STYLES["module"], "module"))
+                    tokens.append(
+                        Token(start, length, self._get_styles()["module"], "module")
+                    )
 
             for alias in node.names:
                 if alias.name == "*" or not hasattr(alias, "col_offset"):
@@ -432,11 +499,100 @@ class PythonSemanticProvider(ITokenProvider):
                 length = len(alias.name.encode("utf-8"))
                 if start >= 0 and not _in_exclusion(start, length, exclude):
                     style = (
-                        STYLES["class"]
+                        self._get_styles()["class"]
                         if alias.name[:1].isupper()
-                        else STYLES["function"]
+                        else self._get_styles()["function"]
                     )
                     tokens.append(Token(start, length, style, "definition"))
+
+        # ── Variable definitions ──────────────────────────────────
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    start = line_offsets[target.lineno - 1] + target.col_offset
+                    length = len(target.id.encode("utf-8"))
+                    if start >= 0 and not _in_exclusion(start, length, exclude):
+                        tokens.append(
+                            Token(
+                                start,
+                                length,
+                                self._get_styles()["variable"],
+                                "variable",
+                            )
+                        )
+                elif isinstance(target, ast.Attribute):
+                    self._add_self_attr_var(target, line_offsets, exclude, tokens)
+
+        elif isinstance(node, ast.AnnAssign):
+            target = node.target
+            if isinstance(target, ast.Name):
+                start = line_offsets[target.lineno - 1] + target.col_offset
+                length = len(target.id.encode("utf-8"))
+                if start >= 0 and not _in_exclusion(start, length, exclude):
+                    tokens.append(
+                        Token(start, length, self._get_styles()["variable"], "variable")
+                    )
+            elif isinstance(target, ast.Attribute):
+                self._add_self_attr_var(target, line_offsets, exclude, tokens)
+
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            target = node.target
+            if isinstance(target, ast.Name):
+                start = line_offsets[target.lineno - 1] + target.col_offset
+                length = len(target.id.encode("utf-8"))
+                if start >= 0 and not _in_exclusion(start, length, exclude):
+                    tokens.append(
+                        Token(start, length, self._get_styles()["variable"], "variable")
+                    )
+
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                opt = item.optional_vars
+                if opt is not None and isinstance(opt, ast.Name):
+                    start = line_offsets[opt.lineno - 1] + opt.col_offset
+                    length = len(opt.id.encode("utf-8"))
+                    if start >= 0 and not _in_exclusion(start, length, exclude):
+                        tokens.append(
+                            Token(
+                                start,
+                                length,
+                                self._get_styles()["variable"],
+                                "variable",
+                            )
+                        )
+
+        # ── Exception clause ─────────────────────────────────────
+        elif isinstance(node, ast.ExceptHandler):
+            if isinstance(node.type, ast.Name):
+                start = line_offsets[node.type.lineno - 1] + node.type.col_offset
+                length = len(node.type.id.encode("utf-8"))
+                if start >= 0 and not _in_exclusion(start, length, exclude):
+                    tokens.append(
+                        Token(
+                            start, length, self._get_styles()["exception"], "exception"
+                        )
+                    )
+            if node.name:
+                name_tok = self._find_next_name_after_token(
+                    tok_stream, node.lineno, "as"
+                )
+                if name_tok is not None and name_tok.string == node.name:
+                    start = _tokenize_char_to_byte(
+                        line_offsets,
+                        name_tok.line,
+                        name_tok.start[0],
+                        name_tok.start[1],
+                    )
+                    length = len(name_tok.string.encode("utf-8"))
+                    if start >= 0 and not _in_exclusion(start, length, exclude):
+                        tokens.append(
+                            Token(
+                                start,
+                                length,
+                                self._get_styles()["variable"],
+                                "variable",
+                            )
+                        )
 
         elif isinstance(node, ast.Name) and node.id in ("self", "cls"):
             if not hasattr(node, "col_offset"):
@@ -444,7 +600,7 @@ class PythonSemanticProvider(ITokenProvider):
             start = line_offsets[node.lineno - 1] + node.col_offset
             length = len(node.id.encode("utf-8"))
             if start >= 0 and not _in_exclusion(start, length, exclude):
-                tokens.append(Token(start, length, STYLES["self"], "self"))
+                tokens.append(Token(start, length, self._get_styles()["self"], "self"))
 
     def get_token_at(self, text: str, offset: int) -> Optional[Token]:
         tokens = self.get_tokens(text)

@@ -55,30 +55,95 @@ class TokenStyle:
     italic: bool = False
 
 
-# Predefined token styles matching the VS Code dark theme palette.
 # Style 0 is reserved as DEFAULT by QScintilla.
 STYLE_DEFAULT = TokenStyle(0, "#D4D4D4")
 
-STYLES: Dict[str, TokenStyle] = {
-    "keyword": TokenStyle(1, "#C586C0"),  # purple
-    "builtin": TokenStyle(2, "#4FC1FF"),  # light blue
-    "definition": TokenStyle(3, "#DCDCAA"),  # yellow
-    "class": TokenStyle(4, "#4EC9B0"),  # teal
-    "string": TokenStyle(5, "#CE9178"),  # orange
-    "number": TokenStyle(6, "#B5CEA8"),  # green
-    "comment": TokenStyle(7, "#6A9955"),  # dark green
-    "decorator": TokenStyle(8, "#D7BA7D"),  # gold
-    "self": TokenStyle(9, "#569CD6"),  # dark blue
-    "operator": TokenStyle(10, "#D4D4D4"),  # light gray
-    "variable": TokenStyle(11, "#9CDCFE"),  # light blue (params/vars)
-    "module": TokenStyle(12, "#4EC9B0"),  # teal (imports)
-    "function": TokenStyle(13, "#DCDCAA"),  # yellow (calls)
-    "parameter": TokenStyle(14, "#9CDCFE"),  # light blue (params)
-    "constant": TokenStyle(15, "#569CD6"),  # dark blue (True/False/None)
-    "bracket": TokenStyle(16, "#FFD700"),  # gold (depth 1)
-    "bracket_2": TokenStyle(17, "#C678DD"),  # purple (depth 2)
-    "bracket_3": TokenStyle(18, "#61AFEF"),  # blue (depth 3)
+# Mapping from semantic token types to JSON config style keys.
+# The JSON files (keywords/*.json) are the single source of truth for colours.
+# This map tells `styles_from_config()` how to translate config style names
+# into semantic token types used by the highlighting API.
+SEMANTIC_TO_CONFIG_KEY: Dict[str, str] = {
+    "keyword": "keyword",
+    "builtin": "builtin",
+    "definition": "definition",
+    "class": "class_def",
+    "string": "string",
+    "number": "number",
+    "comment": "comment",
+    "decorator": "decorator",
+    "self": "additional",
+    "operator": "operator",
+    "variable": "variable",
+    "module": "import",
+    "function": "definition",
+    "parameter": "additional",
+    "constant": "additional",
+    "bracket": "bracket",
+    "bracket_2": "bracket_2",
+    "bracket_3": "bracket_3",
+    "exception": "exception",
 }
+
+# Fallback colours for semantic types not present in the language config.
+_DEFAULT_COLOURS: Dict[str, str] = {
+    "keyword": "#C586C0",
+    "builtin": "#4FC1FF",
+    "definition": "#DCDCAA",
+    "class": "#4EC9B0",
+    "class_def": "#4EC9B0",
+    "string": "#CE9178",
+    "number": "#B5CEA8",
+    "comment": "#6A9955",
+    "decorator": "#D7BA7D",
+    "additional": "#569CD6",
+    "operator": "#D4D4D4",
+    "variable": "#9CDCFE",
+    "module": "#4FC1FF",
+    "function": "#DCDCAA",
+    "parameter": "#9CDCFE",
+    "constant": "#569CD6",
+    "bracket": "#FFD700",
+    "bracket_2": "#C678DD",
+    "bracket_3": "#61AFEF",
+    "exception": "#FF6B6B",
+    "import": "#82AAFF",
+}
+
+
+def styles_from_config(config: dict) -> Dict[str, TokenStyle]:
+    """Build a STYLES dict from a language configuration.
+
+    Reads the ``"styles"`` section of *config* and maps each semantic
+    token type to its colour.  Semantic types that are not present in
+    the config fall back to ``_DEFAULT_COLOURS``.
+
+    Style IDs are assigned sequentially starting at 1 (0 is reserved
+    as DEFAULT by QScintilla).
+    """
+    config_styles = config.get("styles", {})
+    style_id = 1
+    result: Dict[str, TokenStyle] = {}
+
+    # Collect all unique config keys referenced by semantic types.
+    needed_keys: set = set(SEMANTIC_TO_CONFIG_KEY.values())
+
+    # Assign IDs from the config, preserving order from the config dict.
+    config_key_to_id: Dict[str, int] = {}
+    for key in config_styles:
+        if key in needed_keys:
+            config_key_to_id[key] = style_id
+            style_id += 1
+
+    # Build result for every semantic type.
+    for sem_type, config_key in SEMANTIC_TO_CONFIG_KEY.items():
+        colour = config_styles.get(config_key) or _DEFAULT_COLOURS.get(sem_type, "#D4D4D4")
+        sid = config_key_to_id.get(config_key, 0)
+        result[sem_type] = TokenStyle(sid, colour)
+
+    return result
+
+
+STYLES: Dict[str, TokenStyle] = {}
 
 
 # ==================================================================

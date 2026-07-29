@@ -11,17 +11,31 @@ The provider has two independent paths:
 Run with: pytest test_semantic_highlights.py -v
 """
 
+import os
+import json as _json
 import pytest
 
 from editor.Ironica.utils.highlighting_api import (
     HighlightingRegistry,
-    STYLES,
+    styles_from_config,
     Token,
 )
 from editor.Ironica.plugins.python.semantic_highlights import (
     PythonSemanticProvider,
     get_semantic_highlights,
 )
+from editor.Ironica.language_engine import LanguageRegistry
+
+# Build STYLES from the python.json config (single source of truth).
+_PYTHON_JSON = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "keywords", "python.json")
+)
+if os.path.isfile(_PYTHON_JSON):
+    with open(_PYTHON_JSON) as _f:
+        _PYTHON_CONFIG = _json.load(_f)
+    STYLES = styles_from_config(_PYTHON_CONFIG)
+else:
+    STYLES = styles_from_config({})
 
 
 # ------------------------------------------------------------------
@@ -144,7 +158,7 @@ class TestOverlayWhitelist:
             "        return self.val\n"
         )
         kinds = _overlay_kinds(p, code)
-        allowed = {"function", "class", "parameter", "self", "module", "definition"}
+        allowed = {"function", "class", "parameter", "self", "module", "definition", "variable", "exception"}
         assert kinds.issubset(allowed), f"Unexpected kinds: {kinds - allowed}"
 
     def test_function_def_name(self):
@@ -568,7 +582,7 @@ class TestNormalPythonFile:
             "    main()\n"
         )
         kinds = _overlay_kinds(p, code)
-        allowed = {"function", "class", "parameter", "self", "module", "definition"}
+        allowed = {"function", "class", "parameter", "self", "module", "definition", "variable", "exception"}
         assert kinds.issubset(allowed)
 
         func_names = _named_spans(p, code, "function")
@@ -634,7 +648,9 @@ class TestDebugManagementSnippet:
         id_tokens = [t for t in tokens if t.kind == "identifier"]
         assert id_tokens == []
         overlay = p.get_semantic_ranges(code)
-        assert overlay == []
+        # result is highlighted as a variable definition
+        assert len(overlay) == 1
+        assert overlay[0][2] in ("#9CDCFE",)  # variable colour
 
 
 # ------------------------------------------------------------------

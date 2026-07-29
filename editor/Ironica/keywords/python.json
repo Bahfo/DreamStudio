@@ -3,7 +3,7 @@
     "extensions": ["py", "pyw", "pyi"],
     "styles": {
         "keyword": "#C586C0",
-        "builtin": "#4FC1FF",
+        "builtin": "#E06B96",
         "definition": "#DCDCAA",
         "class_def": "#4EC9B0",
         "string": "#CE9178",
@@ -11,7 +11,12 @@
         "comment": "#6A9955",
         "decorator": "#D7BA7D",
         "additional": "#569CD6",
-        "operator": "#D4D4D4"
+        "operator": "#D4D4D4",
+        "bracket": "#FFD700",
+        "bracket_2": "#C678DD",
+        "bracket_3": "#61AFEF",
+        "exception": "#FF6B6B",
+        "import": "#82AAFF"
     },
     "keywords": {
         "keyword": [
@@ -33,21 +38,17 @@
             "sorted", "staticmethod", "str", "sum", "super", "tuple", "type",
             "vars", "zip", "__import__"
         ],
-        "definition": [
-            "def"
-        ],
-        "class_def": [
-            "class"
-        ],
-        "string": [
-            "True", "False"
-        ],
+        "definition": [],
+        "class_def": [],
+        "string": [],
         "number": [],
         "comment": [],
         "decorator": [],
         "additional": [
             "self", "cls", "None"
         ],
-        "operator": []
+        "operator": [],
+        "exception": [],
+        "import": []
     }
 }
