@@ -2,7 +2,7 @@
     {
         "id":"btn",
         "icon_path":"assets/system/folder.png",
-        "tooltip":"Open folder",
+        "tooltip":"Solution Explorer",
         "size":[40, 40],
         "icon_size":[30, 30],
         "callback": "_toggle_file_explorer"
@@ -10,7 +10,7 @@
     {
         "id":"btn",
         "icon_path":"assets/system/find.png",
-        "tooltip":"Search files",
+        "tooltip":"Search Files",
         "size":[40, 40],
         "icon_size":[30, 30],
         "callback": "_toggle_search_widget"
@@ -18,7 +18,7 @@
     {
         "id":"btn",
         "icon_path":"assets/system/git.png",
-        "tooltip":"Version control",
+        "tooltip":"Version Control",
         "size":[40, 40],
         "icon_size":[30, 30],
         "callback": "_toggle_git_source_control"
@@ -28,11 +28,35 @@
     },
     {
         "id":"btn",
+        "icon_path":"assets/system/gem.png",
+        "tooltip":"Code Quality Insights",
+        "size":[40, 40],
+        "icon_size":[25, 25],
+        "callback":false
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/monitor.png",
+        "tooltip":"System Monitor",
+        "size":[40, 40],
+        "icon_size":[25, 25],
+        "callback":false
+    },
+    {
+        "id":"btn",
         "icon_path":"assets/system/terminal.png",
-        "tooltip":"Toggle terminal",
+        "tooltip":"Toggle Terminal",
         "size":[40, 40],
         "icon_size":[25, 25],
         "callback": "_toggle_terminal"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/system/py_shell.png",
+        "tooltip":"Python Interpreter Shell",
+        "size":[40, 40],
+        "icon_size":[25, 25],
+        "callback":false
     },
     {
         "id":"btn",

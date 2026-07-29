@@ -894,23 +894,6 @@ class CodeEditor(QsciScintilla):
         for line in range(first_line, last_line):
             self.update_line_color_indicator(line)
 
-    def _on_margin_clicked(self, margin: int, line: int, state) -> None:
-        """Handles clicks on editor margins."""
-        if margin != self.COLOR_MARGIN:
-            return
-
-        info = self._get_color_by_line(line)
-        if not info:
-            return
-
-        current_color, color_str, start_col, end_col = info
-
-        options = QColorDialog.ColorDialogOption.ShowAlphaChannel
-        new_color = QColorDialog.getColor(current_color, self, "Select Color", options)
-
-        if new_color.isValid() and new_color != current_color:
-            self._apply_color_to_line(line, color_str, new_color, start_col, end_col)
-
     def _apply_color_to_line(
         self, line: int, old_str: str, new_color: QColor, start_col: int, end_col: int
     ) -> None:
