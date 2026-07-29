@@ -4,7 +4,7 @@ Run with: pytest test_features.py
 """
 
 import pytest
-from editor.Ironica.plugins.python.complexity import ComplexityAnalysisService
+from editor.Ironica.plugins.python.utils.complexity import ComplexityAnalysisService
 
 
 def test_complexity_calculations() -> None:

@@ -75,17 +75,6 @@ class ReferenceLocation:
 
 
 @dataclass(frozen=True)
-class RefactorChange:
-    """
-    Represents a proposed file modification during a refactoring task.
-    This lets the editor core approve and apply changes to its own buffers.
-    """
-
-    file_path: Optional[str]
-    new_source_code: str
-
-
-@dataclass(frozen=True)
 class FunctionComplexity:
     """Complexity metrics computed for a specific function/method."""
 

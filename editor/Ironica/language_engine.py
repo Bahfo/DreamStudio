@@ -5,21 +5,21 @@ Language support infrastructure for DreamStudio.
 
 This module provides:
 
-- ``LanguageLexer`` — a generic keyword-based QScintilla lexer driven
+- `LanguageLexer` — a generic keyword-based QScintilla lexer driven
   by a JSON configuration dictionary.
-- ``BaseLanguageProvider`` — the abstract contract that every language
+- `BaseLanguageProvider` — the abstract contract that every language
   intelligence backend must implement.  Future LSP providers will
   subclass this.
-- ``LanguageRegistry`` — a central, class-level registry that maps file
+- `LanguageRegistry` — a central, class-level registry that maps file
   extensions to language identifiers, stores parsed JSON configurations,
   and associates provider instances.
 
 **LSP Integration Plan (not yet implemented):**
 
-A future ``LSPProvider(BaseLanguageProvider)`` subclass will wrap a
+A future `LSPProvider(BaseLanguageProvider)` subclass will wrap a
 language-server process and implement all four abstract methods using
-the Language Server Protocol.  ``LanguageRegistry.register_language``
-already accepts an optional ``provider_instance`` — an LSP provider
+the Language Server Protocol.  `LanguageRegistry.register_language`
+already accepts an optional `provider_instance` — an LSP provider
 would simply be passed in at registration time.
 
 No changes to the public API are required to add LSP support.
@@ -43,10 +43,10 @@ class LanguageLexer(QsciLexerCustom):
 
     The *config* dictionary must contain:
 
-    - ``"styles"``: ``{style_name: "#RRGGBB", ...}``
-    - ``"keywords"``: ``{style_name: ["word1", ...], ...}``
+    - `"styles"`: `{style_name: "#RRGGBB", ...}`
+    - `"keywords"`: `{style_name: ["word1", ...], ...}`
 
-    Each ``style_name`` in ``"keywords"`` must also appear in ``"styles"``.
+    Each `style_name` in `"keywords"` must also appear in `"styles"`.
     """
 
     def __init__(self, parent, config: dict):
@@ -79,10 +79,10 @@ class LanguageLexer(QsciLexerCustom):
     def styleText(self, start: int, end: int):
         """Called by QScintilla to syntax-highlight a text range.
 
-        Uses strict word-boundary regex (``\\b``) with exact match
+        Uses strict word-boundary regex (`\\b`) with exact match
         offsets.  This eliminates the substring-matching bug where
-        ``re.split(r\"(\\W+)\", text)`` fragmented identifiers like
-        ``STYLE_PAREN_3`` and caused partial-keyword collisions.
+        `re.split(r\"(\\W+)\", text)` fragmented identifiers like
+        `STYLE_PAREN_3` and caused partial-keyword collisions.
         """
         editor = self.editor()
         if not editor:
@@ -131,7 +131,7 @@ class BaseLanguageProvider(ABC):
     def get_definition_location(
         self, text: str, line: int, col: int
     ) -> Optional[tuple]:
-        """Return ``(file_path, line, col)`` for the symbol's definition.
+        """Return `(file_path, line, col)` for the symbol's definition.
 
         Args:
             text: The full editor buffer content.
@@ -148,28 +148,26 @@ class BaseLanguageProvider(ABC):
         """
         return source_code
 
-    def get_hover_display(
-        self, text: str, line: int, col: int
-    ) -> Optional[tuple]:
-        """Return ``(title_html, body_html)`` for the symbol under the cursor.
+    def get_hover_display(self, text: str, line: int, col: int) -> Optional[tuple]:
+        """Return `(title_html, body_html)` for the symbol under the cursor.
 
         The *title_html* is a short rich-text fragment shown in the flyout
         header.  The *body_html* is the full documentation body suitable
-        for a ``QTextBrowser`` or ``QLabel`` with rich-text support.
+        for a `QTextBrowser` or `QLabel` with rich-text support.
 
-        Optional method — return ``None`` when hover documentation is
+        Optional method — return `None` when hover documentation is
         unavailable or the provider does not support it.
         """
         return None
 
     def get_semantic_highlights(self, text: str):
-        """Return colour ranges for semantic tokens, or ``None``.
+        """Return colour ranges for semantic tokens, or `None`.
 
         Optional method — providers that implement it return a list of
-        ``(start_offset, length, "#RRGGBB")`` tuples.  The editor uses
+        `(start_offset, length, "#RRGGBB")` tuples.  The editor uses
         these to paint Scintilla indicators on top of the lexer.
 
-        Return ``None`` to indicate that the provider does not supply
+        Return `None` to indicate that the provider does not supply
         semantic highlights (the editor falls back to its built-in
         highlighting, if any).
         """
@@ -185,10 +183,10 @@ class LanguageRegistry:
     """Central, class-level registry for DreamStudio language support.
 
     Maps file extensions to language identifiers, stores parsed JSON
-    configuration dictionaries, and associates ``BaseLanguageProvider``
+    configuration dictionaries, and associates `BaseLanguageProvider`
     instances with languages.
 
-    All methods are ``@classmethod`` — no instantiation is required.
+    All methods are `@classmethod` — no instantiation is required.
     Internal state is shared across the entire process.
     """
 
@@ -211,21 +209,22 @@ class LanguageRegistry:
             provider_instance: Optional intelligence provider.
 
         Returns:
-            ``True`` on success, ``False`` on any validation or I/O error.
+            `True` on success, `False` on any validation or I/O error.
 
-        Raises nothing — all errors are logged and ``False`` is returned.
+        Raises nothing — all errors are logged and `False` is returned.
 
         **JSON format (canonical)::**
-
+            ```
             {
                 "lang": "python",
                 "extensions": ["py", "pyw"],
                 "styles": {"keyword": "#C586C0", "definition": "#4FC1FF"},
                 "keywords": {"keyword": ["if", "else"], "definition": ["def", "class"]}
             }
+            ```
 
-        Alternatively, the legacy ``"words"`` / ``"colors_schema"`` format
-        from older config files is auto-converted via ``_normalize_config``.
+        Alternatively, the legacy `"words"` / `"colors_schema"` format
+        from older config files is auto-converted via `_normalize_config`.
         """
         try:
             config = cls._load_json(json_path)
@@ -255,8 +254,7 @@ class LanguageRegistry:
                 existing = cls._extension_map.get(normalized_ext)
                 if existing and existing != lang_name:
                     logger.warning(
-                        "Extension %r already mapped to %r — "
-                        "replacing with %r",
+                        "Extension %r already mapped to %r — " "replacing with %r",
                         normalized_ext,
                         existing,
                         lang_name,
@@ -294,7 +292,7 @@ class LanguageRegistry:
             provider_instance: Optional intelligence provider.
 
         Returns:
-            ``True`` on success, ``False`` on validation error.
+            `True` on success, `False` on validation error.
         """
         try:
             config = cls._normalize_config(config)
@@ -335,7 +333,7 @@ class LanguageRegistry:
             lang_name: The language identifier to remove.
 
         Returns:
-            ``True`` if the language was found and removed.
+            `True` if the language was found and removed.
         """
         if lang_name not in cls._configs:
             return False
@@ -362,23 +360,23 @@ class LanguageRegistry:
         """Resolve a file extension to its language identifier.
 
         Args:
-            ext: File extension including the leading dot (e.g. ``".py"``).
+            ext: File extension including the leading dot (e.g. `".py"`).
         """
         return cls._extension_map.get(ext)
 
     @classmethod
     def get_config(cls, lang: str) -> Optional[dict]:
-        """Return the configuration dictionary for *lang*, or ``None``."""
+        """Return the configuration dictionary for *lang*, or `None`."""
         return cls._configs.get(lang)
 
     @classmethod
     def get_provider(cls, lang: str) -> Optional[BaseLanguageProvider]:
-        """Return the intelligence provider for *lang*, or ``None``."""
+        """Return the intelligence provider for *lang*, or `None`."""
         return cls._providers.get(lang)
 
     @classmethod
     def is_registered(cls, lang_name: str) -> bool:
-        """Return ``True`` if *lang_name* is registered."""
+        """Return `True` if *lang_name* is registered."""
         return lang_name in cls._configs
 
     @classmethod
@@ -408,7 +406,7 @@ class LanguageRegistry:
 
     @classmethod
     def _load_json(cls, json_path: str) -> Optional[dict]:
-        """Load and parse a JSON file, returning ``None`` on error."""
+        """Load and parse a JSON file, returning `None` on error."""
         try:
             with open(json_path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -426,23 +424,25 @@ class LanguageRegistry:
     def _normalize_config(cls, config: dict) -> dict:
         """Convert legacy config formats to the canonical format.
 
-        Supports the ``words`` / ``colors_schema`` format used by
-        older language JSON files (e.g. ``python.json``).
+        Supports the `words` / `colors_schema` format used by
+        older language JSON files (e.g. `python.json`).
 
-        The canonical format uses ``"styles"`` and ``"keywords"`` keys.
+        The canonical format uses `"styles"` and `"keywords"` keys.
         """
         if "styles" in config and "keywords" in config:
             return config
 
         if "words" in config and "colors_schema" in config:
-            logger.debug("Normalizing legacy language config for %r", config.get("lang"))
+            logger.debug(
+                "Normalizing legacy language config for %r", config.get("lang")
+            )
             return cls._convert_legacy_config(config)
 
         return config
 
     @classmethod
     def _convert_legacy_config(cls, config: dict) -> dict:
-        """Convert a ``words``/``colors_schema`` config to canonical format."""
+        """Convert a `words`/`colors_schema` config to canonical format."""
         words = config.get("words", {})
         colors = config.get("colors_schema", {})
 
@@ -486,11 +486,15 @@ class LanguageRegistry:
 
         extensions = config.get("extensions", [])
         if not extensions:
-            errors.append("No extensions defined — language will be unreachable by file type")
+            errors.append(
+                "No extensions defined — language will be unreachable by file type"
+            )
 
         styles = config.get("styles")
         if styles is None:
-            errors.append("Missing 'styles' section — syntax highlighting will not work")
+            errors.append(
+                "Missing 'styles' section — syntax highlighting will not work"
+            )
         elif not isinstance(styles, dict):
             errors.append("'styles' must be a dictionary")
 
@@ -502,8 +506,6 @@ class LanguageRegistry:
         elif styles and isinstance(styles, dict):
             for cat in keywords:
                 if cat not in styles:
-                    errors.append(
-                        f"Keyword category {cat!r} has no matching style"
-                    )
+                    errors.append(f"Keyword category {cat!r} has no matching style")
 
         return errors

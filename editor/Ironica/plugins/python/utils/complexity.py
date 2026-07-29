@@ -5,8 +5,8 @@ Does not require imports, runtimes, or filesystem access.
 
 import ast
 from typing import List
-from .domain_models import ComplexityReport, FunctionComplexity
-from .interfaces import IComplexityService
+from ..domain_models import ComplexityReport, FunctionComplexity
+from ..interfaces import IComplexityService
 
 
 class ASTComplexityVisitor(ast.NodeVisitor):

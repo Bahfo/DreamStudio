@@ -48,7 +48,6 @@ from PyQt6.QtGui import (
     QColor,
     QPalette,
     QPainter,
-    QPen,
     QMouseEvent,
     QWheelEvent,
     QPaintEvent,

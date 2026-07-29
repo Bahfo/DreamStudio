@@ -48,6 +48,7 @@ class TokenStyle:
         bold:       Whether the token should render in bold.
         italic:     Whether the token should render in italic.
     """
+
     style_id: int
     colour: str
     bold: bool = False
@@ -59,24 +60,24 @@ class TokenStyle:
 STYLE_DEFAULT = TokenStyle(0, "#D4D4D4")
 
 STYLES: Dict[str, TokenStyle] = {
-    "keyword":       TokenStyle(1,  "#C586C0"),   # purple
-    "builtin":       TokenStyle(2,  "#4FC1FF"),   # light blue
-    "definition":    TokenStyle(3,  "#DCDCAA"),   # yellow
-    "class":         TokenStyle(4,  "#4EC9B0"),   # teal
-    "string":        TokenStyle(5,  "#CE9178"),   # orange
-    "number":        TokenStyle(6,  "#B5CEA8"),   # green
-    "comment":       TokenStyle(7,  "#6A9955"),   # dark green
-    "decorator":     TokenStyle(8,  "#D7BA7D"),   # gold
-    "self":          TokenStyle(9,  "#569CD6"),   # dark blue
-    "operator":      TokenStyle(10, "#D4D4D4"),   # light gray
-    "variable":      TokenStyle(11, "#9CDCFE"),   # light blue (params/vars)
-    "module":        TokenStyle(12, "#4EC9B0"),   # teal (imports)
-    "function":      TokenStyle(13, "#DCDCAA"),   # yellow (calls)
-    "parameter":     TokenStyle(14, "#9CDCFE"),   # light blue (params)
-    "constant":      TokenStyle(15, "#569CD6"),   # dark blue (True/False/None)
-    "bracket":       TokenStyle(16, "#FFD700"),   # gold (depth 1)
-    "bracket_2":     TokenStyle(17, "#C678DD"),   # purple (depth 2)
-    "bracket_3":     TokenStyle(18, "#61AFEF"),   # blue (depth 3)
+    "keyword": TokenStyle(1, "#C586C0"),  # purple
+    "builtin": TokenStyle(2, "#4FC1FF"),  # light blue
+    "definition": TokenStyle(3, "#DCDCAA"),  # yellow
+    "class": TokenStyle(4, "#4EC9B0"),  # teal
+    "string": TokenStyle(5, "#CE9178"),  # orange
+    "number": TokenStyle(6, "#B5CEA8"),  # green
+    "comment": TokenStyle(7, "#6A9955"),  # dark green
+    "decorator": TokenStyle(8, "#D7BA7D"),  # gold
+    "self": TokenStyle(9, "#569CD6"),  # dark blue
+    "operator": TokenStyle(10, "#D4D4D4"),  # light gray
+    "variable": TokenStyle(11, "#9CDCFE"),  # light blue (params/vars)
+    "module": TokenStyle(12, "#4EC9B0"),  # teal (imports)
+    "function": TokenStyle(13, "#DCDCAA"),  # yellow (calls)
+    "parameter": TokenStyle(14, "#9CDCFE"),  # light blue (params)
+    "constant": TokenStyle(15, "#569CD6"),  # dark blue (True/False/None)
+    "bracket": TokenStyle(16, "#FFD700"),  # gold (depth 1)
+    "bracket_2": TokenStyle(17, "#C678DD"),  # purple (depth 2)
+    "bracket_3": TokenStyle(18, "#61AFEF"),  # blue (depth 3)
 }
 
 
@@ -96,6 +97,7 @@ class Token:
         kind:    Semantic category string (e.g. ``"keyword"``,
                  ``"variable"``, ``"string"``).
     """
+
     start: int
     length: int
     style: TokenStyle

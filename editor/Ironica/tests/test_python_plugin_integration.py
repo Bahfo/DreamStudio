@@ -266,7 +266,6 @@ class TestPluginModuleImports:
             HoverDetails,
             DefinitionLocation,
             ReferenceLocation,
-            RefactorChange,
             FunctionComplexity,
             ComplexityReport,
             ParameterInfo,
@@ -275,9 +274,6 @@ class TestPluginModuleImports:
     def test_import_interfaces(self):
         from editor.Ironica.plugins.python.interfaces import (
             IJediAdapter,
-            INavigationService,
-            IReferenceFinderService,
-            IRefactoringService,
             IComplexityService,
         )
 
@@ -290,20 +286,11 @@ class TestPluginModuleImports:
     def test_import_cache(self):
         from editor.Ironica.plugins.python.cache import LanguageCache
 
-    def test_import_navigation(self):
-        from editor.Ironica.plugins.python.navigation import (
-            NavigationService,
-            ReferenceFinderService,
-        )
-
-    def test_import_refactoring(self):
-        from editor.Ironica.plugins.python.refactoring import RenameRefactoringService
-
     def test_import_complexity(self):
-        from editor.Ironica.plugins.python.complexity import ComplexityAnalysisService
+        from editor.Ironica.plugins.python.utils.complexity import ComplexityAnalysisService
 
     def test_import_views(self):
-        from editor.Ironica.plugins.python.views import (
+        from editor.Ironica.plugins.python.utils.views import (
             ReferenceViewerWidget,
             RefactorDialog,
             ComplexityDashboard,
@@ -314,9 +301,6 @@ class TestPluginModuleImports:
             PythonLanguageProvider,
             JediAdapter,
             LanguageCache,
-            NavigationService,
-            ReferenceFinderService,
-            RenameRefactoringService,
             ComplexityAnalysisService,
             ReferenceViewerWidget,
             RefactorDialog,

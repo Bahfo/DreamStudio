@@ -322,16 +322,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
                 return match.group(0)
         return None
 
-    def get_hover_html(self, text: str, line: int, col: int) -> Optional[str]:
-        if not text:
-            return None
-
-        hover_details = self.get_hover_details(text, line, col)
-        if not hover_details:
-            return None
-
-        return _format_hover_html(hover_details)
-
     def get_hover_display(
         self, text: str, line: int, col: int
     ) -> Optional[tuple]:
@@ -377,41 +367,4 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
         return get_semantic_highlights(text)
 
-    # ------------------------------------------------------------------
-    # Extended plugin services
-    # ------------------------------------------------------------------
 
-    def get_references(
-        self, text: str, line: int, col: int, file_path: Optional[str] = None
-    ):
-        context = self._build_context(text, line, col, file_path)
-        try:
-            return self._adapter.get_references(context)
-        except Exception as exc:
-            logger.error("Failed to find references: %s", exc)
-            return []
-
-    def get_rename_changes(
-        self,
-        text: str,
-        line: int,
-        col: int,
-        new_name: str,
-        file_path: Optional[str] = None,
-    ):
-        context = self._build_context(text, line, col, file_path)
-        try:
-            return self._adapter.get_rename_changes(context, new_name)
-        except Exception as exc:
-            logger.error("Failed to compute rename changes: %s", exc)
-            return []
-
-    def get_complexity(self, source_code: str):
-        try:
-            from .complexity import ComplexityAnalysisService
-
-            service = ComplexityAnalysisService()
-            return service.analyze_source(source_code)
-        except Exception as exc:
-            logger.error("Failed to analyze complexity: %s", exc)
-            return None

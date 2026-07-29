@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QTreeWidgetItem,
 )
-from .domain_models import ReferenceLocation, ComplexityReport
+from ..domain_models import ReferenceLocation, ComplexityReport
 
 
 class ReferenceViewerWidget(QWidget):
@@ -163,7 +163,9 @@ class ComplexityDashboard(QWidget):
           <tr><td><b>Lines of Code:</b></td><td>{report.total_loc}</td></tr>
           <tr><td><b>Classes:</b></td><td>{report.class_count}</td></tr>
           <tr><td><b>Functions:</b></td><td>{report.function_count}</td></tr>
-          <tr><td><b>Peak Complexity:</b></td><td><span style="color: {'#FF6B6B' if report.max_cyclomatic_complexity > 10 else '#4EC9B0'}; font-weight: bold;">{report.max_cyclomatic_complexity}</span></td></tr>
+          <tr><td><b>Peak Complexity:</b></td><td><span style="color: 
+          {'#FF6B6B' if report.max_cyclomatic_complexity > 10 else '#4EC9B0'}; 
+          font-weight: bold;">{report.max_cyclomatic_complexity}</span></td></tr>
         </table>
         """
         self.summary_label.setText(summary)

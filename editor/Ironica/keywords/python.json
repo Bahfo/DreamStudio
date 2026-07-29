@@ -10,12 +10,12 @@
         "number": "#B5CEA8",
         "comment": "#6A9955",
         "decorator": "#D7BA7D",
-        "self": "#569CD6",
+        "additional": "#569CD6",
         "operator": "#D4D4D4"
     },
     "keywords": {
         "keyword": [
-            "False", "None", "True", "and", "as", "assert", "async", "await",
+            "False", "True", "and", "as", "assert", "async", "await",
             "break", "class", "continue", "def", "del", "elif", "else", "except",
             "finally", "for", "from", "global", "if", "import", "in", "is",
             "lambda", "nonlocal", "not", "or", "pass", "raise", "return",
@@ -40,13 +40,13 @@
             "class"
         ],
         "string": [
-            "True", "False", "None"
+            "True", "False"
         ],
         "number": [],
         "comment": [],
         "decorator": [],
-        "self": [
-            "self", "cls"
+        "additional": [
+            "self", "cls", "None"
         ],
         "operator": []
     }

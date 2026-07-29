@@ -34,59 +34,6 @@ class IJediAdapter(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_references(self, context: PythonContext) -> List[ReferenceLocation]:
-        """
-        Locates all referencing positions for the selected symbol.
-        Must catch all internal parser exceptions and return an empty list.
-        """
-        pass
-
-    @abstractmethod
-    def get_rename_changes(
-        self, context: PythonContext, new_name: str
-    ) -> List[RefactorChange]:
-        """
-        Calculates Jedi refactoring details safely, wrapping all internal Jedi types.
-        """
-        pass
-
-
-class INavigationService(ABC):
-    """
-    Handles tracking definitions of symbols.
-    Allows users to jump to the origin source code lines.
-    """
-
-    @abstractmethod
-    def navigate_to_definition(
-        self, context: PythonContext
-    ) -> Optional[DefinitionLocation]:
-        """Resolves and returns the origin location of the symbol under the cursor."""
-        pass
-
-
-class IReferenceFinderService(ABC):
-    """
-    Finds all usages of a target symbol across the program scope.
-    """
-
-    @abstractmethod
-    def find_all_references(self, context: PythonContext) -> List[ReferenceLocation]:
-        """Locates all references to the symbol under the cursor."""
-        pass
-
-
-class IRefactoringService(ABC):
-    """Handles symbol transformations across the workspace."""
-
-    @abstractmethod
-    def rename_symbol(
-        self, context: PythonContext, new_name: str
-    ) -> List[RefactorChange]:
-        """Calculates renaming operations for the symbol under the cursor."""
-        pass
-
 
 class IComplexityService(ABC):
     """Parses files to analyze code quality metrics without execution."""
