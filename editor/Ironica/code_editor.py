@@ -29,11 +29,13 @@ from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QApplication, QColorDialog
 from PyQt6.Qsci import QsciScintilla
 
-from editor.Ironica.language_engine import LanguageRegistry
-from editor.Ironica.regex import IronicaLexer
 from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
 from editor.Ironica.utils.hover_controller import HoverController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
+from editor.Ironica.language_engine import LanguageRegistry
+from editor.Ironica.regex import IronicaLexer
+
+from fonts.font_strapper import Fonts
 
 logger = logging.getLogger(__name__)
 
@@ -144,10 +146,7 @@ class CodeEditor(QsciScintilla):
         self.current_lang: Optional[str] = None
         self.current_provider: Optional[Any] = None
 
-        self._font = QFont()
-        self._font.setFamilies(["firacode", "Consolas", "Courier New", "monospace"])
-        self._font.setStyleHint(QFont.StyleHint.Monospace)
-        self._font.setPointSize(10)
+        self._font = Fonts.space_mono(10)
         self.setFont(self._font)
         try:
             self.setUtf8(True)

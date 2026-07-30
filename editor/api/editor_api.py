@@ -4,6 +4,8 @@ import re
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtGui import QColor
 
+from fonts.font_strapper import Fonts
+
 from editor.utils.find_replace.find_replace import FindReplace
 
 
@@ -300,6 +302,24 @@ class EditorAPI:
         )
         m = pattern.search(qss_content)
         return m.group(1).strip() if m else None
+
+    # ------------------------------------------------------------------
+    # Global IDE font (applied everywhere except code editors)
+    # ------------------------------------------------------------------
+
+    def set_global_font(self, font_name: str) -> None:
+        """Set the global UI font across the entire IDE.
+
+        Applies ``font-family`` via the main window stylesheet so that
+        all panels, sidebars, and toolbars inherit the new family.
+        Code editors are unaffected — they manage their own monospace
+        font independently via ``DreamTabbedEditor.set_editor_font_by_name``.
+
+        Args:
+            font_name: Font family name — use ``Fonts.FONT_SEGOE_UI``,
+                       ``Fonts.FONT_INTER``, or any installed family.
+        """
+        self.setStyleSheet(f"font-family: '{font_name}';")
 
     # ------------------------------------------------------------------
     # Editor state & status

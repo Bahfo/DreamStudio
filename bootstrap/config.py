@@ -16,6 +16,8 @@ import platform
 import getpass
 from typing import Any
 
+from fonts.font_strapper import Fonts
+
 logger = logging.getLogger(__name__)
 
 CONFIG_DIR_NAME = ".configs"
@@ -34,7 +36,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "editor": {
         "theme": "dark",
-        "font_family": "Segoe UI",
+        "font_family": Fonts.FONT_SEGOE_UI,
         "font_size": 12,
     },
     "workspace": {

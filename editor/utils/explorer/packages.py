@@ -35,7 +35,6 @@ class DependenciesView(QWidget):
 
         self._label = QLabel("Packages Explorer")
         self._label.setStyleSheet("""
-            font-family: Segoe UI, Arial; 
             font-size: 12px;""")
         _layout.addWidget(self._label)
 

@@ -141,6 +141,17 @@ def phase_resources(ctx: PhaseContext) -> None:
         logger.warning("Missing asset directories: %s", missing_dirs)
         ctx.warnings.append(f"Missing asset dirs: {missing_dirs}")
 
+    # Register bundled fonts so QFont("Space Mono"), QFont("Montserrat"),
+    # etc. resolve to the actual font files rather than system fallbacks.
+    try:
+        from fonts.font_strapper import Fonts
+
+        Fonts.init()
+        logger.info("Bundled fonts registered")
+    except Exception as exc:
+        logger.warning("Bundled font registration failed: %s", exc)
+        ctx.warnings.append(f"Font loading failed: {exc}")
+
     ctx.registry.register("theme_content", theme_content)
     logger.info("Phase 4 completed: Resources loaded")
 

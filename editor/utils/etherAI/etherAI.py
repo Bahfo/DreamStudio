@@ -37,7 +37,6 @@ class EtherAIMainScreen(QFrame):
         sub_text.setStyleSheet(
             """color: #9aa0a6; 
             font-size: 18px; 
-            font-family: 'Segoe UI'; 
             background-color: transparent;"""
         )
         self._layout.addWidget(sub_text)
@@ -78,7 +77,6 @@ class EtherAIMainScreen(QFrame):
             """
             color: #F5F5F5; 
             font-size: 18px;
-            font-family: 'Segoe UI'; 
             background-color: transparent;"""
         )
         self._layout.addWidget(self.features_label)
@@ -121,7 +119,6 @@ class EtherAIMainScreen(QFrame):
             """
             color: #A5A5A5; 
             font-size: 12px;
-            font-family: 'Segoe UI'; 
             background-color: transparent;"""
         )
         self._layout.addWidget(self.warningsLabelAI)

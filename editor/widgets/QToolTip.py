@@ -2,6 +2,8 @@ from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel
 from PyQt6.QtCore import Qt, QPoint, QTimer
 from PyQt6.QtGui import QGuiApplication
 
+from fonts.font_strapper import Fonts
+
 
 class ToolTip(QFrame):
     def __init__(self, parent=None, text: str = ""):
@@ -58,7 +60,7 @@ class ToolTip(QFrame):
         """
 
         html_content = f"""
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; 
+        <div style="font-family: '{Fonts.FONT_SEGOE_UI}', Arial, sans-serif; 
             font-size: 13px; 
             line-height: 1.4; 
             color: #cccccc;">

@@ -35,14 +35,14 @@ class PropertyGridDelegate(QStyledItemDelegate):
             editor.setAcceptRichText(False)
             editor.setStyleSheet(
                 "QTextEdit { background-color: #3F3F46; color: #F1F1F1; "
-                "border: 1px solid #007ACC; font-family: 'Segoe UI'; }"
+                "border: 1px solid #007ACC;"
             )
             return editor
         else:
             editor = QLineEdit(parent)
             editor.setStyleSheet(
                 "QLineEdit { background-color: #3F3F46; color: #F1F1F1; "
-                "border: 1px solid #007ACC; font-family: 'Segoe UI'; padding: 2px; }"
+                "border: 1px solid #007ACC; padding: 2px;"
             )
             return editor
 
@@ -255,7 +255,7 @@ class FilePropertiesGrid(QTreeWidget):
         """Instantiates and links VS-styled inline editor widgets into column 1."""
         combo_style = (
             "QComboBox { background-color: #1F1F1F; color: #F1F1F1; border: none; "
-            "padding-left: 2px; font-family: 'Segoe UI'; }"
+            "padding-left: 2px;"
             "QComboBox::drop-down { border: none; width: 16px; }"
             "QComboBox QAbstractItemView { background-color: #2D2D30; color: #F1F1F1; "
             "selection-background-color: #3F3F46; border: 1px solid #3E3E42; }"

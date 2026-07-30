@@ -32,7 +32,7 @@ class CommandWindow(QMenu):
         self.tip_label.setStyleSheet("""background-color: transparent;
             padding: 8px 18px 8px 18px;
             font-size: 12px;
-            font-family: 'Segoe UI';""")
+""")
         tip_action.setDefaultWidget(self.tip_label)
         self.addAction(tip_action)
 

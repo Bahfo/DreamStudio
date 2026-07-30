@@ -192,6 +192,14 @@ class DreamTabbedEditor(QDreamTabEditor):
             if editor and hasattr(editor, "font_size"):
                 editor.font_size = value
 
+    def set_editor_font_by_name(self, font_name: str, size: int = 10) -> None:
+        """Set the monospace font across all code editors."""
+        for i in range(self.count()):
+            widget = self.widget(i)
+            if isinstance(widget, CodeEditor):
+                widget.set_editor_font(font_name)
+                widget.font_size = size
+
     # ------------------------------------------------------------------
     # Tab creation
     # ------------------------------------------------------------------

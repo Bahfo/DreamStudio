@@ -301,7 +301,12 @@ class PythonSemanticProvider(ITokenProvider):
                         state = None
                     elif state == "def_args" and paren_depth > 0:
                         tokens.append(
-                            Token(start_byte, length, self._get_styles()["parameter"], "parameter")
+                            Token(
+                                start_byte,
+                                length,
+                                self._get_styles()["parameter"],
+                                "parameter",
+                            )
                         )
                     elif state == "import":
                         if tok.string != "as":
@@ -346,10 +351,7 @@ class PythonSemanticProvider(ITokenProvider):
         exclude: List[Tuple[int, int]],
         tokens: List[Token],
     ) -> None:
-        if (
-            isinstance(target.value, ast.Name)
-            and target.value.id in ("self", "cls")
-        ):
+        if isinstance(target.value, ast.Name) and target.value.id in ("self", "cls"):
             attr_start = (
                 line_offsets[target.lineno - 1]
                 + target.col_offset
@@ -359,7 +361,9 @@ class PythonSemanticProvider(ITokenProvider):
             attr_len = len(target.attr.encode("utf-8"))
             if attr_start >= 0 and not _in_exclusion(attr_start, attr_len, exclude):
                 tokens.append(
-                    Token(attr_start, attr_len, self._get_styles()["variable"], "variable")
+                    Token(
+                        attr_start, attr_len, self._get_styles()["variable"], "variable"
+                    )
                 )
 
     def _find_next_name_after_token(self, tok_stream, lineno: int, keyword_text: str):

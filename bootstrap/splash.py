@@ -19,6 +19,8 @@ from PyQt6.QtGui import (
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QSplashScreen, QApplication
 
+from fonts.font_strapper import Fonts
+
 logger = logging.getLogger(__name__)
 
 _SPLASH_WIDTH = 680
@@ -39,7 +41,7 @@ def _get_sans_font(
     font = QFont()
     font.setStyleHint(QFont.StyleHint.SansSerif)
     font.setFamilies(
-        ["Inter", "Roboto", "Segoe UI", "Helvetica Neue", "Arial", "sans-serif"]
+        [Fonts.FONT_INTER, "Roboto", Fonts.FONT_SEGOE_UI, "Helvetica Neue", "Arial", "sans-serif"]
     )
     font.setPointSize(point_size)
     font.setWeight(weight)

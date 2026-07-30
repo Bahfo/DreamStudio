@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
+from fonts.font_strapper import Fonts
+
 # Local Imports
 from gradient import GradientBanner
 
@@ -44,7 +46,7 @@ class IDEStartPage(QMainWindow):
         title_label = QLabel("DreamStudio 2026")
         title_label.setObjectName("BannerTitle")
         banner_layout.addWidget(title_label)
-        title_label.setStyleSheet("font-family: 'Montserrat', Arial, sans-serif;")
+        title_label.setStyleSheet(f"font-family: '{Fonts.FONT_MONTSERRAT}', Arial, sans-serif;")
 
         content_widget = QWidget()
         content_layout = QHBoxLayout(content_widget)

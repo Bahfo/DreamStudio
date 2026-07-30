@@ -1,5 +1,6 @@
 from editor import *
 from editor.api.editor_api import EditorAPI
+from fonts.font_strapper import Fonts
 
 
 class DreamStudio(EditorAPI, QMainWindow):
@@ -19,7 +20,7 @@ class DreamStudio(EditorAPI, QMainWindow):
         self.currentDirectory = QDir.currentPath()
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
-        self.setStyleSheet("font-family: 'Segoe UI';")
+        self.setStyleSheet(f"font-family: '{Fonts.segoe_ui}';")
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)

@@ -18,6 +18,8 @@ from PyQt6.QtWidgets import (
 
 from editor.widgets.QSystemGraphWidget import SystemGraphUtil
 
+from fonts.font_strapper import Fonts
+
 
 class SystemMonitor(QWidget):
 
@@ -71,7 +73,7 @@ class SystemMonitor(QWidget):
 
         for i in range(self._num_cores):
             lbl = QLabel(f"Core {i}")
-            lbl.setFont(QFont("Inter", 8))
+            lbl.setFont(Fonts.inter(8))
             lbl.setStyleSheet(
                 f"color: {self._text_color}; background-color: transparent;"
             )
@@ -134,7 +136,7 @@ class SystemMonitor(QWidget):
             QTableWidget.SelectionBehavior.SelectRows
         )
         self.process_table.setShowGrid(False)
-        self.process_table.setFont(QFont("Inter", 9))
+        self.process_table.setFont(Fonts.inter(9))
         self._apply_table_styling()
         proc_layout.addWidget(self.process_table)
 
