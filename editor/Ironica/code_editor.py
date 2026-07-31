@@ -15,6 +15,8 @@ import re
 from typing import Optional, Any
 
 from PyQt6.QtGui import (
+    QKeySequence,
+    QShortcut,
     QKeyEvent,
     QPalette,
     QPainter,
@@ -117,6 +119,12 @@ class CodeEditor(QsciScintilla):
 
         # For breakpoints hover:
         self._hovered_breakpoint_line = None
+
+        # zooming
+        self._is_zoomed = False
+
+        self.shortcut_reset = QShortcut(QKeySequence("Ctrl+0"), self)
+        self.shortcut_reset.activated.connect(self.reset_zoom_level)
 
         ###############################################
         # Breakpoint Helpers
@@ -222,6 +230,34 @@ class CodeEditor(QsciScintilla):
                 compute_folds_for_editor(self)
         except Exception as exc:
             logger.debug("Fold recomputation failed: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Zooming Actions
+    # ------------------------------------------------------------------
+
+    def _get_zoom_level(self) -> int:
+        """
+        A helper method to return zoom level in current editor.
+        """
+        return self.SendScintilla(QsciScintilla.SCI_GETZOOM)
+
+    def is_zoomed(self) -> None:
+        """
+        A public API to indicate if the editor is zoomed or not.
+        """
+        zoom_level = self._get_zoom_level()
+        if zoom_level != 0:
+            self._is_zoomed = True
+        else:
+            self._is_zoomed = False
+
+    def reset_zoom_level(self) -> None:
+        """
+        A public API to reset current editor instance zoom level.
+        """
+        # THIS IS JUST A STUPID WRAPPER AROUND QScintilla.zoomTo()
+        # IDK WHY I ADDED THIS...
+        self.zoomTo(0)
 
     # ------------------------------------------------------------------
     # Hover flyout engine
