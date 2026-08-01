@@ -33,7 +33,7 @@ TAB_OUTPUT = 2
 
 class _TerminalTabBar(DreamStudioIDETabBar):
     def tabSizeHint(self, index):
-        return QSize(80, 32)
+        return QSize(90, 32)
 
 
 class OutputWidget(QWidget):

@@ -4,7 +4,6 @@ from PyQt6.QtCore import Qt, QDateTime
 from PyQt6.QtWidgets import (
     QTreeWidgetItem,
     QStackedWidget,
-    QPlainTextEdit,
     QApplication,
     QVBoxLayout,
     QHBoxLayout,

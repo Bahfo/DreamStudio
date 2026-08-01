@@ -224,6 +224,7 @@ class TerminalWorkspace(QWidget):
 
     def _show_terminal_type_menu(self) -> None:
         menu = QMenu(self)
+        menu.setStyleSheet("border: 1px solid;")
 
         is_windows = sys.platform == "win32"
         primary_label = "PowerShell" if is_windows else "Bash"

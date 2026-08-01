@@ -33,18 +33,15 @@ preventing editor crashes on massive files.
 from __future__ import annotations
 
 import logging
-from typing import Optional, List, Tuple
+from typing import Optional
 
 from PyQt6.QtCore import (
     Qt,
     QTimer,
-    QRect,
-    QPoint,
     pyqtSignal,
 )
 from PyQt6.QtGui import (
     QFont,
-    QFontMetrics,
     QColor,
     QPalette,
     QPainter,
@@ -52,13 +49,14 @@ from PyQt6.QtGui import (
     QWheelEvent,
     QPaintEvent,
     QResizeEvent,
+    QFontMetrics,
 )
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QSizePolicy,
-    QWidget,
     QToolButton,
+    QWidget,
 )
 
 logger = logging.getLogger(__name__)
@@ -441,7 +439,6 @@ class MinimapOverlay(QWidget):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setStyleSheet("background-color: rgba(128, 128, 128, 60);")
 
     def update_geometry(self, y_offset: int, height: int) -> None:
         """Update the position and height of the highlight box."""

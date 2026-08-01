@@ -12,7 +12,7 @@ def return_repository(path: str) -> Repo | Exception:
         repo = Repo(path)
         return repo
     except Exception as e:
-        return e
+        return None
 
 
 def check_last_commits(git_repo: Repo, count: int):
@@ -217,6 +217,31 @@ def get_commit_history(repo: Repo, count: int = 50) -> dict:
         }
     except Exception as e:
         return {"commits": [], "head_sha": None, "branch": "unknown", "error": str(e)}
+
+
+def get_local_branches(repo: Repo):
+    local_branches = [r for r in repo.branches]
+    return local_branches
+
+
+def get_remote_branches(repo: Repo):
+    remote_branches = [r for r in repo.remotes]
+    return remote_branches
+
+
+def get_all_branches(repo: Repo):
+    all_refs = [ref.name for ref in repo.references]
+    return all_refs
+
+
+def switch_branch(
+    repo: Repo, branch_to_switch: str, switch_and_create: bool = False
+) -> None:
+    if switch_and_create == False:
+        repo.git.checkout(branch_to_switch)
+
+    else:
+        repo.git.checkout("-b", branch_to_switch)
 
 
 if __name__ == "__main__":

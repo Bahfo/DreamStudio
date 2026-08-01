@@ -3,7 +3,7 @@
    ========================================================================== */
 
 QMainWindow, QWidget {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     color: #CCCCCC;
     font-family: "Segoe UI", "Inter", Arial, sans-serif;
     font-size: 13px;
@@ -43,7 +43,7 @@ QSplitter::handle:pressed {
 }
 
 QFrame {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     border: none;
 }
 
@@ -108,7 +108,7 @@ QLineEdit::placeholder {
 }
 
 QPlainTextEdit {
-    background-color: #1E1E1E;
+    background-color: #1C1C1C;
     color: #D4D4D4;
     border: none;
     font-family: "JetBrains Mono", "Consolas", "monospace";
@@ -133,7 +133,7 @@ QCheckBox::indicator {
    ========================================================================== */
 
 QTreeView, QTreeWidget {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     color: #CCCCCC;
     border: none;
     outline: 0;
@@ -205,7 +205,7 @@ QHeaderView::section {
 QTreeView#ExplorerTreeView,
 QTreeView#GitGraphTreeView,
 QTreeView#PanelTreeView {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     color: #CCCCCC;
     border: none;
     outline: none;
@@ -215,7 +215,7 @@ QTreeView#PanelTreeView {
 }
 
 QTreeView#ExplorerTreeView {
-    alternate-background-color: #1E1E1E;
+    alternate-background-color: #1c1c1c;
 }
 
 QTreeView#ExplorerTreeView::item,
@@ -350,7 +350,7 @@ QTabBar::tab:hover {
 }
 
 QTabBar::tab:selected {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     color: #F0F0F0;
     border-bottom: 2px solid #007ACC;
 }
@@ -360,7 +360,7 @@ QTabBar::tab:selected {
 DreamStudioIDETabBar {
     qproperty-selected_bg: #252525;
     qproperty-hover_bg: #3E3E42;
-    qproperty-inactive_bg: #1E1E1E;
+    qproperty-inactive_bg: #1c1c1c;
     qproperty-border_color: #252525;
     qproperty-hover_border_color: #3E3E42;
     qproperty-inactive_border_color: #1E1E1E;
@@ -394,7 +394,7 @@ QMenuBar::item:selected {
 }
 
 QMenu {
-    background-color: #252526;
+    background-color: #1c1c1c;
     color: #CCCCCC;
     border: 1px solid #3C3C3C;
     border-radius: 6px;
@@ -589,7 +589,7 @@ DreamStudioTitleBar QPushButton#iconButton {
 
 VerticalSidebar,
 QFrame#VerticalSidebar {
-    background-color: #252526;
+    background-color: #1c1c1c;
     border-right: 1px solid #2D2D30;
 }
 
@@ -644,7 +644,7 @@ MenuBar::item:selected, QMenu#MenuBar::item:selected {
    ========================================================================== */
 
 WorkspaceContainer QFrame {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
 }
 
 WorkspaceContainer QLabel {
@@ -694,16 +694,19 @@ QWidget#SolutionExplorer,
 QWidget#GitVersionControl,
 GitGraph,
 QWidget#Panel,
-QWidget#terminalSidebarHeader,
 QStackedWidget#GitStackedWidget {
     background: transparent;
+}
+
+QWidget#terminalSidebarHeader {
+    background-color: #1C1C1C;
 }
 
 QFrame#PropertiesFrame,
 QFrame#ExplorerFrame,
 QFrame#GitFrame,
 QFrame#PanelFrame {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
 }
 
 QFrame#TODOSearchFrame {
@@ -892,7 +895,7 @@ QFrame#GitCommitBox {
    ========================================================================== */
 
 QFrame#FindReplaceMenu {
-    background-color: #252526;
+    background-color: #1e1e1e;
     border: 1px solid #454545;
     border-radius: 6px;
 }
@@ -1011,12 +1014,12 @@ QFrame#ToolbarSeparator {
    ========================================================================== */
 
 #terminalWorkspace {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     border: none;
 }
 
 QWidget#terminalSidebar {
-    background-color: #252526;
+    background-color: #1c1c1c;
     border: none;
 }
 
@@ -1098,7 +1101,7 @@ QSplitter#terminalWorkspaceSplitter::handle {
 }
 
 QWidget#terminalPanel {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     color: #CCCCCC;
 }
 
@@ -1119,7 +1122,7 @@ QWidget#terminalPanel QPushButton:checked {
 }
 
 QPlainTextEdit#terminalTextEdit {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     color: #D4D4D4;
     border: none;
     font-size: 14px;
@@ -1127,7 +1130,7 @@ QPlainTextEdit#terminalTextEdit {
 }
 
 QPlainTextEdit#terminalOutputText {
-    background-color: #1E1E1E;
+    background-color: #1c1c1c;
     color: #D4D4D4;
     border: none;
     font-family: "JetBrains Mono", "Consolas", monospace;
@@ -1154,7 +1157,7 @@ QScrollBar#terminalViewScrollbar:vertical,
 QScrollBar#terminalViewScrollbar:horizontal,
 QPlainTextEdit#terminalTextEdit QScrollBar:vertical,
 QPlainTextEdit#terminalTextEdit QScrollBar:horizontal {
-    background: #1E1E1E;
+    background: #1c1c1c;
     margin: 0;
     border: none;
 }
@@ -1280,8 +1283,8 @@ UtilityTabBar::tab:hover:!selected {
    ========================================================================== */
 
 QFrame#StatusBar {
-    background-color: #0053b4;
-    border: none;
+    background-color: #1c1c1c;
+    border-top: 1px solid #2D2D30;
 }
 
 QFrame#StatusBar QLabel,

@@ -100,5 +100,5 @@ class DreamStudio(EditorAPI, QMainWindow):
         tabs.open_file_by_path(file_path)
 
     def _build_status_bar(self, main_layout: QVBoxLayout) -> None:
-        self.status_bar = StatusBar(self)
+        self.status_bar = StatusBar(self, self.currentDirectory)
         main_layout.addWidget(self.status_bar)
