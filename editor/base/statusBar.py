@@ -260,34 +260,51 @@ class StatusBar(QFrame):
         all_branches = get_all_branches(self.repository)
         current_branch = self.get_branch()
 
-        for branch in all_branches:
-            action = QAction(branch, self)
+        for branch_name in all_branches:
+            if "HEAD" in branch_name:
+                continue
 
-            if branch == current_branch or branch == f"heads/{current_branch}":
+            action = QAction(branch_name, self)
+
+            # Highlight the current branch
+            if (
+                branch_name == current_branch
+                or branch_name == f"heads/{current_branch}"
+            ):
                 action.setCheckable(True)
                 action.setChecked(True)
 
             action.triggered.connect(
-                lambda checked, b=branch: self.handle_branch_switch(b)
+                lambda checked, b=branch_name: self.handle_branch_switch(b)
             )
             menu.addAction(action)
 
         menu_height = menu.sizeHint().height()
         global_pos = self.repoActions.mapToGlobal(QPoint(0, -menu_height))
-
         menu.exec(global_pos)
 
     def handle_branch_switch(self, branch_name: str):
-        """Switches the branch and updates the UI."""
+        """Switches the branch safely, handling both local and remote references."""
         try:
-            clean_branch_name = branch_name.split("/")[-1]
+            local_branches = [b.name for b in self.repository.branches]
 
-            switch_branch(self.repo, clean_branch_name)
+            if branch_name in local_branches:
+                switch_branch(self.repository, branch_name)
+
+            elif "/" in branch_name:
+                remote, target_local_name = branch_name.split("/", 1)
+
+                if target_local_name in local_branches:
+                    switch_branch(self.repository, target_local_name)
+                else:
+                    self.repository.git.checkout("-b", target_local_name, branch_name)
+            else:
+                switch_branch(self.repository, branch_name)
 
             self.repoActions.setText(f"   {self.get_repo_name()} | {self.get_branch()}")
             self.repoActions.adjustSize()
 
-            print(f"Successfully switched to {clean_branch_name}")
+            print(f"Successfully switched to {branch_name}")
 
         except Exception as e:
             print(f"Failed to switch branch: {e}")

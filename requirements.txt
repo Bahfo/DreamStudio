@@ -8,3 +8,5 @@ pyte==0.8.2
 pytest==9.1.1
 pywinpty==3.0.5
 PyYAML==6.0.3
+
+# This is some test only to see if switch is correct
