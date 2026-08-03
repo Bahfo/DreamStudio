@@ -6,3 +6,5 @@ Refactored implementation into standard PyQt-6 Framework.
 
 # Version 1.1.0: 
 Major Refactoring to take the standard form of DreamStudio required. 
+
+***Latest Version***: 1.1.4
