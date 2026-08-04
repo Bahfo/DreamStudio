@@ -1,4 +1,11 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QLineEdit
+from PyQt6.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
+    QHBoxLayout,
+    QLineEdit,
+)
 from PyQt6.QtCore import Qt, QPropertyAnimation, QSequentialAnimationGroup, QPoint
 
 
@@ -109,9 +116,7 @@ class ConfirmDialog(QDialog):
 
         if title:
             self.title_label = QLabel(title)
-            title_style = (
-                "font-weight: bold; font-size: 15px; margin-bottom: 0px;"
-            )
+            title_style = "font-weight: bold; font-size: 15px; margin-bottom: 0px;"
             self.title_label.setStyleSheet(
                 f"color: {self._text}; background-color: transparent; {title_style}"
             )
@@ -154,7 +159,8 @@ class ConfirmDialog(QDialog):
             }
             """
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QDialog {
                 background-color: #2B2B2B;
                 border: 1px solid #444444;
@@ -178,8 +184,11 @@ class ConfirmDialog(QDialog):
                 background-color: #555555;
                 color: white;
             }
-            """ + destructive_css + """
-        """)
+            """
+            + destructive_css
+            + """
+        """
+        )
 
 
 class RenameDialog(QDialog):
@@ -355,3 +364,100 @@ class RenameDialog(QDialog):
         if self.exec() == QDialog.DialogCode.Accepted:
             return self.line_edit.text().strip()
         return None
+
+
+class ErrorDialog(QDialog):
+    def __init__(
+        self,
+        parent=None,
+        title="Confirm",
+        message="Are you sure?",
+        cancel_text="CANCEL",
+        destructive=False,
+    ):
+        super().__init__(parent)
+        self._destructive = destructive
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
+        self.setFixedWidth(300)
+
+        self._bg = "#2B2B2B"
+        self._border = "#444444"
+        self._text = "#BBBBBB"
+        self._btn_hover = "#555555"
+
+        self._build_ui(title, message, cancel_text)
+        self._apply_styles()
+
+    def _build_ui(self, title, message, cancel_text):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setSpacing(20)
+
+        if title:
+            self.title_label = QLabel(title)
+            title_style = "font-weight: bold; font-size: 15px; margin-bottom: 0px;"
+            self.title_label.setStyleSheet(
+                f"color: {self._text}; background-color: transparent; {title_style}"
+            )
+            layout.addWidget(self.title_label)
+
+        self.label = QLabel(message)
+        layout.addWidget(self.label)
+
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+
+        self.cancel_btn = QPushButton(cancel_text)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        button_layout.addWidget(self.cancel_btn)
+        button_layout.addStretch()
+
+        layout.addLayout(button_layout)
+
+    def _apply_styles(self):
+        destructive_css = ""
+        if self._destructive:
+            destructive_css = """
+            QPushButton#destructiveButton {
+                color: #FF5555;
+            }
+            QPushButton#destructiveButton:hover {
+                background-color: #CC0000;
+                color: white;
+            }
+            QPushButton#destructiveButton:pressed {
+                background-color: #990000;
+            }
+            """
+
+        self.setStyleSheet(
+            """
+            QDialog {
+                background-color: #2B2B2B;
+                border: 1px solid #444444;
+            }
+            QLabel {
+                color: #BBBBBB;
+                font-size: 14px;
+                background-color: transparent;
+                padding: 10px 5px;
+            }
+            QPushButton {
+                color: #BBBBBB;
+                background-color: transparent;
+                border: none;
+                border-radius: 2px;
+                padding: 8px 15px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #555555;
+                color: white;
+            }
+            """
+            + destructive_css
+            + """
+        """
+        )

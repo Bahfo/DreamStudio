@@ -630,3 +630,15 @@ _legacy_provider = PythonSemanticProvider()
 
 def get_semantic_highlights(text: str) -> List[Tuple[int, int, str]]:
     return _legacy_provider.get_semantic_ranges(text)
+
+
+def invalidate_semantic_cache() -> None:
+    """Drop the cached style map and semantic token stream.
+
+    The module-level provider caches ``TokenStyle`` objects (whose
+    colours are baked in at compute time) together with the token
+    stream, so without this hook a theme switch would keep painting
+    definitions/classes/variables/modules with the previous theme's
+    palette.  The editor calls this on every ``retheme``.
+    """
+    _legacy_provider.invalidate_cache()

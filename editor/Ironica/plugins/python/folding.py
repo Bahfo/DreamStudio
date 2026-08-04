@@ -217,6 +217,28 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
     return regions
 
 
+def _apply_import_fold_text(editor, regions: List[FoldRegion]) -> None:
+    """Enable the fold display-text feature and tag import folds with a count.
+
+    Uses the ``CodeEditor`` APIs ``_setup_folding_display_text`` and
+    ``set_custom_import_fold_text`` so a collapsed import block renders a
+    gray ``( ... +N imports)`` label beside its header line.
+    """
+    setup = getattr(editor, "_setup_folding_display_text", None)
+    if setup is not None:
+        setup()
+
+    set_text = getattr(editor, "set_custom_import_fold_text", None)
+    if set_text is None:
+        return
+
+    for region in regions:
+        if region.kind != "import":
+            continue
+        import_count = region.end_line - region.start_line + 1
+        set_text(region.start_line, import_count)
+
+
 def compute_folds_for_editor(editor) -> None:
     """Compute fold regions from editor buffer and update FoldManager."""
     text = editor.text()
@@ -227,3 +249,5 @@ def compute_folds_for_editor(editor) -> None:
     fm = getattr(editor, "_fold_manager", None)
     if fm is not None:
         fm.set_fold_regions(regions)
+
+    _apply_import_fold_text(editor, regions)

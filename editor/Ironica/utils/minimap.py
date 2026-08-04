@@ -558,6 +558,19 @@ class MiniMapHostWidget(QWidget):
         # The virtual minimap.
         self._minimap = VirtualMinimap(editor, self._minimap_container)
 
+        # The editor's own retheme runs inside ``CodeEditor.__init__``,
+        # i.e. before this host exists, so the minimap's initial colours
+        # would otherwise be derived from the widget's default palette
+        # (always light) instead of the active theme.  Theme it explicitly
+        # from the QSS-driven editor colours of the active theme.
+        from editor.Ironica.retheme import active_theme_name, editor_colors
+
+        try:
+            bg = editor_colors(active_theme_name())["bg"]
+            self._minimap.retheme(active_theme_name(), bg)
+        except Exception:
+            pass
+
         # Down scroll button.
         self._btn_down = QToolButton(self._minimap_container)
         self._btn_down.setArrowType(Qt.ArrowType.DownArrow)

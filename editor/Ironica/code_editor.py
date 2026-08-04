@@ -40,6 +40,8 @@ from editor.Ironica.regex import IronicaLexer
 from fonts.font_strapper import Fonts
 
 logger = logging.getLogger(__name__)
+SCI_SETDEFAULTFOLDDISPLAYTEXT = 2722
+SCI_SETFOLDEXPANDEDTEXT = 2700
 
 
 class CodeEditor(QsciScintilla):
@@ -400,6 +402,36 @@ class CodeEditor(QsciScintilla):
             from editor.Ironica.utils.folding import FoldManager
 
             self._fold_manager = FoldManager(self)
+
+    def _setup_folding_display_text(self) -> None:
+        """
+        Sets up text that appears beside a folded text. It displays number
+        of lines folded when applied.
+        """
+        self.SendScintilla(QsciScintilla.SCI_FOLDDISPLAYTEXTSETSTYLE, 1)
+
+        gray_color = QColor(128, 128, 128)
+        self.SendScintilla(
+            QsciScintilla.SCI_STYLESETFORE,
+            QsciScintilla.STYLE_FOLDDISPLAYTEXT,
+            gray_color,
+        )
+
+        self.SendScintilla(SCI_SETDEFAULTFOLDDISPLAYTEXT, 0, b" ... ")
+
+    def set_custom_import_fold_text(self, line: int, import_count: int):
+        """
+        Sets custom text on a specific line whenever an import fold is made.
+
+        Scintilla message 2700 (``SCI_TOGGLEFOLDSHOWTEXT``) also toggles the
+        fold on that line, so the previous fold state is restored afterwards
+        to keep setting the text side-effect free.
+        """
+        was_expanded = bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
+        full_text = f"(... +{import_count} imports)"
+        self.SendScintilla(SCI_SETFOLDEXPANDEDTEXT, line, full_text.encode("utf-8"))
+        if bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line)) != was_expanded:
+            self.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, line)
 
     def _setup_edge(self) -> None:
         """Configure the long-line edge marker."""
@@ -1038,13 +1070,15 @@ class CodeEditor(QsciScintilla):
         return IronicaLexer(self, config)
 
     def _active_theme(self) -> str:
-        """Return the current IDE theme name, falling back to the local one."""
+        """Return the current IDE theme name, falling back to the active one."""
         win = self.window()
         if win is not self:
             name = getattr(win, "_current_theme_name", None)
             if name:
                 return name
-        return self._theme_name
+        from editor.Ironica.retheme import active_theme_name
+
+        return active_theme_name() or self._theme_name
 
     def _resolve_config(self, config: dict) -> dict:
         """Resolve symbolic style colours for the active IDE theme."""

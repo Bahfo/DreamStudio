@@ -12,6 +12,7 @@ from editor.Ironica.plugins.python.cache import LanguageCache
 from editor.Ironica.plugins.python.utils.complexity import ComplexityAnalysisService
 from editor.Ironica.plugins.python.semantic_highlights import (
     get_semantic_highlights,
+    invalidate_semantic_cache,
 )
 from editor.Ironica.plugins.python.utils.views import (
     ReferenceViewerWidget,
@@ -29,6 +30,7 @@ __all__ = [
     "LanguageCache",
     "ComplexityAnalysisService",
     "get_semantic_highlights",
+    "invalidate_semantic_cache",
     "ReferenceViewerWidget",
     "RefactorDialog",
     "ComplexityDashboard",

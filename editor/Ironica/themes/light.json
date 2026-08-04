@@ -4,8 +4,8 @@
     "palette": {
         "KEYWORD_COLOR": "#0000FF",
         "BUILTIN_COLOR": "#005F8B",
-        "DEFINITION_COLOR": "#5A3E00",
-        "CLASS_COLOR": "#005F8B",
+        "DEFINITION_COLOR": "#4A3300",
+        "CLASS_COLOR": "#004E72",
         "STRING_COLOR": "#A31515",
         "NUMBER_COLOR": "#006B42",
         "COMMENT_COLOR": "#005F00",
@@ -16,7 +16,7 @@
         "BRACKET2_COLOR": "#8A00A8",
         "BRACKET3_COLOR": "#006B42",
         "EXCEPTION_COLOR": "#A31515",
-        "IMPORT_COLOR": "#005F00",
-        "VARIABLE_COLOR": "#001080"
+        "IMPORT_COLOR": "#004E00",
+        "VARIABLE_COLOR": "#000D69"
     }
 }

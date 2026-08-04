@@ -367,4 +367,14 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
         return get_semantic_highlights(text)
 
+    def invalidate_cache(self) -> None:
+        """Drop the semantic-highlight cache so overlay colours follow
+        the currently active IDE theme on the next repaint.
 
+        The editor calls this on every ``retheme``; without it the
+        cached tokens keep the palette of the theme that was active the
+        first time a buffer was highlighted.
+        """
+        from .semantic_highlights import invalidate_semantic_cache
+
+        invalidate_semantic_cache()

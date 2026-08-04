@@ -69,8 +69,8 @@ class FoldManager:
     """Language-agnostic fold region manager for a QsciScintilla editor."""
 
     FOLD_MARGIN = 3
-    FOLD_MARGIN_WIDTH = 16
-    ARROW_SIZE = 14
+    FOLD_MARGIN_WIDTH = 14
+    ARROW_SIZE = 12
 
     def __init__(self, editor: QsciScintilla) -> None:
         if editor is None:
@@ -104,26 +104,36 @@ class FoldManager:
     def _arrow_pixmap(self, color: QColor, up: bool) -> QPixmap:
         """Build a VS Code-style chevron-arrow pixmap for a fold header.
 
+        The arrow is painted on a 4x supersampled canvas and scaled back
+        down with smooth filtering so it renders crisp and anti-aliased
+        at the small gutter size instead of looking pixelated.
+
         *up* points the chevron toward the top of the fold; otherwise it
         points toward the body below the header.
         """
         s = self.ARROW_SIZE
-        pm = QPixmap(s, s)
-        pm.fill(QColor(0, 0, 0, 0))
-        p = QPainter(pm)
+        scale = 4
+        big = QPixmap(s * scale, s * scale)
+        big.fill(QColor(0, 0, 0, 0))
+        p = QPainter(big)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(color, 2.2)
+        pen = QPen(color, max(2.0, scale * 1.4))
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         p.setPen(pen)
-        c = s / 2.0
-        arm = 4.5
+        c = (s * scale) / 2.0
+        arm = 3.6 * scale
         apex = c + (-arm * 0.8 if up else arm * 0.8)
         base = c + (arm * 0.8 if up else -arm * 0.8)
         p.drawLine(QPointF(c - arm, base), QPointF(c, apex))
         p.drawLine(QPointF(c, apex), QPointF(c + arm, base))
         p.end()
-        return pm
+        return big.scaled(
+            s,
+            s,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
 
     def _apply_theme_colours(self, e: QsciScintilla, bg: QColor) -> None:
         """Derive the fold-gutter colours from the editor background *bg*."""

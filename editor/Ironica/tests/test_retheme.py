@@ -173,7 +173,7 @@ class TestThemeAwareExtras:
 
         register_python_language()
         config = LanguageRegistry.get_config("python")
-        assert resolve_language_config(config, "light")["styles"]["variable"] == "#001080"
+        assert resolve_language_config(config, "light")["styles"]["variable"] == "#000D69"
         assert resolve_language_config(config, "dark")["styles"]["variable"] == "#9CDCFE"
         assert resolve_language_config(config, "monokai")["styles"]["variable"] == "#F8F8F2"
 
