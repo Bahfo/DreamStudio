@@ -60,7 +60,7 @@ class ToolTip(QFrame):
         """
 
         html_content = f"""
-        <div style="font-family: '{Fonts.FONT_SEGOE_UI}', Arial, sans-serif; 
+        <div style="font-family: '{Fonts.FONT_INTER}', '{Fonts.FONT_SEGOE_UI}', Arial, sans-serif; 
             font-size: 13px; 
             line-height: 1.4; 
             color: #cccccc;">

@@ -1,0 +1,22 @@
+{
+    "theme": "solarized_dark",
+    "name": "Solarized Dark",
+    "palette": {
+        "KEYWORD_COLOR": "#859900",
+        "BUILTIN_COLOR": "#2AA198",
+        "DEFINITION_COLOR": "#268BD2",
+        "CLASS_COLOR": "#B58900",
+        "STRING_COLOR": "#2AA198",
+        "NUMBER_COLOR": "#CB4B16",
+        "COMMENT_COLOR": "#586E75",
+        "DECORATOR_COLOR": "#B58900",
+        "ADDITIONAL_COLOR": "#268BD2",
+        "OPERATOR_COLOR": "#93A1A1",
+        "BRACKET_COLOR": "#859900",
+        "BRACKET2_COLOR": "#6C71C4",
+        "BRACKET3_COLOR": "#2AA198",
+        "EXCEPTION_COLOR": "#DC322F",
+        "IMPORT_COLOR": "#268BD2",
+        "VARIABLE_COLOR": "#268BD2"
+    }
+}

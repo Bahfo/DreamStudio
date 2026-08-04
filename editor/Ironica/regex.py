@@ -28,6 +28,8 @@ from typing import Dict, List, Optional, Set, Tuple
 from PyQt6.QtGui import QColor
 from PyQt6.Qsci import QsciLexerCustom
 
+from editor.Ironica.retheme import resolve_colour
+
 logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------
@@ -107,6 +109,7 @@ class IronicaLexer(QsciLexerCustom):
     def _setup_from_config(self) -> None:
         """Read colours from *config* and register all styles."""
         styles = self.config.get("styles", {})
+        palette = self.config.get("palette", {}) or {}
         keywords = self.config.get("keywords", {})
 
         # Determine which style keys are actually used for keywords.
@@ -120,7 +123,7 @@ class IronicaLexer(QsciLexerCustom):
         keyword_style_ids: Dict[str, int] = {}
         for style_name in styles:
             if style_name in keyword_keys:
-                colour = styles[style_name]
+                colour = resolve_colour(styles[style_name], palette, "#D4D4D4")
                 self.setColor(QColor(colour), idx)
                 keyword_style_ids[style_name] = idx
                 self._keyword_style_names[idx] = style_name
@@ -150,22 +153,22 @@ class IronicaLexer(QsciLexerCustom):
 
         # Register bracket/number/operator colours.
         paren_colours = (
-            styles.get("bracket", "#FFD700"),
-            styles.get("bracket_2", "#C678DD"),
-            styles.get("bracket_3", "#61AFEF"),
+            resolve_colour(styles.get("bracket", "#FFD700"), palette, "#FFD700"),
+            resolve_colour(styles.get("bracket_2", "#C678DD"), palette, "#C678DD"),
+            resolve_colour(styles.get("bracket_3", "#61AFEF"), palette, "#61AFEF"),
         )
         bracket_colours = (
-            styles.get("bracket", "#E06C75"),
-            styles.get("bracket_2", "#D19A66"),
-            styles.get("bracket_3", "#56B6C2"),
+            resolve_colour(styles.get("bracket", "#E06C75"), palette, "#E06C75"),
+            resolve_colour(styles.get("bracket_2", "#D19A66"), palette, "#D19A66"),
+            resolve_colour(styles.get("bracket_3", "#56B6C2"), palette, "#56B6C2"),
         )
         brace_colours = (
-            styles.get("bracket", "#98C379"),
-            styles.get("bracket_2", "#E5C07B"),
-            styles.get("bracket_3", "#C678DD"),
+            resolve_colour(styles.get("bracket", "#98C379"), palette, "#98C379"),
+            resolve_colour(styles.get("bracket_2", "#E5C07B"), palette, "#E5C07B"),
+            resolve_colour(styles.get("bracket_3", "#C678DD"), palette, "#C678DD"),
         )
-        number_colour = styles.get("number", "#B5CEA8")
-        operator_colour = styles.get("operator", "#D4D4D4")
+        number_colour = resolve_colour(styles.get("number", "#B5CEA8"), palette, "#B5CEA8")
+        operator_colour = resolve_colour(styles.get("operator", "#D4D4D4"), palette, "#D4D4D4")
 
         for offset, triple in (
             (self._paren_offset, paren_colours),
@@ -178,10 +181,40 @@ class IronicaLexer(QsciLexerCustom):
         self.setColor(QColor(number_colour), self._number_style)
         self.setColor(QColor(operator_colour), self._operator_style)
 
-        string_colour = styles.get("string", "#CE9178")
-        comment_colour = styles.get("comment", "#6A9955")
+        string_colour = resolve_colour(styles.get("string", "#CE9178"), palette, "#CE9178")
+        comment_colour = resolve_colour(styles.get("comment", "#6A9955"), palette, "#6A9955")
         self.setColor(QColor(string_colour), self._string_style)
         self.setColor(QColor(comment_colour), self._comment_style)
+
+    def retheme(self, config: dict, bg=None, fg=None) -> None:
+        """Re-colour the lexer from a (resolved) *config*.
+
+        Style indices are derived from the order of the ``"styles"``
+        keys and the keyword lists, which a resolved config preserves,
+        so existing style ids stay valid.  When *bg* / *fg* ``QColor``
+        values are given the DEFAULT style (0) is updated as well, which
+        keeps the document background and text in sync with the IDE
+        theme even while a lexer is attached.  The visible document is
+        recoloured immediately via ``SCI_COLOURISE``.
+        """
+        from PyQt6.Qsci import QsciScintilla
+
+        self.config = config
+        self._setup_from_config()
+        if bg is not None:
+            self.setDefaultPaper(bg)
+            self.setPaper(bg, 0)
+            for style in range(self._comment_style + 1):
+                self.setPaper(bg, style)
+        if fg is not None:
+            self.setDefaultColor(fg)
+            self.setColor(fg, 0)
+        editor = self.editor()
+        if editor is not None:
+            try:
+                editor.SendScintilla(QsciScintilla.SCI_COLOURISE, 0, -1)
+            except Exception:
+                pass
 
     def description(self, style: int) -> str:
         if style == 0:

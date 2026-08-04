@@ -16,11 +16,11 @@ class DreamStudio(EditorAPI, QMainWindow):
         super().__init__(parent=_parent)
         self._parent = _parent
         self._registry = registry
+        self._current_theme_name = None
 
         self.currentDirectory = QDir.currentPath()
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
-        self.setStyleSheet(f"font-family: '{Fonts.segoe_ui}';")
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -30,8 +30,14 @@ class DreamStudio(EditorAPI, QMainWindow):
         # Apply the theme provided by the bootstrap kernel.
         theme_content = self._registry.get("theme_content") if self._registry else None
         if theme_content:
+            config = self._registry.get("config") if self._registry else None
+            if isinstance(config, dict):
+                self._current_theme_name = (
+                    config.get("editor", {}).get("theme", "dark")
+                )
             self._apply_theme_content(theme_content)
         else:
+            self._current_theme_name = "dark"
             self._parse_styleSheet("editor/qss/dark.qss")
 
     def setup_layout(self) -> None:

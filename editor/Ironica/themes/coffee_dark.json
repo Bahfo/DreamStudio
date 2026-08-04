@@ -1,0 +1,22 @@
+{
+    "theme": "coffee_dark",
+    "name": "Coffee Dark",
+    "palette": {
+        "KEYWORD_COLOR": "#E8B454",
+        "BUILTIN_COLOR": "#C9A26A",
+        "DEFINITION_COLOR": "#DFC5A2",
+        "CLASS_COLOR": "#BE7C5B",
+        "STRING_COLOR": "#D8A06A",
+        "NUMBER_COLOR": "#B9A06A",
+        "COMMENT_COLOR": "#6E6255",
+        "DECORATOR_COLOR": "#E0A95A",
+        "ADDITIONAL_COLOR": "#A98A6B",
+        "OPERATOR_COLOR": "#CBBBA8",
+        "BRACKET_COLOR": "#E8B454",
+        "BRACKET2_COLOR": "#BE7C5B",
+        "BRACKET3_COLOR": "#A98A6B",
+        "EXCEPTION_COLOR": "#E0715B",
+        "IMPORT_COLOR": "#A98A6B",
+        "VARIABLE_COLOR": "#DFC5A2"
+    }
+}

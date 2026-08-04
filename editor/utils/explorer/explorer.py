@@ -23,6 +23,10 @@ from PyQt6.QtGui import QFileSystemModel
 # Local Imports
 from editor.utils.explorer.proxy import ExplorerFilterProxy, DreamTreeView
 from editor.utils.explorer.menu import ExplorerClickMenu, MenuRegistry
+from editor.utils.explorer.collapsable_menu import (
+    ExplorerOptionsMenu,
+    create_options_button,
+)
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
 from editor.utils.explorer.icons import DreamStudioIconProvider
 from editor.utils.explorer.packages import DependenciesView
@@ -91,6 +95,7 @@ class SolutionExplorer(PanelShell):
         self._hide_extra_columns()
         self._setup_context_menu()
         self._setup_signals()
+        self._setup_options_menu()
 
         self.set_workspace(self._root_path)
         self.setMinimumWidth(350)
@@ -181,7 +186,13 @@ class SolutionExplorer(PanelShell):
 
         self._status_label = QLabel("Ready")
         self._status_label.setObjectName("ExplorerStatusLabel")
-        layout.addWidget(self._status_label)
+
+        self._status_row = QHBoxLayout()
+        self._status_row.setContentsMargins(0, 0, 0, 0)
+        self._status_row.setSpacing(4)
+        self._status_row.addWidget(self._status_label)
+        self._status_row.addStretch(1)
+        layout.addLayout(self._status_row)
 
         self.tree_view = DreamTreeView(page)
         self.tree_view.setObjectName(self.TREE_VIEW_OBJECT_NAME)
@@ -242,6 +253,7 @@ class SolutionExplorer(PanelShell):
             | QDir.Filter.Files
             | QDir.Filter.NoDotAndDotDot
             | QDir.Filter.AllEntries
+            | QDir.Filter.Hidden
         )
 
         self.proxy_model = ExplorerFilterProxy(self)
@@ -289,6 +301,18 @@ class SolutionExplorer(PanelShell):
         if not self._focus_connected:
             QApplication.instance().focusChanged.connect(self._on_app_focus_changed)
             self._focus_connected = True
+
+    def _setup_options_menu(self) -> None:
+        self._options_menu = ExplorerOptionsMenu(
+            proxy_model=self.proxy_model,
+            workspace_root_fn=lambda: self._root_path,
+            parent=self,
+        )
+
+        self._options_btn = create_options_button(
+            self._options_menu, parent=self,
+        )
+        self._status_row.addWidget(self._options_btn)
 
     def _wire_menu_callbacks(self) -> None:
         """

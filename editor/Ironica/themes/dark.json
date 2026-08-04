@@ -1,0 +1,22 @@
+{
+    "theme": "dark",
+    "name": "Dark",
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "BUILTIN_COLOR": "#E06B96",
+        "DEFINITION_COLOR": "#DCDCAA",
+        "CLASS_COLOR": "#4EC9B0",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "DECORATOR_COLOR": "#D7BA7D",
+        "ADDITIONAL_COLOR": "#569CD6",
+        "OPERATOR_COLOR": "#D4D4D4",
+        "BRACKET_COLOR": "#FFD700",
+        "BRACKET2_COLOR": "#C678DD",
+        "BRACKET3_COLOR": "#61AFEF",
+        "EXCEPTION_COLOR": "#FF6B6B",
+        "IMPORT_COLOR": "#82AAFF",
+        "VARIABLE_COLOR": "#9CDCFE"
+    }
+}

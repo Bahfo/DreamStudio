@@ -1,7 +1,9 @@
 import os
 
-from PyQt6.QtCore import QSortFilterProxyModel, Qt, QTimer, QModelIndex
+from PyQt6.QtCore import QDir, QSortFilterProxyModel, Qt, QTimer, QModelIndex
 from PyQt6.QtWidgets import QTreeView
+
+from editor.utils.explorer.collapsable_menu import SortMode
 
 
 class ExplorerFilterProxy(QSortFilterProxyModel):
@@ -16,8 +18,9 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._search_text = ""
-        self._show_hidden = False
+        self._show_hidden = True
         self._root_path = ""
+        self._sort_mode: SortMode = SortMode.ALPHA_ASC
 
         self.setRecursiveFilteringEnabled(True)
         self.setAutoAcceptChildRows(True)
@@ -42,10 +45,27 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         if self._show_hidden == show_hidden:
             return
         self._show_hidden = show_hidden
+        source_model = self.sourceModel()
+        if source_model is not None:
+            current = source_model.filter()
+            if show_hidden:
+                current |= QDir.Filter.Hidden
+            else:
+                current &= ~QDir.Filter.Hidden
+            source_model.setFilter(current)
         self.invalidateFilter()
 
     def show_hidden(self) -> bool:
         return self._show_hidden
+
+    def set_sort_mode(self, mode: SortMode) -> None:
+        if self._sort_mode == mode:
+            return
+        self._sort_mode = mode
+        self.invalidate()
+
+    def sort_mode(self) -> SortMode:
+        return self._sort_mode
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         source_model = self.sourceModel()
@@ -60,10 +80,8 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         file_name = source_model.fileName(index)
         file_path = source_model.filePath(index)
 
-        if not self._show_hidden:
-            name = file_info.fileName()
-            if name not in (".", "..") and file_info.isHidden():
-                return False
+        if not self._show_hidden and file_info.isHidden():
+            return False
 
         if not self._search_text:
             return True
@@ -80,12 +98,31 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         left_info = source_model.fileInfo(left)
         right_info = source_model.fileInfo(right)
 
-        # Directories first, then case-insensitive alphabetical order.
         if left_info.isDir() != right_info.isDir():
             return left_info.isDir() and not right_info.isDir()
 
         left_name = source_model.fileName(left).casefold()
         right_name = source_model.fileName(right).casefold()
+
+        if self._sort_mode == SortMode.EXTENSION:
+            left_ext = left_info.completeSuffix().casefold()
+            right_ext = right_info.completeSuffix().casefold()
+            if left_ext != right_ext:
+                return left_ext < right_ext
+            if left_name != right_name:
+                return left_name < right_name
+
+        if self._sort_mode in (SortMode.MODIFIED_NEWEST, SortMode.MODIFIED_OLDEST):
+            left_mtime = left_info.lastModified().toSecsSinceEpoch()
+            right_mtime = right_info.lastModified().toSecsSinceEpoch()
+            if left_mtime != right_mtime:
+                if self._sort_mode == SortMode.MODIFIED_NEWEST:
+                    return left_mtime > right_mtime
+                return left_mtime < right_mtime
+
+        if self._sort_mode == SortMode.ALPHA_DESC:
+            return left_name > right_name
+
         if left_name != right_name:
             return left_name < right_name
 

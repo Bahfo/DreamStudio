@@ -1,0 +1,22 @@
+{
+    "theme": "light_hc",
+    "name": "Light High Contrast",
+    "palette": {
+        "KEYWORD_COLOR": "#0000FF",
+        "BUILTIN_COLOR": "#0000A0",
+        "DEFINITION_COLOR": "#000080",
+        "CLASS_COLOR": "#0070C0",
+        "STRING_COLOR": "#800000",
+        "NUMBER_COLOR": "#006633",
+        "COMMENT_COLOR": "#006600",
+        "DECORATOR_COLOR": "#800080",
+        "ADDITIONAL_COLOR": "#0000A0",
+        "OPERATOR_COLOR": "#000000",
+        "BRACKET_COLOR": "#0000FF",
+        "BRACKET2_COLOR": "#800080",
+        "BRACKET3_COLOR": "#006633",
+        "EXCEPTION_COLOR": "#CC0000",
+        "IMPORT_COLOR": "#006600",
+        "VARIABLE_COLOR": "#0000A0"
+    }
+}

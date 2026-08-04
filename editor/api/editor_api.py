@@ -171,8 +171,13 @@ class EditorAPI:
         """Apply a QSS stylesheet string and propagate colours to child widgets.
 
         This is the single internal method that all theme application
-        ultimately reaches.  It does not perform any I/O.
+        ultimately reaches.  It injects the user-configured font-family
+        into the global ``QMainWindow, QWidget`` rule before applying,
+        so the setting survives theme switches.
         """
+        font_family = self._get_configured_font_family()
+        if font_family:
+            content = self._inject_font_family(content, font_family)
         self.setStyleSheet(content)
 
         self._qss_bg = (
@@ -196,6 +201,7 @@ class EditorAPI:
             "dark" if QColor(self._qss_bg).lightness() < 128 else "light"
         )
         self._apply_custom_theme()
+        self._retheme_editors()
 
     def _set_theme_by_name(self, name: str) -> None:
         """Load a theme by name through ResourceManager and apply it.
@@ -204,6 +210,7 @@ class EditorAPI:
         is available the theme content is obtained from there.  Otherwise
         falls back to a direct file read via ``_parse_styleSheet``.
         """
+        self._current_theme_name = name
         resource_manager = self._get_resource_manager()
         if resource_manager is not None:
             content = resource_manager.load_theme(name)
@@ -260,6 +267,15 @@ class EditorAPI:
             self._qss_bg, self._qss_fg, self._qss_sel
         )
 
+    def _retheme_editors(self) -> None:
+        """Re-colour every open code editor to match the current theme."""
+        from editor.Ironica.retheme import RethemeEngine
+
+        try:
+            RethemeEngine.apply_current(self)
+        except Exception:
+            pass
+
     def _get_resource_manager(self):
         """Return the bootstrap ResourceManager if available, else ``None``."""
         registry = getattr(self, "_registry", None)
@@ -274,11 +290,13 @@ class EditorAPI:
         loaded through it (benefiting from caching and fallback logic).
         Otherwise reads directly from disk.
         """
+        import os as _os
+
+        theme_name = _os.path.splitext(_os.path.basename(qss_file))[0]
+        self._current_theme_name = theme_name
+
         resource_manager = self._get_resource_manager()
         if resource_manager is not None:
-            import os as _os
-
-            theme_name = _os.path.splitext(_os.path.basename(qss_file))[0]
             content = resource_manager.load_theme(theme_name)
             if content:
                 self._apply_theme_content(content)
@@ -307,19 +325,80 @@ class EditorAPI:
     # Global IDE font (applied everywhere except code editors)
     # ------------------------------------------------------------------
 
+    def _get_configured_font_family(self) -> str | None:
+        """Read the configured font family from the bootstrap config.
+
+        Returns the family name string, or ``None`` if no config is
+        available or the value is empty.
+        """
+        registry = getattr(self, "_registry", None)
+        if registry is None:
+            return None
+        if not registry.has("config"):
+            return None
+        config = registry.get("config")
+        editor_cfg = config.get("editor", {}) if isinstance(config, dict) else {}
+        return editor_cfg.get("font_family")
+
+    @staticmethod
+    def _inject_font_family(qss: str, family: str) -> str:
+        """Inject or replace ``font-family`` in the global widget rule.
+
+        If a ``font-family`` declaration already exists inside the
+        ``QMainWindow, QWidget`` block it is replaced.  Otherwise the
+        property is appended to that block.
+        """
+        family_value = f'"{family}", "Segoe UI", "Inter", Arial, sans-serif'
+        pattern = re.compile(
+            r"(QMainWindow\s*,\s*QWidget\s*\{[^}]*?)"
+            r"font-family\s*:\s*[^;]+;",
+            re.IGNORECASE | re.DOTALL,
+        )
+        if pattern.search(qss):
+            qss = pattern.sub(rf"\1font-family: {family_value};", qss)
+        else:
+            qss = re.sub(
+                r"(QMainWindow\s*,\s*QWidget\s*\{)\s*\n",
+                rf"\1\n    font-family: {family_value};\n",
+                qss,
+                count=1,
+            )
+        return qss
+
     def set_global_font(self, font_name: str) -> None:
         """Set the global UI font across the entire IDE.
 
-        Applies ``font-family`` via the main window stylesheet so that
-        all panels, sidebars, and toolbars inherit the new family.
-        Code editors are unaffected — they manage their own monospace
-        font independently via ``DreamTabbedEditor.set_editor_font_by_name``.
+        Re-applies the current theme with the new font injected, so
+        all colours, borders, and sizing are preserved.  Code editors
+        are unaffected — they manage their own monospace font
+        independently via ``DreamTabbedEditor.set_editor_font_by_name``.
 
         Args:
-            font_name: Font family name — use ``Fonts.FONT_SEGOE_UI``,
-                       ``Fonts.FONT_INTER``, or any installed family.
+            font_name: Font family name — use ``Fonts.FONT_INTER``,
+                       ``Fonts.FONT_SEGOE_UI``, or any installed family.
         """
-        self.setStyleSheet(f"font-family: '{font_name}';")
+        # Persist to config so the choice survives restarts.
+        registry = getattr(self, "_registry", None)
+        if registry is not None and registry.has("config"):
+            config = registry.get("config")
+            if isinstance(config, dict):
+                config.setdefault("editor", {})["font_family"] = font_name
+
+        # Re-apply the current theme with the new font injected.
+        resource_manager = self._get_resource_manager()
+        theme_name = getattr(self, "_current_theme_name", None)
+        if resource_manager is not None and theme_name:
+            content = resource_manager.load_theme(theme_name)
+            if content:
+                content = self._inject_font_family(content, font_name)
+                self.setStyleSheet(content)
+                self._apply_custom_theme()
+                return
+
+        # Fallback: inject into whatever stylesheet is currently active.
+        current = self.styleSheet()
+        if current:
+            self.setStyleSheet(self._inject_font_family(current, font_name))
 
     # ------------------------------------------------------------------
     # Editor state & status

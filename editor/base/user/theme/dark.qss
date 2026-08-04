@@ -21,7 +21,6 @@ QLabel#BannerTitle {
 
 QLabel#SectionHeader {
     color: #AAAAAA;
-    font-family: 'Segoe UI', Arial, sans-serif;
     font-size: 16px;
     font-weight: bold;
     border-bottom: 1px solid #3C3C3C;
@@ -32,7 +31,6 @@ QPushButton#ActionLink, QPushButton#RecentLink {
     background-color: transparent;
     border: none;
     color: #4FC1FF;
-    font-family: 'Segoe UI', Arial, sans-serif;
     font-size: 14px;
     text-align: left;
     padding: 2px 0px;
@@ -49,14 +47,12 @@ QPushButton#ActionLink:hover, QPushButton#RecentLink:hover {
 }
 
 QCheckBox {
-    font-family: 'Segoe UI', Arial, sans-serif;
     font-size: 12px;
     color: #BBBBBB;
 }
 
 QLabel#ActiveTab {
     color: #E0E0E0;
-    font-family: 'Segoe UI', Arial, sans-serif;
     font-size: 18px;
     padding: 4px 10px;
     border-bottom: 2px solid #4FC1FF;
@@ -64,7 +60,7 @@ QLabel#ActiveTab {
 
 QLabel#InactiveTab {
     color: #888888;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    
     font-size: 18px;
     padding: 4px 10px;
     background-color: #2D2D2D;
@@ -76,7 +72,7 @@ QPushButton#SubNavLink {
     background-color: transparent;
     border: none;
     color: #4FC1FF;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    
     font-size: 14px;
     font-weight: bold;
 }
@@ -94,14 +90,14 @@ QFrame#NewsBox {
 
 QLabel#NewsBoxTitle {
     color: #E0E0E0;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    
     font-size: 15px;
     font-weight: bold;
 }
 
 QLabel#NewsBoxDescription {
     color: #BBBBBB;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    
     font-size: 13px;
     line-height: 18px;
 }

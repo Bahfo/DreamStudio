@@ -153,6 +153,7 @@ class CodeEditor(QsciScintilla):
         # Language state — single source of truth.
         self.current_lang: Optional[str] = None
         self.current_provider: Optional[Any] = None
+        self._theme_name = "dark"
 
         self._font = Fonts.space_mono(10)
         self.setFont(self._font)
@@ -198,6 +199,8 @@ class CodeEditor(QsciScintilla):
         # Load file if provided.
         if file_path:
             self.load_from_file(file_path)
+
+        self.retheme(self._active_theme())
 
     # ------------------------------------------------------------------
     # Dirty state
@@ -1011,7 +1014,7 @@ class CodeEditor(QsciScintilla):
         config = LanguageRegistry.get_config(lang)
 
         if config:
-            self._lexer = self._create_lexer(lang, config)
+            self._lexer = self._create_lexer(lang, self._resolve_config(config))
             self.setLexer(self._lexer)
 
             if hasattr(self._lexer, "setFont"):
@@ -1033,6 +1036,90 @@ class CodeEditor(QsciScintilla):
         the language JSON config.
         """
         return IronicaLexer(self, config)
+
+    def _active_theme(self) -> str:
+        """Return the current IDE theme name, falling back to the local one."""
+        win = self.window()
+        if win is not self:
+            name = getattr(win, "_current_theme_name", None)
+            if name:
+                return name
+        return self._theme_name
+
+    def _resolve_config(self, config: dict) -> dict:
+        """Resolve symbolic style colours for the active IDE theme."""
+        from editor.Ironica.retheme import resolve_language_config
+
+        return resolve_language_config(config, self._active_theme())
+
+    def retheme(self, theme_name: str) -> None:
+        """Re-apply base colours and the lexer palette for *theme_name*.
+
+        Sets paper, foreground, caret, margins, selection and edge
+        colours from the theme's QSS source, re-colours the active
+        lexer, and invalidates the semantic provider cache so overlay
+        colours refresh as well.
+        """
+        from editor.Ironica.retheme import (
+            editor_colors,
+            resolve_language_config,
+            set_active_theme,
+        )
+
+        self._theme_name = theme_name or self._theme_name
+        set_active_theme(self._theme_name)
+        colors = editor_colors(self._theme_name)
+
+        bg = colors["bg"]
+        fg = colors["fg"]
+        sel = colors["sel"]
+
+        self.setPaper(bg)
+        self.setColor(fg)
+        self.setCaretForegroundColor(fg)
+        self.setCaretLineBackgroundColor(colors["caret_line"])
+        self.setMarginsBackgroundColor(bg)
+        self.setMarginsForegroundColor(fg)
+        self.setSelectionBackgroundColor(sel)
+        self.setSelectionForegroundColor(fg)
+        self.setEdgeColor(colors["edge"])
+        self._apply_indent_guide_color(fg)
+
+        if self._lexer is not None and self.current_lang:
+            config = LanguageRegistry.get_config(self.current_lang)
+            if config:
+                self._lexer.retheme(
+                    resolve_language_config(config, self._theme_name),
+                    bg=bg,
+                    fg=fg,
+                )
+
+        fold_manager = getattr(self, "_fold_manager", None)
+        if fold_manager is not None:
+            try:
+                fold_manager.retheme(bg)
+            except Exception:
+                pass
+
+        parent = self.parent()
+        minimap = getattr(parent, "minimap", None)
+        if minimap is not None:
+            retheme = getattr(minimap, "retheme", None)
+            if retheme is not None:
+                try:
+                    retheme(self._theme_name, bg)
+                except Exception:
+                    pass
+
+        if self.current_provider is not None:
+            try:
+                self.current_provider.invalidate_cache()
+            except Exception:
+                pass
+        try:
+            self._apply_semantic_indicators()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Semantic indicators (imports, special keywords)

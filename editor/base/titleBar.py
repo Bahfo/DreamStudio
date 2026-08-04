@@ -1,4 +1,6 @@
 import json
+import re
+
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
@@ -9,6 +11,12 @@ from editor.utils.find_replace.find_replace import FindReplace
 
 class DreamStudioTitleBar(QWidget):
     maximize_requested = pyqtSignal()
+
+    # Blue gradient endpoints for the built-in dark and light themes.
+    _TITLE_BAR_BLUE_ENDS = {
+        "dark": QColor("#004E98"),
+        "light": QColor("#0081F2"),
+    }
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -36,6 +44,7 @@ class DreamStudioTitleBar(QWidget):
         layout.addSpacing(30)
 
         self._ide_search = QLineEdit()
+        self._ide_search.setObjectName("DreamStudioTitleBarSearch")
         self._ide_search.setPlaceholderText("Search Anywhere in DreamStudio")
         layout.addWidget(self._ide_search)
 
@@ -176,3 +185,67 @@ class DreamStudioTitleBar(QWidget):
             if event.type() == QEvent.Type.WindowStateChange:
                 self.sync_titlebar_state()
         return super().eventFilter(obj, event)
+
+    def paintEvent(self, event):
+        """Draw the title bar with a horizontal gradient derived from the stylesheet.
+
+        For the built-in dark/light themes the left colour is anchored to the
+        vertical sidebar colour and the right-hand end blends toward the theme's
+        blue.  Every other theme reads its base colour from the active
+        ``QWidget#DreamStudioTitleBar`` rule and blends toward white.
+        """
+        base = self._title_bar_base_color()
+        end = self._title_bar_gradient_end(base)
+
+        painter = QPainter(self)
+        gradient = QLinearGradient(0, 0, self.width(), 0)
+        gradient.setColorAt(0.0, base)
+        gradient.setColorAt(1.0, end)
+        painter.fillRect(self.rect(), gradient)
+
+        painter.setPen(base.darker(112))
+        painter.drawLine(0, self.height() - 1, self.width(), self.height() - 1)
+        painter.end()
+        super().paintEvent(event)
+
+    def _title_bar_base_color(self) -> QColor:
+        """Return the title bar background colour from the applied stylesheet."""
+        qss = self.styleSheet()
+        if not qss:
+            qss = self.window().styleSheet()
+
+        theme_name = getattr(self._title_parent, "_current_theme_name", None)
+        if theme_name in self._TITLE_BAR_BLUE_ENDS:
+            selector = r"VerticalSidebar|QFrame#VerticalSidebar"
+        else:
+            selector = r"DreamStudioTitleBar|QWidget#DreamStudioTitleBar"
+
+        pattern = re.compile(
+            rf"(?:{selector})\s*{{[^}}]*background-color\s*:\s*([^;}}\s]+)",
+            re.IGNORECASE | re.DOTALL,
+        )
+        match = pattern.search(qss)
+        if match:
+            color = QColor(match.group(1).strip())
+            if color.isValid():
+                return color
+
+        parent_bg = getattr(self._title_parent, "_qss_bg", None)
+        if parent_bg:
+            color = QColor(parent_bg)
+            if color.isValid():
+                return color
+        return self.palette().window().color()
+
+    def _title_bar_gradient_end(self, base: QColor) -> QColor:
+        """Return the gradient end colour for the currently active theme."""
+        theme_name = getattr(self._title_parent, "_current_theme_name", None)
+        blue_end = self._TITLE_BAR_BLUE_ENDS.get(theme_name)
+        if blue_end is not None:
+            return blue_end
+
+        amount = 0.18 if base.lightness() < 128 else 0.10
+        red = base.red() + int((255 - base.red()) * amount)
+        green = base.green() + int((255 - base.green()) * amount)
+        blue = base.blue() + int((255 - base.blue()) * amount)
+        return QColor(red, green, blue)

@@ -36,6 +36,7 @@ from editor.Ironica.utils.highlighting_api import (
     styles_from_config,
 )
 from editor.Ironica.language_engine import LanguageRegistry
+from editor.Ironica.retheme import active_theme_name, resolve_language_config
 
 _FSTRING_TOKEN_TYPES = frozenset(
     t
@@ -146,7 +147,8 @@ class PythonSemanticProvider(ITokenProvider):
         if not self._styles:
             config = LanguageRegistry.get_config("python")
             if config:
-                self._styles = styles_from_config(config)
+                resolved = resolve_language_config(config, active_theme_name())
+                self._styles = styles_from_config(resolved)
             else:
                 self._styles = styles_from_config({})
         return self._styles
@@ -155,6 +157,7 @@ class PythonSemanticProvider(ITokenProvider):
         self._cache_text = ""
         self._cache_lexical = []
         self._cache_semantic = []
+        self._styles = {}
 
     def _compute(self, text: str) -> None:
         if text == self._cache_text:

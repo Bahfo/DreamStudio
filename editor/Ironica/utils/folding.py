@@ -10,8 +10,8 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QPainter, QPen, QBrush
+from PyQt6.QtCore import QPointF, Qt
+from PyQt6.QtGui import QColor, QPainter, QPen, QBrush, QPixmap
 from PyQt6.QtWidgets import QWidget
 from PyQt6.Qsci import QsciScintilla
 
@@ -70,6 +70,7 @@ class FoldManager:
 
     FOLD_MARGIN = 3
     FOLD_MARGIN_WIDTH = 16
+    ARROW_SIZE = 14
 
     def __init__(self, editor: QsciScintilla) -> None:
         if editor is None:
@@ -88,43 +89,96 @@ class FoldManager:
         e.setMarginSensitivity(self.FOLD_MARGIN, True)
         e.setMarginMarkerMask(self.FOLD_MARGIN, QsciScintilla.SC_MASK_FOLDERS)
 
-        pal = e.palette()
-        bg = pal.color(pal.ColorRole.Window)
-        mid = bg.lighter(130) if bg.lightness() < 128 else bg.darker(115)
-
-        e.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDER)
-        e.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDEROPEN)
-        e.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDEREND)
-        e.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL)
-        e.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDERTAIL)
-        e.setMarkerForegroundColor(mid, QsciScintilla.SC_MARKNUM_FOLDERSUB)
-
-        e.markerDefine(
-            QsciScintilla.MarkerSymbol.BoxedPlus, QsciScintilla.SC_MARKNUM_FOLDER
-        )
-        e.markerDefine(
-            QsciScintilla.MarkerSymbol.BoxedMinus, QsciScintilla.SC_MARKNUM_FOLDEROPEN
-        )
-        e.markerDefine(
-            QsciScintilla.MarkerSymbol.BoxedPlus, QsciScintilla.SC_MARKNUM_FOLDEREND
-        )
-        e.markerDefine(
-            QsciScintilla.MarkerSymbol.BoxedMinus,
-            QsciScintilla.SC_MARKNUM_FOLDEROPENMID,
-        )
-        e.markerDefine(
-            QsciScintilla.MarkerSymbol.VerticalLine, QsciScintilla.SC_MARKNUM_FOLDERSUB
-        )
-        e.markerDefine(
-            QsciScintilla.MarkerSymbol.VerticalLine,
+        # Tail markers share a thin vertical connecting line; the fold
+        # headers (up/down chevrons) are drawn as pixmaps in
+        # ``_apply_theme_colours``.
+        for marker in (
+            QsciScintilla.SC_MARKNUM_FOLDERSUB,
             QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL,
-        )
-        e.markerDefine(
-            QsciScintilla.MarkerSymbol.BottomLeftCorner,
             QsciScintilla.SC_MARKNUM_FOLDERTAIL,
+        ):
+            e.markerDefine(QsciScintilla.MarkerSymbol.VerticalLine, marker)
+
+        self._apply_colours(e)
+
+    def _arrow_pixmap(self, color: QColor, up: bool) -> QPixmap:
+        """Build a VS Code-style chevron-arrow pixmap for a fold header.
+
+        *up* points the chevron toward the top of the fold; otherwise it
+        points toward the body below the header.
+        """
+        s = self.ARROW_SIZE
+        pm = QPixmap(s, s)
+        pm.fill(QColor(0, 0, 0, 0))
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(color, 2.2)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        c = s / 2.0
+        arm = 4.5
+        apex = c + (-arm * 0.8 if up else arm * 0.8)
+        base = c + (arm * 0.8 if up else -arm * 0.8)
+        p.drawLine(QPointF(c - arm, base), QPointF(c, apex))
+        p.drawLine(QPointF(c, apex), QPointF(c + arm, base))
+        p.end()
+        return pm
+
+    def _apply_theme_colours(self, e: QsciScintilla, bg: QColor) -> None:
+        """Derive the fold-gutter colours from the editor background *bg*."""
+        dark = bg.lightness() < 128
+        arrow_colour = QColor(197, 197, 197) if dark else QColor(80, 80, 80)
+        line_colour = QColor(128, 128, 128) if dark else QColor(160, 160, 160)
+        mid = bg.lighter(130) if dark else bg.darker(115)
+
+        e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERSUB)
+        e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL)
+        e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERTAIL)
+
+        # A collapsed fold points back up toward its header; an expanded
+        # fold points down into its body (VS Code chevron style).
+        e.SendScintilla(
+            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+            QsciScintilla.SC_MARKNUM_FOLDER,
+            self._arrow_pixmap(arrow_colour, up=True),
+        )
+        e.SendScintilla(
+            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+            QsciScintilla.SC_MARKNUM_FOLDEROPEN,
+            self._arrow_pixmap(arrow_colour, up=False),
+        )
+        e.SendScintilla(
+            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+            QsciScintilla.SC_MARKNUM_FOLDEREND,
+            self._arrow_pixmap(arrow_colour, up=True),
+        )
+        e.SendScintilla(
+            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+            QsciScintilla.SC_MARKNUM_FOLDEROPENMID,
+            self._arrow_pixmap(arrow_colour, up=False),
         )
 
         e.setFoldMarginColors(mid, mid)
+
+    def _apply_colours(self, e: QsciScintilla) -> None:
+        """Apply the fold-margin colours from the editor's palette.
+
+        The colours are derived from the editor's current palette so a
+        theme switch can re-run this method to keep the fold gutter in
+        sync with the active theme.
+        """
+        pal = e.palette()
+        bg = pal.color(pal.ColorRole.Window)
+        self._apply_theme_colours(e, bg)
+
+    def retheme(self, bg: QColor) -> None:
+        """Recolour the fold gutter after a theme change.
+
+        The gutter background uses a shade of the editor background
+        (*bg*) so it stays visually anchored to the active theme.
+        """
+        self._apply_theme_colours(self._editor, bg)
 
     def _connect_signals(self) -> None:
         self._editor.marginClicked.connect(self._on_margin_clicked)

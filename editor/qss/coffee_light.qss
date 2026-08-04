@@ -1,7 +1,7 @@
 QMainWindow, QWidget {
     background-color: #faf5ef;
     color: #4a3f36;
-    font-family: "Segoe UI", "Inter", Arial, sans-serif;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
     font-size: 13px;
 }
 
@@ -374,7 +374,7 @@ QTextEdit#GitCommitInput {
     color: #4a3f36;
     border: 1px solid #d8cdb8;
     border-radius: 4px;
-    font-family: "Segoe UI", sans-serif;
+    font-family: "Inter", "Segoe UI", sans-serif;
     font-size: 12px;
     selection-background-color: #e3d0b8;
 }
@@ -446,6 +446,10 @@ QLineEdit:focus {
 QLineEdit::placeholder {
     color: #b0a088;
     font-style: italic;
+}
+
+QLineEdit#DreamStudioTitleBarSearch {
+    background-color: transparent;
 }
 
 QTreeView, QTreeWidget {
@@ -779,7 +783,7 @@ QTabBar {
 QTabBar::tab {
     background-color: #f0e8dc;
     color: #7a6e5f;
-    font-family: "Segoe UI", sans-serif;
+    font-family: "Inter", "Segoe UI", sans-serif;
     font-size: 12px;
     padding: 5px 12px;
     border-right: 1px solid #d8cdb8;

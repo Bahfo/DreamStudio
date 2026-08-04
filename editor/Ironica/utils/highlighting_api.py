@@ -28,6 +28,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from editor.Ironica.retheme import is_hex_color
+
 logger = logging.getLogger(__name__)
 
 
@@ -114,13 +116,16 @@ def styles_from_config(config: dict) -> Dict[str, TokenStyle]:
     """Build a STYLES dict from a language configuration.
 
     Reads the ``"styles"`` section of *config* and maps each semantic
-    token type to its colour.  Semantic types that are not present in
-    the config fall back to ``_DEFAULT_COLOURS``.
+    token type to its colour.  Symbolic style values (e.g.
+    ``KEYWORD_COLOR``) are resolved through the config's ``"palette"``
+    section.  Semantic types that are not present in the config fall
+    back to ``_DEFAULT_COLOURS``.
 
     Style IDs are assigned sequentially starting at 1 (0 is reserved
     as DEFAULT by QScintilla).
     """
     config_styles = config.get("styles", {})
+    palette = config.get("palette", {}) or {}
     style_id = 1
     result: Dict[str, TokenStyle] = {}
 
@@ -136,7 +141,13 @@ def styles_from_config(config: dict) -> Dict[str, TokenStyle]:
 
     # Build result for every semantic type.
     for sem_type, config_key in SEMANTIC_TO_CONFIG_KEY.items():
-        colour = config_styles.get(config_key) or _DEFAULT_COLOURS.get(sem_type, "#D4D4D4")
+        raw = config_styles.get(config_key)
+        if raw is not None:
+            colour = raw if is_hex_color(raw) else palette.get(raw)
+            if not colour:
+                colour = _DEFAULT_COLOURS.get(sem_type, "#D4D4D4")
+        else:
+            colour = _DEFAULT_COLOURS.get(sem_type, "#D4D4D4")
         sid = config_key_to_id.get(config_key, 0)
         result[sem_type] = TokenStyle(sid, colour)
 

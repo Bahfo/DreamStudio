@@ -1,0 +1,22 @@
+{
+    "theme": "moses",
+    "name": "Moses",
+    "palette": {
+        "KEYWORD_COLOR": "#7AA2F7",
+        "BUILTIN_COLOR": "#7DCFFF",
+        "DEFINITION_COLOR": "#2AC3DE",
+        "CLASS_COLOR": "#7DCFFF",
+        "STRING_COLOR": "#9ECE6A",
+        "NUMBER_COLOR": "#FF9E64",
+        "COMMENT_COLOR": "#565F89",
+        "DECORATOR_COLOR": "#E0AF68",
+        "ADDITIONAL_COLOR": "#BB9AF7",
+        "OPERATOR_COLOR": "#89DDFF",
+        "BRACKET_COLOR": "#BB9AF7",
+        "BRACKET2_COLOR": "#7AA2F7",
+        "BRACKET3_COLOR": "#9ECE6A",
+        "EXCEPTION_COLOR": "#F7768E",
+        "IMPORT_COLOR": "#7AA2F7",
+        "VARIABLE_COLOR": "#7AA2F7"
+    }
+}

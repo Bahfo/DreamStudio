@@ -36,7 +36,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "editor": {
         "theme": "dark",
-        "font_family": Fonts.FONT_SEGOE_UI,
+        "font_family": Fonts.FONT_INTER,
         "font_size": 12,
     },
     "workspace": {
@@ -85,7 +85,9 @@ class ConfigurationService:
 
         self._data = self._migrate(raw)
         self._data = self._validate(self._data)
-        logger.info("Configuration loaded successfully (version %s)", self._data.get("version"))
+        logger.info(
+            "Configuration loaded successfully (version %s)", self._data.get("version")
+        )
         return self._data
 
     def save(self) -> None:
@@ -126,7 +128,9 @@ class ConfigurationService:
         """Apply version migrations. Returns merged dict."""
         version = raw.get("version", 1)
         if version < 2:
-            logger.info("Migrating config from version %d to %d", version, CONFIG_VERSION)
+            logger.info(
+                "Migrating config from version %d to %d", version, CONFIG_VERSION
+            )
             migrated = copy.deepcopy(DEFAULT_CONFIG)
             migrated["editor"].update(raw.get("editor", {}))
             migrated["workspace"].update(raw.get("workspace", {}))

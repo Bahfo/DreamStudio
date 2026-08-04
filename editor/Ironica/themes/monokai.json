@@ -1,0 +1,22 @@
+{
+    "theme": "monokai",
+    "name": "Monokai",
+    "palette": {
+        "KEYWORD_COLOR": "#F92672",
+        "BUILTIN_COLOR": "#66D9EF",
+        "DEFINITION_COLOR": "#A6E22E",
+        "CLASS_COLOR": "#A6E22E",
+        "STRING_COLOR": "#E6DB74",
+        "NUMBER_COLOR": "#AE81FF",
+        "COMMENT_COLOR": "#75715E",
+        "DECORATOR_COLOR": "#A6E22E",
+        "ADDITIONAL_COLOR": "#66D9EF",
+        "OPERATOR_COLOR": "#F8F8F2",
+        "BRACKET_COLOR": "#F92672",
+        "BRACKET2_COLOR": "#AE81FF",
+        "BRACKET3_COLOR": "#66D9EF",
+        "EXCEPTION_COLOR": "#F92672",
+        "IMPORT_COLOR": "#66D9EF",
+        "VARIABLE_COLOR": "#F8F8F2"
+    }
+}

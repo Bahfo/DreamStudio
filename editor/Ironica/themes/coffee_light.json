@@ -1,0 +1,22 @@
+{
+    "theme": "coffee_light",
+    "name": "Coffee Light",
+    "palette": {
+        "KEYWORD_COLOR": "#8A3E0F",
+        "BUILTIN_COLOR": "#4E4236",
+        "DEFINITION_COLOR": "#5E380F",
+        "CLASS_COLOR": "#553722",
+        "STRING_COLOR": "#6E3A05",
+        "NUMBER_COLOR": "#524530",
+        "COMMENT_COLOR": "#6F6459",
+        "DECORATOR_COLOR": "#5E380F",
+        "ADDITIONAL_COLOR": "#4A3A2A",
+        "OPERATOR_COLOR": "#3E342C",
+        "BRACKET_COLOR": "#8A3E0F",
+        "BRACKET2_COLOR": "#6E4628",
+        "BRACKET3_COLOR": "#4A3A2A",
+        "EXCEPTION_COLOR": "#8F2413",
+        "IMPORT_COLOR": "#4A3A2A",
+        "VARIABLE_COLOR": "#4A3A2A"
+    }
+}

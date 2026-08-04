@@ -1,0 +1,22 @@
+{
+    "theme": "dark_hc",
+    "name": "Dark High Contrast",
+    "palette": {
+        "KEYWORD_COLOR": "#FF9B9B",
+        "BUILTIN_COLOR": "#FFDCDC",
+        "DEFINITION_COLOR": "#F7F7A3",
+        "CLASS_COLOR": "#9BE7D6",
+        "STRING_COLOR": "#FFC8A3",
+        "NUMBER_COLOR": "#D7FF9B",
+        "COMMENT_COLOR": "#7AF77A",
+        "DECORATOR_COLOR": "#FF9BB3",
+        "ADDITIONAL_COLOR": "#8AB4FF",
+        "OPERATOR_COLOR": "#FFFFFF",
+        "BRACKET_COLOR": "#FFD700",
+        "BRACKET2_COLOR": "#FF9B9B",
+        "BRACKET3_COLOR": "#7AD7FF",
+        "EXCEPTION_COLOR": "#FF6B6B",
+        "IMPORT_COLOR": "#9BE7D6",
+        "VARIABLE_COLOR": "#9CDCFE"
+    }
+}

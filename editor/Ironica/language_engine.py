@@ -35,6 +35,8 @@ from typing import Dict, List, Optional
 from PyQt6.QtGui import QColor
 from PyQt6.Qsci import QsciLexerCustom
 
+from editor.Ironica.retheme import resolve_colour
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,9 +61,10 @@ class LanguageLexer(QsciLexerCustom):
     def _setup_configuration(self):
         """Parse the JSON config and populate style / keyword maps."""
         styles = self.config.get("styles", {})
-        for idx, (style_name, color_hex) in enumerate(styles.items(), start=1):
+        palette = self.config.get("palette", {}) or {}
+        for idx, (style_name, colour_value) in enumerate(styles.items(), start=1):
             self.styles_map[style_name] = idx
-            self.setColor(QColor(color_hex), idx)
+            self.setColor(QColor(resolve_colour(colour_value, palette, "#D4D4D4")), idx)
 
         keywords = self.config.get("keywords", {})
         for style_name, kw_list in keywords.items():

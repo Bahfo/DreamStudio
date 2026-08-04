@@ -1,0 +1,22 @@
+{
+    "theme": "davy",
+    "name": "Davy",
+    "palette": {
+        "KEYWORD_COLOR": "#C792EA",
+        "BUILTIN_COLOR": "#ADDB67",
+        "DEFINITION_COLOR": "#82AAFF",
+        "CLASS_COLOR": "#FFCB8B",
+        "STRING_COLOR": "#ECC48D",
+        "NUMBER_COLOR": "#F78C6C",
+        "COMMENT_COLOR": "#637777",
+        "DECORATOR_COLOR": "#ADDB67",
+        "ADDITIONAL_COLOR": "#82AAFF",
+        "OPERATOR_COLOR": "#C792EA",
+        "BRACKET_COLOR": "#D342AF",
+        "BRACKET2_COLOR": "#C792EA",
+        "BRACKET3_COLOR": "#82AAFF",
+        "EXCEPTION_COLOR": "#FF6363",
+        "IMPORT_COLOR": "#82AAFF",
+        "VARIABLE_COLOR": "#EEFFFF"
+    }
+}

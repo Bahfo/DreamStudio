@@ -142,16 +142,58 @@ class VirtualMinimap(QWidget):
         # Background.
         pal = self.palette()
         bg = pal.color(QPalette.ColorRole.Window)
-        if bg.lightness() < 128:
+        self._apply_theme(bg)
+
+    def _apply_theme(
+        self,
+        bg: QColor,
+        palette: Optional[dict] = None,
+    ) -> None:
+        """Derive every minimap colour from *bg* and the theme palette.
+
+        The minimap is a pure ``QPainter`` widget, so it has no lexer
+        of its own; its colours must be recomputed from the active IDE
+        theme.  When *palette* is omitted the currently active theme's
+        palette is used so the initial paint already matches the theme
+        under which the editor was created.
+        """
+        from editor.Ironica.retheme import active_theme_name, theme_palette
+
+        if palette is None:
+            palette = theme_palette(active_theme_name())
+
+        dark = bg.lightness() < 128
+        if dark:
             self._bg_color = bg.darker(120)
-            self._text_color = pal.color(QPalette.ColorRole.WindowText)
             self._overlay_color = QColor(128, 128, 128, 60)
             self._line_default_color = QColor(160, 160, 160, 40)
         else:
             self._bg_color = bg.darker(104)
-            self._text_color = pal.color(QPalette.ColorRole.WindowText)
             self._overlay_color = QColor(128, 128, 128, 60)
             self._line_default_color = QColor(100, 100, 100, 30)
+        self._text_color = bg.lighter(220) if dark else bg.darker(160)
+
+        def token(key: str, default: str) -> QColor:
+            colour = palette.get(key, default)
+            c = QColor(colour)
+            c.setAlpha(50)
+            return c
+
+        # Approximate syntax colours at minimap scale, keyed by the
+        # same symbolic palette entries the lexer uses.
+        self._line_comment_color = token("COMMENT_COLOR", "#6A9955")
+        self._line_string_color = token("STRING_COLOR", "#CE9178")
+        self._line_class_color = token("CLASS_COLOR", "#4EC9B0")
+        self._line_function_color = token("DEFINITION_COLOR", "#DCDCAA")
+        self._line_import_color = token("IMPORT_COLOR", "#C586C0")
+        self._line_number_color = token("NUMBER_COLOR", "#B5CEA8")
+
+    def retheme(self, theme_name: str, bg: QColor) -> None:
+        """Recolour the minimap after the IDE switches to *theme_name*."""
+        from editor.Ironica.retheme import theme_palette
+
+        self._apply_theme(bg, theme_palette(theme_name))
+        self.update()
 
     # ------------------------------------------------------------------
     # Font / metric management
@@ -326,17 +368,17 @@ class VirtualMinimap(QWidget):
             colour = self._line_default_color
             first_char = stripped.lstrip()[:1] if stripped else ""
             if first_char in ("#",):
-                colour = QColor(106, 153, 85, 50)  # green (comment)
+                colour = self._line_comment_color
             elif first_char in ('"', "'", "f"):
-                colour = QColor(206, 145, 120, 50)  # orange (string)
+                colour = self._line_string_color
             elif first_char.isupper():
-                colour = QColor(78, 201, 176, 50)  # teal (class)
+                colour = self._line_class_color
             elif stripped.startswith(("def ", "async ")):
-                colour = QColor(220, 220, 170, 50)  # yellow (function)
+                colour = self._line_function_color
             elif stripped.startswith(("import ", "from ")):
-                colour = QColor(197, 134, 192, 50)  # purple (import)
+                colour = self._line_import_color
             elif first_char.isdigit() or first_char == "-":
-                colour = QColor(181, 206, 168, 50)  # green (number)
+                colour = self._line_number_color
 
             painter.fillRect(x_offset, y, int(pixel_w), int(line_h), colour)
 
