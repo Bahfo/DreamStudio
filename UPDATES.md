@@ -35,3 +35,17 @@ Process monitor built as `DreamStudioProcessManager`. Port-based IPC with the Py
 - (ADD_009) Added `editor/debugger/tests/` test suite for `std_pipe.py` and the C++ monitor binary: 20 tests covering `handle_metrics` parsing (6 unit tests), `launch_monitor` subprocess lifecycle (6 mocked tests), C++ binary validation (5 integration tests including multi-snapshot, invalid PID, no-args usage), `launch_monitor` integration with real binary, and PyQt6 dummy-app integration (widget receives monitor data, error dialog for missing binary)
 - (FIX_009) Fixed `std_pipe.py` JSON buffering bug: replaced `line.strip() == "}"` check with brace-depth tracking — the old check matched indented `}` lines (e.g. `"  }"`) too early, causing incomplete JSON parse failures; also fixed `json.load(buffer)` → `json.loads(buffer)` (load expects file-like, loads accepts string)
 ---
+
+## Changes on 7/8/2026
+
+### Additions
+- (ADD_010) Added go-to-definition navigation on double-click of a search result in `FindReplace`: double-clicking a match opens the file and jumps to the exact line via `DreamTabbedEditor.open_file_at_line()`; filepath and line number stored as `UserRole` data on each `QListWidgetItem`
+- (ADD_011) Added clear (X) button to `FindReplace` popup: cancels running search worker, clears all input fields (search, replace, include, exclude), clears results list, resets tip label, and hides the results panel
+- (ADD_012) Redesigned `QListWidget` in `FindReplace` with IntelliJ-style appearance: disabled horizontal scroll bar, dark background (`#2B2B2B`), blue selection highlight (`#214283`), hover state (`#333333`), uniform item sizes, min-height 120px / max-height 320px for vertical expansion
+
+### Fixes
+- (FIX_010) Fixed `FindReplace` goto navigation: changed `self.window()` to `self._parent` because `self.window()` returns the popup itself (top-level `Popup` window), not the main window with `tab_editors`
+- (FIX_011) Fixed `DEFAULT_IGNORED_DIRS` in `search_engine.py`: removed glob pattern `*.egg-info` (incompatible with `fnmatch` on directory basenames), added explicit `.egg-info` suffix check; added `.nox`, `__pypackages__`, `.ruff_cache`, `.hypothesis`, `covhtml`, `.scannerwork`
+
+### Notes:
+Navigation uses `itemDoubleClicked` signal on plain `QListWidget` (no subclass). `_SearchResultList` subclass removed. `self._parent` is the main window (EditorAPI mixin) passed during `FindReplace.__init__`.

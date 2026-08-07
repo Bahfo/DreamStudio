@@ -21,12 +21,18 @@ DEFAULT_IGNORED_DIRS = {
     ".pytest_cache",
     ".mypy_cache",
     ".tox",
+    ".nox",
     "build",
     "dist",
-    "*.egg-info",
     ".eggs",
     "bin",
     "obj",
+    "__pypackages__",
+    ".ruff_cache",
+    ".hypothesis",
+    "covhtml",
+    ".mypy_cache",
+    ".scannerwork",
 }
 
 
@@ -110,6 +116,9 @@ class SearchWorker(QThread):
         """Checks if a directory matches any default or user exclude patterns."""
 
         if dirname.startswith("."):
+            return True
+
+        if dirname.endswith(".egg-info"):
             return True
 
         for exc in self.dir_excludes:

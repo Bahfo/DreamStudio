@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QListWidget,
+    QListWidgetItem,
 )
 from PyQt6.QtCore import Qt
 import logging, os
@@ -61,9 +62,21 @@ class FindReplace(QFrame):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(8)
 
+        search_row = QHBoxLayout()
+        search_row.setSpacing(4)
+
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search in Solution")
-        main_layout.addWidget(self.search_input)
+        search_row.addWidget(self.search_input)
+
+        self.btn_clear = QPushButton("\u2715")
+        self.btn_clear.setFixedSize(24, 24)
+        self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear.setToolTip("Clear results and inputs")
+        self.btn_clear.setObjectName("btnClear")
+        search_row.addWidget(self.btn_clear)
+
+        main_layout.addLayout(search_row)
 
         options_layout = QHBoxLayout()
         options_layout.setContentsMargins(0, 0, 0, 4)
@@ -124,7 +137,6 @@ class FindReplace(QFrame):
 
         self.btn_toggle_filters.toggled.connect(self._on_filters_toggled)
 
-        # Separator line replacement for QMenu.addSeparator()
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setObjectName("menuSeparator")
@@ -136,7 +148,32 @@ class FindReplace(QFrame):
 
         self.results_list = QListWidget()
         self.results_list.setObjectName("resultsList")
+        self.results_list.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.results_list.setMinimumHeight(120)
+        self.results_list.setMaximumHeight(320)
         self.results_list.setVisible(False)
+        self.results_list.setUniformItemSizes(True)
+        self.results_list.setStyleSheet(
+            "QListWidget {"
+            "  border: 1px solid #555;"
+            "  background-color: #2B2B2B;"
+            "  outline: none;"
+            "  padding: 2px;"
+            "}"
+            "QListWidget::item {"
+            "  padding: 4px 8px;"
+            "  border: none;"
+            "}"
+            "QListWidget::item:selected {"
+            "  background-color: #214283;"
+            "  color: #FFFFFF;"
+            "}"
+            "QListWidget::item:hover {"
+            "  background-color: #333333;"
+            "}"
+        )
         main_layout.addWidget(self.results_list)
 
     def _on_filters_toggled(self, checked: bool):
@@ -160,10 +197,10 @@ class FindReplace(QFrame):
         self.show()
 
     def _connect_signals(self):
-        """
-        Connect UI events to the search logic.
-        """
+        """Connect UI events to the search logic."""
         self.search_input.returnPressed.connect(self.start_search)
+        self.btn_clear.clicked.connect(self._clear_all)
+        self.results_list.itemDoubleClicked.connect(self._on_result_clicked)
 
     def start_search(self):
         term = self.search_input.text()
@@ -198,9 +235,7 @@ class FindReplace(QFrame):
         self.searchWorker.start()
 
     def on_match_found(self, filepath, line_num, line_content):
-        """
-        Fired every time the worker finds a match.
-        """
+        """Fired every time the worker finds a match."""
         if self.results_list.count() == 1 and self.results_list.item(
             0
         ).text().startswith("Searching"):
@@ -208,7 +243,10 @@ class FindReplace(QFrame):
 
         filename = os.path.basename(filepath)
         display_text = f"{filename}:{line_num} - {line_content}"
-        self.results_list.addItem(display_text)
+        item = QListWidgetItem(display_text)
+        item.setData(Qt.ItemDataRole.UserRole, filepath)
+        item.setData(Qt.ItemDataRole.UserRole + 1, line_num)
+        self.results_list.addItem(item)
 
     def on_search_finished(self, total_matches):
         if self.results_list.count() > 0 and self.results_list.item(
@@ -223,3 +261,33 @@ class FindReplace(QFrame):
 
     def on_search_error(self, error_msg):
         self.results_list.addItem(f"Error: {error_msg}")
+
+    def _on_result_clicked(self, item: QListWidgetItem):
+        """Navigate to the file and line of the clicked search result."""
+        filepath = item.data(Qt.ItemDataRole.UserRole)
+        line_num = item.data(Qt.ItemDataRole.UserRole + 1)
+        if filepath is None or line_num is None:
+            return
+
+        if self._parent is not None and hasattr(
+            self._parent, "tab_editors"
+        ):
+            self._parent.tab_editors.open_file_at_line(
+                filepath, line_num - 1
+            )
+            self.hide()
+
+    def _clear_all(self):
+        """Cancel any running search, clear all inputs and results."""
+        if self.searchWorker and self.searchWorker.isRunning():
+            self.searchWorker.cancel()
+            self.searchWorker.wait()
+
+        self.search_input.clear()
+        self.replace_input.clear()
+        self.include_input.clear()
+        self.exclude_input.clear()
+        self.results_list.clear()
+        self.results_list.setVisible(False)
+        self.tip_label.setText("TIP: Type to search, navigate by keyboard arrows.")
+        self.adjustSize()
