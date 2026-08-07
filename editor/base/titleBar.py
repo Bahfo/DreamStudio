@@ -6,7 +6,6 @@ from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 
 from editor.utils.tools.commands_window import CommandWindow
-from editor.utils.find_replace.find_replace import FindReplace
 
 
 class DreamStudioTitleBar(QWidget):
@@ -18,12 +17,13 @@ class DreamStudioTitleBar(QWidget):
         "light": QColor("#0081F2"),
     }
 
-    def __init__(self, parent):
+    def __init__(self, parent, directory):
         super().__init__(parent)
         self._title_parent = parent
         self.setObjectName("DreamStudioTitleBar")
         self.setFixedHeight(40)
         self.offset = None
+        self.directory = directory
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 0, 10, 0)

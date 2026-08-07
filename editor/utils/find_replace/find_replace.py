@@ -12,9 +12,13 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
     QVBoxLayout,
+    QListWidget,
 )
 from PyQt6.QtCore import Qt
-import logging
+import logging, os
+
+# Local Imports
+from editor.utils.find_replace.search_engine import SearchWorker
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +32,7 @@ class FindReplace(QFrame):
         _hang_widget (QWidget): The widget this popup visually hangs from.
     """
 
-    def __init__(self, hanging_widget, parent=None):
+    def __init__(self, hanging_widget, current_directory, parent=None):
         """
         Initializes the FindReplace popup.
 
@@ -45,7 +49,11 @@ class FindReplace(QFrame):
 
         self._parent = parent
         self._hang_widget = hanging_widget
+        self.current_directory = current_directory
         self._build_ui()
+
+        self.searchWorker = None
+        self._connect_signals()
 
     def _build_ui(self):
         """Builds the internal UI components directly into the frame's layout."""
@@ -126,6 +134,11 @@ class FindReplace(QFrame):
         self.tip_label.setObjectName("tipLabel")
         main_layout.addWidget(self.tip_label)
 
+        self.results_list = QListWidget()
+        self.results_list.setObjectName("resultsList")
+        self.results_list.setVisible(False)
+        main_layout.addWidget(self.results_list)
+
     def _on_filters_toggled(self, checked: bool):
         """
         Handles the expansion of the filter UI and resizes the popup window.
@@ -145,3 +158,68 @@ class FindReplace(QFrame):
         global_pos = self._hang_widget.mapToGlobal(corner_left)
         self.move(global_pos)
         self.show()
+
+    def _connect_signals(self):
+        """
+        Connect UI events to the search logic.
+        """
+        self.search_input.returnPressed.connect(self.start_search)
+
+    def start_search(self):
+        term = self.search_input.text()
+        if not term:
+            return
+
+        if self.searchWorker and self.searchWorker.isRunning():
+            self.searchWorker.cancel()
+            self.searchWorker.wait()
+
+        self.results_list.clear()
+        self.results_list.setVisible(True)
+        self.results_list.addItem(f"Searching for '{term}")
+
+        self.adjustSize()
+
+        self.searchWorker = SearchWorker(
+            directory=self.current_directory,
+            term=term,
+            match_case=self.btn_match_case.isChecked(),
+            match_word=self.btn_match_word.isChecked(),
+            is_regex=self.btn_regex.isChecked(),
+            includes=self.include_input.text(),
+            excludes=self.exclude_input.text(),
+        )
+
+        self.searchWorker.match_found.connect(self.on_match_found)
+        self.searchWorker.finished.connect(self.on_search_finished)
+        self.searchWorker.error.connect(self.on_search_error)
+
+        # Start the thread
+        self.searchWorker.start()
+
+    def on_match_found(self, filepath, line_num, line_content):
+        """
+        Fired every time the worker finds a match.
+        """
+        if self.results_list.count() == 1 and self.results_list.item(
+            0
+        ).text().startswith("Searching"):
+            self.results_list.clear()
+
+        filename = os.path.basename(filepath)
+        display_text = f"{filename}:{line_num} - {line_content}"
+        self.results_list.addItem(display_text)
+
+    def on_search_finished(self, total_matches):
+        if self.results_list.count() > 0 and self.results_list.item(
+            0
+        ).text().startswith("Searching"):
+            self.results_list.clear()
+
+        if total_matches == 0:
+            self.results_list.addItem("No matches found.")
+        else:
+            self.tip_label.setText(f"Found {total_matches} matches.")
+
+    def on_search_error(self, error_msg):
+        self.results_list.addItem(f"Error: {error_msg}")

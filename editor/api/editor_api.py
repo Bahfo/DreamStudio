@@ -1,11 +1,9 @@
-import os
 import re
 
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtGui import QColor
 
-from fonts.font_strapper import Fonts
-
+# Local Imports
 from editor.utils.find_replace.find_replace import FindReplace
 
 
@@ -66,7 +64,9 @@ class EditorAPI:
             or self._find_replace_window is None
         ):
             self._find_replace_window = FindReplace(
-                hanging_widget=self.title_bar._ide_search, parent=self
+                parent=self,
+                hanging_widget=self.title_bar._ide_search,
+                current_directory=self.title_bar.directory,
             )
             self._find_replace_window.setStyleSheet(self.styleSheet())
 
@@ -350,8 +350,7 @@ class EditorAPI:
         """
         family_value = f'"{family}", "Segoe UI", "Inter", Arial, sans-serif'
         pattern = re.compile(
-            r"(QMainWindow\s*,\s*QWidget\s*\{[^}]*?)"
-            r"font-family\s*:\s*[^;]+;",
+            r"(QMainWindow\s*,\s*QWidget\s*\{[^}]*?)" r"font-family\s*:\s*[^;]+;",
             re.IGNORECASE | re.DOTALL,
         )
         if pattern.search(qss):

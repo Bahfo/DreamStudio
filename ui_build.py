@@ -1,6 +1,5 @@
 from editor import *
 from editor.api.editor_api import EditorAPI
-from fonts.font_strapper import Fonts
 
 
 class DreamStudio(EditorAPI, QMainWindow):
@@ -32,9 +31,7 @@ class DreamStudio(EditorAPI, QMainWindow):
         if theme_content:
             config = self._registry.get("config") if self._registry else None
             if isinstance(config, dict):
-                self._current_theme_name = (
-                    config.get("editor", {}).get("theme", "dark")
-                )
+                self._current_theme_name = config.get("editor", {}).get("theme", "dark")
             self._apply_theme_content(theme_content)
         else:
             self._current_theme_name = "dark"
@@ -59,7 +56,7 @@ class DreamStudio(EditorAPI, QMainWindow):
         return main_layout
 
     def _build_title_bar(self, main_layout: QVBoxLayout) -> None:
-        self.title_bar = DreamStudioTitleBar(self)
+        self.title_bar = DreamStudioTitleBar(self, self.currentDirectory)
         self.options_menu = OptionsMenu(self, "editor/base/json/optionbar.json")
 
         main_layout.insertWidget(0, self.title_bar)
