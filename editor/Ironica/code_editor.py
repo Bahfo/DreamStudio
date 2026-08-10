@@ -157,7 +157,7 @@ class CodeEditor(QsciScintilla):
         self.current_provider: Optional[Any] = None
         self._theme_name = "dark"
 
-        self._font = Fonts.space_mono(10)
+        self._font = Fonts.fira_code(10)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
@@ -430,7 +430,10 @@ class CodeEditor(QsciScintilla):
         was_expanded = bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
         full_text = f"(... +{import_count} imports)"
         self.SendScintilla(SCI_SETFOLDEXPANDEDTEXT, line, full_text.encode("utf-8"))
-        if bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line)) != was_expanded:
+        if (
+            bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
+            != was_expanded
+        ):
             self.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, line)
 
     def _setup_edge(self) -> None:

@@ -1,8 +1,9 @@
 from editor import *
 from editor.api.editor_api import EditorAPI
+from editor.api.menus_api import MenusAPI
 
 
-class DreamStudio(EditorAPI, QMainWindow):
+class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
     """Main IDE window.
 
     Receives the bootstrap ``ServiceRegistry`` via constructor injection
@@ -68,6 +69,7 @@ class DreamStudio(EditorAPI, QMainWindow):
         self.right_sidebar = VerticalSidebar(self, "editor/base/json/rightbar.json")
 
         self.tab_editors = self.hero_window._text_editor_center.tabs
+        self.tab_editors.currentChanged.connect(self._sync_menu_state)
 
         self.body_layout.addWidget(self.left_sidebar)
         self.body_layout.addWidget(self.hero_window, stretch=1)
@@ -105,3 +107,18 @@ class DreamStudio(EditorAPI, QMainWindow):
     def _build_status_bar(self, main_layout: QVBoxLayout) -> None:
         self.status_bar = StatusBar(self, self.currentDirectory)
         main_layout.addWidget(self.status_bar)
+
+    def _sync_menu_state(self) -> None:
+        """Update File menu enabled/disabled state from current tab count."""
+        has_tabs = self.tab_editors.count() > 0
+        self.title_bar._update_menu_state(has_tabs)
+
+    def _defer_menu_sync(self) -> None:
+        """Schedule a menu-state sync after the next event-loop iteration.
+
+        Call this after any operation that adds or removes tabs so the
+        count is up-to-date when the check runs.
+        """
+        from PyQt6.QtCore import QTimer
+
+        QTimer.singleShot(0, self._sync_menu_state)

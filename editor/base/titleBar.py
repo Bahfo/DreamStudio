@@ -24,6 +24,7 @@ class DreamStudioTitleBar(QWidget):
         self.setFixedHeight(40)
         self.offset = None
         self.directory = directory
+        self._menu_actions: dict[str, QAction] = {}
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 0, 10, 0)
@@ -65,6 +66,7 @@ class DreamStudioTitleBar(QWidget):
         )
 
         self.load_menus_from_json("editor/base/json/menus.json")
+        self._update_menu_state(False)
 
     def _build_control_button(self, text, font_size, callback, layout):
         btn = QPushButton(text)
@@ -89,6 +91,14 @@ class DreamStudioTitleBar(QWidget):
             menu = self.menubar.addMenu(menu_name)
             menu.setObjectName("TitleBarMenu")
             self._build_menu_items(menu, items)
+
+    _EDITOR_MENU_ACTIONS = frozenset({
+        "set_save_current_file",
+        "set_save_file_as",
+        "set_save_all_files",
+        "set_save_all_and_close",
+        "set_close_editor",
+    })
 
     def _build_menu_items(self, parent_menu, items):
         """Recursively populates submenus, actions, and separators."""
@@ -117,12 +127,21 @@ class DreamStudioTitleBar(QWidget):
                 if action_str:
                     # Dynamically look up local functions or parent methods
                     target = getattr(
-                        self, action_str, getattr(self._title_parent, action_str, None)
+                        self, action_str,
+                        getattr(self._title_parent, action_str, None),
                     )
                     if target:
                         action.triggered.connect(target)
 
+                if action_str in self._EDITOR_MENU_ACTIONS:
+                    self._menu_actions[action_str] = action
+
                 parent_menu.addAction(action)
+
+    def _update_menu_state(self, has_tabs: bool) -> None:
+        """Enable or disable editor-dependent menu actions."""
+        for action in self._menu_actions.values():
+            action.setEnabled(has_tabs)
 
     def toggle_maximize(self):
         win = self.window()
@@ -249,3 +268,14 @@ class DreamStudioTitleBar(QWidget):
         green = base.green() + int((255 - base.green()) * amount)
         blue = base.blue() + int((255 - base.blue()) * amount)
         return QColor(red, green, blue)
+
+    # ------------------------------------------------------------------
+    # Help menu actions
+    # ------------------------------------------------------------------
+
+    def show_welcome(self) -> None:
+        """Open the IDE welcome / start page window."""
+        from editor.base.user.whats_new import IDEStartPage
+
+        self._welcome_window = IDEStartPage()
+        self._welcome_window.show()

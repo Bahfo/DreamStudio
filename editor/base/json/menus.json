@@ -77,7 +77,7 @@
     {
       "text": "Exit",
       "icon": null,
-      "action": "close"
+      "action": "set_exit"
     }
   ],
   "Edit": [

@@ -135,17 +135,17 @@
         "options": [
             {
                 "text": "Android x86 Architecture",
-                "icon_path": "assets/system/undo.png",
+                "icon_path": "assets/system/android.png",
                 "callback": false
             },
             {
                 "text": "GreenLeaf x86 Architecture",
-                "icon_path": "assets/system/redo.png",
+                "icon_path": "assets/system/greenleaf.png",
                 "callback": false
             },
             {
                 "text": "Local Operating System",
-                "icon_path": "assets/system/trash.png",
+                "icon_path": "assets/system/local.png",
                 "callback": false
             }
         ]

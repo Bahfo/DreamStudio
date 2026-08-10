@@ -49,3 +49,37 @@ Process monitor built as `DreamStudioProcessManager`. Port-based IPC with the Py
 
 ### Notes:
 Navigation uses `itemDoubleClicked` signal on plain `QListWidget` (no subclass). `_SearchResultList` subclass removed. `self._parent` is the main window (EditorAPI mixin) passed during `FindReplace.__init__`.
+
+---
+## Changes on 7/8/2026 (Bug Fix)
+
+### Fixes
+- (FIX_012) Fixed `_minimap_toggle` corner widget misbehaving and losing its position on click: removed explicit parent from `QPushButton()` constructor so `setCornerWidget` can properly reparent and position the button; added `QTimer.singleShot(0, self.updateGeometry)` after visibility changes to force layout recalculation
+- (FIX_013) Fixed crash on startup (`AttributeError: '_base_tab_style'`): moved `setStyleSheet(corner-widget)` call after `_base_tab_style` is defined, preventing `StyleChange` event from firing before the attribute exists
+
+### Notes:
+Root cause (FIX_012): creating the button with `self` as parent conflicted with `setCornerWidget`'s reparenting logic. Additionally, the tab widget layout was not recalculated when the corner widget's visibility changed, causing position drift.
+Root cause (FIX_013): `setStyleSheet()` triggers a synchronous `StyleChange` event; when called before `_base_tab_style` was set, `changeEvent` → `_apply_tab_style` crashed.
+
+---
+## Changes on 10/8/2026
+
+### Additions
+- (ADD_013) Added `editor/api/menus_api.py` with `MenusAPI` mixin class: implements all File-menu callbacks (`set_new_file`, `set_open_file`, `set_save_current_file`, `set_save_file_as`, `set_save_all_files`, `set_save_all_and_close`, `set_close_editor`, `set_close_dreamstudio`, `set_open_settings`); stubs for `set_new_project`, `set_new_window`, `set_open_recent_project`, `set_import_configurations`, `set_export_configurations`; mixed into `DreamStudio` via `ui_build.py`
+- (ADD_014) Added `UnsavedChangesDialog` to `editor/widgets/QExitDialog.py`: frameless dialog listing dirty files with Save All / Don't Save / Cancel buttons; used by `set_close_editor` for batch-close dirty check
+- (ADD_015) Wired `show_welcome` action on `DreamStudioTitleBar` for Help > Welcome menu; opens `IDEStartPage` from `editor/base/user/whats_new.py` as a standalone window
+
+### Fixes
+- (FIX_014) Save menu items (`set_save_current_file`, `set_save_file_as`, `set_save_all_files`, `set_save_all_and_close`) now gracefully no-op when no editor tabs are open instead of raising errors
+- (FIX_015) Close Editor (`set_close_editor`) is now a no-op when no tabs are open and prompts for unsaved changes when dirty files exist
+
+### Notes:
+`MenusAPI` is mixed into `DreamStudio` before `EditorAPI` in the MRO so menu actions resolve on `MenusAPI` first. All new functions follow the existing `getattr()` callback pattern used by `titleBar.py`. No changes to `menus.json` were needed — the existing action strings already matched the new method names.
+
+---
+## Changes on 10/8/2026 (Bug Fixes)
+
+### Fixes
+- (FIX_016) Fixed Exit menu action closing titlebar instead of app: changed `menus.json` action from `"close"` (resolves to `QWidget.close()` on titlebar) to `"set_exit"`; added `MenusAPI.set_exit()` that calls `QApplication.quit()`
+- (FIX_016) Added editor-dependent menu action tracking: `DreamStudioTitleBar` now stores `QAction` references for save/close actions in `_menu_actions` dict; `_update_menu_state(has_tabs)` enables/disables them; wired via `currentChanged` signal and deferred sync after tab add/remove/close operations
+- (FIX_017) Tab close X button now prompts for unsaved changes: `_on_close_requested()` checks `CodeEditor.isModified()` and shows `UnsavedChangesDialog` with the dirty file listed; Cancel aborts close, Save writes to disk then closes, Don't Save discards and closes

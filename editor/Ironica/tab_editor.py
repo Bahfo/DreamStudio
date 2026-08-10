@@ -24,7 +24,7 @@ The editor widget (``CodeEditor``) owns:
 
 # Written by Bahaa Nofal
 
-from PyQt6.QtCore import Qt, QEvent, QTimer
+from PyQt6.QtCore import Qt, QEvent, QTimer, QSize
 from PyQt6.QtWidgets import (
     QStyle,
     QLabel,
@@ -33,7 +33,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
 )
-from PyQt6.QtGui import QShortcut, QKeySequence, QPalette
+from PyQt6.QtGui import QShortcut, QKeySequence, QPalette, QIcon
 
 from editor.widgets.QDreamTabEditor import QDreamTabEditor
 
@@ -46,17 +46,6 @@ logger = logging.getLogger(__name__)
 from editor.Ironica.code_editor import CodeEditor
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 from designer.toolbox.designer import DesignerTab
-
-CONFIG_CODE_EDITOR = {
-    "Set TextEditor Font": ("JetBrains Mono"),
-    "Encoding": "UTF-8",
-    "Identation_Spacing": 4,
-    "Auto Ident": True,
-    "Backspace Unidents": True,
-    "Tab Idents": True,
-    "Identation Width": 4,
-    "Numbering Foreground Colors": "#1E1E1E",
-}
 
 
 class DreamTabbedEditor(QDreamTabEditor):
@@ -94,6 +83,10 @@ class DreamTabbedEditor(QDreamTabEditor):
             background: transparent;
         }}"""
         self._apply_tab_style_from_palette()
+        self.setStyleSheet("""QTabWidget::corner-widget {
+            margin-right: -30px;
+            padding: 0px;
+        }""")
 
         self._close_interceptors = []
         self.tabCloseRequested.connect(self._on_close_requested)
@@ -120,8 +113,13 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         # Minimap toggle (corner widget on the right side of the tab bar)
         self._minimap_visible = True
-        self._minimap_toggle = QPushButton("Hide Minimap", self)
-        self._minimap_toggle.setFixedHeight(24)
+        self._minimap_toggle = QPushButton()
+        self._minimap_toggle.setIcon(QIcon("assets/editor/minimap.png"))
+        self._minimap_toggle.setIconSize(QSize(20, 20))
+        self._minimap_toggle.setFixedSize(24, 24)
+        self._minimap_toggle.setCheckable(True)
+        self._minimap_toggle.setChecked(True)
+        self._minimap_toggle.setToolTip("Hide Minimap")
         self._minimap_toggle.clicked.connect(self._toggle_minimap)
         self._minimap_toggle.setVisible(False)
         self.setCornerWidget(self._minimap_toggle, Qt.Corner.TopRightCorner)
@@ -141,9 +139,12 @@ class DreamTabbedEditor(QDreamTabEditor):
 
     def _toggle_minimap(self) -> None:
         self._minimap_visible = not self._minimap_visible
-        self._minimap_toggle.setText(
-            "Show Minimap" if not self._minimap_visible else "Hide Minimap"
+
+        self._minimap_toggle.setChecked(self._minimap_visible)
+        self._minimap_toggle.setToolTip(
+            "Hide Minimap" if self._minimap_visible else "Show Minimap"
         )
+
         for i in range(self.count()):
             w = self.widget(i)
             if isinstance(w, MiniMapHostWidget):
@@ -170,7 +171,10 @@ class DreamTabbedEditor(QDreamTabEditor):
     def _on_editor_tab_changed(self, index: int) -> None:
         """Update the status bar when the active tab changes."""
         self.return_file_info()
-        self._minimap_toggle.setVisible(self.count() > 0 and index >= 0)
+        should_show = self.count() > 0 and index >= 0
+        if self._minimap_toggle.isVisible() != should_show:
+            self._minimap_toggle.setVisible(should_show)
+            QTimer.singleShot(0, self.updateGeometry)
 
     def _on_editor_dirty_changed(self, is_dirty: bool) -> None:
         editor = self.sender()
@@ -346,8 +350,41 @@ class DreamTabbedEditor(QDreamTabEditor):
     # ------------------------------------------------------------------
 
     def _on_close_requested(self, index: int) -> None:
-        """Handle the ``tabCloseRequested`` signal, delegating to :meth:`close_editor`."""
+        """Handle the ``tabCloseRequested`` signal.
+
+        If the editor is dirty, prompt the user to save, discard,
+        or cancel before proceeding with the close.
+        """
+        editor = self.widget(index)
+        if editor is None:
+            return
+
+        code_editor = self._unwrap_code_editor(editor)
+        if code_editor is not None and code_editor.isModified():
+            from editor.widgets.QExitDialog import UnsavedChangesDialog
+
+            tab_name = self.tabText(index)
+            dlg = UnsavedChangesDialog(
+                parent=self, dirty_files=[tab_name]
+            )
+            dlg.exec()
+            choice = dlg.result
+
+            if choice == UnsavedChangesDialog.RESULT_CANCEL:
+                return
+            if choice == UnsavedChangesDialog.RESULT_SAVE:
+                code_editor.save()
+
         self.close_editor(index)
+
+    @staticmethod
+    def _unwrap_code_editor(widget):
+        """Unwrap MiniMapHostWidget to get the underlying CodeEditor."""
+        from editor.Ironica.utils.minimap import MiniMapHostWidget
+
+        if isinstance(widget, MiniMapHostWidget):
+            return widget.editor
+        return None
 
     def close_editor(self, index: int) -> None:
         """Close the tab at *index* and clean up all associated state.
@@ -415,6 +452,10 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         if hasattr(self._parent, "update_editor_visibility"):
             self._parent.update_editor_visibility()
+
+        win = self.window()
+        if hasattr(win, "_defer_menu_sync"):
+            win._defer_menu_sync()
 
     def close_tab(self) -> None:
         """Close the currently active tab."""

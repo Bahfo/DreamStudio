@@ -5,6 +5,8 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
 )
 from PyQt6.QtCore import Qt, QPropertyAnimation, QSequentialAnimationGroup, QPoint
 
@@ -461,3 +463,166 @@ class ErrorDialog(QDialog):
             + """
         """
         )
+
+
+class UnsavedChangesDialog(QDialog):
+    """Dialog that prompts the user when closing editors with unsaved changes.
+
+    Displays a list of dirty files and offers three options:
+    - Save All: saves every dirty file and proceeds with the close.
+    - Don't Save: discards changes and proceeds with the close.
+    - Cancel: aborts the close operation entirely.
+
+    Returns:
+        QDialog.DialogCode.Accepted with ``result`` set to one of
+        ``"save"``, ``"discard"``, or ``"cancel"``.
+    """
+
+    RESULT_SAVE = "save"
+    RESULT_DISCARD = "discard"
+    RESULT_CANCEL = "cancel"
+
+    def __init__(self, parent=None, dirty_files=None):
+        super().__init__(parent)
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog
+        )
+        self.setFixedWidth(400)
+        self.result = self.RESULT_CANCEL
+
+        self._bg = "#2B2B2B"
+        self._border = "#444444"
+        self._text = "#BBBBBB"
+        self._list_bg = "#1E1E1E"
+
+        self._dirty_files = dirty_files or []
+        self._build_ui()
+        self._apply_styles()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setSpacing(15)
+
+        title = QLabel("Unsaved Changes")
+        title.setStyleSheet(
+            f"color: {self._text}; font-weight: bold; font-size: 15px;"
+            " background-color: transparent;"
+        )
+        layout.addWidget(title)
+
+        count = len(self._dirty_files)
+        if count == 1:
+            msg_text = (
+                "The following file has unsaved changes. "
+                "Do you want to save them?"
+            )
+        else:
+            msg_text = (
+                f"{count} files have unsaved changes. "
+                "Do you want to save them?"
+            )
+        msg = QLabel(msg_text)
+        msg.setWordWrap(True)
+        layout.addWidget(msg)
+
+        self.file_list = QListWidget()
+        self.file_list.setFixedHeight(min(count * 24 + 10, 160))
+        for name in self._dirty_files:
+            item = QListWidgetItem(name)
+            self.file_list.addItem(item)
+        layout.addWidget(self.file_list)
+
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+
+        self.save_btn = QPushButton("SAVE ALL")
+        self.save_btn.setObjectName("saveButton")
+        self.save_btn.clicked.connect(self._on_save)
+
+        self.discard_btn = QPushButton("DON'T SAVE")
+        self.discard_btn.setObjectName("discardButton")
+        self.discard_btn.clicked.connect(self._on_discard)
+
+        self.cancel_btn = QPushButton("CANCEL")
+        self.cancel_btn.clicked.connect(self._on_cancel)
+
+        button_layout.addWidget(self.save_btn)
+        button_layout.addWidget(self.discard_btn)
+        button_layout.addWidget(self.cancel_btn)
+        button_layout.addStretch()
+
+        layout.addLayout(button_layout)
+
+    def _on_save(self):
+        self.result = self.RESULT_SAVE
+        self.accept()
+
+    def _on_discard(self):
+        self.result = self.RESULT_DISCARD
+        self.accept()
+
+    def _on_cancel(self):
+        self.result = self.RESULT_CANCEL
+        self.reject()
+
+    def _apply_styles(self):
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {self._bg};
+                border: 1px solid {self._border};
+            }}
+            QLabel {{
+                color: {self._text};
+                font-size: 13px;
+                background-color: transparent;
+                padding: 2px 0px;
+            }}
+            QListWidget {{
+                background-color: {self._list_bg};
+                color: {self._text};
+                border: 1px solid {self._border};
+                border-radius: 3px;
+                padding: 5px;
+                font-size: 12px;
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 3px 6px;
+                border-radius: 2px;
+            }}
+            QListWidget::item:selected {{
+                background-color: #214283;
+                color: white;
+            }}
+            QListWidget::item:hover {{
+                background-color: #333333;
+            }}
+            QPushButton {{
+                color: {self._text};
+                background-color: transparent;
+                border: none;
+                border-radius: 2px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #555555;
+                color: white;
+            }}
+            QPushButton#saveButton {{
+                color: #4A9EE2;
+            }}
+            QPushButton#saveButton:hover {{
+                background-color: #214283;
+                color: white;
+            }}
+            QPushButton#discardButton {{
+                color: #FF5555;
+            }}
+            QPushButton#discardButton:hover {{
+                background-color: #CC0000;
+                color: white;
+            }}
+        """)
