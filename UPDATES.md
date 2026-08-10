@@ -83,3 +83,16 @@ Root cause (FIX_013): `setStyleSheet()` triggers a synchronous `StyleChange` eve
 - (FIX_016) Fixed Exit menu action closing titlebar instead of app: changed `menus.json` action from `"close"` (resolves to `QWidget.close()` on titlebar) to `"set_exit"`; added `MenusAPI.set_exit()` that calls `QApplication.quit()`
 - (FIX_016) Added editor-dependent menu action tracking: `DreamStudioTitleBar` now stores `QAction` references for save/close actions in `_menu_actions` dict; `_update_menu_state(has_tabs)` enables/disables them; wired via `currentChanged` signal and deferred sync after tab add/remove/close operations
 - (FIX_017) Tab close X button now prompts for unsaved changes: `_on_close_requested()` checks `CodeEditor.isModified()` and shows `UnsavedChangesDialog` with the dirty file listed; Cancel aborts close, Save writes to disk then closes, Don't Save discards and closes
+
+---
+#### Changes in Fix - (FIX_018)
+- Fixed segfault caused by `NotificationManager.__new__()` overriding `QObject.__new__()` — sip/shiboken C++ binding requires `QObject` construction to go through its own `__new__`
+- Removed `_instance` class variable and `__new__` override from `NotificationManager`
+- Moved singleton management to module-level `_instance` variable in `get_notification_manager()`
+- Updated `NotificationsPanel.__init__()` to use `get_notification_manager()` instead of direct `NotificationManager()` instantiation
+
+#### Notes:
+Overriding `__new__` on any `QObject` subclass in PyQt6 causes a segfault because the sip/shiboken C++ layer manages `QObject` construction internally. Confirmed through isolated test cases that even without `pyqtSignal`, the `__new__` override alone triggers the crash. The singleton pattern must be managed outside the QObject class hierarchy.
+
+Date of Change: 10/8/2026
+---

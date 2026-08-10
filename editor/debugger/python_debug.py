@@ -12,6 +12,8 @@ import subprocess
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from editor.utils.notifications.notification_manager import get_notification_manager
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +39,12 @@ def resolve_breakpoints(
     # Syntax errors: Will be triggered to pause debugging (TODO to implement later)
 
     if not os.path.exists(file_path):
-        pass  # TODO: Here must be a notification that file is not found.
+        get_notification_manager().add_error(
+            "Debug Error",
+            f"File not found for debugging: {file_path}",
+            "Debugger",
+        )
+        return {}
 
     with open(file_path, "r", encoding="utf-8") as file:
         source_code = file.read()
@@ -96,6 +103,12 @@ def start_debugger(session: "DebugSession") -> None:
         "Debug session started for %s with %d breakpoints",
         session.file_path,
         len(session.resolved_breakpoints),
+    )
+    get_notification_manager().add_info(
+        "Debug Started",
+        f"Debug session started: {os.path.basename(session.file_path)} "
+        f"({len(session.resolved_breakpoints)} breakpoints)",
+        "Debugger",
     )
 
 
@@ -184,7 +197,12 @@ class DebugSession(QObject):
                     self._process.kill()
                     self._process.wait(timeout=2)
             except Exception as exc:
-                logger.debug("Error terminating debug process: %s", exc)
+                logger.warning("Error terminating debug process: %s", exc)
+                get_notification_manager().add_warning(
+                    "Debug Stop Error",
+                    f"Error stopping debug process: {exc}",
+                    "Debugger",
+                )
         self._process = None
         self._is_running = False
 

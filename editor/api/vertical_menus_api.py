@@ -33,6 +33,8 @@ class VerticalMenusAPI(QObject):
         "source_control": "Source Control",
         "properties": "Properties",
         "todo_search": "TODO Search",
+        "server_explorer": "Server Explorer",
+        "notifications": "Notifications",
     }
 
     def __init__(self, parent: Optional[QObject] = None) -> None:

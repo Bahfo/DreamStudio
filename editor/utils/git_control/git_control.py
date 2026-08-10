@@ -4,7 +4,12 @@ Background module to control GIT actions for DreamStudio.
 """
 
 import os
+import logging
 from git import Repo
+
+from editor.utils.notifications.notification_manager import get_notification_manager
+
+logger = logging.getLogger(__name__)
 
 
 def return_repository(path: str) -> Repo | Exception:
@@ -114,7 +119,13 @@ def stage_file(repo: Repo, file_path: str) -> bool:
     try:
         repo.index.add([file_path])
         return True
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to stage file: %s", e)
+        get_notification_manager().add_error(
+            "Git Stage Failed",
+            f"Could not stage file: {file_path}",
+            "Git",
+        )
         return False
 
 
@@ -126,15 +137,32 @@ def unstage_file(repo: Repo, file_path: str) -> bool:
         try:
             repo.git.reset("HEAD", file_path)
             return True
-        except Exception:
+        except Exception as e:
+            logger.error("Failed to unstage file: %s", e)
+            get_notification_manager().add_error(
+                "Git Unstage Failed",
+                f"Could not unstage file: {file_path}",
+                "Git",
+            )
             return False
 
 
 def commit(repo: Repo, message: str) -> tuple[bool, str]:
     try:
         repo.index.commit(message)
+        get_notification_manager().add_success(
+            "Commit Successful",
+            "Changes committed successfully.",
+            "Git",
+        )
         return True, "Commit successful"
     except Exception as e:
+        logger.error("Commit failed: %s", e)
+        get_notification_manager().add_error(
+            "Commit Failed",
+            f"Commit failed: {e}",
+            "Git",
+        )
         return False, str(e)
 
 
@@ -161,8 +189,19 @@ def commit_staged(
                     except Exception:
                         pass
         repo.index.commit(message)
+        get_notification_manager().add_success(
+            "Commit Successful",
+            "Changes committed successfully.",
+            "Git",
+        )
         return True, "Commit successful"
     except Exception as e:
+        logger.error("Staged commit failed: %s", e)
+        get_notification_manager().add_error(
+            "Commit Failed",
+            f"Commit failed: {e}",
+            "Git",
+        )
         return False, str(e)
 
 
@@ -216,6 +255,12 @@ def get_commit_history(repo: Repo, count: int = 50) -> dict:
             "branch": branch,
         }
     except Exception as e:
+        logger.warning("Failed to read commit history: %s", e)
+        get_notification_manager().add_warning(
+            "Git History Error",
+            f"Failed to read commit history: {e}",
+            "Git",
+        )
         return {"commits": [], "head_sha": None, "branch": "unknown", "error": str(e)}
 
 
@@ -237,11 +282,20 @@ def get_all_branches(repo: Repo):
 def switch_branch(
     repo: Repo, branch_to_switch: str, switch_and_create: bool = False
 ) -> None:
-    if switch_and_create == False:
-        repo.git.checkout(branch_to_switch)
-
-    else:
-        repo.git.checkout("-b", branch_to_switch)
+    try:
+        if switch_and_create == False:
+            repo.git.checkout(branch_to_switch)
+        else:
+            repo.git.checkout("-b", branch_to_switch)
+    except Exception as e:
+        logger.warning("Failed to switch branch: %s", e)
+        get_notification_manager().add_warning(
+            "Branch Switch Failed",
+            f"Could not switch to branch '{branch_to_switch}'. "
+            "Please commit your changes or stash them before switching branches.",
+            "Git",
+        )
+        raise
 
 
 if __name__ == "__main__":

@@ -17,6 +17,14 @@
     },
     {
         "id":"btn",
+        "icon_path":"assets/system/notificaiton.png",
+        "tooltip":"Notifications",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": "_toggle_notifications"
+    },
+    {
+        "id":"btn",
         "icon_path":"assets/system/toolbox.png",
         "tooltip":"Toolbox",
         "size":[40, 40],
@@ -26,10 +34,10 @@
     {
         "id":"btn",
         "icon_path":"assets/system/shell.png",
-        "tooltip":"Server Tools",
+        "tooltip":"Server Explorer",
         "size":[40, 40],
         "icon_size":[27, 27],
-        "callback": false
+        "callback": "_toggle_server_explorer"
     },
     {
         "id":"btn",

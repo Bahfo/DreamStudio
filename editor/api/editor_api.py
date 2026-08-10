@@ -47,6 +47,20 @@ class EditorAPI:
         else:
             api.activate_panel("todo_search")
 
+    def _toggle_server_explorer(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("server_explorer"):
+            self.hero_window._right_utils_manager.set_current_panel("server_explorer")
+        else:
+            api.activate_panel("server_explorer")
+
+    def _toggle_notifications(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("notifications"):
+            self.hero_window._right_utils_manager.set_current_panel("notifications")
+        else:
+            api.activate_panel("notifications")
+
     def _toggle_terminal(self) -> None:
         terminal = self.hero_window.terminal_window
         splitter = self.hero_window._main_vertical_splitter

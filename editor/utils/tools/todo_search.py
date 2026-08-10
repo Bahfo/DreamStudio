@@ -2,6 +2,7 @@ import os
 import re
 import logging
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QLineEdit,
     QVBoxLayout,
@@ -30,6 +31,11 @@ class TODOSearch(PanelShell):
     def __init__(self, _parent=None):
         self._theme = None
         super().__init__(_parent)
+
+        # Make the title bold
+        title_font = QFont()
+        title_font.setBold(True)
+        self.title.setFont(title_font)
 
         main_window = self.window()
         self._base_dir = getattr(main_window, "currentDirectory", os.getcwd())

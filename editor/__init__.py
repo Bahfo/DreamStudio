@@ -18,6 +18,8 @@ from editor.utils.utils_tabmanager import UtilityTabManager
 from editor.utils.explorer.explorer import SolutionExplorer
 from editor.utils.properties.properties import PropertiesExplorer
 from editor.utils.git_control.source_control import GitVersionControl
+from editor.utils.server_explorer.server_explorer import ServerExplorer
+from editor.utils.notifications.notifications_panel import NotificationsPanel
 
 
 from editor.Ironica.ui_build import EditorContainer
@@ -101,6 +103,24 @@ class WorkspaceContainer(QWidget):
             splitter_index=2,
             default_width=350,
         )
+        self._vertical_menus_api.register_panel(
+            "server_explorer",
+            self._server_explorer,
+            self._right_utils_manager,
+            "right",
+            splitter=self._top_horizontal_splitter,
+            splitter_index=2,
+            default_width=350,
+        )
+        self._vertical_menus_api.register_panel(
+            "notifications",
+            self._notifications_panel,
+            self._right_utils_manager,
+            "right",
+            splitter=self._top_horizontal_splitter,
+            splitter_index=2,
+            default_width=350,
+        )
 
         self._left_utils_manager.panel_close_requested.connect(
             lambda pid: (self._vertical_menus_api.deactivate_panel(pid))
@@ -114,6 +134,8 @@ class WorkspaceContainer(QWidget):
         self._source_control = GitVersionControl()
         self._properties_explorer = PropertiesExplorer()
         self._todo_search = TODOSearch()
+        self._server_explorer = ServerExplorer()
+        self._notifications_panel = NotificationsPanel()
 
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self._left_utils_manager.set_theme(bg, fg, sel)

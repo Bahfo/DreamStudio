@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QSortFilterProxyModel
 
 from editor.widgets.QExitDialog import ConfirmDialog, RenameDialog
+from editor.utils.notifications.notification_manager import get_notification_manager
 
 
 class ExplorerAPI:
@@ -95,6 +96,11 @@ class ExplorerAPI:
                 fh.write("")
         except OSError as exc:
             print(f"[explorer] new_file error: {exc}")
+            get_notification_manager().add_error(
+                "File Creation Failed",
+                f"Could not create file: {exc}",
+                "Explorer",
+            )
             return None
 
         return file_path
@@ -127,6 +133,11 @@ class ExplorerAPI:
             os.makedirs(folder_path, exist_ok=True)
         except OSError as exc:
             print(f"[explorer] new_folder error: {exc}")
+            get_notification_manager().add_error(
+                "Folder Creation Failed",
+                f"Could not create folder: {exc}",
+                "Explorer",
+            )
             return None
 
         return folder_path
@@ -160,6 +171,11 @@ class ExplorerAPI:
                 os.remove(path)
         except OSError as exc:
             print(f"[explorer] delete error: {exc}")
+            get_notification_manager().add_error(
+                "Delete Failed",
+                f"Could not delete '{name}': {exc}",
+                "Explorer",
+            )
             return False
 
         return True
@@ -197,6 +213,11 @@ class ExplorerAPI:
             os.rename(path, new_path)
         except OSError as exc:
             print(f"[explorer] rename error: {exc}")
+            get_notification_manager().add_error(
+                "Rename Failed",
+                f"Could not rename '{current_name}': {exc}",
+                "Explorer",
+            )
             return None
 
         return new_path
@@ -265,6 +286,11 @@ class ExplorerAPI:
                     shutil.copy2(src_path, dest_path)
         except OSError as exc:
             print(f"[explorer] paste error: {exc}")
+            get_notification_manager().add_error(
+                "Paste Failed",
+                f"Could not paste item: {exc}",
+                "Explorer",
+            )
             return None
 
         return dest_path
@@ -289,6 +315,11 @@ class ExplorerAPI:
                 subprocess.Popen(["xdg-open", target])
         except OSError as exc:
             print(f"[explorer] open_in_system_explorer error: {exc}")
+            get_notification_manager().add_error(
+                "Open Failed",
+                f"Could not open in file manager: {exc}",
+                "Explorer",
+            )
 
     @staticmethod
     def refresh_tree(tree_view: QTreeView) -> None:
