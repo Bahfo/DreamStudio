@@ -5,12 +5,15 @@ Each phase is a callable that receives a PhaseContext and raises
 StartupError on critical failure or RecoverableError on recoverable issues.
 """
 
+import os
 import sys
+import json
 import logging
 import traceback
 
 from dataclasses import dataclass, field
 from typing import Any
+from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication
 
@@ -96,19 +99,106 @@ def phase_bootstrap_init(ctx: PhaseContext) -> None:
 
 
 # ------------------------------------------------------------------
-# Phase 3: Configuration
+# Phase 3: User home directory setup
+# ------------------------------------------------------------------
+
+
+def phase_user_home_setup(ctx: PhaseContext) -> None:
+    """Ensure ~/.dreamstudio/ directory structure exists.
+
+    Creates the following structure if missing:
+        ~/.dreamstudio/
+            remote/
+                configs.json
+            settings/
+                user_settings.json
+            plugins/
+                (can be empty)
+
+    If any file (except plugins directory) is missing, it will be
+    recreated with default values.
+    """
+    logger.info("Phase 3: User home directory setup")
+
+    home_dir = Path.home()
+    dreamstudio_home = home_dir / ".dreamstudio"
+
+    # Directory structure definitions
+    directories = {
+        "remote": dreamstudio_home / "remote",
+        "settings": dreamstudio_home / "settings",
+        "plugins": dreamstudio_home / "plugins",
+    }
+
+    # Default file contents
+    default_files = {
+        "remote": {
+            "path": directories["remote"] / "configs.json",
+            "content": {"version": 1, "connections": []},
+        },
+        "settings": {
+            "path": directories["settings"] / "user_settings.json",
+            "content": {
+                "version": 1,
+                "editor": {"theme": "dark", "font_size": 12},
+                "workspace": {"last_directory": ""},
+            },
+        },
+    }
+
+    try:
+        # Create all directories
+        for dir_name, dir_path in directories.items():
+            dir_path.mkdir(parents=True, exist_ok=True)
+            logger.debug("Ensured directory exists: %s", dir_path)
+
+        # Create config files if missing
+        for file_key, file_info in default_files.items():
+            file_path = file_info["path"]
+            if not file_path.is_file():
+                logger.warning("Config file not found, creating default: %s", file_path)
+                with open(file_path, "w", encoding="utf-8") as fh:
+                    json.dump(file_info["content"], fh, indent=4)
+            else:
+                # Validate file is readable JSON
+                try:
+                    with open(file_path, "r", encoding="utf-8") as fh:
+                        data = json.load(fh)
+                    if not isinstance(data, dict):
+                        raise ValueError("Config is not a JSON object")
+                except (json.JSONDecodeError, ValueError) as exc:
+                    logger.warning(
+                        "Config file invalid, recreating: %s (%s)", file_path, exc
+                    )
+                    with open(file_path, "w", encoding="utf-8") as fh:
+                        json.dump(file_info["content"], fh, indent=4)
+
+        logger.info("Phase 3 completed: User home directory setup")
+
+    except Exception as exc:
+        details = traceback.format_exc()
+        logger.error("User home directory setup failed: %s\n%s", exc, details)
+        raise StartupError(
+            "user_home_setup",
+            "Failed to create ~/.dreamstudio/ directory structure.",
+            details,
+        ) from exc
+
+
+# ------------------------------------------------------------------
+# Phase 4: Configuration
 # ------------------------------------------------------------------
 
 
 def phase_configuration(ctx: PhaseContext) -> None:
     """Load, validate, and repair configuration."""
-    logger.info("Phase 3: Configuration")
+    logger.info("Phase 4: Configuration")
 
     try:
         cfg = ctx.config_service.load()
         ctx.registry.register("config", cfg)
         logger.info(
-            "Phase 3 completed: Configuration loaded (version %s)", cfg.get("version")
+            "Phase 4 completed: Configuration loaded (version %s)", cfg.get("version")
         )
     except Exception as exc:
         details = traceback.format_exc()
@@ -121,13 +211,13 @@ def phase_configuration(ctx: PhaseContext) -> None:
 
 
 # ------------------------------------------------------------------
-# Phase 4: Resources
+# Phase 5: Resources
 # ------------------------------------------------------------------
 
 
 def phase_resources(ctx: PhaseContext) -> None:
     """Load themes, icons, fonts. Use fallbacks for missing items."""
-    logger.info("Phase 4: Resource loading")
+    logger.info("Phase 5: Resource loading")
 
     theme_name = ctx.config_service.get("editor", {}).get("theme", "dark")
     theme_content = ctx.resource_manager.load_theme(theme_name)
@@ -153,26 +243,26 @@ def phase_resources(ctx: PhaseContext) -> None:
         ctx.warnings.append(f"Font loading failed: {exc}")
 
     ctx.registry.register("theme_content", theme_content)
-    logger.info("Phase 4 completed: Resources loaded")
+    logger.info("Phase 5 completed: Resources loaded")
 
 
 # ------------------------------------------------------------------
-# Phase 5: Core services
+# Phase 6: Core services
 # ------------------------------------------------------------------
 
 
 def phase_core_services(ctx: PhaseContext) -> None:
     """Initialize startup-critical services only."""
-    logger.info("Phase 5: Core services")
+    logger.info("Phase 6: Core services")
 
     ctx.registry.register("base_dir", ctx.base_dir)
     ctx.registry.register("app", ctx.app)
 
-    logger.info("Phase 5 completed: Core services registered")
+    logger.info("Phase 6 completed: Core services registered")
 
 
 # ------------------------------------------------------------------
-# Phase 6: Main window
+# Phase 7: Main window
 # ------------------------------------------------------------------
 
 
@@ -183,7 +273,7 @@ def phase_main_window(ctx: PhaseContext) -> None:
     startup dependencies (config, theme, resource_manager) from the
     bootstrap kernel rather than locating them independently.
     """
-    logger.info("Phase 6: Main window creation")
+    logger.info("Phase 7: Main window creation")
 
     sys.path.insert(0, ctx.base_dir)
 
@@ -198,11 +288,11 @@ def phase_main_window(ctx: PhaseContext) -> None:
     if app:
         app.processEvents()
 
-    logger.info("Phase 6 completed: DreamStudio window created (hidden, disabled)")
+    logger.info("Phase 7 completed: DreamStudio window created (hidden, disabled)")
 
 
 # ------------------------------------------------------------------
-# Phase 7: Language plugins
+# Phase 8: Language plugins
 # ------------------------------------------------------------------
 
 
@@ -214,14 +304,14 @@ def phase_language_plugins(ctx: PhaseContext) -> None:
     Plugin failures are recoverable — they log warnings but do not
     prevent the IDE from starting.
     """
-    logger.info("Phase 7: Language plugins")
+    logger.info("Phase 8: Language plugins")
 
     try:
         from editor.Ironica.plugins.registration import register_python_language
 
         success = register_python_language()
         if success:
-            logger.info("Phase 7 completed: Python language plugin registered")
+            logger.info("Phase 8 completed: Python language plugin registered")
         else:
             msg = "Python language plugin registration returned False"
             logger.warning(msg)
@@ -231,23 +321,23 @@ def phase_language_plugins(ctx: PhaseContext) -> None:
         logger.warning(msg)
         ctx.warnings.append(msg)
 
-    logger.info("Phase 7 completed: Language plugins")
+    logger.info("Phase 8 completed: Language plugins")
 
 
 # ------------------------------------------------------------------
-# Phase 8: Finish
+# Phase 9: Finish
 # ------------------------------------------------------------------
 
 
 def phase_finish(ctx: PhaseContext) -> None:
     """Finalize boot. Window stays hidden; caller shows it after run()."""
-    logger.info("Phase 8: Finish")
+    logger.info("Phase 9: Finish")
 
     app = QApplication.instance()
     if app:
         app.processEvents()
 
-    logger.info("Phase 8 completed: DreamStudio ready")
+    logger.info("Phase 9 completed: DreamStudio ready")
 
 
 # ------------------------------------------------------------------

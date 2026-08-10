@@ -19,6 +19,7 @@ from bootstrap.phases import (
     RecoverableError,
     phase_application_startup,
     phase_bootstrap_init,
+    phase_user_home_setup,
     phase_configuration,
     phase_resources,
     phase_core_services,
@@ -54,6 +55,7 @@ class BootstrapManager:
     _DEFAULT_PHASES: list[tuple[str, Callable]] = [
         ("application_startup", phase_application_startup),
         ("bootstrap_init", phase_bootstrap_init),
+        ("user_home_setup", phase_user_home_setup),
         ("configuration", phase_configuration),
         ("resources", phase_resources),
         ("core_services", phase_core_services),
