@@ -17,23 +17,15 @@
     },
     {
         "id":"btn",
-        "icon_path":"assets/system/config.png",
-        "tooltip":"Devices Manager",
+        "icon_path":"assets/system/toolbox.png",
+        "tooltip":"Toolbox",
         "size":[40, 40],
         "icon_size":[27, 27],
-        "callback": false
+        "callback": "_open_toolbox"
     },
     {
         "id":"btn",
-        "icon_path":"assets/menus/testing.png",
-        "tooltip":"DreamTest Tools",
-        "size":[40, 40],
-        "icon_size":[29, 29],
-        "callback": false
-    },
-    {
-        "id":"btn",
-        "icon_path":"assets/menus/browser.png",
+        "icon_path":"assets/system/shell.png",
         "tooltip":"Server Tools",
         "size":[40, 40],
         "icon_size":[27, 27],
@@ -46,13 +38,5 @@
         "size":[40, 40],
         "icon_size":[27, 27],
         "callback": false
-    },
-    {
-        "id":"btn",
-        "icon_path":"assets/system/toolbox.png",
-        "tooltip":"Toolbox",
-        "size":[40, 40],
-        "icon_size":[27, 27],
-        "callback": "_open_toolbox"
     }
 ]
