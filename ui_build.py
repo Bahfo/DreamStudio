@@ -106,6 +106,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _build_status_bar(self, main_layout: QVBoxLayout) -> None:
         self.status_bar = StatusBar(self, self.currentDirectory)
+        self.status_bar.notificationBtn.clicked.connect(self._toggle_notifications)
         main_layout.addWidget(self.status_bar)
 
     def _sync_menu_state(self) -> None:

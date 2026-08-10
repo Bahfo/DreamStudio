@@ -96,3 +96,31 @@ Overriding `__new__` on any `QObject` subclass in PyQt6 causes a segfault becaus
 
 Date of Change: 10/8/2026
 ---
+
+#### Changes in Fix - (FIX_019)
+- Fixed notification panel text visibility: replaced hardcoded colors and `palette()` role references with proper theme-adaptive styling using `QApplication.palette()`
+- Added theme propagation from `UtilityTabManager` to child panels — `set_theme()` now iterates stacked widgets and calls `set_theme()` on panels that support it
+- Added `set_theme(bg, fg, sel)` method to `NotificationsPanel` to receive theme updates from the tab manager
+- Restored left border on notification cards (4px solid colored border by notification type)
+- Made all notification card text use `palette(window-text)`, `palette(text)`, `palette(mid)` with `background: transparent` for proper theme adaptation
+- Changed "Clear All" button and source labels to use `palette(mid)` / `palette(highlight)` for theme-adaptive colors
+- Ensured notification card background uses `palette.color(QPalette.ColorRole.Window)` for consistent bg
+
+#### Notes:
+Date of Change: 10/8/2026
+---
+
+#### Changes in Fix - (FIX_020)
+- Removed notifications button from `rightbar.json` — the status bar already has a notifications button
+- Wired status bar `notificationBtn.clicked` to `_toggle_notifications` in `ui_build.py`
+- Fixed notification card background to use `palette(window)` role reference instead of baking in a hardcoded color at creation time — now updates dynamically on theme toggle
+- Fixed card hover to use `palette(mid)` for theme-adaptive hover effect
+- Changed timestamp, source label, and "Clear All" button colors to `#5B9BD5` (blue accent) so they are visually distinct and visible in both dark and light themes
+- Removed unused `QApplication`/`QPalette` imports from notifications panel
+- Removed unused `_bg`/`_fg` instance variables from `NotificationsPanel`
+
+#### Notes:
+The previous implementation captured `QApplication.palette().color(QPalette.ColorRole.Window).name()` at card creation time and baked it into the stylesheet string. When the theme changed, the baked-in hex value didn't update. Using `palette(window)` as a QPalette role reference in the QSS string lets Qt resolve the color dynamically at render time.
+
+Date of Change: 10/8/2026
+---

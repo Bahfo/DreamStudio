@@ -106,7 +106,11 @@ class UtilityTabManager(QWidget):
         self._layout.addWidget(self._tab_bar)
 
     def set_theme(self, bg: str, fg: str, sel: str = "") -> None:
-        pass
+        """Propagate theme colors to all registered panels."""
+        for i in range(self._stack.count()):
+            widget = self._stack.widget(i)
+            if widget is not None and hasattr(widget, "set_theme"):
+                widget.set_theme(bg, fg, sel)
 
     def add_panel(self, panel_id: str, title: str, widget: QWidget) -> None:
         if panel_id in self._panel_ids:

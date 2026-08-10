@@ -17,6 +17,8 @@ from datetime import datetime
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
+# Local I
+
 logger = logging.getLogger(__name__)
 
 
@@ -113,7 +115,7 @@ class NotificationManager(QObject):
 
         # Trim old notifications if we exceed the limit
         if len(self._notifications) > self._max_notifications:
-            self._notifications = self._notifications[-self._max_notifications:]
+            self._notifications = self._notifications[-self._max_notifications :]
 
         self.notification_added.emit(notification)
         logger.debug(
@@ -124,37 +126,21 @@ class NotificationManager(QObject):
         )
         return notification
 
-    def add_warning(
-        self, title: str, message: str, source: str = ""
-    ) -> Notification:
+    def add_warning(self, title: str, message: str, source: str = "") -> Notification:
         """Convenience method to add a warning notification."""
-        return self.add_notification(
-            title, message, NotificationType.WARNING, source
-        )
+        return self.add_notification(title, message, NotificationType.WARNING, source)
 
-    def add_error(
-        self, title: str, message: str, source: str = ""
-    ) -> Notification:
+    def add_error(self, title: str, message: str, source: str = "") -> Notification:
         """Convenience method to add an error notification."""
-        return self.add_notification(
-            title, message, NotificationType.ERROR, source
-        )
+        return self.add_notification(title, message, NotificationType.ERROR, source)
 
-    def add_success(
-        self, title: str, message: str, source: str = ""
-    ) -> Notification:
+    def add_success(self, title: str, message: str, source: str = "") -> Notification:
         """Convenience method to add a success notification."""
-        return self.add_notification(
-            title, message, NotificationType.SUCCESS, source
-        )
+        return self.add_notification(title, message, NotificationType.SUCCESS, source)
 
-    def add_info(
-        self, title: str, message: str, source: str = ""
-    ) -> Notification:
+    def add_info(self, title: str, message: str, source: str = "") -> Notification:
         """Convenience method to add an info notification."""
-        return self.add_notification(
-            title, message, NotificationType.INFO, source
-        )
+        return self.add_notification(title, message, NotificationType.INFO, source)
 
     def dismiss_notification(self, notification_id: int) -> bool:
         """
