@@ -1324,3 +1324,92 @@ QMenu#TitleBarMenu::item {
 QWidget#ToolBox {
     background-color: #00232c;
 }
+
+/* ==========================================================================
+   Notifications Panel
+   ========================================================================== */
+
+QFrame#NotificationCard {
+    background-color: #002b36;
+    margin: 0px;
+}
+
+QFrame#NotificationCard:hover {
+    background-color: #586e75;
+}
+
+QLabel#NotificationsTitle {
+    color: #839496;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+}
+
+QLabel#NotificationTitle {
+    color: #839496;
+    border: none;
+    background: transparent;
+}
+
+QLabel#NotificationMessage {
+    color: #586e75;
+    font-size: 10px;
+    border: none;
+    background: transparent;
+}
+
+QLabel#NotificationTimestamp {
+    color: #268bd2;
+    font-size: 10px;
+    border: none;
+    background: transparent;
+}
+
+QLabel#NotificationSource {
+    color: #268bd2;
+    font-size: 9px;
+    border: none;
+    background: transparent;
+}
+
+QPushButton#NotificationCloseBtn {
+    border: none;
+    color: #586e75;
+    font-size: 12px;
+    font-weight: bold;
+    background: transparent;
+}
+
+QPushButton#NotificationCloseBtn:hover {
+    color: #839496;
+    background-color: rgba(128, 128, 128, 0.2);
+    border-radius: 4px;
+}
+
+QLabel#NotificationsCountLabel {
+    color: #586e75;
+    font-size: 10px;
+    background: transparent;
+    border: none;
+}
+
+QPushButton#NotificationsClearBtn {
+    border: none;
+    padding: 4px 8px;
+    font-size: 10px;
+    color: #268bd2;
+    background: transparent;
+}
+
+QPushButton#NotificationsClearBtn:hover {
+    background-color: rgba(128, 128, 128, 0.15);
+    border-radius: 4px;
+}
+
+QLabel#NotificationsEmpty {
+    color: #586e75;
+    font-size: 11px;
+    padding: 20px;
+    background: transparent;
+}

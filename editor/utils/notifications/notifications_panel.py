@@ -5,7 +5,7 @@ Notifications panel for DreamStudio.
 
 Displays user-facing notifications as cards with color-coded left borders
 based on notification type (WARNING: yellow, ERROR: red, SUCCESS: green,
-INFO: blue). Adapts to the current IDE theme (dark/light).
+INFO: blue). Adapts to the current IDE theme via QSS object names.
 """
 
 from PyQt6.QtWidgets import (
@@ -28,7 +28,6 @@ from editor.utils.notifications.notification_manager import (
     NotificationType,
 )
 
-# Color mapping for notification types
 NOTIFICATION_COLORS = {
     NotificationType.WARNING: "#F59E0B",
     NotificationType.ERROR: "#EF4444",
@@ -64,17 +63,8 @@ class NotificationCard(QFrame):
         border_color = NOTIFICATION_COLORS.get(
             self._notification.notification_type, "#3B82F6"
         )
-
-        # Use palette() role references so colors update dynamically on theme toggle.
         self.setStyleSheet(
-            "NotificationCard {"
-            f"  border-left: 4px solid {border_color};"
-            "  background-color: palette(window);"
-            "  margin: 0px;"
-            "}"
-            "NotificationCard:hover {"
-            "  background-color: palette(mid);"
-            "}"
+            f"QFrame#NotificationCard {{ border-left: 4px solid {border_color}; }}"
         )
 
         layout = QVBoxLayout(self)
@@ -92,19 +82,14 @@ class NotificationCard(QFrame):
         title_font.setBold(True)
         title_font.setPointSize(10)
         title_text.setFont(title_font)
-        title_text.setStyleSheet(
-            "color: palette(window-text); border: none; background: transparent;"
-        )
         header_layout.addWidget(title_text)
 
         header_layout.addStretch()
 
-        # Timestamp — blue accent color for visibility
+        # Timestamp
         if self._notification.timestamp:
             time_label = QLabel(self._notification.timestamp.strftime("%H:%M"))
-            time_label.setStyleSheet(
-                "color: #5B9BD5; font-size: 10px; border: none; background: transparent;"
-            )
+            time_label.setObjectName("NotificationTimestamp")
             header_layout.addWidget(time_label)
 
         # Close button
@@ -113,20 +98,6 @@ class NotificationCard(QFrame):
         close_btn.setFixedSize(18, 18)
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.setToolTip("Dismiss")
-        close_btn.setStyleSheet(
-            "QPushButton {"
-            "  border: none;"
-            "  color: palette(mid);"
-            "  font-size: 12px;"
-            "  font-weight: bold;"
-            "  background: transparent;"
-            "}"
-            "QPushButton:hover {"
-            "  color: palette(text);"
-            "  background-color: rgba(128, 128, 128, 0.2);"
-            "  border-radius: 4px;"
-            "}"
-        )
         close_btn.clicked.connect(
             lambda: self.close_clicked.emit(self._notification.id)
         )
@@ -144,17 +115,12 @@ class NotificationCard(QFrame):
         message_label = QLabel(self._notification.message)
         message_label.setObjectName("NotificationMessage")
         message_label.setWordWrap(True)
-        message_label.setStyleSheet(
-            "color: palette(text); font-size: 10px; border: none; background: transparent;"
-        )
         inner_vbox.addWidget(message_label)
 
-        # Source — blue accent for visibility
+        # Source
         if self._notification.source:
             source_label = QLabel(self._notification.source)
-            source_label.setStyleSheet(
-                "color: #5B9BD5; font-size: 9px; border: none; background: transparent;"
-            )
+            source_label.setObjectName("NotificationSource")
             inner_vbox.addWidget(source_label)
 
         msg_layout.addLayout(inner_vbox)
@@ -164,8 +130,6 @@ class NotificationCard(QFrame):
 class NotificationsPanel(PanelShell):
     """
     IDE sidebar panel for displaying user-facing notifications.
-
-    Shows notifications as color-coded cards with dismiss functionality.
     """
 
     PANEL_OBJECT_NAME = "NotificationsPanel"
@@ -190,31 +154,6 @@ class NotificationsPanel(PanelShell):
             self._on_notifications_cleared
         )
 
-    def set_theme(self, bg: str, fg: str, sel: str = "") -> None:
-        """Update the panel colors to match the current IDE theme."""
-        self._bg = bg
-        self._fg = fg
-
-        self._count_label.setStyleSheet(
-            f"color: {fg}; font-size: 10px; background: transparent;"
-        )
-        self._clear_btn.setStyleSheet(
-            "QPushButton {"
-            "  border: none;"
-            "  padding: 4px 8px;"
-            "  font-size: 10px;"
-            f"  color: {fg};"
-            "  background: transparent;"
-            "}"
-            "QPushButton:hover {"
-            "  background-color: rgba(128, 128, 128, 0.15);"
-            "  border-radius: 4px;"
-            "}"
-        )
-        self._empty_placeholder.setStyleSheet(
-            f"color: {fg}; font-size: 11px; padding: 20px; background: transparent;"
-        )
-
     def _build_body(self) -> None:
         """Construct the panel body."""
         header_row = QHBoxLayout()
@@ -222,27 +161,13 @@ class NotificationsPanel(PanelShell):
         header_row.setSpacing(8)
 
         self._count_label = QLabel("0 notifications")
-        self._count_label.setStyleSheet(
-            "color: palette(mid); font-size: 10px; background: transparent;"
-        )
+        self._count_label.setObjectName("NotificationsCountLabel")
         header_row.addWidget(self._count_label)
         header_row.addStretch()
 
         self._clear_btn = QPushButton("Clear All")
+        self._clear_btn.setObjectName("NotificationsClearBtn")
         self._clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._clear_btn.setStyleSheet(
-            "QPushButton {"
-            "  border: none;"
-            "  padding: 4px 8px;"
-            "  font-size: 10px;"
-            "  color: #5B9BD5;"
-            "  background: transparent;"
-            "}"
-            "QPushButton:hover {"
-            "  background-color: rgba(128, 128, 128, 0.15);"
-            "  border-radius: 4px;"
-            "}"
-        )
         self._clear_btn.clicked.connect(self._on_clear_all)
         header_row.addWidget(self._clear_btn)
 
@@ -255,10 +180,8 @@ class NotificationsPanel(PanelShell):
         scroll_area.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        scroll_area.setStyleSheet("background: transparent;")
 
         self._notifications_container = QWidget()
-        self._notifications_container.setStyleSheet("background: transparent;")
         self._notifications_layout = QVBoxLayout(self._notifications_container)
         self._notifications_layout.setContentsMargins(0, 0, 0, 0)
         self._notifications_layout.setSpacing(0)
@@ -269,10 +192,8 @@ class NotificationsPanel(PanelShell):
 
         # Empty state
         self._empty_placeholder = QLabel("No new notifications")
+        self._empty_placeholder.setObjectName("NotificationsEmpty")
         self._empty_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_placeholder.setStyleSheet(
-            "color: palette(mid); font-size: 11px; padding: 20px; background: transparent;"
-        )
         self._notifications_layout.insertWidget(0, self._empty_placeholder)
 
         self._update_count_label()
