@@ -1,0 +1,36 @@
+{
+    "lang": "bash",
+    "extensions": ["bash", "sh"],
+    "styles": {
+        "keyword": "KEYWORD_COLOR",
+        "commands": "COMMAND_COLOR",
+        "string": "STRING_COLOR",
+        "number": "NUMBER_COLOR",
+        "comment": "COMMENT_COLOR",
+        "variable": "VARIABLE_COLOR"
+    },
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "VARIABLE_COLOR": "#9CDCFE",
+        "COMMAND_COLOR": "#DCDCAA"
+    },
+    "keywords": {
+        "keyword": [
+            "if", "then", "elif", "else", "fi", "case", "esac",
+            "for", "while", "until", "select", "do", "done", "in",
+            "function", "time", "!"
+        ],
+        "commands": [
+            "alias", "awk", "bg", "cat", "cd", "chmod", "chown", "cp",
+            "curl", "df", "du", "echo", "export", "fg", "find", "free",
+            "grep", "head", "history", "htop", "jobs", "kill", "killall",
+            "less", "ls", "mkdir", "mv", "netstat", "ping", "ps", "pwd",
+            "read", "rm", "rmdir", "scp", "sed", "sort", "ss", "ssh",
+            "sudo", "su", "tail", "top", "touch", "type", "uname", "uniq",
+            "uptime", "wc", "wget"
+        ]
+    }
+}

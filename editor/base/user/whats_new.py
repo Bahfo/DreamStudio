@@ -1,7 +1,6 @@
 import sys
 import os
 from PyQt6.QtWidgets import (
-    QApplication,
     QMainWindow,
     QWidget,
     QVBoxLayout,
@@ -12,12 +11,12 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtWebEngineWidgets import QWebEngineView
+
 
 from fonts.font_strapper import Fonts
 
 # Local Imports
-from gradient import GradientBanner
+from editor.base.user.gradient import GradientBanner
 
 _THEME_DIR = os.path.join(os.path.dirname(__file__), "theme")
 _LIGHT_QSS = os.path.join(_THEME_DIR, "light.qss")
@@ -46,7 +45,9 @@ class IDEStartPage(QMainWindow):
         title_label = QLabel("DreamStudio 2026")
         title_label.setObjectName("BannerTitle")
         banner_layout.addWidget(title_label)
-        title_label.setStyleSheet(f"font-family: '{Fonts.FONT_MONTSERRAT}', Arial, sans-serif;")
+        title_label.setStyleSheet(
+            f"font-family: '{Fonts.FONT_MONTSERRAT}', Arial, sans-serif;"
+        )
 
         content_widget = QWidget()
         content_layout = QHBoxLayout(content_widget)
@@ -189,13 +190,6 @@ class IDEStartPage(QMainWindow):
         latest_news_layout = QVBoxLayout(self.page_latest_news)
         latest_news_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.web_view = QWebEngineView()
-        self.web_view.setHtml("""
-            <h2 style='font-family: sans-serif; color: #4A90E2;'>Latest Updates</h2>
-            <p style='font-family: sans-serif;'>Fetching the newest IDE release notes...</p>
-        """)
-        latest_news_layout.addWidget(self.web_view)
-
         self.main_stack.addWidget(self.page_get_started)
         self.main_stack.addWidget(self.page_latest_news)
 
@@ -241,10 +235,3 @@ class IDEStartPage(QMainWindow):
         self.banner_widget.set_dark_mode(self._dark)
         self.btn_theme_toggle.setText("Light Theme" if self._dark else "Dark Theme")
         self.apply_styles()
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = IDEStartPage()
-    window.show()
-    sys.exit(app.exec())

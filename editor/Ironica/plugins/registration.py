@@ -18,6 +18,8 @@ _KEYWORDS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "keywords")
 )
 _PYTHON_JSON = os.path.join(_KEYWORDS_DIR, "python.json")
+_BASH_JSON = os.path.join(_KEYWORDS_DIR, "bash.json")
+_CMD_JSON = os.path.join(_KEYWORDS_DIR, "cmd.json")
 
 
 def register_python_language() -> bool:
@@ -74,3 +76,74 @@ def unregister_python_language() -> bool:
         ``True`` if Python was registered and has been removed.
     """
     return LanguageRegistry.unregister_language("python")
+
+
+def register_bash_plugin() -> bool:
+    """Register the Bash language with the LanguageRegistry.
+
+    Loads the Bash keyword/style JSON config.
+    Returns:
+        ``True`` on success, ``False`` on any failure.
+    """
+    try:
+        success = LanguageRegistry.register_language(_BASH_JSON)
+        if success:
+            logger.info("Bash language plugin registered successfully")
+            get_notification_manager().add_success(
+                "Bash Support Loaded",
+                "Bash language support initialized successfully.",
+                "Plugins",
+            )
+        else:
+            logger.warning("Bash language plugin registration returned False")
+            get_notification_manager().add_warning(
+                "Bash Plugin Warning",
+                "Bash language plugin could not be registered. "
+                "Syntax highlighting may be unavailable.",
+                "Plugins",
+            )
+        return success
+    except Exception as exc:
+        logger.error("Failed to register Bash language plugin: %s", exc)
+        get_notification_manager().add_error(
+            "Bash Plugin Error",
+            f"Bash language plugin failed to initialize: {exc}.",
+            "Plugins",
+        )
+        return False
+
+
+def register_cmd_plugin() -> bool:
+    """Register the Batch language with the LanguageRegistry.
+
+    Loads the Batch keyword/style JSON config.
+
+    Returns:
+        ``True`` on success, ``False`` on any failure.
+    """
+    try:
+        success = LanguageRegistry.register_language(_CMD_JSON)
+        if success:
+            logger.info("Batch language plugin registered successfully")
+            get_notification_manager().add_success(
+                "Batch Support Loaded",
+                "Batch language support initialized successfully.",
+                "Plugins",
+            )
+        else:
+            logger.warning("Batch language plugin registration returned False")
+            get_notification_manager().add_warning(
+                "Batch Plugin Warning",
+                "Batch language plugin could not be registered. "
+                "Syntax highlighting may be unavailable.",
+                "Plugins",
+            )
+        return success
+    except Exception as exc:
+        logger.error("Failed to register Batch language plugin: %s", exc)
+        get_notification_manager().add_error(
+            "Batch Plugin Error",
+            f"Batch language plugin failed to initialize: {exc}.",
+            "Plugins",
+        )
+        return False

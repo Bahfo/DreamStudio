@@ -1,0 +1,36 @@
+{
+    "lang": "batch",
+    "extensions": ["bat", "cmd"],
+    "styles": {
+        "keyword": "KEYWORD_COLOR",
+        "commands": "COMMAND_COLOR",
+        "string": "STRING_COLOR",
+        "number": "NUMBER_COLOR",
+        "comment": "COMMENT_COLOR",
+        "variable": "VARIABLE_COLOR"
+    },
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "VARIABLE_COLOR": "#9CDCFE",
+        "COMMAND_COLOR": "#DCDCAA"
+    },
+    "keywords": {
+        "keyword": [
+            "if", "else", "for", "in", "do", "goto", "call", "exit", 
+            "setlocal", "endlocal", "enabledelayedexpansion", "disabledelayedexpansion", 
+            "exist", "defined", "not", "equ", "neq", "lss", "leq", "gtr", "geq"
+        ],
+        "commands": [
+            "assoc", "attrib", "cd", "chdir", "chcp", "cls", "copy", "del", 
+            "dir", "echo", "erase", "find", "findstr", "ftype", "icacls", 
+            "ipconfig", "md", "mkdir", "more", "move", "net", "pause", 
+            "ping", "powershell", "rd", "rem", "ren", "rename", "rmdir", 
+            "robocopy", "sc", "set", "shutdown", "start", "systeminfo", 
+            "taskkill", "tasklist", "time", "title", "tree", "type", 
+            "ver", "vol", "where", "whoami", "xcopy"
+        ]
+    }
+}

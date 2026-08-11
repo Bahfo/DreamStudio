@@ -152,16 +152,12 @@ def _format_qt_tooltip(details: HoverDetails) -> str:
 
     if details.return_type:
         ret_esc = _html.escape(details.return_type)
-        parts.append(
-            f'<br/><b>Returns:</b> <font color="#4EC9B0;">{ret_esc}</font>'
-        )
+        parts.append(f'<br/><b>Returns:</b> <font color="#4EC9B0;">{ret_esc}</font>')
 
     if details.docstring:
         cleaned = _clean_docstring(details.docstring)
         doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
-        parts.append(
-            '<br/><font color="#555555">──────────────────────</font><br/>'
-        )
+        parts.append('<br/><font color="#555555">──────────────────────</font><br/>')
         parts.append(
             f'<font style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</font>"
         )
@@ -230,9 +226,7 @@ def _format_hover_html(details: HoverDetails) -> str:
         parts.append(
             '<hr style="border:0; border-top:1px solid #444444; ' 'margin:8px 0;"/>'
         )
-        parts.append(
-            f'<p style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</p>"
-        )
+        parts.append(f'<p style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</p>")
 
     return "\n".join(parts)
 
@@ -322,9 +316,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
                 return match.group(0)
         return None
 
-    def get_hover_display(
-        self, text: str, line: int, col: int
-    ) -> Optional[tuple]:
+    def get_hover_display(self, text: str, line: int, col: int) -> Optional[tuple]:
         """Return ``(title_html, body_html)`` for the DocumentationFlyout."""
         details = self.get_hover_details(text, line, col)
         if not details:

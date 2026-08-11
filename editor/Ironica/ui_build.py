@@ -9,10 +9,12 @@ import logging
 import os
 from typing import Optional
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
 
-from editor.Ironica.tab_editor import DreamTabbedEditor
+# Local Imports
 from editor.Ironica.api import EditorAPI
+from editor.Ironica.tab_editor import DreamTabbedEditor
+from editor.base.user.quickStartMenu import QuickStartMenu
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 
 logger = logging.getLogger(__name__)
@@ -42,9 +44,8 @@ class _EditorMethods:
 
 
 class EditorContainer(QWidget):
-    """Thin wrapper that owns the DreamTabbedEditor and
-    exposes the methods, tabs, and public API that the
-    IDE toolbar depends on."""
+    """Thin wrapper that owns the DreamTabbedEditor and QuickStartMenu in a
+    QStackedWidget, exposing public API that the IDE toolbar depends on."""
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
@@ -54,10 +55,33 @@ class EditorContainer(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        self._stack = QStackedWidget(self)
+        layout.addWidget(self._stack)
+
+        self._quick_start = QuickStartMenu(self)
+        self._stack.addWidget(self._quick_start)
+
         self._tabs = DreamTabbedEditor(self)
-        layout.addWidget(self._tabs)
+        self._stack.addWidget(self._tabs)
 
         self.methods = _EditorMethods(self)
+
+        if hasattr(self._tabs, "currentChanged"):
+            self._tabs.currentChanged.connect(self._sync_view)
+
+        self._sync_view()
+
+    def _sync_view(self) -> None:
+        """Shows QuickStartMenu when no tabs are open, and _tabs when >= 1 tab exists."""
+        tab_count = getattr(self._tabs, "count", lambda: 0)()
+        if tab_count > 0:
+            self._stack.setCurrentWidget(self._tabs)
+        else:
+            self._stack.setCurrentWidget(self._quick_start)
+
+    @property
+    def quick_start(self) -> QuickStartMenu:
+        return self._quick_start
 
     @property
     def tabs(self) -> DreamTabbedEditor:
@@ -83,6 +107,7 @@ class EditorContainer(QWidget):
             win.update_position_status()
 
     def update_editor_visibility(self) -> None:
+        self._sync_view()
         win = self._main_window()
         if win and hasattr(win, "update_editor_visibility"):
             win.update_editor_visibility()

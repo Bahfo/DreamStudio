@@ -214,20 +214,6 @@ class ITokenProvider(ABC):
         return []
 
     @abstractmethod
-    def get_token_at(self, text: str, offset: int) -> Optional[Token]:
-        """Return the token covering the given byte offset.
-
-        Args:
-            text:   The complete editor buffer content.
-            offset: Byte offset (0-indexed) in the document.
-
-        Returns:
-            The ``Token`` at *offset*, or ``None`` if no token covers
-            that position.
-        """
-        return None
-
-    @abstractmethod
     def get_semantic_ranges(self, text: str) -> List[Tuple[int, int, str]]:
         """Return ``(start_offset, length, "#RRGGBB")`` tuples for
         Scintilla indicator overlays.

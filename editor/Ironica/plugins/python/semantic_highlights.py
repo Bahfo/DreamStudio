@@ -609,13 +609,6 @@ class PythonSemanticProvider(ITokenProvider):
             if start >= 0 and not _in_exclusion(start, length, exclude):
                 tokens.append(Token(start, length, self._get_styles()["self"], "self"))
 
-    def get_token_at(self, text: str, offset: int) -> Optional[Token]:
-        tokens = self.get_tokens(text)
-        for tok in tokens:
-            if tok.start <= offset < tok.start + tok.length:
-                return tok
-        return None
-
     def get_semantic_ranges(self, text: str) -> List[Tuple[int, int, str]]:
         if not text.strip():
             return []

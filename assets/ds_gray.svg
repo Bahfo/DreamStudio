@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="150pt"
+   height="150pt"
+   viewBox="0 0 52.916666 52.916666"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="ds_gray.svg"
+   inkscape:export-filename="ds_gray.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="3.98"
+     inkscape:cx="71.984925"
+     inkscape:cy="100"
+     inkscape:window-width="1920"
+     inkscape:window-height="994"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#626262;fill-opacity:0.29682213;stroke:none;stroke-width:0.983215;stroke-linecap:round"
+       id="rect24307-6"
+       width="49.507938"
+       height="49.507938"
+       x="1.6390053"
+       y="1.7695576"
+       ry="3.992444"
+       transform="rotate(-0.14134834)" />
+    <rect
+       style="fill:#000000;fill-opacity:0.28743762;stroke:none;stroke-width:0.797599;stroke-linecap:round"
+       id="rect6462-9"
+       width="28.2931"
+       height="28.2931"
+       x="11.703975"
+       y="11.752288" />
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:18.9073px;font-family:Z003;-inkscape-font-specification:'Z003 Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.662287;stroke-linecap:round"
+       x="12.923526"
+       y="28.811195"
+       id="text24523-1"
+       transform="scale(1.0057643,0.99426875)"><tspan
+         sodipodi:role="line"
+         id="tspan24521-2"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Noto Sans Tifinagh Hawad';-inkscape-font-specification:'Noto Sans Tifinagh Hawad';fill:#ffffff;fill-opacity:1;stroke-width:0.662285"
+         x="12.923526"
+         y="28.811195">DS</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:5.54789px;font-family:Z003;-inkscape-font-specification:'Z003 Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.194334;stroke-linecap:round"
+       x="14.447653"
+       y="36.843544"
+       id="text33305-7"
+       transform="scale(1.0057643,0.99426875)"><tspan
+         sodipodi:role="line"
+         id="tspan33303-0"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Noto Sans Tifinagh Hawad';-inkscape-font-specification:'Noto Sans Tifinagh Hawad';fill:#ffffff;fill-opacity:1;stroke-width:0.194334"
+         x="14.447653"
+         y="36.843544">IDE</tspan></text>
+  </g>
+</svg>
