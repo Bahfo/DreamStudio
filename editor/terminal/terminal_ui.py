@@ -7,52 +7,38 @@ import os
 import logging
 
 from PyQt6.QtWidgets import (
+    QMenu,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
+    QApplication,
     QStackedWidget,
     QPlainTextEdit,
-    QMenu,
-    QApplication,
 )
 from PyQt6.QtGui import QFont, QTextCursor
 from PyQt6.QtCore import pyqtSignal, Qt, QSize
 
 from editor.promptx import CommandLine, HELP
+from editor.terminal.ports_widget import PortsWidget
+from editor.terminal.output_widget import OutputWidget
 from editor.promptx.highlight import PromptXHighlighter
-from editor.terminal.terminal_workspace import TerminalWorkspace
+from editor.debugger.problems_widget import ProblemsWidget
 from editor.widgets.QDreamTabEditor import DreamStudioIDETabBar
+from editor.terminal.terminal_workspace import TerminalWorkspace
 
 logger = logging.getLogger(__name__)
 
 TAB_SYSTEM_SHELL = 0
 TAB_PROMPTX = 1
 TAB_OUTPUT = 2
+TAB_PROBLEMS = 3
+TAB_PORTS = 4
 
 
 class _TerminalTabBar(DreamStudioIDETabBar):
     def tabSizeHint(self, index):
-        return QSize(90, 32)
-
-
-class OutputWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self._text = QPlainTextEdit(self)
-        self._text.setObjectName("terminalOutputText")
-        self._text.setReadOnly(True)
-        self._text.setMaximumBlockCount(10000)
-        layout.addWidget(self._text)
-
-    def append_text(self, text):
-        self._text.moveCursor(QTextCursor.MoveOperation.End)
-        self._text.insertPlainText(text)
-
-    def clear(self):
-        self._text.clear()
+        return QSize(100, 32)
 
 
 class TerminalEdit(QPlainTextEdit):
@@ -399,6 +385,8 @@ class TerminalPanel(QWidget):
         self.system_shell_tab = TerminalWorkspace(self)
         self.promptXShell_tab = PromptXTerminalWidget(self)
         self.output_tab = OutputWidget(self)
+        self.problems_tab = ProblemsWidget(self)
+        self.ports_tab = PortsWidget()
 
         # Connecting the close button to the system shell emulator
         self.system_shell_tab.close_requested.connect(self.close_requested.emit)
@@ -407,6 +395,8 @@ class TerminalPanel(QWidget):
             TAB_SYSTEM_SHELL: (self.system_shell_tab, "TERMINAL"),
             TAB_PROMPTX: (self.promptXShell_tab, "PROMPTX"),
             TAB_OUTPUT: (self.output_tab, "OUTPUT"),
+            TAB_PROBLEMS: (self.problems_tab, "PROBLEMS"),
+            TAB_PORTS: (self.ports_tab, "PORTS"),
         }
 
         for tab_id in sorted(self.tabs.keys()):
@@ -459,9 +449,6 @@ class TerminalPanel(QWidget):
 
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self.system_shell_tab.set_theme(bg, fg, sel)
-
-    def retheme(self, t) -> None:
-        pass
 
     def append_output(self, text):
         self.output_tab.append_text(text)
