@@ -151,29 +151,22 @@ class FindReplace(QFrame):
         self.results_list.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.results_list.setMinimumHeight(120)
-        self.results_list.setMaximumHeight(320)
         self.results_list.setVisible(False)
         self.results_list.setUniformItemSizes(True)
-        self.results_list.setStyleSheet(
-            "QListWidget {"
-            "  border: 1px solid #555;"
-            "  background-color: #2B2B2B;"
-            "  outline: none;"
-            "  padding: 2px;"
-            "}"
-            "QListWidget::item {"
-            "  padding: 4px 8px;"
-            "  border: none;"
-            "}"
-            "QListWidget::item:selected {"
-            "  background-color: #214283;"
-            "  color: #FFFFFF;"
-            "}"
-            "QListWidget::item:hover {"
-            "  background-color: #333333;"
-            "}"
-        )
+        self.results_list.setMaximumHeight(700)
+        self.results_list.adjustSize()
+        self.results_list.setStyleSheet("""
+            QListWidget {
+              border: none;
+              outline: none;
+              padding: 2px;
+            }
+            QListWidget::item {
+              padding: 4px 8px;
+              height: 22px;
+              border: none;
+            }
+        """)
         main_layout.addWidget(self.results_list)
 
     def _on_filters_toggled(self, checked: bool):
@@ -214,6 +207,7 @@ class FindReplace(QFrame):
         self.results_list.clear()
         self.results_list.setVisible(True)
         self.results_list.addItem(f"Searching for '{term}")
+        self._update_results_height()
 
         self.adjustSize()
 
@@ -247,6 +241,7 @@ class FindReplace(QFrame):
         item.setData(Qt.ItemDataRole.UserRole, filepath)
         item.setData(Qt.ItemDataRole.UserRole + 1, line_num)
         self.results_list.addItem(item)
+        self._update_results_height()
 
     def on_search_finished(self, total_matches):
         if self.results_list.count() > 0 and self.results_list.item(
@@ -269,12 +264,8 @@ class FindReplace(QFrame):
         if filepath is None or line_num is None:
             return
 
-        if self._parent is not None and hasattr(
-            self._parent, "tab_editors"
-        ):
-            self._parent.tab_editors.open_file_at_line(
-                filepath, line_num - 1
-            )
+        if self._parent is not None and hasattr(self._parent, "tab_editors"):
+            self._parent.tab_editors.open_file_at_line(filepath, line_num - 1)
             self.hide()
 
     def _clear_all(self):
@@ -289,5 +280,22 @@ class FindReplace(QFrame):
         self.exclude_input.clear()
         self.results_list.clear()
         self.results_list.setVisible(False)
+        self._update_results_height()
         self.tip_label.setText("TIP: Type to search, navigate by keyboard arrows.")
+        self.adjustSize()
+
+    def _update_results_height(self, max_visible_items: int = 14):
+        count = self.results_list.count()
+        if count == 0:
+            self.results_list.setFixedHeight(0)
+        else:
+            row_h = self.results_list.sizeHintForRow(0)
+            if row_h <= 0:
+                row_h = 30
+
+            visible_rows = min(count, max_visible_items)
+            frame_borders = self.results_list.frameWidth() * 2 + 4
+            target_height = (visible_rows * row_h) + frame_borders
+            self.results_list.setFixedHeight(target_height)
+
         self.adjustSize()

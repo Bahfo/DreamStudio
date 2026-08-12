@@ -34,7 +34,7 @@ from PyQt6.Qsci import QsciScintilla
 from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
 from editor.Ironica.utils.hover_controller import HoverController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
-from editor.Ironica.language_engine import LanguageRegistry
+from editor.Ironica.language_engine import LanguageRegistry, BaseLanguageProvider
 from editor.Ironica.regex import IronicaLexer
 
 from fonts.font_strapper import Fonts
@@ -212,9 +212,12 @@ class CodeEditor(QsciScintilla):
         if not self._is_dirty:
             self._is_dirty = True
             self.dirty_state_changed.emit(True)
-        if self.current_lang == "python":
-            self._import_highlight_timer.start()
+        if self.current_provider and self.current_provider.has_folding():
             self._schedule_fold_recompute()
+        if self.current_provider:
+            provider_cls = type(self.current_provider)
+            if provider_cls.get_semantic_highlights is not BaseLanguageProvider.get_semantic_highlights:
+                self._import_highlight_timer.start()
 
     def _schedule_fold_recompute(self) -> None:
         """Debounce fold recomputation on text change."""
@@ -227,12 +230,10 @@ class CodeEditor(QsciScintilla):
             return
 
         try:
-            if self.current_lang == "python":
-                from editor.Ironica.plugins.python.folding import (
-                    compute_folds_for_editor,
-                )
-
-                compute_folds_for_editor(self)
+            if self.current_provider and self.current_provider.has_folding():
+                regions = self.current_provider.get_fold_regions(self.text())
+                self._fold_manager.set_fold_regions(regions)
+                self.current_provider.post_fold_setup(self, regions)
         except Exception as exc:
             logger.debug("Fold recomputation failed: %s", exc)
 

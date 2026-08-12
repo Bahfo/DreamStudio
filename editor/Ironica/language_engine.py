@@ -176,6 +176,62 @@ class BaseLanguageProvider(ABC):
         """
         return None
 
+    # ------------------------------------------------------------------
+    # Capability flags (optional features)
+    # ------------------------------------------------------------------
+
+    def has_folding(self) -> bool:
+        """Return ``True`` if this provider supplies code fold regions.
+
+        Providers that override ``get_fold_regions`` should return
+        ``True`` here so the editor calls them on text changes.
+        """
+        return False
+
+    def get_fold_regions(self, text: str) -> list:
+        """Return fold regions as ``(start_line, end_line, header)`` tuples.
+
+        *start_line* and *end_line* are 0-indexed line numbers.
+        *header* is a short display string shown when the region is
+        collapsed (e.g. ``"def foo"`` or ``"import ..."``).
+
+        Called by the editor when ``has_folding()`` returns ``True``.
+        """
+        return []
+
+    def has_diagnostics(self) -> bool:
+        """Return ``True`` if this provider supplies background diagnostics.
+
+        Providers that override ``create_diagnostic_manager`` should
+        return ``True`` here so the editor attaches a diagnostic
+        worker when a file is opened.
+        """
+        return False
+
+    def create_diagnostic_manager(self, editor, file_path, parent):
+        """Create and return a diagnostic manager for *editor*.
+
+        Called by the tab editor when ``has_diagnostics()`` returns
+        ``True`` and a file is opened.  The manager should connect
+        to the editor's ``textChanged`` signal and call
+        ``editor.add_diagnostic_underline()`` / ``clear_diagnostic_underlines()``.
+
+        Returns ``None`` by default.
+        """
+        return None
+
+    def post_fold_setup(self, editor, regions) -> None:
+        """Called after fold regions are pushed to FoldManager.
+
+        Override for language-specific fold display text or other
+        post-processing (e.g. Python's ``(... +N imports)`` ghost text).
+
+        Args:
+            editor: The ``CodeEditor`` instance.
+            regions: The fold regions that were just applied.
+        """
+        pass
+
 
 # ------------------------------------------------------------------
 # Registry

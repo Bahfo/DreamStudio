@@ -261,17 +261,17 @@ class DreamTabbedEditor(QDreamTabEditor):
             code_editor.clear_dirty()
             new_editor = MiniMapHostWidget(code_editor, parent=self)
 
-        # Attach background diagnostics for Python files.
-        if isinstance(new_editor, MiniMapHostWidget) and language == "python":
-            from editor.Ironica.plugins.python.jedi_worker import (
-                DiagnosticManager,
-            )
+        # Attach background diagnostics for languages that provide them.
+        if isinstance(new_editor, MiniMapHostWidget) and language:
+            from editor.Ironica.language_engine import LanguageRegistry
 
-            code_editor._diag_manager = DiagnosticManager(
-                editor=code_editor,
-                file_path=file_path,
-                parent=code_editor,
-            )
+            provider = LanguageRegistry.get_provider(language)
+            if provider and provider.has_diagnostics():
+                code_editor._diag_manager = provider.create_diagnostic_manager(
+                    editor=code_editor,
+                    file_path=file_path,
+                    parent=code_editor,
+                )
 
         if isinstance(new_editor, MiniMapHostWidget):
             if hasattr(self._parent, "update_position_status"):
@@ -364,9 +364,7 @@ class DreamTabbedEditor(QDreamTabEditor):
             from editor.widgets.QExitDialog import UnsavedChangesDialog
 
             tab_name = self.tabText(index)
-            dlg = UnsavedChangesDialog(
-                parent=self, dirty_files=[tab_name]
-            )
+            dlg = UnsavedChangesDialog(parent=self, dirty_files=[tab_name])
             dlg.exec()
             choice = dlg.result
 

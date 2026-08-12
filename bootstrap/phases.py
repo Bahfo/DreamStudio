@@ -366,32 +366,12 @@ def phase_language_plugins(ctx: PhaseContext) -> None:
     logger.info("Phase 8: Language plugins")
 
     try:
-        from editor.Ironica.plugins.registration import register_python_language
+        from editor.Ironica.plugins.registration import register_all_languages
 
-        success = register_python_language()
-        if success:
-            logger.info("Phase 8 completed: Python language plugin registered")
-        else:
-            msg = "Python language plugin registration returned False"
-            logger.warning(msg)
-            ctx.warnings.append(msg)
+        warnings = register_all_languages()
+        ctx.warnings.extend(warnings)
     except Exception as exc:
-        msg = f"Python language plugin registration failed: {exc}"
-        logger.warning(msg)
-        ctx.warnings.append(msg)
-
-    try:
-        from editor.Ironica.plugins.registration import register_bash_plugin
-
-        success = register_bash_plugin()
-        if success:
-            logger.info("Phase 8 completed: Bash language plugin registered")
-        else:
-            msg = "Bash language plugin registration returned False"
-            logger.warning(msg)
-            ctx.warnings.append(msg)
-    except Exception as exc:
-        msg = f"Bash language plugin registration failed: {exc}"
+        msg = f"Language plugin registration failed: {exc}"
         logger.warning(msg)
         ctx.warnings.append(msg)
 

@@ -7,6 +7,7 @@ from the editor core; only the registration module bridges the two.
 """
 
 from editor.Ironica.plugins.python.provider import PythonLanguageProvider
+from editor.Ironica.plugins.python.provider import create_provider
 from editor.Ironica.plugins.python.jedi_adapter import JediAdapter
 from editor.Ironica.plugins.python.cache import LanguageCache
 from editor.Ironica.plugins.python.utils.complexity import ComplexityAnalysisService
@@ -26,6 +27,7 @@ from editor.Ironica.plugins.python.folding import (
 
 __all__ = [
     "PythonLanguageProvider",
+    "create_provider",
     "JediAdapter",
     "LanguageCache",
     "ComplexityAnalysisService",

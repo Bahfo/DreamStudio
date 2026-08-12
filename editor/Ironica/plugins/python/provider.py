@@ -370,3 +370,77 @@ class PythonLanguageProvider(BaseLanguageProvider):
         from .semantic_highlights import invalidate_semantic_cache
 
         invalidate_semantic_cache()
+
+    # ------------------------------------------------------------------
+    # Capability flags
+    # ------------------------------------------------------------------
+
+    def has_folding(self) -> bool:
+        """Return ``True`` — the Python plugin provides fold regions."""
+        return True
+
+    def get_fold_regions(self, text: str) -> list:
+        """Return fold regions computed from Python source indentation.
+
+        Args:
+            text: The full editor buffer content.
+
+        Returns:
+            A list of ``FoldRegion`` objects.
+        """
+        from .folding import compute_fold_regions
+
+        return compute_fold_regions(text)
+
+    def has_diagnostics(self) -> bool:
+        """Return ``True`` — the Python plugin provides background diagnostics."""
+        return True
+
+    def create_diagnostic_manager(self, editor, file_path, parent):
+        """Create a Jedi-backed DiagnosticManager for *editor*.
+
+        Args:
+            editor: The ``CodeEditor`` instance.
+            file_path: Path to the file on disk.
+            parent: Qt parent for the manager's thread.
+
+        Returns:
+            A ``DiagnosticManager`` instance.
+        """
+        from .jedi_worker import DiagnosticManager
+
+        return DiagnosticManager(
+            editor=editor, file_path=file_path, parent=parent
+        )
+
+    def post_fold_setup(self, editor, regions) -> None:
+        """Apply Python-specific fold display text labels.
+
+        Enables the Scintilla fold display-text feature and tags import
+        fold regions with ``( ... +N imports)`` labels.
+        """
+        from .folding import _apply_import_fold_text
+
+        _apply_import_fold_text(editor, regions)
+
+
+# ------------------------------------------------------------------
+# Factory function (called dynamically by the plugin registration system)
+# ------------------------------------------------------------------
+
+
+def create_provider() -> PythonLanguageProvider:
+    """Create and return a fully wired PythonLanguageProvider.
+
+    This factory is invoked by the dynamic plugin registration system
+    via ``importlib`` when loading the Python language plugin.
+
+    Returns:
+        A ``PythonLanguageProvider`` backed by Jedi.
+    """
+    from .jedi_adapter import JediAdapter
+    from .cache import LanguageCache
+
+    adapter = JediAdapter()
+    cache = LanguageCache()
+    return PythonLanguageProvider(adapter=adapter, cache=cache)
