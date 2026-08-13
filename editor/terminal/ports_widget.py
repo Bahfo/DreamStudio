@@ -4,8 +4,10 @@ from PyQt6.QtWidgets import (
     QMenu,
     QWidget,
     QLineEdit,
+    QComboBox,
     QHeaderView,
     QVBoxLayout,
+    QHBoxLayout,
     QTableWidget,
     QTableWidgetItem,
 )
@@ -17,30 +19,65 @@ class PortsWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        self.table_count = [
+            "PID",
+            "Process Name",
+            "Port Number",
+            "CPU Usage",
+            "Memory Usage",
+            "Disk Usage",
+        ]
+
+        layout.addSpacing(10)
+
+        top_controls_layout = QHBoxLayout()
+        top_controls_layout.setContentsMargins(0, 0, 0, 0)
+
         self.search_bar = QLineEdit(self)
-        self.search_bar.setPlaceholderText("Search Port Number...")
+        self.search_bar.setMaximumWidth(300)
+        self.search_bar.setPlaceholderText("Search Port Number ...")
         self.search_bar.textChanged.connect(self.refresh_data)
 
-        self.table = QTableWidget(0, 5, self)
-        self.table.setHorizontalHeaderLabels(
-            ["Port(s)", "Name", "CPU (%)", "Memory (MB)", "Disk IO (MB)"]
-        )
+        self.sortByDropDown = QComboBox(self)
+        self.sortByDropDown.view().setFixedWidth(150)
+        self.sortByDropDown.setPlaceholderText("Filter Processes By ...")
+        options = ["Active Processes", "Stopped Process", "All Processes"]
+        self.sortByDropDown.addItems(options)
+        self.sortByDropDown.setStyleSheet("border: 1px;")
+
+        self.sortByDropDown.currentTextChanged.connect(self.refresh_data)
+
+        top_controls_layout.addWidget(self.search_bar)
+        top_controls_layout.addWidget(self.sortByDropDown)
+        top_controls_layout.addStretch()
+
+        self.table = QTableWidget(0, len(self.table_count), self)
+        self.table.setHorizontalHeaderLabels(self.table_count)
+        self.table.setStyleSheet("border: none;")
+
         self.table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
+            1, QHeaderView.ResizeMode.Stretch
         )
+        for i in [0, 2, 3, 4, 5]:
+            self.table.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.ResizeMode.ResizeToContents
+            )
+
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
+        self.table.verticalHeader().setDefaultSectionSize(24)
+        self.table.verticalHeader().setVisible(False)
 
-        layout.addWidget(self.search_bar)
+        layout.addLayout(top_controls_layout)
         layout.addWidget(self.table)
 
         self._process_cache = {}
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_data)
-        self.timer.start(2000)
+        self.timer.start(4000)
 
         self.refresh_data()
 
@@ -88,11 +125,25 @@ class PortsWidget(QWidget):
                 row = self.table.rowCount()
                 self.table.insertRow(row)
 
-                self.table.setItem(row, 0, QTableWidgetItem(port_str))
-                self.table.setItem(row, 1, QTableWidgetItem(name))
-                self.table.setItem(row, 2, QTableWidgetItem(f"{cpu:.1f}"))
-                self.table.setItem(row, 3, QTableWidgetItem(f"{mem:.1f}"))
-                self.table.setItem(row, 4, QTableWidgetItem(f"{disk:.1f}"))
+                items = [
+                    QTableWidgetItem(str(pid)),
+                    QTableWidgetItem(name),
+                    QTableWidgetItem(port_str),
+                    QTableWidgetItem(f"{cpu:.1f}"),
+                    QTableWidgetItem(f"{mem:.1f}"),
+                    QTableWidgetItem(f"{disk:.1f}"),
+                ]
+
+                for col, item in enumerate(items):
+                    # Align Process Name (col 1) to the left, center everything else
+                    if col == 1:
+                        item.setTextAlignment(
+                            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                        )
+                    else:
+                        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                    self.table.setItem(row, col, item)
 
                 self.table.item(row, 0).setData(Qt.ItemDataRole.UserRole, pid)
                 self.table.item(row, 0).setData(Qt.ItemDataRole.UserRole + 1, status)
@@ -117,6 +168,7 @@ class PortsWidget(QWidget):
         status = port_item.data(Qt.ItemDataRole.UserRole + 1)
 
         menu = QMenu(self)
+        menu.setMinimumWidth(200)
         stop_action = menu.addAction("Stop")
         continue_action = menu.addAction("Continue")
         kill_action = menu.addAction("Kill")
