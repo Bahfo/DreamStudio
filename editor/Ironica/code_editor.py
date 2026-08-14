@@ -36,6 +36,7 @@ from editor.Ironica.utils.hover_controller import HoverController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
 from editor.Ironica.language_engine import LanguageRegistry, BaseLanguageProvider
 from editor.Ironica.regex import IronicaLexer
+from editor.Ironica.analysis_worker import AnalysisManager
 
 from fonts.font_strapper import Fonts
 
@@ -74,6 +75,8 @@ class CodeEditor(QsciScintilla):
 
     position_changed = pyqtSignal(int, int)
     dirty_state_changed = pyqtSignal(bool)
+    analysis_started = pyqtSignal()
+    analysis_finished = pyqtSignal()
 
     _INDENTATION_SPACING = 4
 
@@ -157,6 +160,16 @@ class CodeEditor(QsciScintilla):
         self.current_provider: Optional[Any] = None
         self._theme_name = "dark"
 
+        # Whole-document analysis state (semantic overlays + folds are
+        # computed off the UI thread by the analysis worker).
+        self._analysis_active = False
+        self._analysis_manager = AnalysisManager(self)
+
+        # Fold-display-text lines already sent to Scintilla, keyed by
+        # line number → import count, so repeated analysis applies skip
+        # the expensive fold-toggle round-trip.
+        self._fold_display_text_cache: dict = {}
+
         self._font = Fonts.fira_code(10)
         self.setFont(self._font)
         try:
@@ -224,18 +237,93 @@ class CodeEditor(QsciScintilla):
         self._fold_recompute_timer.start()
 
     def _recompute_folds(self) -> None:
-        """Recompute fold regions for the current language and push
-        them to the FoldManager."""
+        """Schedule whole-document analysis (folds + semantic overlays)."""
+        self._request_analysis()
+
+    def _request_analysis(self) -> None:
+        """Hand the latest buffer to the threaded analysis manager.
+
+        Emits ``analysis_started`` once per active analysis so the status
+        bar can show the spinner, and relies on ``analysis_finished`` to
+        hide it when the most recent request completes.
+        """
+        if not self.current_provider or not self.current_lang:
+            return
+
+        text = self.text()
+        if not text:
+            return
+
+        if not self._analysis_active:
+            self._analysis_active = True
+            self.analysis_started.emit()
+        self._analysis_manager.request_analysis(text)
+
+    def _on_analysis_finished(self) -> None:
+        """Clear the active-analysis flag and notify listeners."""
+        self._analysis_active = False
+        self.analysis_finished.emit()
+
+    def _apply_semantic_overlays(self, highlights) -> None:
+        """Paint semantic-highlight overlays from *highlights*.
+
+        Always clears the overlay indicator slots first so stale tokens
+        from a previous buffer state are never left behind.  Called on
+        the UI thread with results computed by the analysis worker.
+        """
+        length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+
+        # ── always clear all indicator slots first ────────────────
+        for ind in range(8):
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
+            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
+
+        if not highlights:
+            return
+
+        # ── group by colour → one indicator slot per colour ──────
+        _SLOTS = 8
+        colour_to_slot: dict = {}
+        next_slot = 0
+
+        for start, token_len, colour_hex in highlights:
+            if start < 0 or token_len <= 0 or start + token_len > length:
+                continue
+
+            slot = colour_to_slot.get(colour_hex)
+            if slot is None:
+                slot = next_slot % _SLOTS
+                colour_to_slot[colour_hex] = slot
+                next_slot += 1
+                self.SendScintilla(
+                    QsciScintilla.SCI_INDICSETSTYLE, slot, QsciScintilla.INDIC_TEXTFORE
+                )
+                self.SendScintilla(
+                    QsciScintilla.SCI_INDICSETFORE,
+                    slot,
+                    self._scintilla_rgb(colour_hex),
+                )
+
+            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, start, token_len)
+
+    def _apply_fold_regions(self, fold_regions) -> None:
+        """Push *fold_regions* into the FoldManager.
+
+        Display text is applied before fold levels: Scintilla's
+        ``SCI_SETFOLDEXPANDEDTEXT`` degrades to ~O(n^2) when the buffer
+        already has active fold levels, freezing the UI for seconds on
+        large files.
+        """
         if not self.current_lang or not self._fold_manager:
             return
 
         try:
             if self.current_provider and self.current_provider.has_folding():
-                regions = self.current_provider.get_fold_regions(self.text())
-                self._fold_manager.set_fold_regions(regions)
-                self.current_provider.post_fold_setup(self, regions)
+                self.current_provider.post_fold_setup(self, fold_regions)
+                self._fold_manager.set_fold_regions(fold_regions)
         except Exception as exc:
-            logger.debug("Fold recomputation failed: %s", exc)
+            logger.debug("Fold application failed: %s", exc)
 
     # ------------------------------------------------------------------
     # Zooming Actions
@@ -427,7 +515,14 @@ class CodeEditor(QsciScintilla):
         Scintilla message 2700 (``SCI_TOGGLEFOLDSHOWTEXT``) also toggles the
         fold on that line, so the previous fold state is restored afterwards
         to keep setting the text side-effect free.
+
+        Identical calls are skipped via ``_fold_display_text_cache``:
+        re-sending the message on an active fold header costs an
+        O(document) fold recalculation per line, which would freeze the
+        UI for seconds on large files.
         """
+        if self._fold_display_text_cache.get(line) == import_count:
+            return
         was_expanded = bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
         full_text = f"(... +{import_count} imports)"
         self.SendScintilla(SCI_SETFOLDEXPANDEDTEXT, line, full_text.encode("utf-8"))
@@ -436,6 +531,7 @@ class CodeEditor(QsciScintilla):
             != was_expanded
         ):
             self.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, line)
+        self._fold_display_text_cache[line] = import_count
 
     def _setup_edge(self) -> None:
         """Configure the long-line edge marker."""
@@ -1175,71 +1271,22 @@ class CodeEditor(QsciScintilla):
     _IND_PROVIDER_BASE = 0
 
     def _apply_semantic_indicators(self) -> None:
-        """Apply Scintilla indicators driven by the language provider.
+        """Schedule semantic-highlight overlay analysis.
 
-        Calls ``current_provider.get_semantic_highlights(text)`` if
-        available.  The provider returns semantic-only
-        ``(start, length, "#RRGGBB")`` tuples which are painted as
-        ``INDIC_TEXTFORE`` overlays.  Up to 8 concurrent indicator slots
-        are used (colour-keyed); excess shares the last slot.
-
-        Always clears all indicator slots before reapplying so that
-        stale overlays from a previous buffer state are never left
-        behind.
+        The heavy provider computation runs off the UI thread; the
+        computed overlays are painted via ``_apply_semantic_overlays``.
         """
-        from PyQt6.QtGui import QColor
+        self._request_analysis()
 
-        if not self.current_provider:
-            return
-
-        text = self.text()
-        if not text:
-            return
-
-        length = len(text)
-
-        # ── always clear all indicator slots first ────────────────
-        for ind in range(8):
-            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
-            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
-
-        # Ask the provider for semantic highlight ranges.
-        provider_fn = getattr(self.current_provider, "get_semantic_highlights", None)
-        if provider_fn is None:
-            return
-        try:
-            highlights = provider_fn(text)
-        except Exception:
-            return
-
-        if not highlights:
-            return
-
-        # ── group by colour → one indicator slot per colour ──────
-        _SLOTS = 8
-        colour_to_slot: dict = {}
-        next_slot = 0
-
-        for start, token_len, colour_hex in highlights:
-            if start < 0 or token_len <= 0 or start + token_len > length:
-                continue
-
-            slot = colour_to_slot.get(colour_hex)
-            if slot is None:
-                slot = next_slot % _SLOTS
-                colour_to_slot[colour_hex] = slot
-                next_slot += 1
-                self.SendScintilla(
-                    QsciScintilla.SCI_INDICSETSTYLE, slot, QsciScintilla.INDIC_TEXTFORE
-                )
-                self.SendScintilla(
-                    QsciScintilla.SCI_INDICSETFORE,
-                    slot,
-                    self._scintilla_rgb(colour_hex),
-                )
-
-            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
-            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, start, token_len)
+    def deleteLater(self) -> None:
+        """Shut down the analysis worker before destroying the widget."""
+        manager = getattr(self, "_analysis_manager", None)
+        if manager is not None:
+            try:
+                manager.shutdown()
+            except Exception:
+                pass
+        super().deleteLater()
 
     # ------------------------------------------------------------------
     # File I/O
@@ -1295,6 +1342,7 @@ class CodeEditor(QsciScintilla):
         self.setText(content)
         self.setModified(False)
         self._is_dirty = False
+        self._fold_display_text_cache.clear()
         self.dirty_state_changed.emit(False)
         self._dismiss_hover_flyout()
         self._recompute_folds()

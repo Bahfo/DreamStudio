@@ -248,6 +248,8 @@ def compute_folds_for_editor(editor) -> None:
     regions = compute_fold_regions(text)
     fm = getattr(editor, "_fold_manager", None)
     if fm is not None:
+        # Display text first (fast without active fold levels), then levels.
+        _apply_import_fold_text(editor, regions)
         fm.set_fold_regions(regions)
-
-    _apply_import_fold_text(editor, regions)
+    else:
+        _apply_import_fold_text(editor, regions)

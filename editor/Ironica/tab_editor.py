@@ -246,6 +246,7 @@ class DreamTabbedEditor(QDreamTabEditor):
             else:
                 del self.opened_files[key]
 
+        code_editor = None
         if file_path:
             try:
                 code_editor = CodeEditor(self, language=language)
@@ -260,6 +261,17 @@ class DreamTabbedEditor(QDreamTabEditor):
             code_editor.setText(content)
             code_editor.clear_dirty()
             new_editor = MiniMapHostWidget(code_editor, parent=self)
+
+        # Wire the threaded file-analysis spinner into the status bar.
+        if code_editor is not None:
+            status = getattr(self._parent, "status_bar", None)
+            if status is not None:
+                start_handler = getattr(status, "start_analysis_spinner", None)
+                finish_handler = getattr(status, "stop_analysis_spinner", None)
+                if start_handler is not None:
+                    code_editor.analysis_started.connect(start_handler)
+                if finish_handler is not None:
+                    code_editor.analysis_finished.connect(finish_handler)
 
         # Attach background diagnostics for languages that provide them.
         if isinstance(new_editor, MiniMapHostWidget) and language:
@@ -427,6 +439,21 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         if hasattr(editor, "_diag_manager"):
             editor._diag_manager.shutdown()
+
+        code_editor = self._unwrap_code_editor(editor)
+        if code_editor is not None:
+            if hasattr(code_editor, "_analysis_manager"):
+                try:
+                    code_editor._analysis_manager.shutdown()
+                except Exception:
+                    pass
+            for sig_name in ("analysis_started", "analysis_finished"):
+                sig = getattr(code_editor, sig_name, None)
+                if sig is not None:
+                    try:
+                        sig.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
 
         if hasattr(editor, "textChanged"):
             try:

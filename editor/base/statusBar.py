@@ -8,9 +8,10 @@ from PyQt6.QtWidgets import (
     QFrame,
     QMenu,
 )
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QColor, QPalette
 
 from editor.widgets.QToolButton import ToolbarButton
+from editor.widgets.QCircularProgressBar import CircularProgressBar
 from editor.utils.git_control.git_control import *
 
 
@@ -132,6 +133,25 @@ class StatusBar(QFrame):
         progress_container_layout.addWidget(self.bootstrap_progress)
         statusbar_layout.addWidget(self.bootstrap_progress_container)
 
+        self._analysis_active_count = 0
+        self.analysis_progress_container = QFrame()
+        self.analysis_progress_container.setObjectName("analysisProgressContainer")
+        analysis_container_layout = QHBoxLayout(self.analysis_progress_container)
+        analysis_container_layout.setContentsMargins(4, 0, 4, 0)
+        analysis_container_layout.setSpacing(5)
+        self.analysis_spinner = CircularProgressBar(
+            bg_color=self._spinner_track_color(),
+            fg_color=self._spinner_arc_color(),
+            parent=self.analysis_progress_container,
+            diameter=16,
+        )
+        analysis_container_layout.addWidget(self.analysis_spinner)
+        self.analysis_label = QLabel("Analyzing file contents")
+        self.analysis_label.setObjectName("analysisProgressLabel")
+        analysis_container_layout.addWidget(self.analysis_label)
+        self.analysis_progress_container.hide()
+        statusbar_layout.addWidget(self.analysis_progress_container)
+
         statusbar_layout.addStretch()
 
         self.lines_and_cols = QLabel()
@@ -225,6 +245,40 @@ class StatusBar(QFrame):
 
     def clear_bootstrap_log(self) -> None:
         self._bootstrap_log.clear()
+
+    # ------------------------------------------------------------------
+    # File-analysis spinner
+    # ------------------------------------------------------------------
+
+    def _spinner_track_color(self) -> QColor:
+        """Derive the spinner track colour from the current palette."""
+        return self.palette().color(QPalette.ColorRole.Mid)
+
+    def _spinner_arc_color(self) -> QColor:
+        """Derive the spinner arc colour from the current palette."""
+        return self.palette().color(QPalette.ColorRole.Highlight)
+
+    def start_analysis_spinner(self, message: str = "Analyzing file contents") -> None:
+        """Show the circular spinner while a file analysis is running.
+
+        Reference-counted so the indicator stays visible while multiple
+        editors analyze concurrently and only disappears when the last
+        active analysis finishes.
+
+        Args:
+            message: Text shown beside the spinner.
+        """
+        self._analysis_active_count += 1
+        self.analysis_label.setText(message)
+        self.analysis_spinner.start()
+        self.analysis_progress_container.show()
+
+    def stop_analysis_spinner(self) -> None:
+        """Hide the circular spinner when all file analyses have finished."""
+        self._analysis_active_count = max(0, self._analysis_active_count - 1)
+        if self._analysis_active_count == 0:
+            self.analysis_spinner.stop()
+            self.analysis_progress_container.hide()
 
     def set_debug_background(self) -> None:
         """Paint the entire status bar orange to indicate an active debug session."""

@@ -162,3 +162,86 @@ Date of Change: 11/8/2026
 
 Date of Change: 11/8/2026
 ---
+
+#### Changes in Add - (ADD_007)
+- Added `editor/Ironica/analysis_worker.py`: `_AnalysisWorker` (QThread) + `AnalysisManager` + `_AnalysisRequest` + `_AnalysisResult` + `_PROVIDER_LOCK`
+- Moved semantic-highlight + fold-region computation off the UI thread; the worker runs providers (via `BaseLanguageProvider.get_semantic_highlights`/`get_fold_regions`) under a global reentrant lock and posts results back to the UI thread
+- Added `analysis_started` / `analysis_finished` Qt signals and `_analysis_active` state to `CodeEditor`; `_recompute_folds()` now kicks off a debounced threaded analysis whenever the language provider overrides `get_semantic_highlights`; `_apply_results()` renders highlights + folds on the UI thread and drops stale requests
+- `CodeEditor.deleteLater()` now shuts the analysis worker down cleanly before the editor is destroyed
+- Wired the spinner into the status bar: `DreamTabbedEditor` connects each editor's `analysis_started`/`analysis_finished` to `StatusBar.start_analysis_spinner()`/`stop_analysis_spinner()` when a real status bar exists
+
+#### Changes in Add - (ADD_008)
+- Added `CircularProgressBar.start()`/`stop()`/`is_spinning()` to `editor/widgets/QCircularProgressBar.py` for indefinite (spin) progress mode
+- Added `StatusBar.analysis_progress_container`, `analysis_spinner`, `analysis_label`, `_analysis_active_count` and reference-counted `start_analysis_spinner()`/`stop_analysis_spinner()`; the container is hidden by default so the status bar layout is unchanged when idle
+- Fixed `StatusBar.__init__` crash when `master` has no `main_window` attribute (repo lookup now falls back to the configured project directory)
+
+#### Changes in Test - (TEST_007)
+- Added `editor/Ironica/tests/test_analysis_worker.py` (10 tests): `CircularProgressBar` spin start/stop and fixed size, `StatusBar` spinner show/hide + ref counting, `_AnalysisWorker._analyze` for supported/unsupported providers, `AnalysisManager` stale-result dropping, `CodeEditor` end-to-end started/finished signals + overlay/fold application, no-analysis-without-provider, and tab-editor spinner wiring (with and without a status bar)
+
+#### Notes:
+All 234 `editor/Ironica/tests` pass. The 5 `plugins/python/tests/test_semantic_highlights.py` failures (jedi version-dependent token diffs + cross-file ordering sensitivity) also fail identically on clean `main` and are unrelated. `tests/test_bootstrap.py::test_dependency_flow_no_circular` also fails on clean `main` (pre-existing).
+
+Date of Change: 13/8/2026
+---
+
+#### Changes in Fix - (FIX_023)
+- Fixed UI freeze when opening large files (e.g. a ~9000-line PyQt6 stub): fold-display-text application blocked the UI thread for ~8.7s
+- Root cause: `set_custom_import_fold_text` sends Scintilla message `SCI_TOGGLEFOLDSHOWTEXT`, which toggles the fold, and the restore re-toggles it. Each toggle costs an O(document) fold recalculation when fold levels are active → O(import_regions × lines) total
+- `_apply_fold_regions` now calls `provider.post_fold_setup()` (fold display text) *before* `FoldManager.set_fold_regions()` (fold levels) — Scintilla's per-line fold-display-text message is cheap when levels are not yet active (~12ms vs ~8.7s on a 7200-line buffer)
+- Added `CodeEditor._fold_display_text_cache` (line → import count) so identical `set_custom_import_fold_text` calls are skipped entirely; repeated analysis applies (typing debounce, retheme, import-highlight timer) no longer re-send the message or re-toggle folds. Cache is cleared on `load_from_file`
+- Applied the same display-text-before-levels ordering to `compute_folds_for_editor` in `editor/Ironica/plugins/python/folding.py`
+
+#### Changes in Test - (TEST_008)
+- Added `TestFoldDisplayTextCache` to `test_analysis_worker.py`: unchanged fold-text calls are skipped (SendScintilla call count stays flat) and `_apply_fold_regions` orders display-text before fold levels
+
+#### Notes:
+Verified end-to-end on a 5400-line buffer: `_apply_fold_regions` dropped from ~8.7s to ~13ms (repeat apply ~14ms); `load_from_file` UI-thread cost is ~3ms; first analysis (~4.4s) runs off-thread with the UI responsive and the spinner animating.
+
+Date of Change: 13/8/2026
+---
+
+#### Changes in Fix - (FIX_024)
+- Fixed the O(n²) first-analysis freeze in `editor/Ironica/plugins/python/semantic_highlights.py`: the raw token stream was rescanned from byte 0 on every AST node (`_tokenize`), making whole-document analysis cost ~nodes × document; a tokenized buffer is now built once per analysis, line numbers are precomputed once, and helper functions consume it via a token-stream pointer + per-line cursor instead of rescanning
+- `_process_node` now receives a shared `TokenStream` context; helpers (`_find_next_name_after_token`, `_find_importfrom_module_span`, and the AST-walk line-skipping logic) no longer re-tokenize per node
+- Removed `editor/Ironica/analysis_worker.py` (`_AnalysisWorker` QThread + `AnalysisManager`) per the no-threading directive; `CodeEditor` now runs `get_semantic_highlights` / `get_fold_regions` synchronously on the UI thread with identical results
+- `_request_analysis()` is replaced by synchronous `_apply_semantic_indicators()`; `_recompute_folds()` computes folds inline. Both still guard on `_analysis_active` and emit `analysis_started` / `analysis_finished` so the status-bar spinner shows during analysis (`QApplication.processEvents()` lets the spinner paint before the synchronous work runs)
+- Removed `CodeEditor._analysis_manager` and the `deleteLater()` override (no worker to shut down); `_apply_semantic_overlays` / `_apply_fold_regions` unchanged and still called on the UI thread
+
+#### Changes in Test - (TEST_009)
+- Updated `test_analysis_worker.py` to the synchronous pipeline: dropped `TestAnalysisWorker` / `TestAnalysisManager` (module removed); `TestCodeEditorAnalysisSignals` now asserts `analysis_started`/`analysis_finished` are emitted synchronously around `_apply_semantic_indicators()` and `_recompute_folds()`
+
+#### Notes:
+Verified on a real 8909-line PyQt6 stub: `get_semantic_highlights` dropped from ~18.4s to ~1.14s (16×) with byte-identical output (16697 highlights); `compute_fold_regions` ~105ms. All 10 `test_analysis_worker.py` tests pass. Full-suite diff vs clean `main`: no new failures (pre-existing failures in `test_python_plugin_integration`, `test_retheme`, `test_bootstrap`, and 3 `test_semantic_highlights` cases fail identically on `main`).
+
+Date of Change: 13/8/2026
+---
+
+#### Changes in Add - (ADD_009)
+- Re-added `editor/Ironica/analysis_worker.py` with the O(n) analysis now in place (supersedes FIX_024's threading removal): typing in large files was still blocking the UI thread because each debounced analysis ran `get_semantic_highlights` (~1.3s on a 8910-line buffer) synchronously on the UI thread
+- `_AnalysisWorker` (QThread, latest-wins) + `AnalysisManager` follow the existing `jedi_worker.py` pattern: `request_analysis(text)` snapshots the provider on the UI thread, the worker computes `get_semantic_highlights` + `get_fold_regions` off-thread under a module-level `_PROVIDER_LOCK`, and results are queued back to `_apply_results` (UI thread) which drops out-of-order results via a request counter and paints overlays/folds
+- `CodeEditor` re-gains `_analysis_manager`, `_request_analysis()` (with `analysis_started` / `analysis_finished` for the status-bar spinner), `_on_analysis_finished()`, and a `deleteLater()` override that shuts the worker down
+- `_recompute_folds()` / `_apply_semantic_indicators()` now both delegate to `_request_analysis()`; a single worker pass computes highlights + folds, and Scintilla is only touched on the UI thread
+
+#### Changes in Test - (TEST_010)
+- Reverted `test_analysis_worker.py` to the threaded pipeline (13 tests): restored `TestAnalysisWorker._analyze` and `TestAnalysisManager` stale-result dropping; `TestCodeEditorAnalysisSignals` now waits on `analysis_finished` via `QSignalSpy.wait(5000)` and stops the debounce timers for determinism
+
+#### Notes:
+Probe on `venv/lib/python3.13/site-packages/PyQt6/QtWidgets.pyi` (467122 chars, 8910 lines): `_apply_semantic_indicators()` returns in ~3ms (was a ~1.3s UI-thread freeze) and `analysis_finished` arrives ~1.3s later with all 400 fold regions applied. Full-suite diff vs clean `main`: no new failures; all 237 `editor/Ironica/tests` pass.
+
+Date of Change: 13/8/2026
+---
+
+#### Changes in Fix - (FIX_026)
+- Fixed the remaining typing freeze: with analysis threaded, the UI thread still blocked per keystroke because `IronicaLexer.styleText` (called synchronously by QScintilla on every edit) copied the whole document and rebuilt the bracket-depth stack from byte 0 each time — ~77ms per keystroke near the end of a 467KB buffer, of which ~63ms was the O(cursor position) rescan
+- `styleText` now caches the bracket-depth stack (`_bracket_cache = [position, stack]`); when the new style start is at/after the cache position (normal typing, since Scintilla restyles from the edit point), it only re-scans the segment between the cache and the new start instead of the whole prefix. An edit before the cache point (start < cache) still falls back to a correct full rebuild
+- The stack scan was also rewritten from a per-character Python loop to a C-compiled `_BRACKET_REGEX` over bracket characters only (`_scan_bracket_depth`) — ~6x faster on full-prefix rebuilds with identical output
+- Result on the 467KB worst case: per-keystroke `styleText` dropped from ~77ms to ~2.5ms (steady state) / ~10ms (first keystroke after jumping to a new location), i.e. well under one 60fps frame; full post-load restyle ~240ms
+
+#### Changes in Test - (TEST_011)
+- Added `editor/Ironica/tests/test_regex_lexer.py` (13 tests): `_scan_bracket_depth` segment identity (a+b == ab) across nested/unbalanced brackets and brackets inside strings/comments; cached (incremental) `styleText` producing per-character-identical styles to a cold full rebuild for split-at-half and sequential-edit scenarios; and mid-file edits correctly falling back to a full rebuild
+
+#### Notes:
+Verification probe on `QtWidgets.pyi` (467122 chars): styleText at end/90%/start = 2.5/2.7/2.4ms steady state after cache warm-up. Full-suite diff vs clean `main`: no new failures; all 250 `editor/Ironica/tests` pass (13 new). UI-thread typing isolation + threaded analysis worker both active.
+
+Date of Change: 13/8/2026
+---

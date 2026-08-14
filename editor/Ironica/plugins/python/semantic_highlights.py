@@ -74,6 +74,18 @@ def _tokenize_char_to_byte(
     return line_offsets[row_1 - 1] + byte_col
 
 
+def _build_line_index(tok_stream) -> Dict[int, List]:
+    """Group tokens by their start line, preserving stream order.
+
+    Avoids the O(nodes × tokens) quadratic behaviour of re-scanning the
+    full token stream once per AST node on large files.
+    """
+    index: Dict[int, List] = {}
+    for tok in tok_stream:
+        index.setdefault(tok.start[0], []).append(tok)
+    return index
+
+
 # ------------------------------------------------------------------
 # Exclusion-range builder
 # ------------------------------------------------------------------
@@ -175,7 +187,9 @@ class PythonSemanticProvider(ITokenProvider):
 
         self._cache_text = text
         self._cache_lexical = self._lex(tok_stream, line_offsets)
-        self._cache_semantic = self._semantic(text, line_offsets, exclude, tok_stream)
+        self._cache_semantic = self._semantic(
+            text, line_offsets, exclude, tok_stream, _build_line_index(tok_stream)
+        )
 
     def get_tokens(self, text: str) -> List[Token]:
         if not text.strip():
@@ -240,6 +254,7 @@ class PythonSemanticProvider(ITokenProvider):
         line_offsets: List[int],
         exclude: List[Tuple[int, int]],
         tok_stream,
+        line_index: Dict[int, List],
     ) -> List[Token]:
         try:
             tree = ast.parse(text)
@@ -249,7 +264,7 @@ class PythonSemanticProvider(ITokenProvider):
         tokens: List[Token] = []
         for node in ast.walk(tree):
             try:
-                self._process_node(node, line_offsets, exclude, tok_stream, tokens)
+                self._process_node(node, line_offsets, exclude, line_index, tokens)
             except Exception:
                 pass
         return self._dedupe(tokens)
@@ -369,11 +384,9 @@ class PythonSemanticProvider(ITokenProvider):
                     )
                 )
 
-    def _find_next_name_after_token(self, tok_stream, lineno: int, keyword_text: str):
+    def _find_next_name_after_token(self, line_index, lineno: int, keyword_text: str):
         seen_keyword = False
-        for tok in tok_stream:
-            if tok.start[0] != lineno:
-                continue
+        for tok in line_index.get(lineno, []):
             if tok.type == tokenize.NAME and tok.string == keyword_text:
                 seen_keyword = True
                 continue
@@ -381,15 +394,12 @@ class PythonSemanticProvider(ITokenProvider):
                 return tok
         return None
 
-    def _find_importfrom_module_span(self, tok_stream, lineno: int):
+    def _find_importfrom_module_span(self, line_index, lineno: int):
         seen_from = False
         module_start_tok = None
         module_end_tok = None
 
-        for tok in tok_stream:
-            if tok.start[0] != lineno:
-                continue
-
+        for tok in line_index.get(lineno, []):
             if tok.type == tokenize.NAME and tok.string == "from":
                 seen_from = True
                 continue
@@ -421,11 +431,13 @@ class PythonSemanticProvider(ITokenProvider):
         node: ast.AST,
         line_offsets: List[int],
         exclude,
-        tok_stream,
+        line_index,
         tokens: List[Token],
     ) -> None:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            name_tok = self._find_next_name_after_token(tok_stream, node.lineno, "def")
+            name_tok = self._find_next_name_after_token(
+                line_index, node.lineno, "def"
+            )
             if name_tok is not None:
                 start = _tokenize_char_to_byte(
                     line_offsets, name_tok.line, name_tok.start[0], name_tok.start[1]
@@ -452,7 +464,7 @@ class PythonSemanticProvider(ITokenProvider):
 
         elif isinstance(node, ast.ClassDef):
             name_tok = self._find_next_name_after_token(
-                tok_stream, node.lineno, "class"
+                line_index, node.lineno, "class"
             )
             if name_tok is not None:
                 start = _tokenize_char_to_byte(
@@ -480,7 +492,7 @@ class PythonSemanticProvider(ITokenProvider):
                     )
 
         elif isinstance(node, ast.ImportFrom):
-            mod_span = self._find_importfrom_module_span(tok_stream, node.lineno)
+            mod_span = self._find_importfrom_module_span(line_index, node.lineno)
             if mod_span is not None:
                 start_tok, end_tok = mod_span
                 start = _tokenize_char_to_byte(
@@ -581,7 +593,7 @@ class PythonSemanticProvider(ITokenProvider):
                     )
             if node.name:
                 name_tok = self._find_next_name_after_token(
-                    tok_stream, node.lineno, "as"
+                    line_index, node.lineno, "as"
                 )
                 if name_tok is not None and name_tok.string == node.name:
                     start = _tokenize_char_to_byte(
