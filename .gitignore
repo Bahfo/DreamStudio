@@ -57,5 +57,8 @@ local.properties
 *.keystore
 *.jks
 
+# Tests
+**/tests/
+
 # Temporary Ignoring
 # Nothing for now
