@@ -26,7 +26,7 @@ import logging
 from typing import Dict, List, Optional, Set, Tuple
 
 from PyQt6.QtGui import QColor
-from PyQt6.Qsci import QsciLexerCustom
+from PyQt6.Qsci import QsciLexerCustom, QsciScintilla
 
 from editor.Ironica.retheme import resolve_colour
 
@@ -66,8 +66,48 @@ _RE_OPERATOR = re.compile(
     re.VERBOSE,
 )
 
+# Byte-compiled twins — QScintilla hands us UTF-8 byte offsets, so the
+# incremental scanner works on raw bytes to stay perfectly aligned with
+# the document even when it contains multi-byte characters.
+_RE_NUMBER_B = re.compile(
+    rb"""
+    (?:
+        0[xX][0-9a-fA-F]+
+      | 0[bB][01]+
+      | 0[oO][0-7]+
+      | [0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?
+      | \.[0-9]+(?:[eE][+-]?[0-9]+)?
+    )
+    """,
+    re.VERBOSE,
+)
+
+_RE_OPERATOR_B = re.compile(
+    rb"""
+    (?:
+        \*\*?=?
+      | //=?
+      | [+\-*/%]=?
+      | <<=?
+      | >>=?
+      | <=?
+      | >=?
+      | ==?
+      | [~^&|]=?
+      | @=?
+    )
+    """,
+    re.VERBOSE,
+)
+
 # Identifier token pattern (compiled for `pos` argument support)
 _RE_IDENTIFIER = re.compile(r"\w+")
+_RE_IDENTIFIER_B = re.compile(rb"\w+")
+
+# C-compiled scan that only visits state-relevant bytes (quotes,
+# comment marker, newline, brackets).  Order matters: triple quotes are
+# matched before their single-quote prefix.
+_RE_STATE_SCAN = re.compile(rb"""\"\"\"|\'\'\'|\"|\'|#|\n|[()\[\]{}]""")
 
 # Single-character bracket tokens
 _OPEN_PARENS = frozenset("({[")
@@ -77,6 +117,16 @@ _BRACKET_PAIRS = {"(": ")", "[": "]", "{": "}"}
 # C-compiled scan that only visits bracket characters (order-preserving);
 # ~6-10x faster than a per-char Python loop over large prefixes.
 _BRACKET_REGEX = re.compile(r"[()\[\]{}]")
+
+# ------------------------------------------------------------------
+# Incremental scanner states (carried across styleText calls)
+# ------------------------------------------------------------------
+_ST_DEFAULT = 0    # plain code
+_ST_SINGLE = 1     # inside a '...' string
+_ST_DOUBLE = 2     # inside a "..." string
+_ST_TRIPLE_S = 3   # inside a '''...''' string
+_ST_TRIPLE_D = 4   # inside a """...""" string
+_ST_COMMENT = 5    # inside a # comment (until end of line)
 
 
 class IronicaLexer(QsciLexerCustom):
@@ -252,13 +302,97 @@ class IronicaLexer(QsciLexerCustom):
 
     def _bracket_style(self, char: str, depth: int) -> int:
         cycle = (depth - 1) % 3
-        if char in "()}":
+        if char in "()":
             return self._paren_offset + cycle
         if char in "[]":
             return self._bracket_offset + cycle
         if char in "{}":
             return self._brace_offset + cycle
         return 0
+
+    # ------------------------------------------------------------------
+    # Incremental state helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_escaped(data: bytes, pos: int) -> bool:
+        """True when ``data[pos]`` is escaped by an odd run of backslashes."""
+        backslashes = 0
+        pos -= 1
+        while pos >= 0 and data[pos] == 0x5C:
+            backslashes += 1
+            pos -= 1
+        return backslashes % 2 == 1
+
+    @classmethod
+    def _find_unescaped(cls, data: bytes, start: int, quote: int) -> int:
+        """Byte offset of the first unescaped *quote* byte at/after *start*."""
+        i = start
+        while True:
+            j = data.find(quote, i)
+            if j == -1 or not cls._is_escaped(data, j):
+                return j
+            i = j + 1
+
+    @classmethod
+    def _find_unescaped_triple(cls, data: bytes, start: int, delim: bytes) -> int:
+        """Byte offset of the first unescaped *delim* run at/after *start*."""
+        i = start
+        while True:
+            j = data.find(delim, i)
+            if j == -1 or not cls._is_escaped(data, j):
+                return j
+            i = j + 1
+
+    @classmethod
+    def _scan_state(
+        cls, data: bytes, state: int, depth_stack: List[str], start: int, stop: int
+    ) -> int:
+        """Advance *depth_stack* + *state* over ``data[start:stop]``.
+
+        Unlike the simple regex-only ``_scan_bracket_depth`` this respects
+        string literals and comments, so brackets inside them never skew
+        the depth used for colour cycling.
+        """
+        pos = start
+        while pos < stop:
+            m = _RE_STATE_SCAN.search(data, pos, stop)
+            if m is None:
+                break
+            at = m.start()
+            ch = data[at]
+
+            if state == _ST_DEFAULT:
+                if ch == 0x22 or ch == 0x27:
+                    if data[at : at + 3] == b'"""' or data[at : at + 3] == b"'''":
+                        state = _ST_TRIPLE_D if ch == 0x22 else _ST_TRIPLE_S
+                    else:
+                        state = _ST_DOUBLE if ch == 0x22 else _ST_SINGLE
+                elif ch == 0x23:  # '#'
+                    state = _ST_COMMENT
+                elif ch in b"([{":
+                    depth_stack.append(chr(ch))
+                elif ch in b")]}":
+                    c = chr(ch)
+                    if depth_stack and _BRACKET_PAIRS.get(depth_stack[-1]) == c:
+                        depth_stack.pop()
+            elif state in (_ST_SINGLE, _ST_DOUBLE):
+                expected = 0x27 if state == _ST_SINGLE else 0x22
+                if ch == expected and not cls._is_escaped(data, at):
+                    state = _ST_DEFAULT
+            elif state in (_ST_TRIPLE_S, _ST_TRIPLE_D):
+                delim = b"'''" if state == _ST_TRIPLE_S else b'"""'
+                if (
+                    data[at : at + 3] == delim
+                    and not cls._is_escaped(data, at)
+                ):
+                    state = _ST_DEFAULT
+            elif state == _ST_COMMENT:
+                if ch == 0x0A:
+                    state = _ST_DEFAULT
+
+            pos = at + 1
+        return state
 
     # ------------------------------------------------------------------
     # Core lexer entry point
@@ -269,108 +403,158 @@ class IronicaLexer(QsciLexerCustom):
         if editor is None:
             return
 
-        full_text = editor.text()
-        if not full_text:
+        doc_len = editor.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+        if start >= doc_len:
             return
 
-        total_len = len(full_text)
-        if start >= total_len:
-            return
+        end = min(end, doc_len)
 
-        end = min(end, total_len)
-        self.startStyling(start)
-
-        # ── Bracket-depth stack: resume from cache when possible ────
-        # Rescanning the stack from byte 0 on every keystroke costs
-        # O(cursor position) and freezes typing in large files.  When
-        # the new style start is at/after the previous style end, the
-        # document before the cache point is unchanged, so only the
-        # segment between them needs re-scanning.  Scintilla restyles
-        # from the edit position, so any edit before the cache point
-        # lands in the (correct, slower) full-rebuild branch.
+        # ── Resolve the lexical state + bracket depth before *start* ──
+        # QScintilla restyles from the edit position, so when the new
+        # start is at/after the previous style end only the delta needs
+        # re-scanning (fast path); an edit before the cache point falls
+        # back to a full rebuild.
         cached = self._bracket_cache
         if cached is not None and start >= cached[0]:
             depth_stack = cached[1]
-            self._scan_bracket_depth(full_text, cached[0], start, depth_stack)
+            state = cached[2] if len(cached) > 2 else _ST_DEFAULT
+            if start > cached[0]:
+                delta = self._get_range(editor, cached[0], start)
+                if delta:
+                    state = self._scan_state(delta, state, depth_stack, 0, len(delta))
         else:
             depth_stack = []
-            self._scan_bracket_depth(full_text, 0, start, depth_stack)
+            state = _ST_DEFAULT
+            if start > 0:
+                prefix = self._get_range(editor, 0, start)
+                if prefix:
+                    state = self._scan_state(prefix, state, depth_stack, 0, len(prefix))
 
-        # ── Scan the target range ──────────────────────────────────
-        text_slice = full_text[start:end]
+        data = self._get_range(editor, start, end)
+        if not data:
+            self._bracket_cache = [end, depth_stack, state]
+            return
+
+        self.startStyling(start)
+
         i = 0
-        text_len = len(text_slice)
+        length = len(data)
 
-        while i < text_len:
-            ch = text_slice[i]
+        # ── Continuation of a string/comment opened before this range ──
+        if state == _ST_SINGLE:
+            j = self._find_unescaped(data, i, 0x27)
+            if j == -1:
+                self.setStyling(length - i, self._string_style)
+                self._bracket_cache = [end, depth_stack, _ST_SINGLE]
+                return
+            self.setStyling(j - i + 1, self._string_style)
+            i = j + 1
+            state = _ST_DEFAULT
+        elif state == _ST_DOUBLE:
+            j = self._find_unescaped(data, i, 0x22)
+            if j == -1:
+                self.setStyling(length - i, self._string_style)
+                self._bracket_cache = [end, depth_stack, _ST_DOUBLE]
+                return
+            self.setStyling(j - i + 1, self._string_style)
+            i = j + 1
+            state = _ST_DEFAULT
+        elif state in (_ST_TRIPLE_S, _ST_TRIPLE_D):
+            delim = b"'''" if state == _ST_TRIPLE_S else b'"""'
+            j = self._find_unescaped_triple(data, i, delim)
+            if j == -1:
+                self.setStyling(length - i, self._string_style)
+                self._bracket_cache = [end, depth_stack, state]
+                return
+            self.setStyling(j - i + 3, self._string_style)
+            i = j + 3
+            state = _ST_DEFAULT
+        elif state == _ST_COMMENT:
+            j = data.find(b"\n", i)
+            if j == -1:
+                self.setStyling(length - i, self._comment_style)
+                self._bracket_cache = [end, depth_stack, _ST_COMMENT]
+                return
+            self.setStyling(j - i, self._comment_style)
+            i = j
+            state = _ST_DEFAULT
+
+        while i < length:
+            ch = data[i]
 
             # ── Skip whitespace ────────────────────────────────────
-            if ch in " \t\r\n":
+            if ch in b" \t\r\n":
                 self.setStyling(1, 0)
                 i += 1
                 continue
 
             # ── Strings (single/double/triple quoted) ──────────────
-            if ch in ('"', "'"):
-                quote = ch
-                if text_slice[i : i + 3] in ('"""', "'''"):
-                    triple = text_slice[i : i + 3]
-                    end_triple = text_slice.find(triple, i + 3)
-                    if end_triple == -1:
-                        span = text_len - i
-                    else:
-                        span = end_triple + 3 - i
+            if ch == 0x22 or ch == 0x27:
+                if data[i : i + 3] in (b'"""', b"'''"):
+                    delim = data[i : i + 3]
+                    state = _ST_TRIPLE_D if ch == 0x22 else _ST_TRIPLE_S
+                    j = self._find_unescaped_triple(data, i + 3, delim)
+                    if j == -1:
+                        span = length - i
+                        self.setStyling(span, self._string_style)
+                        i += span
+                        continue
+                    span = j + 3 - i
+                    self.setStyling(span, self._string_style)
+                    i += span
+                    state = _ST_DEFAULT
+                    continue
+                quote = 0x27 if ch == 0x27 else 0x22
+                state = _ST_SINGLE if ch == 0x27 else _ST_DOUBLE
+                j = self._find_unescaped(data, i + 1, quote)
+                if j == -1:
+                    span = length - i
                     self.setStyling(span, self._string_style)
                     i += span
                     continue
-                else:
-                    j = i + 1
-                    while j < text_len:
-                        if text_slice[j] == "\\" and j + 1 < text_len:
-                            j += 2
-                            continue
-                        if text_slice[j] == quote:
-                            j += 1
-                            break
-                        j += 1
-                    span = j - i
-                    self.setStyling(span, self._string_style)
-                    i += span
-                    continue
+                span = j + 1 - i
+                self.setStyling(span, self._string_style)
+                i += span
+                state = _ST_DEFAULT
+                continue
 
             # ── Comments ───────────────────────────────────────────
-            if ch == "#":
-                eol = text_slice.find("\n", i)
+            if ch == 0x23:  # '#'
+                eol = data.find(b"\n", i)
                 if eol == -1:
-                    span = text_len - i
-                else:
-                    span = eol - i
+                    span = length - i
+                    self.setStyling(span, self._comment_style)
+                    i += span
+                    state = _ST_COMMENT
+                    continue
+                span = eol - i
                 self.setStyling(span, self._comment_style)
                 i += span
                 continue
 
             # ── Bracket pair colourization ─────────────────────────
-            if ch in _OPEN_PARENS:
-                depth_stack.append(ch)
+            if ch in b"({[":
+                depth_stack.append(chr(ch))
                 depth = len(depth_stack)
-                style = self._bracket_style(ch, depth)
+                style = self._bracket_style(chr(ch), depth)
                 self.setStyling(1, style)
                 i += 1
                 continue
 
-            if ch in _CLOSE_PARENS:
-                if depth_stack and _BRACKET_PAIRS.get(depth_stack[-1]) == ch:
+            if ch in b")}]":
+                c = chr(ch)
+                if depth_stack and _BRACKET_PAIRS.get(depth_stack[-1]) == c:
                     depth = len(depth_stack)
                     depth_stack.pop()
                 else:
                     depth = 1
-                style = self._bracket_style(ch, depth)
+                style = self._bracket_style(c, depth)
                 self.setStyling(1, style)
                 i += 1
                 continue
 
             # ── Numeric literals ───────────────────────────────────
-            m = _RE_NUMBER.match(text_slice, i)
+            m = _RE_NUMBER_B.match(data, i)
             if m:
                 span = m.end() - i
                 self.setStyling(span, self._number_style)
@@ -378,7 +562,7 @@ class IronicaLexer(QsciLexerCustom):
                 continue
 
             # ── Operators ──────────────────────────────────────────
-            m = _RE_OPERATOR.match(text_slice, i)
+            m = _RE_OPERATOR_B.match(data, i)
             if m:
                 span = m.end() - i
                 self.setStyling(span, self._operator_style)
@@ -386,20 +570,34 @@ class IronicaLexer(QsciLexerCustom):
                 continue
 
             # ── Keywords / identifiers ─────────────────────────────
-            m = _RE_IDENTIFIER.match(text_slice, i)
+            m = _RE_IDENTIFIER_B.match(data, i)
             if m:
-                word = m.group(0)
+                word = data[i : m.end()].decode("ascii", "ignore")
                 span = m.end() - i
                 style_idx = self._keyword_map.get(word, 0)
                 self.setStyling(span, style_idx)
                 i += span
                 continue
 
-            # ── Default: anything else (dots, etc.) ────────────────
+            # ── Default: anything else (dots, multi-byte chars, …) ─
             self.setStyling(1, 0)
             i += 1
 
-        self._bracket_cache = [end, depth_stack]
+        self._bracket_cache = [end, depth_stack, state]
+
+    @staticmethod
+    def _get_range(editor, start: int, end: int) -> bytes:
+        """Fetch the UTF-8 bytes of ``[start, end)`` without copying the doc.
+
+        Returns an empty ``bytes`` object when the range is empty.
+        """
+        if end <= start:
+            return b""
+        buffer = bytearray(end - start + 1)
+        written = editor.SendScintilla(
+            QsciScintilla.SCI_GETTEXTRANGE, start, end, buffer
+        )
+        return bytes(buffer[:written])
 
     @staticmethod
     def _scan_bracket_depth(

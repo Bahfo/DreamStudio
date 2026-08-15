@@ -24,6 +24,7 @@ def _reset_registry():
     set_active_theme("dark")
     yield
     LanguageRegistry.reset()
+    set_active_theme("dark")
 
 
 def _style_back(editor, style):

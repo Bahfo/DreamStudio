@@ -434,23 +434,24 @@ class PythonSemanticProvider(ITokenProvider):
         line_index,
         tokens: List[Token],
     ) -> None:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            name_tok = self._find_next_name_after_token(
-                line_index, node.lineno, "def"
-            )
-            if name_tok is not None:
-                start = _tokenize_char_to_byte(
-                    line_offsets, name_tok.line, name_tok.start[0], name_tok.start[1]
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            if not isinstance(node, ast.Lambda):
+                name_tok = self._find_next_name_after_token(
+                    line_index, node.lineno, "def"
                 )
-                length = len(name_tok.string.encode("utf-8"))
-                if (
-                    start >= 0
-                    and length > 0
-                    and not _in_exclusion(start, length, exclude)
-                ):
-                    tokens.append(
-                        Token(start, length, self._get_styles()["function"], "function")
+                if name_tok is not None:
+                    start = _tokenize_char_to_byte(
+                        line_offsets, name_tok.line, name_tok.start[0], name_tok.start[1]
                     )
+                    length = len(name_tok.string.encode("utf-8"))
+                    if (
+                        start >= 0
+                        and length > 0
+                        and not _in_exclusion(start, length, exclude)
+                    ):
+                        tokens.append(
+                            Token(start, length, self._get_styles()["function"], "function")
+                        )
 
             for arg in _iter_param_args(node.args):
                 if not hasattr(arg, "col_offset"):

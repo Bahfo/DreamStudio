@@ -245,3 +245,47 @@ Verification probe on `QtWidgets.pyi` (467122 chars): styleText at end/90%/start
 
 Date of Change: 13/8/2026
 ---
+
+#### Changes in Fix - (FIX_027)
+- Debounced the color margin in `CodeEditor`: added `_init_color_debouncer()` + `_trigger_color_update()`; `textChanged` is disconnected from the synchronous `update_visible_color_indicators` and re-routed through a 300 ms single-shot `QTimer`, so color-margin swatches are recomputed only when typing pauses (scrollbar-driven updates stay synchronous)
+- Rewrote `LanguageLexer.styleText()` to be byte-safe and state-aware: it fetches only the changed slice via `SendScintilla(SCI_GETTEXTRANGE, start, end, buffer)` (PyQt6 passes the `bytearray` by reference and returns the byte count written) instead of a full-document `editor.text()` copy, and uses an integer state machine (0 = default, 1 = string, 2 = block comment) so keywords are never styled inside `"…"` / `'…'` strings or `/* … */` block comments
+- Added module-level `_RE_WORD` bytes pattern so keyword matching runs directly on bytes without shifting UTF-8 offsets
+
+#### Changes in Test - (TEST_012)
+- Added `editor/Ironica/tests/test_color_debounce_lexer.py` (6 tests): debouncer wiring (single-shot 300 ms timer, `_trigger_color_update`, `textChanged` routing) and byte-accurate `styleText` (UTF-8 multibyte total length, exact string/comment/keyword byte spans, keyword isolation inside strings, backslash-escaped quotes)
+
+#### Notes:
+Verified with a spy on `setStyling`/`startStyling`: the total styled length equals the UTF-8 byte length of the requested range. Full `editor/Ironica/tests` suite: 256 passed (6 new). Note: PyQt6 Qsci requires the buffer to be passed explicitly for `SCI_GETTEXTRANGE` (the 2-arg form writes through a bogus pointer and segfaults).
+
+Date of Change: 15/8/2026
+---
+---
+#### Changes in Fix - (HIGHLIGHT_BYTE_OFFSETS)
+- Fixed incorrect highlight character offsets caused by not handling multi-byte characters accurately in string offsets.
+- Implemented `_get_tok_byte_offsets` to properly translate token line numbers to byte offsets using `tok.line.splitlines(True)` for precise UTF-8 offset mapping.
+- Re-architected `_compute` in `semantic_highlights.py` to eliminate duplicate tokenizer passes, executing `tokenize.generate_tokens` only once for both token stream caching and building exclusions list, optimizing performance.
+#### Notes: This addresses part of the slow typing issues and the broken syntax highlighting positioning (Issue #1 and #2).
+
+Date of Change: 8/15/2026
+---
+---
+#### Changes in Fix - (FIX_028)
+- Replaced the broken `ProcessPoolExecutor` background analysis with a dedicated out-of-process analysis server: added `editor/Ironica/analysis_bridge.py` (length-prefixed pickle framing + `AnalysisProcess` client with auto-respawn, stderr drain, and a `__del__` that kills a still-running child) and `editor/Ironica/analysis_server.py` (child entry that stubs the `editor.*` packages via `__path__` so importing it never pulls in the heavy GUI chain; `_ensure_environment` resolves config/theme; `analysis` and `diagnostics` handlers). The subprocess escapes the GIL so jedi/ast/tokenize no longer freeze the UI while typing in >1000-line files
+- Refactored `_AnalysisWorker` (analysis_worker.py) and `_DiagnosticWorker` (jedi_worker.py) to run a dedicated subprocess round-trip for remote-capable providers (`PythonLanguageProvider.remote_analysis = True`) with a graceful in-process fallback when the server is down; `AnalysisManager.request_analysis` now bumps a request counter per submission (and `invalidate()` too) so stale results are always dropped
+- Converted both workers from `QThread` to plain `threading.Thread` (results shipped back via the owner's `pyqtSignal`, thread-safe to emit): PyQt's `destroyed` signal provably does not fire when a widget is garbage-collected, so a `QThread` owned by a GC'd editor aborted with "QThread: Destroyed while thread is still running"; the thread workers are daemon, wake on an event, and are joined in `shutdown()`
+- Rewrote `IronicaLexer.styleText` (regex.py) to be byte-safe and state-carrying: it fetches only the changed slice via `SCI_GETTEXTRANGE`, scans raw UTF-8 bytes with byte regexes, and carries a lexical state (default / single / double / triple-single / triple-double / comment) plus bracket depth in `_bracket_cache`, so strings/comments opened in one restyle chunk continue correctly in the next; fixed a `}` bracket-style misclassification (`if char in "()}":` → `"()"`)
+- Fixed a comment-state cache bug: the main-loop comment branch never recorded `_ST_COMMENT` when a comment ran to the end of a styled chunk, so a comment spanning a restyle boundary lost its colour on the next edit
+- Added `set_active_theme("dark")` to the `test_retheme.py` autouse fixture teardown: `test_toggle_advances_theme` left `_ACTIVE_THEME` at `dark_hc`, which leaked into the theme-dependent plugin semantic tests (pre-existing suite flake)
+- `handle_request` now reports the request id in `("error", rid, …)` for unknown payloads
+
+#### Changes in Test - (TEST_013)
+- Added `editor/Ironica/tests/test_analysis_bridge.py` (10 tests): frame read/write round-trips, truncated/EOF frame errors, real-subprocess `AnalysisProcess` integration (analysis + diagnostics + respawn after kill), server `handle_request` dispatch for analysis/diagnostics/error/unknown payload, idempotent shutdown
+- Extended `test_analysis_worker.py` (4 new): remote payload + results through a fake `AnalysisProcess`, in-process fallback on server failure, latest-request-wins drop semantics end-to-end, and `request_analysis` config/theme/counter resolution
+- Extended `test_regex_lexer.py` (8 new): multibyte (UTF-8) cold-vs-warm style equality across byte splits, string/comment/triple-quote state carried across chunk boundaries, keyword-inside-string never keyword-styled, brackets inside strings/comments not counted, and lexical state carried in `_bracket_cache`
+- Added `editor/Ironica/plugins/python/tests/test_jedi_worker.py` (5 tests): remote diagnostics round-trip, in-process `detect_problems` fallback, stale-result dropping, debounce coalescing, idempotent shutdown
+
+#### Notes:
+The full targeted suite (`editor/Ironica/tests` + `editor/Ironica/plugins/python/tests`) passes: 361 passed, stable across repeated runs. The remaining failures in the whole-repo run (e.g. `NotificationManager has been deleted` in `test_python_plugin_integration.py` when `tests/test_bootstrap.py` runs first, and the `test_retheme`/semantic cluster) are pre-existing order/global-state leaks present on HEAD (27 failed on HEAD vs 25 now).
+
+Date of Change: 15/8/2026
+---

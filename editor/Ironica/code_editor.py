@@ -151,6 +151,7 @@ class CodeEditor(QsciScintilla):
         self._next_color_marker_id = self.COLOR_MARKER_START
 
         self.textChanged.connect(self.update_visible_color_indicators)
+        self._init_color_debouncer()
         self.verticalScrollBar().valueChanged.connect(
             self.update_visible_color_indicators
         )
@@ -234,6 +235,7 @@ class CodeEditor(QsciScintilla):
 
     def _schedule_fold_recompute(self) -> None:
         """Debounce fold recomputation on text change."""
+        self._analysis_manager.invalidate()
         self._fold_recompute_timer.start()
 
     def _recompute_folds(self) -> None:
@@ -1023,6 +1025,24 @@ class CodeEditor(QsciScintilla):
             color, _, _, _ = info
             marker_id = self._get_or_create_color_marker(color)
             self.markerAdd(line_number, marker_id)
+
+    def _init_color_debouncer(self) -> None:
+        """Route color-margin rendering through a 300 ms single-shot timer.
+
+        Replaces the synchronous ``textChanged`` connection to
+        ``update_visible_color_indicators`` so margin swatches are only
+        recomputed once typing pauses.
+        """
+        self._color_update_timer = QTimer(self)
+        self._color_update_timer.setSingleShot(True)
+        self._color_update_timer.setInterval(300)
+        self._color_update_timer.timeout.connect(self.update_visible_color_indicators)
+        self.textChanged.disconnect(self.update_visible_color_indicators)
+        self.textChanged.connect(self._trigger_color_update)
+
+    def _trigger_color_update(self) -> None:
+        """Restart the color-margin debounce timer on text change."""
+        self._color_update_timer.start()
 
     def update_visible_color_indicators(self) -> None:
         """Scans and updates color markers only for lines currently visible in the editor."""

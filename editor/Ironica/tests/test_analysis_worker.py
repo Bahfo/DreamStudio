@@ -9,6 +9,7 @@ Covers:
 - ``DreamTabbedEditor`` wiring the spinner into the status bar
 """
 
+import time
 import types
 
 import pytest
@@ -16,6 +17,14 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtTest import QSignalSpy, QTest
 
 from editor.Ironica.language_engine import BaseLanguageProvider
+
+
+def _wait_for(predicate, timeout_ms=5000):
+    """Poll *predicate* while spinning the Qt event loop."""
+    deadline = time.monotonic() + timeout_ms / 1000
+    while not predicate() and time.monotonic() < deadline:
+        QTest.qWait(50)
+    return predicate()
 
 
 class _AnalysisProvider(BaseLanguageProvider):
@@ -187,6 +196,179 @@ class TestAnalysisManager:
             assert editor._analysis_active is False  # current — finished
         finally:
             editor.deleteLater()
+
+
+class TestAnalysisWorkerRemote:
+    """Subprocess (remote) path of ``_AnalysisWorker`` and the
+    in-process fallback when the server is unavailable."""
+
+    def _make_manager(self, editor):
+        from editor.Ironica.analysis_worker import AnalysisManager
+
+        return AnalysisManager(editor)
+
+    def test_remote_payload_and_results(self, qapp_instance, monkeypatch):
+        from PyQt6.QtTest import QSignalSpy
+
+        from editor.Ironica import analysis_worker as aw
+
+        received = {}
+
+        class _FakeProcess:
+            def request(self, payload):
+                received["payload"] = payload
+                return ("analysis", payload[1], [(0, 4, "#FF0000")], [])
+
+            def shutdown(self):
+                pass
+
+        monkeypatch.setattr(aw, "AnalysisProcess", lambda: _FakeProcess())
+
+        provider = _AnalysisProvider()
+        provider.remote_analysis = True
+        editor = _FakeEditor()
+        manager = self._make_manager(editor)
+        try:
+            spy = QSignalSpy(manager._results_ready)
+            manager._worker.process(
+                7,
+                "def foo():\n    pass\n",
+                provider,
+                {"lang": "test_lang"},
+                "dark",
+            )
+
+            assert _wait_for(lambda: len(spy) > 0), "remote analysis result was not emitted"
+            assert received["payload"][0] == "analysis"
+            assert received["payload"][1] == 7
+            assert received["payload"][2] == "def foo():\n    pass\n"
+            assert received["payload"][3] == {"lang": "test_lang"}
+            assert received["payload"][4] == "dark"
+
+            rid, highlights, folds = spy[0]
+            assert rid == 7
+            assert highlights == [(0, 4, "#FF0000")]
+            assert folds == []
+        finally:
+            manager.shutdown()
+
+    def test_in_process_fallback_on_server_failure(
+        self, qapp_instance, monkeypatch
+    ):
+        from PyQt6.QtTest import QSignalSpy
+
+        from editor.Ironica import analysis_worker as aw
+
+        class _BrokenProcess:
+            def request(self, payload):
+                raise aw.AnalysisProcessError("boom")
+
+            def shutdown(self):
+                pass
+
+        monkeypatch.setattr(aw, "AnalysisProcess", lambda: _BrokenProcess())
+
+        provider = _AnalysisProvider()
+        provider.remote_analysis = True
+        manager = self._make_manager(_FakeEditor())
+        try:
+            spy = QSignalSpy(manager._results_ready)
+            manager._worker.process(3, "def foo():\n    pass\n", provider, None, None)
+
+            assert _wait_for(lambda: len(spy) > 0), "fallback analysis result was not emitted"
+            rid, highlights, folds = spy[0]
+            assert highlights == [(0, 4, "#FF0000")]  # provider's own result
+            assert len(folds) == 1
+        finally:
+            manager.shutdown()
+
+    def test_latest_request_wins(self, qapp_instance, monkeypatch, language_registry):
+        from PyQt6.QtTest import QSignalSpy
+
+        from editor.Ironica import analysis_worker as aw
+        from editor.Ironica.code_editor import CodeEditor
+
+        class _SlowProcess:
+            def request(self, payload):
+                rid, source = payload[1], payload[2]
+                if rid == 1:
+                    time.sleep(0.3)
+                colour = "#FF0000" if source == "A" else "#00FF00"
+                return ("analysis", rid, [(0, 1, colour)], [])
+
+            def shutdown(self):
+                pass
+
+        monkeypatch.setattr(aw, "AnalysisProcess", lambda: _SlowProcess())
+
+        provider = _AnalysisProvider()
+        provider.remote_analysis = True
+        _register_provider(language_registry, provider)
+        editor = CodeEditor(language="test_lang")
+        try:
+            applied = []
+            editor._apply_semantic_overlays = lambda h: applied.append(list(h))
+
+            manager = editor._analysis_manager
+            manager.request_analysis("A")  # request id 1 — slow
+            manager.request_analysis("B")  # request id 2 — supersedes id 1
+
+            deadline = time.monotonic() + 5
+            while not applied and time.monotonic() < deadline:
+                QTest.qWait(50)
+            QTest.qWait(100)  # give any late stale result a chance to land
+
+            # Only the newest buffer (B) may ever reach the editor.
+            assert applied == [[(0, 1, "#00FF00")]]
+        finally:
+            editor.deleteLater()
+
+    def test_request_analysis_resolves_config_and_theme(
+        self, qapp_instance, language_registry
+    ):
+        from editor.Ironica.code_editor import CodeEditor
+
+        _register_provider(language_registry, _AnalysisProvider())
+        editor = CodeEditor(language="test_lang")
+        try:
+            manager = editor._analysis_manager
+            captured = {}
+
+            def fake_process(rid, source, provider, config, theme_name):
+                captured["rid"] = rid
+                captured["source"] = source
+                captured["config"] = config
+                captured["theme_name"] = theme_name
+
+            manager._worker.process = fake_process
+
+            manager.request_analysis("def foo():\n    pass\n")
+            assert captured["config"]["lang"] == "test_lang"
+            assert captured["theme_name"] == "dark"
+            assert captured["source"] == "def foo():\n    pass\n"
+
+            first_rid = captured["rid"]
+            manager.request_analysis("x = 1\n")
+            assert captured["rid"] == first_rid + 1  # counter bumped per submit
+
+            manager.invalidate()
+            manager.request_analysis("y = 2\n")
+            assert captured["rid"] > first_rid + 1
+        finally:
+            editor.deleteLater()
+
+
+class _FakeEditor:
+    """Minimal editor surface used by ``AnalysisManager._apply_results``."""
+
+    def _apply_semantic_overlays(self, highlights):
+        pass
+
+    def _apply_fold_regions(self, fold_regions):
+        pass
+
+    def _on_analysis_finished(self):
+        pass
 
 
 class TestCodeEditorAnalysisSignals:

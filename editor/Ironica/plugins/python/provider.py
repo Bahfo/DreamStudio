@@ -237,6 +237,10 @@ class PythonLanguageProvider(BaseLanguageProvider):
     delegating source code analysis tasks entirely to an IJediAdapter.
     """
 
+    #: Semantic highlights + folding are computed in a dedicated analysis
+    #: subprocess so the GIL never stalls the main thread on large files.
+    remote_analysis: bool = True
+
     def __init__(
         self,
         adapter: IJediAdapter,

@@ -328,11 +328,17 @@ class TestIncompleteCode:
 
     def test_incomplete_def(self):
         p = PythonSemanticProvider()
-        assert p.get_semantic_ranges("def foo(") == []
+        # Fallback parser can still highlight function names
+        ranges = p.get_semantic_ranges("def foo(")
+        assert len(ranges) == 1
+        assert ranges[0][:2] == (4, 3)
 
     def test_incomplete_import(self):
         p = PythonSemanticProvider()
-        assert p.get_semantic_ranges("from os import") == []
+        # Fallback parser can still highlight module names
+        ranges = p.get_semantic_ranges("from os import")
+        assert len(ranges) == 1
+        assert ranges[0][:2] == (5, 2)
 
     def test_completely_broken(self):
         p = PythonSemanticProvider()

@@ -39,6 +39,9 @@ from editor.Ironica.retheme import resolve_colour
 
 logger = logging.getLogger(__name__)
 
+# Identifier token pattern (bytes-mode: UTF-8 byte offsets must stay intact).
+_RE_WORD = re.compile(rb"[A-Za-z0-9_]+")
+
 
 class LanguageLexer(QsciLexerCustom):
     """A generic keyword-based syntax highlighter driven by a JSON config.
@@ -79,28 +82,102 @@ class LanguageLexer(QsciLexerCustom):
                 return name
         return ""
 
-    def styleText(self, start: int, end: int):
-        """Called by QScintilla to syntax-highlight a text range.
+    def styleText(self, start: int, end: int) -> None:
+        """Syntax-highlight the byte range ``[start, end)``.
 
-        Uses strict word-boundary regex (`\\b`) with exact match
-        offsets.  This eliminates the substring-matching bug where
-        `re.split(r\"(\\W+)\", text)` fragmented identifiers like
-        `STYLE_PAREN_3` and caused partial-keyword collisions.
+        QScintilla passes UTF-8 byte offsets, so ``SCI_GETTEXTRANGE`` is
+        used to fetch only the requested slice — never a full-document
+        ``text()`` string copy.  A small integer state machine tracks
+        default text (``0``), string literals (``1``) and block comments
+        (``2``) so keywords are never styled inside strings or comments.
         """
         editor = self.editor()
         if not editor:
             return
 
-        self.startStyling(start)
-        text = editor.text()[start:end]
+        # SCI_GETTEXTRANGE writes into a caller-supplied buffer; PyQt6
+        # passes the bytearray through by reference and returns the byte
+        # count written.  Only the requested slice is copied — never the
+        # whole document via editor.text().
+        buffer = bytearray(end - start + 1)
+        written = editor.SendScintilla(editor.SCI_GETTEXTRANGE, start, end, buffer)
+        raw = bytes(buffer[:written])
+        if not raw:
+            return
 
-        # Strict word-boundary matching: each match is a whole word
-        # with an exact start offset and length.  No substring matching.
-        for m in re.finditer(r"\b\w+\b", text):
-            word = m.group(0)
-            length = m.end() - m.start()
-            style_idx = self.keywords_map.get(word, 0)
-            self.setStyling(length, style_idx)
+        string_style = self.styles_map.get("string", 0)
+        comment_style = self.styles_map.get("comment", 0)
+
+        self.startStyling(start)
+
+        state = 0
+        quote = 0
+        run_start = 0
+        length = len(raw)
+        i = 0
+
+        while i < length:
+            ch = raw[i]
+
+            # String state: consume until the unescaped closing quote.
+            if state == 1:
+                if ch == 0x5C and i + 1 < length:
+                    i += 2
+                else:
+                    i += 1
+                    if ch == quote:
+                        self.setStyling(i - run_start, string_style)
+                        run_start = i
+                        state = 0
+                continue
+
+            # Block-comment state: consume until the closing ``*/``.
+            if state == 2:
+                if ch == 0x2A and i + 1 < length and raw[i + 1] == 0x2F:
+                    i += 2
+                    self.setStyling(i - run_start, comment_style)
+                    run_start = i
+                    state = 0
+                else:
+                    i += 1
+                continue
+
+            # Enter a string literal (``"`` or ``'``).
+            if ch == 0x22 or ch == 0x27:
+                if i > run_start:
+                    self.setStyling(i - run_start, 0)
+                quote = ch
+                run_start = i
+                state = 1
+                i += 1
+                continue
+
+            # Enter a block comment (``/*``).
+            if ch == 0x2F and i + 1 < length and raw[i + 1] == 0x2A:
+                if i > run_start:
+                    self.setStyling(i - run_start, 0)
+                run_start = i
+                state = 2
+                i += 2
+                continue
+
+            # Identifier in default state — keyword lookup.
+            match = _RE_WORD.match(raw, i)
+            if match:
+                word = raw[match.start():match.end()].decode("ascii")
+                style = self.keywords_map.get(word, 0)
+                if i > run_start:
+                    self.setStyling(i - run_start, 0)
+                self.setStyling(match.end() - i, style)
+                run_start = match.end()
+                i = match.end()
+                continue
+
+            i += 1
+
+        tail_style = string_style if state == 1 else comment_style if state == 2 else 0
+        if length > run_start:
+            self.setStyling(length - run_start, tail_style)
 
 
 class BaseLanguageProvider(ABC):
