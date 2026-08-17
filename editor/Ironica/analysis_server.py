@@ -170,6 +170,40 @@ def _handle_diagnostics(request_id: int, source: str, file_path):
     return ("diagnostics", request_id, diagnostics)
 
 
+_MAX_COMPLETION_ITEMS = 50
+
+
+def _handle_completions(request_id: int, source: str, line: int, col: int, file_path):
+    import jedi
+
+    lines = source.split("\n") if source else [""]
+    jedi_line = max(1, min(line + 1, len(lines)))
+
+    line_len = len(lines[jedi_line - 1]) if 0 < jedi_line <= len(lines) else 0
+    jedi_col = max(0, min(col, line_len))
+
+    script = jedi.Script(code=source, path=file_path)
+    try:
+        comps = script.complete(line=jedi_line, column=jedi_col)
+    except Exception as exc:
+        logger.warning("Jedi complete failed: %s", exc)
+        return ("completions", request_id, [])
+
+    results = []
+    for c in comps:
+        results.append(
+            {
+                "text": c.name,
+                "insert_text": c.complete or c.name,
+                "kind": c.type or "",
+                "signature": "",
+            }
+        )
+        if len(results) >= _MAX_COMPLETION_ITEMS:
+            break
+    return ("completions", request_id, results)
+
+
 def handle_request(payload) -> object:
     """Dispatch one request and return its response payload.
 
@@ -186,6 +220,9 @@ def handle_request(payload) -> object:
         if kind == "diagnostics":
             _, request_id, source, file_path = payload
             return _handle_diagnostics(request_id, source, file_path)
+        if kind == "completions":
+            _, request_id, source, line, col, file_path = payload
+            return _handle_completions(request_id, source, line, col, file_path)
     except Exception as exc:
         logger.exception("analysis-server request failed")
         request_id = payload[1] if len(payload) > 1 else None

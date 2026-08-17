@@ -1,0 +1,107 @@
+{
+    "snippets": "HTML",
+    "Boilerplate": {
+        "HTML5_Document": [
+            "<!DOCTYPE html>",
+            "<html lang=\"en\">",
+            "<head>",
+            "    <meta charset=\"UTF-8\">",
+            "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
+            "    <title>Document Title</title>",
+            "    <link rel=\"stylesheet\" href=\"style.css\">",
+            "</head>",
+            "<body>",
+            "",
+            "    <script src=\"script.js\"></script>",
+            "</body>",
+            "</html>"
+        ],
+        "Meta_Tags": [
+            "<meta charset=\"UTF-8\">",
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
+            "<meta name=\"description\" content=\"Page description goes here\">",
+            "<meta name=\"author\" content=\"Author Name\">",
+            "<meta property=\"og:title\" content=\"Social Title\">",
+            "<meta property=\"og:image\" content=\"image.jpg\">"
+        ]
+    },
+    "Layout_Components": {
+        "Semantic_Structure": [
+            "<header>",
+            "    <nav>",
+            "        <a href=\"#\">Home</a>",
+            "        <a href=\"#\">About</a>",
+            "    </nav>",
+            "</header>",
+            "<main>",
+            "    <section>",
+            "        <article>",
+            "            <h2>Article Header</h2>",
+            "            <p>Main content text...</p>",
+            "        </article>",
+            "    </section>",
+            "    <aside>",
+            "        <h3>Sidebar</h3>",
+            "    </aside>",
+            "</main>",
+            "<footer>",
+            "    <p>&copy; 2026 All Rights Reserved.</p>",
+            "</footer>"
+        ],
+        "Card_Module": [
+            "<div class=\"card\">",
+            "    <img src=\"image.jpg\" alt=\"Card Image\">",
+            "    <div class=\"card-body\">",
+            "        <h3 class=\"card-title\">Card Title</h3>",
+            "        <p class=\"card-text\">Card description text goes here.</p>",
+            "        <a href=\"#\" class=\"card-btn\">Read More</a>",
+            "    </div>",
+            "</div>"
+        ]
+    },
+    "Form_Elements": {
+        "Standard_Form": [
+            "<form action=\"/submit\" method=\"POST\">",
+            "    <div class=\"form-group\">",
+            "        <label for=\"email\">Email address</label>",
+            "        <input type=\"email\" id=\"email\" name=\"email\" placeholder=\"name@example.com\" required>",
+            "    </div>",
+            "    <div class=\"form-group\">",
+            "        <label for=\"password\">Password</label>",
+            "        <input type=\"password\" id=\"password\" name=\"password\" required>",
+            "    </div>",
+            "    <button type=\"submit\">Submit</button>",
+            "</form>"
+        ],
+        "Input_Controls": [
+            "<input type=\"text\" placeholder=\"Text input\">",
+            "<input type=\"number\" min=\"0\" max=\"100\" step=\"1\">",
+            "<input type=\"checkbox\" id=\"check\"><label for=\"check\">Checkbox</label>",
+            "<input type=\"radio\" id=\"radio1\" name=\"group\"><label for=\"radio1\">Radio</label>",
+            "<select name=\"dropdown\">",
+            "    <option value=\"\" disabled selected>Select an option</option>",
+            "    <option value=\"1\">Option 1</option>",
+            "</select>",
+            "<textarea rows=\"4\" cols=\"50\" placeholder=\"Multi-line text...\"></textarea>"
+        ]
+    },
+    "Media_Embeds": {
+        "Responsive_Picture": [
+            "<picture>",
+            "    <source media=\"(min-width: 800px)\" srcset=\"large.jpg\">",
+            "    <source media=\"(min-width: 450px)\" srcset=\"medium.jpg\">",
+            "    <img src=\"small.jpg\" alt=\"Responsive image description\">",
+            "</picture>"
+        ],
+        "Media_Players": [
+            "<video controls width=\"640\" height=\"360\">",
+            "    <source src=\"video.mp4\" type=\"video/mp4\">",
+            "    Your browser does not support the video tag.",
+            "</video>",
+            "<audio controls>",
+            "    <source src=\"audio.mp3\" type=\"audio/mpeg\">",
+            "    Your browser does not support the audio element.",
+            "</audio>"
+        ]
+    }
+}

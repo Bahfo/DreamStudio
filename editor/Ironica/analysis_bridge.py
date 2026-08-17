@@ -46,9 +46,7 @@ def _read_exact(stream, n: int) -> bytes:
     while remaining > 0:
         chunk = stream.read(remaining)
         if not chunk:
-            raise AnalysisProcessError(
-                "analysis subprocess closed its output stream"
-            )
+            raise AnalysisProcessError("analysis subprocess closed its output stream")
         chunks.append(chunk)
         remaining -= len(chunk)
     return b"".join(chunks)
@@ -98,7 +96,9 @@ class AnalysisProcess:
 
     def _root_dir(self) -> str:
         # <root>/editor/Ironica/analysis_bridge.py -> <root>
-        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
 
     def _drain_stderr(self, stream) -> None:
         try:
@@ -126,7 +126,9 @@ class AnalysisProcess:
             env = dict(os.environ)
             pythonpath = env.get("PYTHONPATH", "")
             if root not in pythonpath.split(os.pathsep):
-                env["PYTHONPATH"] = root + (os.pathsep + pythonpath if pythonpath else "")
+                env["PYTHONPATH"] = root + (
+                    os.pathsep + pythonpath if pythonpath else ""
+                )
 
             self._proc = subprocess.Popen(
                 [sys.executable, self._server_script()],
@@ -162,24 +164,31 @@ class AnalysisProcess:
             pass
 
     def request(self, payload) -> object:
-        """Send *payload* to the server and block for its reply.
-
-        The pipe lock is held for the whole write/read round-trip so at
-        most one request is in flight against the child at a time.
-        """
+        """Send *payload* to the server and block for its reply."""
         with self._pipe_lock:
             if self._shutdown_requested:
-                raise AnalysisProcessError(
-                    "analysis subprocess is shut down"
-                )
+                raise AnalysisProcessError("analysis subprocess is shut down")
             proc = self._proc
             if proc is None or proc.poll() is not None:
                 self.start()
                 proc = self._proc
             if proc is None:
                 raise AnalysisProcessError("unable to start analysis subprocess")
-            write_frame(proc.stdin, payload)
-            return read_frame(proc.stdout)
+
+            try:
+                write_frame(proc.stdin, payload)
+                return read_frame(proc.stdout)
+            except (BrokenPipeError, OSError, pickle.PickleError) as exc:
+                logger.warning(
+                    "Analysis subprocess IPC failed, resetting handle: %s", exc
+                )
+                if self._proc is not None:
+                    try:
+                        self._proc.kill()
+                    except Exception:
+                        pass
+                    self._proc = None
+                raise AnalysisProcessError(f"IPC communication failure: {exc}")
 
     def shutdown(self) -> None:
         """Request a graceful shutdown without blocking the caller.

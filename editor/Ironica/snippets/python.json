@@ -1,0 +1,200 @@
+{
+    "snippets": "Python",
+    "Boilerplate": {
+        "Class": [
+            "class ClassName:",
+            "    def __init__(self):",
+            "        pass"
+        ],
+        "Main": [
+            "if __name__ == '__main__':",
+            "    # Put your code next",
+            "    pass"
+        ]
+    },
+    "PyQt6_Boilerplate": {
+        "Application": [
+            "import sys",
+            "from PyQt6.QtWidgets import QApplication, QMainWindow",
+            "",
+            "class MainWindow(QMainWindow):",
+            "    def __init__(self):",
+            "        super().__init__()",
+            "        self.setMinimumSize(400, 300)",
+            "        self.setWindowTitle('PyQt6 App')",
+            "",
+            "if __name__ == '__main__':",
+            "    app = QApplication(sys.argv)",
+            "    window = MainWindow()",
+            "    window.show()",
+            "    sys.exit(app.exec())"
+        ],
+        "MetaWidget": [
+            "from PyQt6.QtWidgets import QWidget",
+            "",
+            "class NewWidget(QWidget):",
+            "    def __init__(self, parent=None):",
+            "        super().__init__(parent)"
+        ],
+        "StandardApp": [
+            "import sys",
+            "from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget",
+            "",
+            "class MainWindow(QMainWindow):",
+            "    def __init__(self):",
+            "        super().__init__()",
+            "        self.setWindowTitle('Object-Oriented PyQt6 App')",
+            "        self.setGeometry(100, 100, 500, 400)",
+            "        self.init_ui()",
+            "",
+            "    def init_ui(self):",
+            "        container = QWidget()",
+            "        layout = QVBoxLayout()",
+            "        self.label = QLabel('Click the button to update this text')",
+            "        self.button = QPushButton('Click Me')",
+            "        self.button.clicked.connect(self.on_button_clicked)",
+            "        layout.addWidget(self.label)",
+            "        layout.addWidget(self.button)",
+            "        container.setLayout(layout)",
+            "        self.setCentralWidget(container)",
+            "",
+            "    def on_button_clicked(self):",
+            "        self.label.setText('The button was clicked successfully!')",
+            "",
+            "if __name__ == '__main__':",
+            "    app = QApplication(sys.argv)",
+            "    window = MainWindow()",
+            "    window.show()",
+            "    sys.exit(app.exec())"
+        ],
+        "WorkerThread": [
+            "from PyQt6.QtCore import QThread, pyqtSignal",
+            "",
+            "class Worker(QThread):",
+            "    finished = pyqtSignal()",
+            "    progress = pyqtSignal(int)",
+            "",
+            "    def run(self):",
+            "        for i in range(100):",
+            "            self.progress.emit(i + 1)",
+            "        self.finished.emit()"
+        ]
+    },
+    "Flask_Boilerplate": {
+        "BasicApp": [
+            "from flask import Flask",
+            "",
+            "app = Flask(__name__)",
+            "",
+            "@app.route('/')",
+            "def home():",
+            "    return 'Hello World'",
+            "",
+            "if __name__ == '__main__':",
+            "    app.run(debug=True)"
+        ],
+        "REST_API": [
+            "from flask import Flask, jsonify, request",
+            "",
+            "app = Flask(__name__)",
+            "",
+            "@app.route('/api/resource', methods=['GET', 'POST'])",
+            "def handle_resource():",
+            "    if request.method == 'POST':",
+            "        data = request.get_json()",
+            "        return jsonify({'status': 'created', 'data': data}), 201",
+            "    return jsonify({'status': 'ok'}), 200",
+            "",
+            "if __name__ == '__main__':",
+            "    app.run(debug=True)"
+        ]
+    },
+    "PyTorch_Boilerplate": {
+        "CustomModel": [
+            "import torch",
+            "import torch.nn as nn",
+            "",
+            "class SimpleModel(nn.Module):",
+            "    def __init__(self, input_dim, hidden_dim, output_dim):",
+            "        super().__init__()",
+            "        self.net = nn.Sequential(",
+            "            nn.Linear(input_dim, hidden_dim),",
+            "            nn.ReLU(),",
+            "            nn.Linear(hidden_dim, output_dim)",
+            "        )",
+            "",
+            "    def forward(self, x):",
+            "        return self.net(x)"
+        ],
+        "Dataset": [
+            "import torch",
+            "from torch.utils.data import Dataset",
+            "",
+            "class CustomDataset(Dataset):",
+            "    def __init__(self, data, labels):",
+            "        self.data = data",
+            "        self.labels = labels",
+            "",
+            "    def __len__(self):",
+            "        return len(self.data)",
+            "",
+            "    def __getitem__(self, idx):",
+            "        return self.data[idx], self.labels[idx]"
+        ],
+        "TrainingLoop": [
+            "import torch",
+            "import torch.nn as nn",
+            "import torch.optim as optim",
+            "",
+            "device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')",
+            "model = SimpleModel(10, 64, 2).to(device)",
+            "criterion = nn.CrossEntropyLoss()",
+            "optimizer = optim.Adam(model.parameters(), lr=0.001)",
+            "",
+            "model.train()",
+            "for epoch in range(num_epochs):",
+            "    for inputs, targets in dataloader:",
+            "        inputs, targets = inputs.to(device), targets.to(device)",
+            "        optimizer.zero_grad()",
+            "        outputs = model(inputs)",
+            "        loss = criterion(outputs, targets)",
+            "        loss.backward()",
+            "        optimizer.step()"
+        ]
+    },
+    "TensorFlow_Boilerplate": {
+        "KerasSequential": [
+            "import tensorflow as tf",
+            "from tensorflow.keras import layers, models",
+            "",
+            "def create_model(input_shape, num_classes):",
+            "    model = models.Sequential([",
+            "        layers.Input(shape=input_shape),",
+            "        layers.Dense(128, activation='relu'),",
+            "        layers.Dropout(0.2),",
+            "        layers.Dense(num_classes, activation='softmax')",
+            "    ])",
+            "    model.compile(",
+            "        optimizer='adam',",
+            "        loss='sparse_categorical_crossentropy',",
+            "        metrics=['accuracy']",
+            "    )",
+            "    return model"
+        ],
+        "CustomTrainingStep": [
+            "import tensorflow as tf",
+            "",
+            "loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()",
+            "optimizer = tf.keras.optimizers.Adam()",
+            "",
+            "@tf.function",
+            "def train_step(model, x, y):",
+            "    with tf.GradientTape() as tape:",
+            "        predictions = model(x, training=True)",
+            "        loss = loss_fn(y, predictions)",
+            "    grads = tape.gradient(loss, model.trainable_variables)",
+            "    optimizer.apply_gradients(zip(grads, model.trainable_variables))",
+            "    return loss"
+        ]
+    }
+}

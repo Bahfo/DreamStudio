@@ -64,6 +64,7 @@ class Fonts:
     FONT_INTER: str = "Inter"
     FONT_CASCADIA_CODE: str = "Cascadia Code"
     FONT_FIRA_CODE: str = "Fira Code"
+    FONT_JETBRAINS_MONO: str = "Jetbrains Mono"
 
     _registered_families: list[str] = []
 
@@ -99,10 +100,7 @@ class Fonts:
     @classmethod
     def ui_families(cls) -> list[str]:
         """Return registered families suitable for UI use (non-monospace)."""
-        return [
-            f for f in cls._registered_families
-            if f not in _MONOSPACE_FAMILIES
-        ]
+        return [f for f in cls._registered_families if f not in _MONOSPACE_FAMILIES]
 
     @classmethod
     def ensure_font(cls, family: str) -> str | None:
@@ -224,6 +222,12 @@ class Fonts:
     def fira_code_bold(cls, size: int = 10) -> QFont:
         font = QFont("Fira Code", size)
         font.setWeight(QFont.Weight.Bold)
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        return font
+
+    @classmethod
+    def jetbrains_mono(cls, size: int = 10) -> QFont:
+        font = QFont("Jetbrains Mono", size)
         font.setStyleHint(QFont.StyleHint.Monospace)
         return font
 

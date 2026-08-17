@@ -311,6 +311,13 @@ class DreamTabbedEditor(QDreamTabEditor):
                     parent=code_editor,
                 )
 
+            if provider and hasattr(provider, "create_completion_manager"):
+                provider.create_completion_manager(
+                    editor=code_editor,
+                    file_path=file_path,
+                    parent=code_editor,
+                )
+
         if isinstance(new_editor, MiniMapHostWidget):
             if hasattr(self._parent, "update_position_status"):
                 new_editor.position_changed.connect(self._parent.update_position_status)
@@ -433,6 +440,8 @@ class DreamTabbedEditor(QDreamTabEditor):
         if not editor:
             return
 
+        code_editor = self._unwrap_code_editor(editor)
+
         for cb in self._close_interceptors:
             try:
                 result = cb(index, editor)
@@ -442,7 +451,7 @@ class DreamTabbedEditor(QDreamTabEditor):
                 logger.debug("Close interceptor error: %s", e)
 
         # Stop any active debug session whose target file is being closed.
-        closing_path = getattr(editor, "current_file_path", None)
+        closing_path = getattr(code_editor, "current_file_path", None)
         if closing_path:
             parent = self._parent
             while parent is not None:
@@ -463,10 +472,9 @@ class DreamTabbedEditor(QDreamTabEditor):
             except (TypeError, RuntimeError):
                 pass
 
-        if hasattr(editor, "_diag_manager"):
-            editor._diag_manager.shutdown()
+        if hasattr(code_editor, "_diag_manager"):
+            code_editor._diag_manager.shutdown()
 
-        code_editor = self._unwrap_code_editor(editor)
         if code_editor is not None:
             if hasattr(code_editor, "_analysis_manager"):
                 try:
@@ -481,9 +489,9 @@ class DreamTabbedEditor(QDreamTabEditor):
                     except (TypeError, RuntimeError):
                         pass
 
-        if hasattr(editor, "textChanged"):
+        if code_editor is not None and hasattr(code_editor, "textChanged"):
             try:
-                editor.textChanged.disconnect()
+                code_editor.textChanged.disconnect()
             except (TypeError, RuntimeError):
                 pass
 
@@ -652,10 +660,11 @@ class DreamTabbedEditor(QDreamTabEditor):
         editor = self.currentWidget()
         if not editor or not hasattr(editor, "save"):
             return
-        was_unsaved = not getattr(editor, "current_file_path", None)
-        editor.save()
-        if was_unsaved and getattr(editor, "current_file_path", None):
-            self._reopen_saved_tab(editor)
+        code_editor = self._unwrap_code_editor(editor) or editor
+        was_unsaved = not getattr(code_editor, "current_file_path", None)
+        code_editor.save()
+        if was_unsaved and getattr(code_editor, "current_file_path", None):
+            self._reopen_saved_tab(code_editor)
             return
         self.tabBar().rebuild_dirty_indices()
 
@@ -664,11 +673,12 @@ class DreamTabbedEditor(QDreamTabEditor):
         editor = self.currentWidget()
         if not editor or not hasattr(editor, "save_as"):
             return
-        old_path = getattr(editor, "current_file_path", None)
-        editor.save_as()
-        new_path = getattr(editor, "current_file_path", None)
+        code_editor = self._unwrap_code_editor(editor) or editor
+        old_path = getattr(code_editor, "current_file_path", None)
+        code_editor.save_as()
+        new_path = getattr(code_editor, "current_file_path", None)
         if new_path and new_path != old_path:
-            self._reopen_saved_tab(editor)
+            self._reopen_saved_tab(code_editor)
             return
         self.tabBar().rebuild_dirty_indices()
 
@@ -688,8 +698,9 @@ class DreamTabbedEditor(QDreamTabEditor):
         """Save every open editor that has a file path."""
         for i in range(self.count()):
             editor = self.widget(i)
-            if editor and hasattr(editor, "save") and editor.current_file_path:
-                editor.save()
+            code_editor = self._unwrap_code_editor(editor) or editor
+            if code_editor and hasattr(code_editor, "save") and code_editor.current_file_path:
+                code_editor.save()
         self.tabBar().rebuild_dirty_indices()
 
     # ------------------------------------------------------------------

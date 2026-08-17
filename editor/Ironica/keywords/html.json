@@ -1,0 +1,65 @@
+{
+    "lang": "html",
+    "extensions": ["html", "htm", "xhtml"],
+    "styles": {
+        "keyword": "KEYWORD_COLOR",
+        "tag": "TAG_COLOR",
+        "attribute": "ATTRIBUTE_COLOR",
+        "value": "VALUE_COLOR",
+        "string": "STRING_COLOR",
+        "number": "NUMBER_COLOR",
+        "comment": "COMMENT_COLOR",
+        "operator": "OPERATOR_COLOR"
+    },
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "TAG_COLOR": "#569CD6",
+        "ATTRIBUTE_COLOR": "#9CDCFE",
+        "VALUE_COLOR": "#CE9178",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "OPERATOR_COLOR": "#D4D4D4"
+    },
+    "keywords": {
+        "tag": [
+            "html", "head", "body", "title", "meta", "link", "script", "style",
+            "div", "span", "p", "a", "h1", "h2", "h3", "h4", "h5", "h6",
+            "ul", "ol", "li", "table", "thead", "tbody", "tfoot", "tr", "td", "th",
+            "form", "input", "textarea", "select", "option", "button", "label",
+            "img", "video", "audio", "source", "canvas", "svg",
+            "header", "footer", "nav", "main", "section", "article", "aside",
+            "strong", "em", "small", "code", "pre", "blockquote",
+            "br", "hr", "iframe", "embed", "object", "param"
+        ],
+        "attribute": [
+            "class", "id", "style", "type", "name", "value", "href", "src",
+            "alt", "title", "width", "height", "target", "rel",
+            "placeholder", "required", "disabled", "readonly", "checked",
+            "action", "method", "enctype", "accept", "multiple",
+            "onclick", "onchange", "onsubmit", "onload", "onerror",
+            "data", "role", "aria", "tabindex", "hidden", "draggable",
+            "colspan", "rowspan", "scope", "align", "valign",
+            "charset", "content", "http-equiv", "lang", "dir",
+            "controls", "autoplay", "loop", "muted", "poster",
+            "for", "form", "formaction", "min", "max", "step", "pattern",
+            "autofocus", "autocomplete", "list", "spellcheck", "translate"
+        ],
+        "value": [
+            "true", "false", "null", "none", "auto",
+            "text", "password", "email", "number", "url", "tel", "search", "date",
+            "submit", "reset", "button", "image",
+            "GET", "POST", "PUT", "DELETE",
+            "utf-8", "utf-16", "iso-8859-1",
+            "stylesheet", "script", "icon", "shortcut icon",
+            "noopener", "noreferrer", "_blank", "_self", "_parent", "_top",
+            "hidden", "visible", "scroll", "left", "right", "center",
+            "block", "inline", "flex", "grid", "table", "inline-block"
+        ],
+        "keyword": [
+            "doctype", "DOCTYPE", "html", "head", "body",
+            "if", "endif", "else", "elseif"
+        ],
+        "operator": []
+    }
+}

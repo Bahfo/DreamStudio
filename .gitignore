@@ -60,5 +60,8 @@ local.properties
 # Tests
 **/tests/
 
+# Plans
+/plans
+
 # Temporary Ignoring
 # Nothing for now
