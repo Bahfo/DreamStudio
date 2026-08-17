@@ -135,8 +135,26 @@ def _ensure_plugins_json() -> dict[str, Any]:
     return config
 
 
+def _persist_plugins_config(config: dict[str, Any]) -> None:
+    """Write *config* to ``plugins.json`` on disk.
+
+    Logs an error on failure but never raises — callers treat this as
+    best-effort bookkeeping.
+    """
+    try:
+        _PLUGINS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_PLUGINS_JSON_PATH, "w", encoding="utf-8") as fh:
+            json.dump(config, fh, indent=4)
+    except OSError as exc:
+        logger.error("Failed to persist plugins.json: %s", exc)
+
+
 def load_plugins_config() -> dict[str, Any]:
     """Load and validate the plugins config, auto-creating if needed.
+
+    Merges any newly discovered languages from the filesystem that are
+    missing from the saved ``plugins.json``, so adding a keyword JSON or
+    provider directory is enough to register a language on next launch.
 
     Returns:
         The validated config dict.
@@ -155,6 +173,18 @@ def load_plugins_config() -> dict[str, Any]:
     if not isinstance(raw, dict) or "plugins" not in raw:
         logger.warning("plugins.json has invalid structure, regenerating")
         return _ensure_plugins_json()
+
+    # Merge any newly discovered languages not yet in the saved config.
+    discovered = _auto_discover()
+    saved_plugins = raw.setdefault("plugins", {})
+    merged = False
+    for lang, spec in discovered.get("plugins", {}).items():
+        if lang not in saved_plugins:
+            saved_plugins[lang] = spec
+            merged = True
+            logger.info("Merged newly discovered language %r into plugins.json", lang)
+    if merged:
+        _persist_plugins_config(raw)
 
     return raw
 

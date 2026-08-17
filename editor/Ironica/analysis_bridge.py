@@ -46,9 +46,7 @@ def _read_exact(stream, n: int) -> bytes:
     while remaining > 0:
         chunk = stream.read(remaining)
         if not chunk:
-            raise AnalysisProcessError(
-                "analysis subprocess closed its output stream"
-            )
+            raise AnalysisProcessError("analysis subprocess closed its output stream")
         chunks.append(chunk)
         remaining -= len(chunk)
     return b"".join(chunks)
@@ -98,7 +96,9 @@ class AnalysisProcess:
 
     def _root_dir(self) -> str:
         # <root>/editor/Ironica/analysis_bridge.py -> <root>
-        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
 
     def _drain_stderr(self, stream) -> None:
         try:
@@ -126,7 +126,9 @@ class AnalysisProcess:
             env = dict(os.environ)
             pythonpath = env.get("PYTHONPATH", "")
             if root not in pythonpath.split(os.pathsep):
-                env["PYTHONPATH"] = root + (os.pathsep + pythonpath if pythonpath else "")
+                env["PYTHONPATH"] = root + (
+                    os.pathsep + pythonpath if pythonpath else ""
+                )
 
             self._proc = subprocess.Popen(
                 [sys.executable, self._server_script()],
@@ -169,9 +171,7 @@ class AnalysisProcess:
         """
         with self._pipe_lock:
             if self._shutdown_requested:
-                raise AnalysisProcessError(
-                    "analysis subprocess is shut down"
-                )
+                raise AnalysisProcessError("analysis subprocess is shut down")
             proc = self._proc
             if proc is None or proc.poll() is not None:
                 self.start()

@@ -7,6 +7,7 @@ This code is protected under the GPLv3 License.
 
 # Written By Bahaa Nofal - 26/May/2026
 
+import json
 import logging
 import pathlib
 import stat
@@ -31,18 +32,28 @@ from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QApplication, QColorDialog
 from PyQt6.Qsci import QsciScintilla
 
+from editor.Ironica.language_engine import LanguageRegistry, BaseLanguageProvider
 from editor.Ironica.utils.documentation_flayout import DocumentationFlyout
 from editor.Ironica.utils.hover_controller import HoverController
+from editor.Ironica.utils.completion import CompletionController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
-from editor.Ironica.language_engine import LanguageRegistry, BaseLanguageProvider
-from editor.Ironica.regex import IronicaLexer
 from editor.Ironica.analysis_worker import AnalysisManager
+from editor.Ironica.regex import IronicaLexer
 
 from fonts.font_strapper import Fonts
 
 logger = logging.getLogger(__name__)
 SCI_SETDEFAULTFOLDDISPLAYTEXT = 2722
 SCI_SETFOLDEXPANDEDTEXT = 2700
+
+_EDITOR_DIR = pathlib.Path(__file__).parent
+SNIPPETS_PYTHON = str(_EDITOR_DIR / "snippets" / "python.json")
+SNIPPETS_HTML = str(_EDITOR_DIR / "snippets" / "html.json")
+
+_SNIPPET_FILES = {
+    "python": SNIPPETS_PYTHON,
+    "html": SNIPPETS_HTML,
+}
 
 
 class CodeEditor(QsciScintilla):
@@ -150,6 +161,11 @@ class CodeEditor(QsciScintilla):
             self._update_debug_stack_position
         )
 
+        ###############################################
+        # Snippets Management
+        ###############################################
+        self.snippet_map = {}
+        self._is_replacing = False
         self.textChanged.connect(self._on_text_changed)
 
         ###############################################
@@ -181,7 +197,7 @@ class CodeEditor(QsciScintilla):
         # the expensive fold-toggle round-trip.
         self._fold_display_text_cache: dict = {}
 
-        self._font = Fonts.fira_code(10)
+        self._font = Fonts.jetbrains_mono(11)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
@@ -228,6 +244,11 @@ class CodeEditor(QsciScintilla):
 
         self.retheme(self._active_theme())
 
+        ###############################################
+        # Completion
+        ###############################################
+        self._autocompletion_widget = CompletionController(self)
+
     # ------------------------------------------------------------------
     # Dirty state
     # ------------------------------------------------------------------
@@ -240,8 +261,94 @@ class CodeEditor(QsciScintilla):
             self._schedule_fold_recompute()
         if self.current_provider:
             provider_cls = type(self.current_provider)
-            if provider_cls.get_semantic_highlights is not BaseLanguageProvider.get_semantic_highlights:
+            if (
+                provider_cls.get_semantic_highlights
+                is not BaseLanguageProvider.get_semantic_highlights
+            ):
                 self._import_highlight_timer.start()
+
+        if self._is_replacing:
+            return
+
+        line, col = self.getCursorPosition()
+        line_text = self.text(line)[:col]
+
+        for trigger, content in self.snippet_map.items():
+            if line_text.endswith(trigger):
+                QTimer.singleShot(
+                    0,
+                    lambda t=trigger, c=content, l=line, cl=col: self._expand_snippet(
+                        l, cl, t, c
+                    ),
+                )
+                break
+
+    ############################################
+    # Snippets Manager
+    ############################################
+
+    def load_snippets(self, snippets_path: str) -> None:
+        """Load snippet definitions from a JSON file into ``snippet_map``.
+
+        Args:
+            snippets_path: Absolute path to a JSON file containing
+                nested snippet definitions.
+        """
+        self.snippet_map.clear()
+        path = pathlib.Path(snippets_path)
+        if not path.is_file():
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.debug("Failed to load snippets from %s: %s", path, exc)
+            return
+        self._extract_snippets(data)
+
+    def _extract_snippets(self, data) -> None:
+        """Recursively flatten nested snippet dicts into ``snippet_map``."""
+        if isinstance(data, dict):
+            for key, val in data.items():
+                if isinstance(val, list):
+                    self.snippet_map[f"/{key}"] = "\n".join(val)
+                elif isinstance(val, dict):
+                    self._extract_snippets(val)
+
+    def _expand_snippet(self, line: int, col: int, trigger: str, content: str) -> None:
+        self._is_replacing = True
+        start_col = col - len(trigger)
+        line_text = self.text(line)
+
+        indentation = line_text[: len(line_text) - len(line_text.lstrip())]
+
+        formatted_lines = content.split("\n")
+        if len(formatted_lines) > 1:
+            indented_content = (
+                formatted_lines[0]
+                + "\n"
+                + "\n".join(indentation + l for l in formatted_lines[1:])
+            )
+        else:
+            indented_content = formatted_lines[0]
+
+        self.beginUndoAction()
+        self.setSelection(line, start_col, line, col)
+        self.replaceSelectedText(indented_content)
+
+        end_line = line + len(formatted_lines) - 1
+        if len(formatted_lines) == 1:
+            end_col = start_col + len(formatted_lines[0])
+        else:
+            end_col = len(indentation) + len(formatted_lines[-1])
+
+        self.setCursorPosition(end_line, end_col)
+        self.endUndoAction()
+        self._is_replacing = False
+
+    ############################################
+    # Folds Manager
+    ############################################
 
     def _schedule_fold_recompute(self) -> None:
         """Debounce fold recomputation on text change."""
@@ -272,6 +379,10 @@ class CodeEditor(QsciScintilla):
             self._analysis_active = True
             self.analysis_started.emit()
         self._analysis_manager.request_analysis(text)
+
+    ############################################
+    # Analysis Manager
+    ############################################
 
     def _on_analysis_finished(self) -> None:
         """Clear the active-analysis flag and notify listeners."""
@@ -362,9 +473,9 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Fold application failed: %s", exc)
 
-    # ------------------------------------------------------------------
-    # Zooming Actions
-    # ------------------------------------------------------------------
+    ############################################
+    # Zoom Manager
+    ############################################
 
     def _get_zoom_level(self) -> int:
         """
@@ -390,9 +501,9 @@ class CodeEditor(QsciScintilla):
         # IDK WHY I ADDED THIS...
         self.zoomTo(0)
 
-    # ------------------------------------------------------------------
-    # Hover flyout engine
-    # ------------------------------------------------------------------
+    ############################################
+    # Hover Manager
+    ############################################
 
     def _setup_hover_engine(self) -> None:
         """Create and attach the DocumentationFlyout + HoverController."""
@@ -430,9 +541,9 @@ class CodeEditor(QsciScintilla):
         if self._hover_flyout and self._hover_flyout.isVisible():
             self._hover_flyout.dismiss(force=force)
 
-    # ------------------------------------------------------------------
-    # Setup helpers
-    # ------------------------------------------------------------------
+    ############################################
+    # Helpers
+    ############################################
 
     def _setup_indentation(self) -> None:
         """Configure indentation, tab width, and backspace behaviour."""
@@ -452,6 +563,10 @@ class CodeEditor(QsciScintilla):
         mid = bg.lighter(130) if bg.lightness() < 128 else bg.darker(115)
         border = bg.lighter(150) if bg.lightness() < 128 else bg.darker(130)
         return bg, text, mid, border
+
+    ############################################
+    # Margins
+    ############################################
 
     def setup_symbol_margin(
         self, margin: int, *marker_ids: int, width: int = 18
@@ -633,7 +748,9 @@ class CodeEditor(QsciScintilla):
             self.BRACKET_HL_SLOT,
             self._scintilla_rgb(match),
         )
-        self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_HL_SLOT, match_alpha)
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_HL_SLOT, match_alpha
+        )
         self.SendScintilla(
             QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_HL_SLOT, outline
         )
@@ -1318,11 +1435,18 @@ class CodeEditor(QsciScintilla):
             self.setLexer(None)
             self.current_lang = None
             self.current_provider = None
+            self.snippet_map.clear()
             return
 
         self.current_lang = lang
         self.current_provider = LanguageRegistry.get_provider(lang)
         config = LanguageRegistry.get_config(lang)
+
+        snippet_file = _SNIPPET_FILES.get(lang.lower())
+        if snippet_file:
+            self.load_snippets(snippet_file)
+        else:
+            self.snippet_map.clear()
 
         if config:
             self._lexer = self._create_lexer(lang, self._resolve_config(config))

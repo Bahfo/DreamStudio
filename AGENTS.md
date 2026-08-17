@@ -11,12 +11,9 @@
 ## Project Invariants
 - Some subdirectories may contain their own AGENTS/.AI instructions; follow them when present.
 - `.poly` files, if any found, are the build files for the system. These must NOT be updated unless it is explicitly said to update them. 
-- `UPDATES.md` is a file that contains all changes or commits that will be added/committed into the repository. 
 
 ## Specific Rules: 
 - All other rules are contained inside `.ai/` folder. It contains `styles.md` and `styles.yaml`. 
-- `UPDATES.md` must be used after each change made. Whenever a change is completely made (*Example*: a bug fixed, a new addition or feature, a crash or a bug-trace are fixed) then, the file must be populated with the change. This file is a metadata file. You must populate each update in the following format: 
-
 ```
 ---
 #### Changes in Fix - (FIX_ID)
