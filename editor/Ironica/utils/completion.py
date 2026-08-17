@@ -1,18 +1,11 @@
 # (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
 """
-IntelliJ-style completion popup for a QScintilla editor.
-
-The completion popup is intentionally implemented as a small stateful UI:
-- the list and hint bar are part of the same popup window;
-- popup geometry is calculated from content and available screen space;
-- clicks/focus changes outside the popup close it;
-- editor navigation and context changes invalidate the popup;
-- Up/Down/PageUp/PageDown navigate without closing;
-- Enter/Tab commit the current item and Escape cancels it.
+The main completion widget for Ironica.
 """
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
@@ -25,12 +18,16 @@ from PyQt6.QtCore import (
     QRect,
     QSize,
     Qt,
+    QTimer,
 )
+from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtGui import (
+    QFont,
     QFontMetrics,
     QPainter,
     QColor,
     QIcon,
+    QPalette,
 )
 from PyQt6.QtWidgets import (
     QStyleOptionViewItem,
@@ -67,7 +64,7 @@ class CompletionItem:
 
 
 class CompletionDelegate(QStyledItemDelegate):
-    """Paints one completion row without depending on an external icon theme."""
+    """Paints one completion row with icon/badge rendering."""
 
     ROW_HEIGHT = 30
     ICON_SIZE = 18
@@ -76,15 +73,58 @@ class CompletionDelegate(QStyledItemDelegate):
     RIGHT_PADDING = 10
     SIGNATURE_GAP = 18
 
+    # Absolute icon directory resolution relative to this file
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _ICON_DIR = os.path.join(_BASE_DIR, "assets", "editor")
+
+    _KIND_ICON_MAP = {
+        "function": "function.png",
+        "method": "function.png",
+        "class": "class.png",
+        "module": "module.png",
+        "keyword": "keyword.png",
+        "builtin": "keyword.png",
+        "variable": "variable.png",
+        "instance": "variable.png",
+        "property": "property.png",
+        "param": "parameter.png",
+        "parameter": "parameter.png",
+        "enum": "enum.png",
+        "import": "module.png",
+        "statement": "text.png",
+        "text": "text.png",
+        "path": "path.png",
+        "symbol-text": "text.png",
+    }
+
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
 
         self.color_selected = QColor("#2A2D32")
+        self.color_hover = QColor("#2A2D32")
         self.color_normal = QColor("#D4D4D4")
         self.color_match = QColor("#4EB0CC")
         self.color_signature = QColor("#858585")
         self.color_icon = QColor("#4FC1FF")
         self.color_method = QColor("#C586C0")
+
+    def retheme(self, bg: QColor, fg: QColor, sel: QColor) -> None:
+        if bg.lightness() < 128:
+            self.color_selected = bg.lighter(135)
+            self.color_hover = bg.lighter(120)
+            self.color_normal = fg
+            self.color_signature = fg.darker(140)
+            self.color_match = sel if sel.isValid() else QColor("#4EB0CC")
+            self.color_icon = sel if sel.isValid() else QColor("#4FC1FF")
+            self.color_method = fg.lighter(130)
+        else:
+            self.color_selected = bg.darker(110)
+            self.color_hover = bg.darker(105)
+            self.color_normal = fg
+            self.color_signature = fg.darker(130)
+            self.color_match = sel if sel.isValid() else QColor("#4EB0CC")
+            self.color_icon = sel if sel.isValid() else QColor("#4FC1FF")
+            self.color_method = fg.darker(120)
 
     def sizeHint(self, option: QStyleOptionViewItem, index) -> QSize:
         item: Optional[CompletionItem] = index.data(Qt.ItemDataRole.UserRole)
@@ -128,6 +168,8 @@ class CompletionDelegate(QStyledItemDelegate):
                 rect.height(),
                 self.color_match,
             )
+        elif option.state & QStyle.StateFlag.State_MouseOver:
+            painter.fillRect(rect, self.color_hover)
 
         icon_rect = QRect(
             rect.left() + self.LEFT_PADDING,
@@ -138,19 +180,10 @@ class CompletionDelegate(QStyledItemDelegate):
 
         icon = self._get_icon(item.icon_name)
         if icon is not None and not icon.isNull():
-            icon.paint(
-                painter,
-                icon_rect,
-                Qt.AlignmentFlag.AlignCenter,
-            )
+            icon.paint(painter, icon_rect, Qt.AlignmentFlag.AlignCenter)
         else:
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(
-                self.color_method
-                if "method" in item.icon_name.lower()
-                else self.color_icon
-            )
-            painter.drawEllipse(icon_rect.center(), 4, 4)
+            # Fallback: Render a clean colored letter badge if PNG is missing
+            self._draw_fallback_badge(painter, icon_rect, item.icon_name)
 
         fm = option.fontMetrics
         text_left = icon_rect.right() + self.ICON_GAP
@@ -201,6 +234,37 @@ class CompletionDelegate(QStyledItemDelegate):
 
         painter.restore()
 
+    def _draw_fallback_badge(self, painter: QPainter, rect: QRect, kind: str) -> None:
+        kind_lower = kind.lower()
+        badge_char = kind[0].upper() if kind else "V"
+
+        if "func" in kind_lower or "method" in kind_lower:
+            bg_color = QColor("#C586C0")
+            badge_char = "f"
+        elif "class" in kind_lower:
+            bg_color = QColor("#4EC0E8")
+            badge_char = "C"
+        elif "module" in kind_lower or "import" in kind_lower:
+            bg_color = QColor("#DCDCAA")
+            badge_char = "M"
+        elif "keyword" in kind_lower or "builtin" in kind_lower:
+            bg_color = QColor("#569CD6")
+            badge_char = "K"
+        else:
+            bg_color = QColor("#4FC1FF")
+            badge_char = "v"
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(bg_color)
+        painter.drawRoundedRect(rect, 3, 3)
+
+        font = painter.font()
+        font.setPixelSize(11)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(QColor("#1E1E1E"))
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, badge_char)
+
     def _draw_highlighted_text(
         self,
         painter: QPainter,
@@ -222,16 +286,19 @@ class CompletionDelegate(QStyledItemDelegate):
                 break
 
     def _get_icon(self, name: str) -> Optional[QIcon]:
-        return None
+        if not name:
+            return None
+        filename = self._KIND_ICON_MAP.get(name.lower())
+        if filename is None:
+            return None
+        full_path = os.path.join(self._ICON_DIR, filename)
+        if not os.path.exists(full_path):
+            return None
+        return QIcon(full_path)
 
 
 class CompletionHintBar(QFrame):
-    """
-    Bottom hint/action strip.
-
-    Four toolbuttons are provided deliberately as named actions so the IDE
-    can replace their text/icons later without changing popup behavior.
-    """
+    """Bottom hint/action strip."""
 
     action_triggered = pyqtSignal(str)
 
@@ -262,13 +329,24 @@ class CompletionHintBar(QFrame):
             ("more", "⋮", "More completion actions"),
         )
 
+        mono_font = QFont("Monospace")
+        mono_font.setPointSize(11)
+        mono_font.setWeight(QFont.Weight.DemiBold)
+
         for action, text, tooltip in button_specs:
             button = QToolButton(self)
             button.setObjectName(f"completionHintButton_{action}")
             button.setText(text)
             button.setToolTip(tooltip)
-            button.setAutoRaise(True)
-            button.setFixedSize(24, 24)
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+            button.setFont(mono_font)
+            button.setFixedSize(28, 28)
+
+            pal = button.palette()
+            pal.setColor(QPalette.ColorRole.ButtonText, QColor("#D4D4D4"))
+            pal.setColor(QPalette.ColorRole.Window, QColor("transparent"))
+            button.setPalette(pal)
+
             button.clicked.connect(
                 lambda checked=False, name=action: (self.action_triggered.emit(name))
             )
@@ -279,19 +357,63 @@ class CompletionHintBar(QFrame):
             QFrame#completionHintBar {
                 border-top: 1px solid #3A3D42;
             }
-
             QLabel#completionHintLabel {
                 background: transparent;
                 padding: 0;
             }
-
             QToolButton {
                 background: transparent;
+                border: 1px solid transparent;
                 border-radius: 4px;
-                font-weight: 500;
+                font-weight: 600;
                 font-size: 13px;
-                border: none;
+                color: #D4D4D4;
+                padding: 0;
+            }
+            QToolButton:hover {
+                background: #3A3D42;
+                border: 1px solid #555555;
             }""")
+
+    def retheme(self, bg: QColor, fg: QColor, sel: QColor) -> None:
+        if bg.lightness() < 128:
+            border_color = bg.lighter(150).name()
+            hover_bg = bg.lighter(130).name()
+            hover_border = bg.lighter(170).name()
+        else:
+            border_color = bg.darker(115).name()
+            hover_bg = bg.darker(108).name()
+            hover_border = bg.darker(125).name()
+
+        btn_color = fg.name()
+
+        self.setStyleSheet(f"""
+            QFrame#completionHintBar {{
+                border-top: 1px solid {border_color};
+            }}
+            QLabel#completionHintLabel {{
+                background: transparent;
+                padding: 0;
+                color: {btn_color};
+            }}
+            QToolButton {{
+                background: transparent;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                font-weight: 600;
+                font-size: 13px;
+                color: {btn_color};
+                padding: 0;
+            }}
+            QToolButton:hover {{
+                background: {hover_bg};
+                border: 1px solid {hover_border};
+            }}""")
+
+        for button in self.buttons:
+            pal = button.palette()
+            pal.setColor(QPalette.ColorRole.ButtonText, fg)
+            button.setPalette(pal)
 
     def set_hint(self, text: str) -> None:
         self.hint_label.setText(text)
@@ -309,14 +431,8 @@ class CompletionPopup(QWidget):
             Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint,
         )
 
-        self.setAttribute(
-            Qt.WidgetAttribute.WA_TranslucentBackground,
-            True,
-        )
-        self.setAttribute(
-            Qt.WidgetAttribute.WA_ShowWithoutActivating,
-            True,
-        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setObjectName("completionPopup")
 
         self._outer_layout = QVBoxLayout(self)
@@ -348,6 +464,7 @@ class CompletionPopup(QWidget):
         self.list_view.setModel(self.model)
 
         self.hint_bar = CompletionHintBar(self._container)
+        self._item_fg = QColor("#D4D4D4")
 
         container_layout.addWidget(self.list_view, 1)
         container_layout.addWidget(self.hint_bar, 0)
@@ -361,60 +478,100 @@ class CompletionPopup(QWidget):
             QWidget#completionPopup {
                 background: transparent;
             }
-
             QFrame#completionContainer {
                 border: 1px solid #0E0F10;
                 border-radius: 7px;
             }
-
             QListView#completionList {
                 border: none;
                 outline: none;
                 padding: 2px 0;
             }
-
             QListView#completionList::item {
                 border: none;
                 padding: 0;
             }
-
             QScrollBar:vertical {
                 background: transparent;
                 width: 9px;
                 margin: 2px;
             }
-
             QScrollBar::handle:vertical {
                 border-radius: 4px;
                 min-height: 24px;
             }
-
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical {
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0;
             }
-
-            QScrollBar::add-page:vertical,
-            QScrollBar::sub-page:vertical {
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 background: transparent;
-            }
-            """)
+            }""")
+
+    def retheme(self, bg: QColor, fg: QColor, sel: QColor) -> None:
+        delegate = self.list_view.itemDelegate()
+        if isinstance(delegate, CompletionDelegate):
+            delegate.retheme(bg, fg, sel)
+
+        self._item_fg = QColor(fg)
+
+        if bg.lightness() < 128:
+            border_color = bg.lighter(155).name()
+            sb_handle = bg.lighter(140).name()
+        else:
+            border_color = bg.darker(115).name()
+            sb_handle = bg.darker(115).name()
+
+        self.setStyleSheet(f"""
+            QWidget#completionPopup {{
+                background: transparent;
+            }}
+            QFrame#completionContainer {{
+                border: 1px solid {border_color};
+                border-radius: 7px;
+            }}
+            QListView#completionList {{
+                border: none;
+                outline: none;
+                padding: 2px 0;
+            }}
+            QListView#completionList::item {{
+                border: none;
+                padding: 0;
+            }}
+            QScrollBar:vertical {{
+                background: transparent;
+                width: 9px;
+                margin: 2px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {sb_handle};
+                border-radius: 4px;
+                min-height: 24px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: transparent;
+            }}""")
+        self.hint_bar.retheme(bg, fg, sel)
 
     def populate(self, items: List[CompletionItem]) -> bool:
-        """Populate and resize. Returns False when there is nothing to show."""
+        """Populate and resize."""
         self.model.clear()
 
         if not items:
             self.hide()
             return False
 
+        fg = self._item_fg
         for item in items:
             qitem = QStandardItem()
             qitem.setData(item, Qt.ItemDataRole.UserRole)
+            qitem.setForeground(fg)
             self.model.appendRow(qitem)
 
         self.list_view.setCurrentIndex(self.model.index(0, 0))
-
         self._resize_to_content(len(items))
         return True
 
@@ -427,9 +584,6 @@ class CompletionPopup(QWidget):
         row_height = delegate.ROW_HEIGHT
         hint_height = self.hint_bar.sizeHint().height()
 
-        # Compute width from the actual content rather than using a fixed
-        # 550px value. Long identifiers are allowed to determine the popup
-        # width, but the result is capped to the current screen.
         fm = self.list_view.fontMetrics()
         content_width = 0
 
@@ -459,35 +613,21 @@ class CompletionPopup(QWidget):
             screen = QApplication.primaryScreen()
 
         if screen is None:
-            available_width = 1200
-            available_height = 800
+            available_width, available_height = 1200, 800
         else:
             available = screen.availableGeometry()
-            available_width = available.width()
-            available_height = available.height()
+            available_width, available_height = available.width(), available.height()
 
         width = min(
-            max(420, int(content_width + 8)),
-            max(420, int(available_width * 0.60)),
+            max(450, int(content_width + 12)),
+            max(450, int(available_width * 0.65)),
         )
 
-        desired_height = rows * row_height + 4 + hint_height + 2
-
-        # If the popup cannot fit, the list gets a scrollbar. The viewport
-        # height is still an exact multiple of the row height, preventing the
-        # last row from being clipped halfway through.
-        max_height = max(
-            row_height + hint_height + 8,
-            int(available_height * 0.60),
-        )
-        max_list_rows = max(
-            1,
-            (max_height - hint_height - 6) // row_height,
-        )
+        max_height = max(row_height + hint_height + 8, int(available_height * 0.60))
+        max_list_rows = max(1, (max_height - hint_height - 6) // row_height)
         visible_rows = min(rows, max_list_rows)
 
         height = visible_rows * row_height + hint_height + 6
-
         self.resize(width, height)
 
     def select_next(self) -> None:
@@ -564,13 +704,7 @@ class CompletionPopup(QWidget):
 
 
 class CompletionController(QObject):
-    """
-    Connects completion behavior to QsciScintilla.
-
-    The controller deliberately keeps the popup non-focusable. The editor
-    remains the keyboard owner, while the controller intercepts completion
-    navigation/commit/cancel keys.
-    """
+    """Connects completion behavior to QsciScintilla with debouncing."""
 
     def __init__(self, editor: QsciScintilla) -> None:
         super().__init__(editor)
@@ -582,6 +716,12 @@ class CompletionController(QObject):
         self.editor.installEventFilter(self)
         QApplication.instance().installEventFilter(self)
 
+        # FIX: Debounce timer (120ms) to eliminate keystroke lag
+        self._debounce_timer = QTimer(self)
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.setInterval(120)
+        self._debounce_timer.timeout.connect(self._request_completions)
+
         try:
             self.editor.textChanged.connect(self._on_text_changed)
         except Exception:
@@ -591,7 +731,10 @@ class CompletionController(QObject):
         self._active = False
         self._committing = False
         self._last_cursor_pos = -1
-        self._mouse_selection_guard = False
+        self._commit_line = 0
+        self._commit_start_col = 0
+        self._saved_prefix = ""
+        self._connected_manager = None
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if obj is self.editor:
@@ -612,10 +755,8 @@ class CompletionController(QObject):
             QEvent.Type.FocusOut,
             QEvent.Type.Hide,
             QEvent.Type.Close,
+            QEvent.Type.MouseButtonPress,
         ):
-            self._close()
-
-        if event_type == QEvent.Type.MouseButtonPress:
             self._close()
 
         return False
@@ -628,7 +769,6 @@ class CompletionController(QObject):
         if not self.popup.isVisible():
             return False
 
-        # Completion list navigation.
         if key == Qt.Key.Key_Down and modifiers == Qt.KeyboardModifier.NoModifier:
             self.popup.select_next()
             return True
@@ -645,17 +785,11 @@ class CompletionController(QObject):
             self.popup.page_prev()
             return True
 
-        # Explicit cancellation.
         if key == Qt.Key.Key_Escape:
             self._close()
             return True
 
-        # Commit completion.
-        if key in (
-            Qt.Key.Key_Return,
-            Qt.Key.Key_Enter,
-            Qt.Key.Key_Tab,
-        ):
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Tab):
             self.popup.commit_current()
             return True
 
@@ -676,20 +810,8 @@ class CompletionController(QObject):
             return False
 
         if modifiers & Qt.KeyboardModifier.ControlModifier:
-            if key in (
-                Qt.Key.Key_A,
-                Qt.Key.Key_C,
-                Qt.Key.Key_X,
-                Qt.Key.Key_V,
-                Qt.Key.Key_Z,
-                Qt.Key.Key_Y,
-                Qt.Key.Key_Left,
-                Qt.Key.Key_Right,
-                Qt.Key.Key_Home,
-                Qt.Key.Key_End,
-            ):
-                self._close()
-                return False
+            self._close()
+            return False
 
         if self._is_completion_terminating_key(key_event):
             self._close()
@@ -702,11 +824,10 @@ class CompletionController(QObject):
 
         event_type = event.type()
 
-        if event_type == QEvent.Type.WindowDeactivate:
-            self._close()
-            return False
-
-        if event_type == QEvent.Type.ApplicationDeactivate:
+        if event_type in (
+            QEvent.Type.WindowDeactivate,
+            QEvent.Type.ApplicationDeactivate,
+        ):
             self._close()
             return False
 
@@ -715,78 +836,76 @@ class CompletionController(QObject):
             global_pos = mouse_event.globalPosition().toPoint()
             widget = QApplication.widgetAt(global_pos)
 
-            if widget is None:
-                self._close()
-                return False
-
-            if self.popup is widget or self.popup.isAncestorOf(widget):
-                return False
-
-            self._close()
-            return False
-
-        if event_type == QEvent.Type.FocusOut:
-            focus_widget = QApplication.focusWidget()
-            if (
-                focus_widget is not self.editor
-                and focus_widget is not self.popup
-                and not (
-                    focus_widget is not None and self.popup.isAncestorOf(focus_widget)
-                )
+            if widget is None or (
+                widget is not self.popup and not self.popup.isAncestorOf(widget)
             ):
                 self._close()
 
         return False
 
     def _on_text_changed(self) -> None:
-        if self._committing:
-            return
-
-        if getattr(self.editor, "_is_replacing", False):
+        if self._committing or getattr(self.editor, "_is_replacing", False):
             self._close()
             return
 
         pos = self.editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
-
-        if pos != self._last_cursor_pos:
-            self._last_cursor_pos = pos
+        self._last_cursor_pos = pos
 
         line, col = self.editor.lineIndexFromPosition(pos)
         text_before_cursor = self.editor.text(line)[:col]
 
-        match = re.search(r"\b([A-Za-z_]\w*)$", text_before_cursor)
+        # FIX: Allow dot expressions (e.g., 'os.' or 'os.pa') to trigger completion
+        match = re.search(r"([A-Za-z_]\w*)?(\.)?([A-Za-z_]\w*)$", text_before_cursor)
 
         if not match:
             self._current_prefix = ""
             self._close()
             return
 
-        prefix = match.group(1)
-        self._current_prefix = prefix
+        ident, dot, prefix = match.groups()
+        self._current_prefix = prefix or ""
 
-        if len(prefix) < 2:
+        # Require dot OR at least 2 characters to auto-trigger
+        if not dot and len(self._current_prefix) < 2:
             self._close()
             return
 
-        self._request_completions()
+        # Restart single-shot timer (Debounce)
+        self._debounce_timer.start()
 
     def _request_completions(self) -> None:
-        items: List[CompletionItem] = []
-
         provider = getattr(self.editor, "current_provider", None)
 
-        if provider and hasattr(provider, "get_completions"):
+        if provider is None:
+            items = self._get_document_tokens()
+            if items:
+                self._show_popup(items)
+            else:
+                self._close()
+            return
+
+        completion_manager = getattr(provider, "completion_manager", None)
+        if completion_manager is not None:
+            self._connect_to_manager(completion_manager)
+            completion_manager.request(
+                self.editor.text(),
+                *self.editor.getCursorPosition(),
+                getattr(provider, "file_path", None),
+            )
+            return
+
+        if hasattr(provider, "get_completions"):
             try:
-                items = (
-                    provider.get_completions(
-                        self.editor.text(),
-                        self.editor.getCursorPosition(),
-                        self._current_prefix,
-                    )
-                    or []
+                raw_items = provider.get_completions(
+                    self.editor.text(),
+                    self.editor.getCursorPosition(),
+                    self._current_prefix,
                 )
+                items = self._coerce_items(raw_items or [])
             except Exception:
                 items = []
+        else:
+            items = []
 
         if not items:
             items = self._get_document_tokens()
@@ -795,6 +914,72 @@ class CompletionController(QObject):
             self._show_popup(items)
         else:
             self._close()
+
+    def _connect_to_manager(self, manager) -> None:
+        if self._connected_manager is manager:
+            return
+
+        if self._connected_manager is not None:
+            try:
+                self._connected_manager.completions_ready.disconnect(
+                    self._on_completions_ready
+                )
+            except (TypeError, RuntimeError):
+                pass
+
+        self._connected_manager = manager
+        try:
+            manager.completions_ready.connect(self._on_completions_ready)
+        except (TypeError, RuntimeError):
+            pass
+
+    @pyqtSlot(int, list)
+    def _on_completions_ready(self, request_id: int, raw_items: list) -> None:
+        items = self._coerce_items(raw_items or [])
+
+        if not items:
+            items = self._get_document_tokens()
+
+        if items:
+            self._show_popup(items)
+        else:
+            self._close()
+
+    @staticmethod
+    def _coerce_items(raw_items: list) -> List[CompletionItem]:
+        """Convert provider results or dictionaries into CompletionItems."""
+        result: List[CompletionItem] = []
+        for raw in raw_items:
+            if isinstance(raw, CompletionItem):
+                result.append(raw)
+            elif isinstance(raw, dict):
+                # FIX: Read dictionary keys sent across IPC bridge
+                text = raw.get("text") or raw.get("name") or ""
+                insert_text = raw.get("insert_text") or raw.get("complete") or text
+                icon_name = raw.get("kind") or raw.get("icon_name") or ""
+                signature = raw.get("signature") or ""
+                if text:
+                    result.append(
+                        CompletionItem(
+                            text=text,
+                            insert_text=insert_text,
+                            icon_name=icon_name,
+                            signature=signature,
+                        )
+                    )
+            else:
+                text = getattr(raw, "text", "") or getattr(raw, "name", "")
+                if text:
+                    result.append(
+                        CompletionItem(
+                            text=text,
+                            insert_text=getattr(raw, "insert_text", "") or text,
+                            icon_name=getattr(raw, "kind", "")
+                            or getattr(raw, "icon_name", ""),
+                            signature=getattr(raw, "signature", ""),
+                        )
+                    )
+        return result
 
     def _get_document_tokens(self) -> List[CompletionItem]:
         document_text = self.editor.text()
@@ -814,13 +999,7 @@ class CompletionController(QObject):
                     )
                 )
 
-        return sorted(
-            results,
-            key=lambda item: (
-                item.text.lower(),
-                item.text,
-            ),
-        )
+        return sorted(results, key=lambda item: item.text.lower())
 
     def _show_popup(self, items: List[CompletionItem]) -> None:
         if not self.popup.populate(items):
@@ -828,6 +1007,10 @@ class CompletionController(QObject):
             return
 
         pos = self.editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+        line, col = self.editor.lineIndexFromPosition(pos)
+        self._commit_line = line
+        self._commit_start_col = max(0, col - len(self._current_prefix))
+        self._saved_prefix = self._current_prefix
 
         x = self.editor.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, pos)
         y = self.editor.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, pos)
@@ -837,7 +1020,6 @@ class CompletionController(QObject):
         )
 
         x = max(0, x)
-
         below = self.editor.mapToGlobal(QPoint(x, y + line_height + 3))
         above = self.editor.mapToGlobal(QPoint(x, y - self.popup.height() - 3))
 
@@ -861,18 +1043,12 @@ class CompletionController(QObject):
         else:
             popup_y = max(
                 available.top() + margin,
-                min(
-                    below.y(),
-                    available.bottom() - self.popup.height() - margin,
-                ),
+                min(below.y(), available.bottom() - self.popup.height() - margin),
             )
 
         popup_x = max(
             available.left() + margin,
-            min(
-                below.x(),
-                available.right() - self.popup.width() - margin,
-            ),
+            min(below.x(), available.right() - self.popup.width() - margin),
         )
 
         self.popup.move(popup_x, popup_y)
@@ -887,12 +1063,14 @@ class CompletionController(QObject):
         self._close()
 
         try:
-            line, col = self.editor.getCursorPosition()
-            start_col = max(0, col - len(self._current_prefix))
+            line = self._commit_line
+            start_col = self._commit_start_col
+            prefix = self._saved_prefix
+            end_col = start_col + len(prefix)
 
             self.editor.beginUndoAction()
             try:
-                self.editor.setSelection(line, start_col, line, col)
+                self.editor.setSelection(line, start_col, line, end_col)
                 self.editor.replaceSelectedText(item.insert_text)
                 self.editor.setCursorPosition(line, start_col + len(item.insert_text))
             finally:
@@ -901,13 +1079,23 @@ class CompletionController(QObject):
             self._committing = False
 
     def close(self) -> None:
-        """Public cancellation hook for tab/workspace/editor changes."""
         self._close()
+        if self._connected_manager is not None:
+            try:
+                self._connected_manager.completions_ready.disconnect(
+                    self._on_completions_ready
+                )
+            except (TypeError, RuntimeError):
+                pass
+            self._connected_manager = None
+
+    def retheme(self, bg: QColor, fg: QColor, sel: QColor) -> None:
+        self.popup.retheme(bg, fg, sel)
 
     def _close(self) -> None:
+        self._debounce_timer.stop()
         if self.popup.isVisible():
             self.popup.hide()
-
         self._active = False
 
     @staticmethod
@@ -916,6 +1104,7 @@ class CompletionController(QObject):
         if not text:
             return False
 
+        # FIX: Removed '.' from terminating keys so '.' triggers completion instead of killing popup
         return text in {
             " ",
             "\t",
@@ -930,7 +1119,6 @@ class CompletionController(QObject):
             ",",
             ":",
             ";",
-            ".",
             "'",
             '"',
             "`",

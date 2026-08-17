@@ -41,7 +41,7 @@ except ImportError:
             return source_code
 
 
-from .domain_models import PythonContext, HoverDetails
+from .domain_models import PythonContext, HoverDetails, CompletionDetails
 from .interfaces import IJediAdapter
 from .cache import LanguageCache
 
@@ -251,6 +251,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         self._adapter = adapter
         self._cache = cache if cache is not None else LanguageCache()
         self._file_path = file_path
+        self._completion_manager = None
 
     @property
     def file_path(self) -> Optional[str]:
@@ -355,6 +356,39 @@ class PythonLanguageProvider(BaseLanguageProvider):
         self._cache.set(context, "definition", result)
         return result
 
+    # ------------------------------------------------------------------
+    # Completion Support
+    # ------------------------------------------------------------------
+
+    def get_completions(
+        self, text: str, cursor_position: tuple, prefix: str
+    ) -> list:
+        """Return code-completion suggestions for the editor.
+
+        The signature matches the duck-typed contract expected by
+        ``CompletionController`` — the editor never imports plugin
+        types, and this method never imports UI types.
+
+        Args:
+            text: Full editor buffer content.
+            cursor_position: ``(line, col)`` tuple (0-indexed).
+            prefix: The identifier prefix the user has typed.
+
+        Returns:
+            A list of ``CompletionDetails`` domain objects.
+        """
+        if not text:
+            return []
+
+        line, col = cursor_position
+        context = self._build_context(text, line, col)
+
+        try:
+            return self._adapter.get_completions(context)
+        except Exception as e:
+            logger.warning("Completion request failed: %s", e)
+            return []
+
     def format_source(self, source_code: str) -> str:
         return source_code
 
@@ -416,6 +450,29 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return DiagnosticManager(
             editor=editor, file_path=file_path, parent=parent
         )
+
+    @property
+    def completion_manager(self):
+        """Return the ``CompletionManager`` for this provider, or ``None``."""
+        return self._completion_manager
+
+    def create_completion_manager(self, editor, file_path, parent):
+        """Create a Jedi-backed CompletionManager for *editor*.
+
+        Args:
+            editor: The ``CodeEditor`` instance.
+            file_path: Path to the file on disk.
+            parent: Qt parent for the manager's thread.
+
+        Returns:
+            A ``CompletionManager`` instance.
+        """
+        from .jedi_worker import CompletionManager
+
+        self._completion_manager = CompletionManager(
+            editor=editor, file_path=file_path, parent=parent
+        )
+        return self._completion_manager
 
     def post_fold_setup(self, editor, regions) -> None:
         """Apply Python-specific fold display text labels.

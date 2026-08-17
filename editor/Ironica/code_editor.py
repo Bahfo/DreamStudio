@@ -1539,6 +1539,13 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
 
+        autocompletion = getattr(self, "_autocompletion_widget", None)
+        if autocompletion is not None:
+            try:
+                autocompletion.retheme(bg, fg, sel)
+            except Exception:
+                pass
+
         parent = self.parent()
         minimap = getattr(parent, "minimap", None)
         if minimap is not None:

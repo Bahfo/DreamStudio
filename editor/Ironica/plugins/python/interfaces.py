@@ -34,6 +34,19 @@ class IJediAdapter(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_completions(self, context: PythonContext) -> List["CompletionDetails"]:
+        """Return code-completion suggestions at the cursor position.
+
+        Args:
+            context: Immutable snapshot of the editor state.
+
+        Returns:
+            A list of ``CompletionDetails`` objects.  May be empty when
+            no completions are available.
+        """
+        pass
+
 
 class IComplexityService(ABC):
     """Parses files to analyze code quality metrics without execution."""

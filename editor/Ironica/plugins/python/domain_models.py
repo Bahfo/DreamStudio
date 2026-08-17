@@ -93,3 +93,18 @@ class ComplexityReport:
     function_count: int
     max_cyclomatic_complexity: int
     functions: List[FunctionComplexity] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class CompletionDetails:
+    """One autocompletion suggestion from the language plugin.
+
+    This is the plugin-side data model.  The editor's completion widget
+    consumes these through a duck-typed interface and converts them into
+    its own rendering objects — the plugin never imports UI types.
+    """
+
+    text: str
+    insert_text: str = ""
+    kind: str = ""
+    signature: str = ""

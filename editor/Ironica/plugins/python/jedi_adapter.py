@@ -13,6 +13,7 @@ from .domain_models import (
     HoverDetails,
     ParameterInfo,
     DefinitionLocation,
+    CompletionDetails,
 )
 from .interfaces import IJediAdapter
 
@@ -74,9 +75,10 @@ class JediAdapter(IJediAdapter):
 
         try:
             try:
-                definitions = script.help(line=context.line, column=context.column)
+                jedi_line = context.line + 1
+                definitions = script.help(line=jedi_line, column=context.column)
                 if not definitions:
-                    definitions = script.infer(line=context.line, column=context.column)
+                    definitions = script.infer(line=jedi_line, column=context.column)
             except Exception as e:
                 logger.warning("Jedi subprocess hover failed: %s", e)
                 return None
@@ -176,3 +178,43 @@ class JediAdapter(IJediAdapter):
         except Exception as e:
             logger.error("Jedi goto definition trace failed: %s", str(e), exc_info=True)
             return None
+
+    def get_completions(self, context: PythonContext) -> List[CompletionDetails]:
+        """Return code-completion suggestions at the cursor position.
+
+        Delegates to ``jedi.Script.complete()`` and translates each raw
+        Jedi completion object into a ``CompletionDetails`` domain model.
+        """
+        script = self._get_script(context)
+        if not script:
+            return []
+
+        try:
+            jedi_completions = script.complete(
+                line=context.line,
+                column=context.column,
+            )
+        except Exception as e:
+            logger.warning("Jedi complete failed: %s", e)
+            return []
+
+        results: List[CompletionDetails] = []
+        for comp in jedi_completions:
+            try:
+                sig_parts: List[str] = []
+                for sig in comp.get_signatures():
+                    sig_parts.append(sig.to_string())
+                signature = ", ".join(sig_parts)
+            except Exception:
+                signature = ""
+
+            results.append(
+                CompletionDetails(
+                    text=comp.name,
+                    insert_text=comp.complete or comp.name,
+                    kind=comp.type or "",
+                    signature=signature,
+                )
+            )
+
+        return results

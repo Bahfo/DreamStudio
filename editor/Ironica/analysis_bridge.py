@@ -164,11 +164,7 @@ class AnalysisProcess:
             pass
 
     def request(self, payload) -> object:
-        """Send *payload* to the server and block for its reply.
-
-        The pipe lock is held for the whole write/read round-trip so at
-        most one request is in flight against the child at a time.
-        """
+        """Send *payload* to the server and block for its reply."""
         with self._pipe_lock:
             if self._shutdown_requested:
                 raise AnalysisProcessError("analysis subprocess is shut down")
@@ -178,8 +174,21 @@ class AnalysisProcess:
                 proc = self._proc
             if proc is None:
                 raise AnalysisProcessError("unable to start analysis subprocess")
-            write_frame(proc.stdin, payload)
-            return read_frame(proc.stdout)
+
+            try:
+                write_frame(proc.stdin, payload)
+                return read_frame(proc.stdout)
+            except (BrokenPipeError, OSError, pickle.PickleError) as exc:
+                logger.warning(
+                    "Analysis subprocess IPC failed, resetting handle: %s", exc
+                )
+                if self._proc is not None:
+                    try:
+                        self._proc.kill()
+                    except Exception:
+                        pass
+                    self._proc = None
+                raise AnalysisProcessError(f"IPC communication failure: {exc}")
 
     def shutdown(self) -> None:
         """Request a graceful shutdown without blocking the caller.

@@ -311,6 +311,13 @@ class DreamTabbedEditor(QDreamTabEditor):
                     parent=code_editor,
                 )
 
+            if provider and hasattr(provider, "create_completion_manager"):
+                provider.create_completion_manager(
+                    editor=code_editor,
+                    file_path=file_path,
+                    parent=code_editor,
+                )
+
         if isinstance(new_editor, MiniMapHostWidget):
             if hasattr(self._parent, "update_position_status"):
                 new_editor.position_changed.connect(self._parent.update_position_status)
