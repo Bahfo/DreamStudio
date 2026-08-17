@@ -64,4 +64,4 @@ local.properties
 /plans
 
 # Temporary Ignoring
-# Nothing for now
+.github/workflows/docker-publish.yml
