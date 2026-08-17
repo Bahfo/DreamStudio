@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+        <title>CONTRIBUTING.md - dreamstudio/ide - Gitiles</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            html, body {
+                margin: 0;
+                padding: 0;
+                font-family: Roboto, 'Helvetica Neue', Arial, sans-serif;
+                color: #222222;
+                background-color: #ffffff;
+                line-height: 1.5;
+                font-size: 14px;
+            }
+            a {
+                color: #1a73e8;
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+            /* Gitiles Top Navigation Header */
+            .Header {
+                background-color: #f8f9fa;
+                border-bottom: 1px solid #dadce0;
+                padding: 12px 24px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                font-family: 'Roboto Mono', monospace, sans-serif;
+                font-size: 13px;
+            }
+            .Header-title {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: #3c4043;
+            }
+            .Header-title a {
+                color: #1a73e8;
+            }
+            .Header-badge {
+                background-color: #e8f0fe;
+                color: #1a73e8;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 500;
+                border: 1px solid #d2e3fc;
+            }
+            .Breadcrumbs {
+                color: #5f6368;
+            }
+            
+            /* Gitiles Container Structure */
+            .Container {
+                max-width: 980px;
+                margin: 0 auto;
+                padding: 32px 24px;
+            }
+            
+            .Gitiles-fileHeader {
+                background-color: #f8f9fa;
+                border: 1px solid #dadce0;
+                border-radius: 4px 4px 0 0;
+                padding: 10px 16px;
+                font-family: 'Roboto Mono', monospace;
+                font-size: 12px;
+                color: #3c4043;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .Gitiles-fileContent {
+                border: 1px solid #dadce0;
+                border-top: none;
+                border-radius: 0 0 4px 4px;
+                padding: 32px;
+                background-color: #ffffff;
+            }
+
+            /* Legal Document Formatting */
+            .legal-header {
+                text-align: center;
+                border-bottom: 2px solid #202124;
+                padding-bottom: 16px;
+                margin-bottom: 28px;
+            }
+            .legal-header h1 {
+                font-size: 20px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+                margin: 0 0 8px 0;
+                color: #202124;
+            }
+            .legal-header .subtitle {
+                font-size: 12px;
+                color: #5f6368;
+                font-family: 'Roboto Mono', monospace;
+                text-transform: uppercase;
+            }
+
+            .legal-section {
+                margin-bottom: 28px;
+            }
+            .article-title {
+                font-size: 15px;
+                font-weight: 700;
+                text-transform: uppercase;
+                color: #202124;
+                border-bottom: 1px solid #e8eaed;
+                padding-bottom: 4px;
+                margin-top: 24px;
+                margin-bottom: 12px;
+                letter-spacing: 0.5px;
+            }
+            .section-title {
+                font-weight: 700;
+                color: #202124;
+                margin-top: 14px;
+                margin-bottom: 6px;
+            }
+            
+            p, ol, ul {
+                margin-top: 0;
+                margin-bottom: 12px;
+                color: #3c4043;
+                text-align: justify;
+            }
+
+            ol.legal-rank {
+                counter-reset: rank-item;
+                list-style: none;
+                padding-left: 0;
+            }
+            ol.legal-rank > li {
+                counter-increment: rank-item;
+                margin-bottom: 12px;
+                padding-left: 28px;
+                position: relative;
+            }
+            ol.legal-rank > li::before {
+                content: counter(rank-item) ".";
+                font-weight: 700;
+                position: absolute;
+                left: 0;
+                color: #202124;
+            }
+            
+            code, pre {
+                font-family: 'Roboto Mono', monospace;
+                font-size: 12px;
+            }
+
+            pre.code-block {
+                background-color: #f8f9fa;
+                border: 1px solid #dadce0;
+                border-radius: 4px;
+                padding: 14px 16px;
+                overflow-x: auto;
+                color: #202124;
+                line-height: 1.45;
+                margin-bottom: 16px;
+            }
+
+            .notice-box {
+                background-color: #f8f9fa;
+                border-left: 4px solid #1a73e8;
+                padding: 12px 16px;
+                margin-bottom: 20px;
+                font-size: 13px;
+                color: #3c4043;
+            }
+
+            .footer {
+                margin-top: 40px;
+                padding-top: 16px;
+                border-top: 1px solid #dadce0;
+                font-size: 12px;
+                color: #5f6368;
+                display: flex;
+                justify-content: space-between;
+                font-family: 'Roboto Mono', monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Gitiles Header Bar -->
+        <div class="Header">
+            <div class="Header-title">
+                <a href="#">dreamstudio</a> / <a href="#">ide</a> / <span class="Breadcrumbs">CONTRIBUTING.md</span>
+            </div>
+            <div class="Header-badge">CONTRIBUTOR POLICY</div>
+        </div>
+
+        <div class="Container">
+            <!-- Gitiles Code Viewer Box -->
+            <div class="Gitiles-fileHeader">
+                <span>CONTRIBUTING.md (Open Source Contribution Policy)</span>
+                <span>Plain text</span>
+            </div>
+            
+            <div class="Gitiles-fileContent">
+                <!-- Legal Header -->
+                <div class="legal-header">
+                    <h1>DreamStudio IDE Open Source Contributor Policy</h1>
+                    <div class="subtitle">Version 1.1.0+ Standard Policy | Effective Date: 2026</div>
+                </div>
+
+                <div class="notice-box">
+                    <strong>Preamble:</strong> Thank you for your interest in contributing to the DreamStudio IDE open-source repository. All contributors are required to adhere to the terms, hierarchy preferences, and commit message standards established below.
+                </div>
+
+                <!-- ARTICLE I -->
+                <div class="legal-section">
+                    <div class="article-title">ARTICLE I: CLASSIFICATION AND PRIORITY OF CONTRIBUTIONS</div>
+                    <p>Contributions submitted to the DreamStudio IDE repository are prioritized according to the following strict order of preference (Rank 1 being most preferred):</p>
+                    
+                    <ol class="legal-rank">
+                        <li>
+                            <strong>Bug Fixes (Rank 1 - Highest Priority):</strong> The majority of accepted contributions consist of resolutions for verified, reproducible issues. Automated tests verifying the fix must accompany pull requests whenever feasible.
+                        </li>
+                        <li>
+                            <strong>Feature Additions (Rank 2 - By Prior Agreement Only):</strong> New functionality or feature proposals must receive explicit prior authorization from the maintainers. Submissions will be accepted solely when aligned with the strategic subsystem roadmap.
+                        </li>
+                        <li>
+                            <strong>Documentation Improvements (Rank 3):</strong> Documentation contributions must be thorough, sufficient in scope, and clearly articulate technical concepts and operational paradigms.
+                        </li>
+                        <li>
+                            <strong>Codebase Maintenance (Rank 4 - Lowest Priority):</strong> Routine refactoring or code maintenance contributions are generally discouraged, except when submitted in conjunction with a major release cycle.
+                        </li>
+                    </ol>
+                </div>
+
+                <!-- ARTICLE II -->
+                <div class="legal-section">
+                    <div class="article-title">ARTICLE II: COMMIT MESSAGE SPECIFICATION</div>
+                    <p>Effective as of <strong>Version 1.1.0 and forward</strong>, all commits submitted to the repository must strictly conform to the standard structure outlined below:</p>
+
+                    <div class="section-title">1. Standard Commit Message Syntax</div>
+                    <pre class="code-block">&lt;Personal ID&gt; &lt;Commit Title&gt;
+&lt;Fix Number (Given within the issued Personal ID Ticket)&gt;
+&lt;description&gt;
+...
+&lt;End of commit message (Optional)&gt;</pre>
+
+                    <div class="section-title">2. Exemplar Structure</div>
+                    <pre class="code-block">DS110-12345 Bahfo: Fixing Bug in Type Declaration
+Number: 12345678
+Fixed a smaller issue when opening a code-editor in language X and type of token Y didn't declare correctly. 
+
+Thanks!</pre>
+                </div>
+
+                <!-- ARTICLE III -->
+                <div class="legal-section">
+                    <div class="article-title">ARTICLE III: PROHIBITIONS AND DISCUSSION SUMMARIZATION</div>
+                    <div class="section-title">1. Restriction on External Reference Links</div>
+                    <p>Contributors are strictly prohibited from embedding hyperlinks to external discussion threads, forum posts, or third-party chat logs within commit messages.</p>
+
+                    <div class="section-title">2. Mandate for In-Line Summarization</div>
+                    <p>Where a commit relies on prior discussions or technical deliberations, the contributor must synthesize and summarize the essential details directly within the body of the commit message itself.</p>
+                </div>
+
+                <!-- Footer -->
+                <div class="footer">
+                    <span>powered by gerrit / gitiles</span>
+                    <span>DreamStudio IDE &copy; 2026</span>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

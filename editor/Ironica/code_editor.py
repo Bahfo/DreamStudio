@@ -188,7 +188,7 @@ class CodeEditor(QsciScintilla):
         # Whole-document analysis state (semantic overlays + folds are
         # computed off the UI thread by the analysis worker).
         self._analysis_active = False
-        self._analysis_enabled = True
+        self._analysis_enabled = False
         self._analysis_owner_id = id(self)
         self._analysis_manager = AnalysisManager(self)
 
@@ -959,6 +959,9 @@ class CodeEditor(QsciScintilla):
         """Track cursor movement for breakpoint margin hover."""
         super().mouseMoveEvent(e)
         self._last_mouse_pos = e.position().toPoint()
+
+        if self._hover_controller is not None:
+            self._hover_controller.eventFilter(self, e)
 
         # Breakpoint Margin Hover Preview
         w0 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 0)

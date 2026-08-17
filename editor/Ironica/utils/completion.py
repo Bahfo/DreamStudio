@@ -855,14 +855,23 @@ class CompletionController(QObject):
         text_before_cursor = self.editor.text(line)[:col]
 
         # FIX: Allow dot expressions (e.g., 'os.' or 'os.pa') to trigger completion
-        match = re.search(r"([A-Za-z_]\w*)?(\.)?([A-Za-z_]\w*)$", text_before_cursor)
+        match = re.search(r"([A-Za-z_]\w*)\.([A-Za-z_]\w*)?$", text_before_cursor)
+        if not match:
+            match = re.search(r"([A-Za-z_]\w*)$", text_before_cursor)
 
         if not match:
             self._current_prefix = ""
             self._close()
             return
 
-        ident, dot, prefix = match.groups()
+        groups = match.groups()
+        dot = "." in (match.group(0) or "")
+        if dot:
+            ident = groups[0] or ""
+            prefix = groups[1] if len(groups) > 1 and groups[1] else ""
+        else:
+            ident = ""
+            prefix = groups[0] or ""
         self._current_prefix = prefix or ""
 
         # Require dot OR at least 2 characters to auto-trigger
