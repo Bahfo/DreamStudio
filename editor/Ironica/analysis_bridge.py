@@ -73,14 +73,20 @@ def write_frame(stream, payload) -> None:
 class AnalysisProcess:
     """Client end of the analysis-server subprocess.
 
-    Single-threaded usage only: an ``AnalysisProcess`` is owned by exactly
-    one worker thread, which issues one request at a time.  A dead child is
-    transparently respawned on the next ``request`` call.
+    Designed for exactly one live subprocess shared across the whole IDE:
+    ``request`` serialises write/read round-trips through an internal lock,
+    and ``shutdown`` hands the blocking reap off to a daemon reaper thread
+    so the UI thread never waits on a busy child.  A dead child is
+    transparently respawned on the next ``request`` call unless a clean
+    ``shutdown`` has already been requested.
     """
 
     def __init__(self) -> None:
         self._proc: Optional[subprocess.Popen] = None
         self._stderr_thread: Optional[threading.Thread] = None
+        self._pipe_lock = threading.Lock()
+        self._lifecycle_lock = threading.Lock()
+        self._shutdown_requested = False
 
     # ------------------------------------------------------------------
     # Lifecycle helpers
@@ -110,31 +116,34 @@ class AnalysisProcess:
 
     def start(self) -> None:
         """Spawn (or respawn) the analysis subprocess."""
-        if self.is_alive():
-            return
+        with self._lifecycle_lock:
+            if self._shutdown_requested:
+                return
+            if self.is_alive():
+                return
 
-        root = self._root_dir()
-        env = dict(os.environ)
-        pythonpath = env.get("PYTHONPATH", "")
-        if root not in pythonpath.split(os.pathsep):
-            env["PYTHONPATH"] = root + (os.pathsep + pythonpath if pythonpath else "")
+            root = self._root_dir()
+            env = dict(os.environ)
+            pythonpath = env.get("PYTHONPATH", "")
+            if root not in pythonpath.split(os.pathsep):
+                env["PYTHONPATH"] = root + (os.pathsep + pythonpath if pythonpath else "")
 
-        self._proc = subprocess.Popen(
-            [sys.executable, self._server_script()],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=root,
-            env=env,
-        )
-        self._stderr_thread = threading.Thread(
-            target=self._drain_stderr,
-            args=(self._proc.stderr,),
-            name="analysis-server-stderr",
-            daemon=True,
-        )
-        self._stderr_thread.start()
-        logger.debug("analysis-server started (pid=%s)", self._proc.pid)
+            self._proc = subprocess.Popen(
+                [sys.executable, self._server_script()],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=root,
+                env=env,
+            )
+            self._stderr_thread = threading.Thread(
+                target=self._drain_stderr,
+                args=(self._proc.stderr,),
+                name="analysis-server-stderr",
+                daemon=True,
+            )
+            self._stderr_thread.start()
+            logger.debug("analysis-server started (pid=%s)", self._proc.pid)
 
     def __del__(self) -> None:
         """Kill a still-running child when the client is collected.
@@ -153,29 +162,69 @@ class AnalysisProcess:
             pass
 
     def request(self, payload) -> object:
-        """Send *payload* to the server and block for its reply."""
-        proc = self._proc
-        if proc is None or proc.poll() is not None:
-            self.start()
+        """Send *payload* to the server and block for its reply.
+
+        The pipe lock is held for the whole write/read round-trip so at
+        most one request is in flight against the child at a time.
+        """
+        with self._pipe_lock:
+            if self._shutdown_requested:
+                raise AnalysisProcessError(
+                    "analysis subprocess is shut down"
+                )
             proc = self._proc
-        write_frame(proc.stdin, payload)
-        return read_frame(proc.stdout)
+            if proc is None or proc.poll() is not None:
+                self.start()
+                proc = self._proc
+            if proc is None:
+                raise AnalysisProcessError("unable to start analysis subprocess")
+            write_frame(proc.stdin, payload)
+            return read_frame(proc.stdout)
 
     def shutdown(self) -> None:
-        """Ask the server to exit, then reap it forcefully if needed."""
-        proc = self._proc
-        self._proc = None
-        if proc is None:
+        """Request a graceful shutdown without blocking the caller.
+
+        The exit sentinel is written by a daemon reaper thread once any
+        in-flight round-trip has finished; the child then exits and is
+        force-killed only if it fails to do so within the reap timeout.
+        Never touches ``self._pipe_lock`` from the caller's thread, so
+        shutting down while the child is busy computing never stalls the
+        UI thread.
+        """
+        with self._lifecycle_lock:
+            if self._shutdown_requested:
+                return
+            self._shutdown_requested = True
+            proc = self._proc
+            self._proc = None
+
+        if proc is None or proc.poll() is not None:
             return
 
+        threading.Thread(
+            target=self._reap,
+            args=(proc,),
+            name="analysis-server-reaper",
+            daemon=True,
+        ).start()
+
+    def _reap(self, proc: subprocess.Popen) -> None:
+        """Gracefully stop *proc*, force-killing it after the timeout."""
         try:
-            if proc.poll() is None:
-                proc.stdin.write(_FRAME_HEADER.pack(0))
-                proc.stdin.flush()
+            try:
+                # Wait for any in-flight round-trip to release the pipe
+                # lock, then ask the child to exit. Bounded by the current
+                # request's compute time.
+                with self._pipe_lock:
+                    if proc.poll() is None:
+                        proc.stdin.write(_FRAME_HEADER.pack(0))
+                        proc.stdin.flush()
+            except Exception:
+                pass
+            try:
                 proc.wait(timeout=5)
-        except Exception:
-            pass
-        finally:
+            except Exception:
+                pass
             if proc.poll() is None:
                 try:
                     proc.kill()
@@ -185,6 +234,7 @@ class AnalysisProcess:
                     proc.wait(timeout=5)
                 except Exception:
                     pass
+        finally:
             for pipe in (proc.stdin, proc.stdout, proc.stderr):
                 if pipe is not None:
                     try:

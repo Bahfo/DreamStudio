@@ -80,6 +80,11 @@ class CodeEditor(QsciScintilla):
 
     _INDENTATION_SPACING = 4
 
+    # Bracket-pair highlight indicator slots.  Slots 0-7 are used for
+    # semantic overlays and 8-15 for diagnostics, so 16+ are free.
+    BRACKET_HL_SLOT = 16
+    BRACKET_BAD_SLOT = 17
+
     MARGIN_BREAKPOINT = 1
     MARKER_BREAKPOINT = 1
     COLOR_MARGIN = 2
@@ -121,6 +126,9 @@ class CodeEditor(QsciScintilla):
         self._diagnostic_indicators = {}
         self._next_diag_slot = 8  # Slots 8-15 allocated for diagnostics to avoid
         # semantic overlaps
+
+        # Bracket-pair highlight state (custom, indicator-based).
+        self._bracket_hl_ranges: list = []
 
         # For breakpoints hover:
         self._hovered_breakpoint_line = None
@@ -164,6 +172,8 @@ class CodeEditor(QsciScintilla):
         # Whole-document analysis state (semantic overlays + folds are
         # computed off the UI thread by the analysis worker).
         self._analysis_active = False
+        self._analysis_enabled = True
+        self._analysis_owner_id = id(self)
         self._analysis_manager = AnalysisManager(self)
 
         # Fold-display-text lines already sent to Scintilla, keyed by
@@ -249,6 +259,8 @@ class CodeEditor(QsciScintilla):
         bar can show the spinner, and relies on ``analysis_finished`` to
         hide it when the most recent request completes.
         """
+        if not self._analysis_enabled:
+            return
         if not self.current_provider or not self.current_lang:
             return
 
@@ -265,6 +277,29 @@ class CodeEditor(QsciScintilla):
         """Clear the active-analysis flag and notify listeners."""
         self._analysis_active = False
         self.analysis_finished.emit()
+
+    def set_analysis_active(self, active: bool) -> None:
+        """Enable/disable whole-document analysis for this editor.
+
+        Called by the tab editor on focus changes: only the focused tab's
+        requests are routed to the shared analysis process.  Deactivating
+        also settles the spinner so an in-flight (now dropped) request can
+        never leave the status bar spinning forever.
+        """
+        if active == self._analysis_enabled:
+            return
+        self._analysis_enabled = active
+        manager = getattr(self, "_analysis_manager", None)
+        if manager is not None:
+            manager.set_enabled(active)
+        if not active:
+            if manager is not None:
+                manager.invalidate()
+            if self._analysis_active:
+                self._analysis_active = False
+                self.analysis_finished.emit()
+        else:
+            self._request_analysis()
 
     def _apply_semantic_overlays(self, highlights) -> None:
         """Paint semantic-highlight overlays from *highlights*.
@@ -385,10 +420,15 @@ class CodeEditor(QsciScintilla):
             self._hover_flyout.hide()
             self._hover_flyout = None
 
-    def _dismiss_hover_flyout(self) -> None:
-        """Dismiss the flyout unless pinned or mouse is inside."""
+    def _dismiss_hover_flyout(self, force: bool = False) -> None:
+        """Dismiss the flyout unless pinned or mouse is inside it.
+
+        ``force=True`` always hides the flyout, which is used when the
+        user acts on it (e.g. Go to Declaration) so the window does not
+        linger after the action.
+        """
         if self._hover_flyout and self._hover_flyout.isVisible():
-            self._hover_flyout.dismiss(force=False)
+            self._hover_flyout.dismiss(force=force)
 
     # ------------------------------------------------------------------
     # Setup helpers
@@ -548,8 +588,121 @@ class CodeEditor(QsciScintilla):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     def _setup_auto_indent(self) -> None:
-        """Configure brace matching."""
-        self.setBraceMatching(QsciScintilla.BraceMatch.StrictBraceMatch)
+        """Configure indentation, auto-indent and bracket-pair matching.
+
+        QScintilla's built-in brace matching is disabled because its
+        default ``STYLE_BRACELIGHT`` renders as an opaque white box on
+        bracket characters (and their match) the moment the caret lands
+        next to them.  A custom, theme-aware indicator highlight is used
+        instead — see ``_setup_brace_highlight``.
+        """
+        self.setBraceMatching(QsciScintilla.BraceMatch.NoBraceMatch)
+        self._setup_brace_highlight()
+
+    def _setup_brace_highlight(self) -> None:
+        """Configure the smooth, theme-aware bracket-pair highlight.
+
+        The active bracket and its match are drawn with a translucent
+        rounded box (``INDIC_ROUNDBOX``) that follows the IDE theme
+        instead of the default white brace-match style.
+        """
+        self._bracket_hl_ranges = []
+        self.cursorPositionChanged.connect(self._update_brace_highlight)
+        self.textChanged.connect(self._update_brace_highlight)
+        self._apply_brace_highlight_colors()
+
+    def _apply_brace_highlight_colors(self, bg=None) -> None:
+        """Derive the bracket-highlight indicator colours from the theme."""
+        if bg is None:
+            bg, _, _, _ = self._theme_colors()
+
+        if bg.lightness() < 128:
+            match, match_alpha, outline = "#FFC24D", 60, 130
+            bad, bad_alpha = "#E06C75", 70
+        else:
+            match, match_alpha, outline = "#4A8AF4", 60, 130
+            bad, bad_alpha = "#C42B1C", 70
+
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETSTYLE,
+            self.BRACKET_HL_SLOT,
+            QsciScintilla.INDIC_ROUNDBOX,
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETFORE,
+            self.BRACKET_HL_SLOT,
+            self._scintilla_rgb(match),
+        )
+        self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_HL_SLOT, match_alpha)
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_HL_SLOT, outline
+        )
+        self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_HL_SLOT, 0)
+
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETSTYLE,
+            self.BRACKET_BAD_SLOT,
+            QsciScintilla.INDIC_ROUNDBOX,
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETFORE,
+            self.BRACKET_BAD_SLOT,
+            self._scintilla_rgb(bad),
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_BAD_SLOT, bad_alpha
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_BAD_SLOT, outline
+        )
+        self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_BAD_SLOT, 0)
+
+    def _update_brace_highlight(self, *args) -> None:
+        """Highlight the bracket pair adjacent to the caret, if any.
+
+        Only the previously highlighted ranges are cleared (never the
+        whole document) so caret movement stays O(1) regardless of the
+        buffer size.
+        """
+        prev = self._bracket_hl_ranges
+        self._bracket_hl_ranges = []
+        if prev:
+            for slot in (self.BRACKET_HL_SLOT, self.BRACKET_BAD_SLOT):
+                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+                for p, n in prev:
+                    self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, p, n)
+
+        length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+        if length <= 0:
+            return
+        pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+
+        # The active bracket is the character immediately before the
+        # caret, or the character under the caret (strict behaviour).
+        active = -1
+        for cand in (pos - 1, pos):
+            if 0 <= cand < length:
+                ch = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, cand)
+                if ch in (0x28, 0x29, 0x5B, 0x5D, 0x7B, 0x7D):
+                    active = cand
+                    break
+        if active < 0:
+            return
+
+        match = self.SendScintilla(QsciScintilla.SCI_BRACEMATCH, active, 0)
+        if match >= 0:
+            self.SendScintilla(
+                QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_HL_SLOT
+            )
+            for p in (active, match):
+                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, p, 1)
+            self._bracket_hl_ranges = [(active, 1), (match, 1)]
+        else:
+            self.SendScintilla(
+                QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT
+            )
+            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, active, 1)
+            self._bracket_hl_ranges = [(active, 1)]
 
     # ------------------------------------------------------------------
     # Position / signals
@@ -581,6 +734,7 @@ class CodeEditor(QsciScintilla):
                 self._setup_caret()
                 self._setup_folding()
                 self._setup_edge()
+                self._apply_brace_highlight_colors()
             finally:
                 self._in_change_event = False
         elif event.type() == QEvent.Type.WindowStateChange:
@@ -1112,6 +1266,11 @@ class CodeEditor(QsciScintilla):
         cannot be resolved.  All provider errors are caught so that a
         plugin failure never crashes the editor.
         """
+        # Acting on the documentation flyout (Go to Declaration button)
+        # must close it; the mouse is inside the flyout so a normal
+        # ``dismiss()`` would keep it visible.
+        self._dismiss_hover_flyout(force=True)
+
         if not self.current_provider:
             return
 
@@ -1238,6 +1397,7 @@ class CodeEditor(QsciScintilla):
         self.setSelectionForegroundColor(fg)
         self.setEdgeColor(colors["edge"])
         self._apply_indent_guide_color(fg)
+        self._apply_brace_highlight_colors(bg)
 
         if self._lexer is not None and self.current_lang:
             config = LanguageRegistry.get_config(self.current_lang)

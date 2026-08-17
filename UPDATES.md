@@ -289,3 +289,37 @@ The full targeted suite (`editor/Ironica/tests` + `editor/Ironica/plugins/python
 
 Date of Change: 15/8/2026
 ---
+---
+#### Changes in Fix - (FIX_029)
+- Added `editor/Ironica/process_manager.py`: a focus-aware singleton (`AnalysisProcessManager` + module-level `process_manager` with `atexit` teardown) that owns ONE warm `AnalysisProcess` for the whole IDE. `set_active(owner_id)` swaps focus via a lock-free atomic assignment (no spawn/kill, no UI block on tab switch); `request(owner_id, payload)` drops submissions from inactive owners both before and after the child round-trip, so a result whose tab lost focus while the child was computing is discarded on arrival; `is_active()` gates error-vs-debug logging; unmanaged mode (never engaged) still allows any owner so standalone editors/tests keep working
+- Made `AnalysisProcess.shutdown()` (analysis_bridge.py) non-blocking: it hands the exit-sentinel write, wait, and force-kill to a daemon "analysis-server-reaper" thread, so closing a tab (or the app) while the child is busy computing jedi never stalls the UI thread; a `_shutdown_requested` guard prevents respawn after a clean shutdown; `request()` serialises the write/read round-trip through a pipe lock (single-flight child)
+- Refactored `_AnalysisWorker` and `_DiagnosticWorker` to submit through the shared `process_manager` instead of owning their own subprocess: tab close now only stops the worker (no process teardown), and subprocess failure during intentional teardown / lost focus is logged at DEBUG instead of the spurious ERROR `Diagnostics subprocess failed: analysis subprocess closed its output stream`
+- Wired focus routing in `tab_editor.py` (`_on_editor_tab_changed`): non-focused editors are deactivated (`CodeEditor.set_analysis_active(False)` suppresses new submissions and settles the spinner), the focused editor is re-activated and re-queues its analysis; `AnalysisManager`/`DiagnosticManager` gained an `_enabled` gate and `owner_id`; `_request_analysis` no-ops for inactive editors
+- Verified server-side cache hygiene for the now long-lived server: all analysis/diagnostics caches are content-addressed (`semantic_highlights._cache_text`, `LanguageCache` key includes `code_hash`, `detect_problems` builds a fresh `jedi.Script(code=source, …)` per request), so no AST/state bleeds between tabs
+
+#### Changes in Test - (TEST_014)
+- Added `editor/Ironica/tests/test_process_manager.py` (9 tests): unmanaged-any-owner mode, active-owner-only routing, cleared owner blocks everyone, `release`, shutdown-drop + idempotency, in-flight focus-switch discards the stale owner's result (threaded), single warm process serving every request type at one PID, no cross-buffer semantic state in the long-lived server, per-source diagnostics for the same file path
+- Updated `test_analysis_worker.py` / `test_jedi_worker.py` to stub the shared `process_manager` instead of `AnalysisProcess`, plus new `test_inactive_owner_result_is_dropped` for each worker
+
+#### Notes:
+Executed tests: `QT_QPA_PLATFORM=offscreen pytest editor/Ironica/tests editor/Ironica/plugins/python/tests -q --no-header` → 372 passed, stable across 3 consecutive runs (no failures, no crashes). Full-repo run: 25 failed / 395 passed / 6 errors — the identical pre-existing order-dependent cluster (`tests/test_bootstrap.py` deletes `NotificationManager`, cascading `registration.py:306` failures into `test_python_plugin_integration` and `test_retheme`); `test_retheme` + `test_python_plugin_integration` pass fully in isolation, confirming zero regressions from this change. No orphaned `analysis_server` subprocesses remain after the test session.
+
+Date of Change: 15/8/2026
+---
+---
+#### Changes in Fix - (FIX_030)
+- Removed the opaque white "brace-match" box in the code editor: QScintilla's built-in brace matching drew an un-styled white marker (default `STYLE_BRACELIGHT`) over the bracket character at the caret AND its matching bracket, which surfaced on line-breaker punctuation like `( ) [ ] { }`. `_setup_auto_indent` now uses `BraceMatch.NoBraceMatch` and a custom, theme-aware indicator highlight (`_setup_brace_highlight` / `_update_brace_highlight`)
+- The active bracket pair is now drawn with a translucent rounded box (`INDIC_ROUNDBOX`) on two dedicated indicator slots (`BRACKET_HL_SLOT = 16`, `BRACKET_BAD_SLOT = 17`; slots 0-7 are semantic overlays, 8-15 diagnostics). Colours are derived from the active theme (soft gold in dark themes, muted blue in light themes; soft red for unmatched brackets) via `_apply_brace_highlight_colors`, re-applied on `retheme()` and `changeEvent`
+- Highlight logic is O(1) on caret movement: only the previously recorded 1-2 ranges are cleared (never the whole document), so large files stay responsive. Matching uses native `SCI_BRACEMATCH`; the trigger mirrors the old strict behaviour (character immediately before the caret, then the character under it), so `;` `:` `,` and any non-bracket punctuation are never highlighted again
+- Fixed the documentation flyout lingering after "Go to Declaration": `_dismiss_hover_flyout` gained a `force` flag and `execute_goto_definition` now force-dismisses the flyout before resolving, so the window closes even though the mouse is inside it (a normal `dismiss()` would have kept it visible)
+
+#### Changes in Test - (TEST_015)
+- Added `TestBracketHighlight` to `test_code_editor.py` (6 tests): built-in brace matching is disabled, an adjacent bracket highlights its whole pair on the dedicated slot, the highlight clears when the caret moves away, `;` and `:` never receive a highlight, and an unmatched bracket uses the bad slot instead
+- Added `TestHoverDismissOnGoto` (1 test): the documentation flyout is hidden after `execute_goto_definition` even with the mouse inside it
+- Notes: tests mirror real usage by showing the editor, since QScintilla only emits `cursorPositionChanged` through the event loop for a visible widget
+
+#### Notes:
+Executed tests: `QT_QPA_PLATFORM=offscreen pytest editor/Ironica/tests editor/Ironica/plugins/python/tests -q --no-header` → 379 passed. Full-repo run: 25 failed / 402 passed / 6 errors — identical pre-existing order-dependent cluster (`tests/test_bootstrap.py` deletes `NotificationManager`, cascading into `test_python_plugin_integration` and `test_retheme`); zero new failures, zero regressions. Verified by pixel-level rendering that the white box no longer appears and the smooth highlight renders ~+26 average lightness on the highlighted bracket cell.
+
+Date of Change: 15/8/2026
+---

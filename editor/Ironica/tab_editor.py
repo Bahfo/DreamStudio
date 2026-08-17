@@ -44,6 +44,7 @@ import pathlib
 logger = logging.getLogger(__name__)
 
 from editor.Ironica.code_editor import CodeEditor
+from editor.Ironica.process_manager import process_manager
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 from designer.toolbox.designer import DesignerTab
 
@@ -169,12 +170,37 @@ class DreamTabbedEditor(QDreamTabEditor):
     # ------------------------------------------------------------------
 
     def _on_editor_tab_changed(self, index: int) -> None:
-        """Update the status bar when the active tab changes."""
+        """Update the status bar and route analysis focus on tab change.
+
+        Only the focused editor's requests are allowed through to the
+        shared analysis process; switching focus is a cheap ownership swap
+        (no process spawn / kill).  The newly focused editor re-queues its
+        analysis so its overlays repaint immediately.
+        """
         self.return_file_info()
         should_show = self.count() > 0 and index >= 0
         if self._minimap_toggle.isVisible() != should_show:
             self._minimap_toggle.setVisible(should_show)
             QTimer.singleShot(0, self.updateGeometry)
+
+        # Deactivate every non-focused editor first so their pending and
+        # future requests are dropped / suppressed.
+        for i in range(self.count()):
+            if i == index:
+                continue
+            widget = self.widget(i)
+            code = self._unwrap_code_editor(widget)
+            if code is not None:
+                code.set_analysis_active(False)
+
+        code = None
+        if 0 <= index < self.count():
+            code = self._unwrap_code_editor(self.widget(index))
+        if code is not None:
+            process_manager.set_active(code._analysis_owner_id)
+            code.set_analysis_active(True)
+        else:
+            process_manager.set_active(None)
 
     def _on_editor_dirty_changed(self, is_dirty: bool) -> None:
         editor = self.sender()

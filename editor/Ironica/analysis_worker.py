@@ -21,7 +21,8 @@ from typing import Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
-from editor.Ironica.analysis_bridge import AnalysisProcess, AnalysisProcessError
+from editor.Ironica.analysis_bridge import AnalysisProcessError
+from editor.Ironica.process_manager import process_manager
 
 logger = logging.getLogger("DreamStudio.Analysis.Worker")
 
@@ -53,7 +54,6 @@ class _AnalysisWorker(threading.Thread):
         self._started_once = False
         self._current_request: Optional[_AnalysisRequest] = None
         self._is_shutting_down = False
-        self._process = AnalysisProcess()
 
     def process(
         self,
@@ -95,23 +95,27 @@ class _AnalysisWorker(threading.Thread):
         return highlights, fold_regions
 
     def _remote_analysis(self, request: _AnalysisRequest):
-        """Ask the analysis subprocess to compute highlights + folds.
+        """Ask the shared analysis subprocess to compute highlights + folds.
 
         The subprocess resolves the python config and theme itself, so
         only plain-data (source, config, theme) crosses the wire.
 
         Returns:
-            ``(highlights, fold_regions)``.
+            ``(highlights, fold_regions)`` — or ``None`` if the request
+            was dropped because this owner is no longer the focused tab.
         """
-        response = self._process.request(
+        response = process_manager.request(
+            self._owner.owner_id,
             (
                 "analysis",
                 request.request_id,
                 request.source,
                 request.config,
                 request.theme_name,
-            )
+            ),
         )
+        if response is None:
+            return None
         if not isinstance(response, (tuple, list)) or not response:
             raise AnalysisProcessError(f"malformed server response: {response!r}")
         if response[0] != "analysis":
@@ -134,11 +138,18 @@ class _AnalysisWorker(threading.Thread):
             try:
                 if getattr(request.provider, "remote_analysis", False):
                     try:
-                        highlights, fold_regions = self._remote_analysis(request)
+                        result = self._remote_analysis(request)
+                        if result is None:
+                            continue  # dropped — owner is no longer active
+                        highlights, fold_regions = result
                     except Exception as exc:
-                        logger.error("Analysis subprocess failed: %s", exc)
-                        if self._is_shutting_down:
+                        if self._is_shutting_down or not process_manager.is_active(
+                            self._owner.owner_id
+                        ):
+                            # Intentional teardown / lost focus — not a bug.
+                            logger.debug("Analysis subprocess failed: %s", exc)
                             continue
+                        logger.error("Analysis subprocess failed: %s", exc)
                         # Graceful degradation: compute in-process instead.
                         highlights, fold_regions = self._analyze(
                             request.provider, request.source
@@ -162,17 +173,16 @@ class _AnalysisWorker(threading.Thread):
                     pass  # Owner torn down while we were computing
 
     def shutdown(self) -> None:
-        """Stop the worker and join the underlying thread."""
+        """Stop the worker.
+
+        The shared process is deliberately left untouched: it is owned by
+        the process manager and stays warm for other tabs.  The worker is
+        a daemon thread, so it simply exits once its current round-trip
+        finishes — never blocking the caller on a busy child.
+        """
         self._is_shutting_down = True
         self._current_request = None
         self._wake.set()
-        try:
-            # Closing the child unblocks an in-flight round-trip.
-            self._process.shutdown()
-        except Exception as exc:
-            logger.debug("Analysis subprocess shutdown failed: %s", exc)
-        if self._started_once and self.is_alive():
-            self.join(timeout=2.0)
 
 
 class AnalysisManager(QObject):
@@ -191,12 +201,25 @@ class AnalysisManager(QObject):
         """
         super().__init__(parent)
         self._editor = editor
+        self._owner_id = id(editor)
+        self._enabled = True
         self._request_counter: int = 0
         self._worker = _AnalysisWorker(self)
         self._results_ready.connect(self._apply_results)
         destroyed = getattr(self._editor, "destroyed", None)
         if destroyed is not None:
             destroyed.connect(self.shutdown)
+
+    @property
+    def owner_id(self) -> int:
+        return self._owner_id
+
+    def set_enabled(self, active: bool) -> None:
+        """Gate submission while this editor is not the focused tab."""
+        self._enabled = active
+
+    def is_enabled(self) -> bool:
+        return self._enabled
 
     def invalidate(self) -> None:
         """Increment the request counter to invalidate any pending analysis."""
@@ -212,6 +235,8 @@ class AnalysisManager(QObject):
         Args:
             source: The full editor buffer content.
         """
+        if not self._enabled:
+            return
         if not source:
             return
         provider = getattr(self._editor, "current_provider", None)
@@ -272,3 +297,4 @@ class AnalysisManager(QObject):
             self._worker.shutdown()
         except Exception as exc:
             logger.debug("Analysis worker shutdown failed: %s", exc)
+        process_manager.release(self._owner_id)
