@@ -6,14 +6,22 @@ from fonts.font_strapper import Fonts
 
 
 class ToolTip(QFrame):
+    MAX_WIDTH = 420
+    MAX_HEIGHT = 220
+
     def __init__(self, parent=None, text: str = ""):
         super().__init__(
             parent, Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setMaximumWidth(self.MAX_WIDTH)
+        self.setMaximumHeight(self.MAX_HEIGHT)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
         self.label = QLabel(text, self)
+        self.label.setWordWrap(True)
+        self.label.setMaximumWidth(self.MAX_WIDTH - 20)
         layout.addWidget(self.label)
 
         self.hide_timer = QTimer(self)

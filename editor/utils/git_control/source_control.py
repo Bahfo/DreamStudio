@@ -18,9 +18,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QAction
 
-# Local Imports
 from editor.utils.panel_shell import PanelShell
-from editor.utils.git_control.commit_history import GitGraph
+from editor.utils.git_control.commit_history import GitGraph, compute_commit_graph
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
 from editor.utils.git_control.commit_text import ExpandingTextEdit
 import editor.utils.git_control.git_control as git_control
@@ -240,7 +239,7 @@ class GitVersionControl(PanelShell):
 
         title = QLabel("No Repository Detected")
         desc = QLabel(
-            "Track and monitor workspace history by initializing " "a Git repository."
+            "Track and monitor workspace history by initializing a Git repository."
         )
         desc.setWordWrap(True)
 
@@ -287,7 +286,6 @@ class GitVersionControl(PanelShell):
         self.commit_btn = QPushButton("Commit Changes")
         self.commit_btn.clicked.connect(self._do_commit)
 
-        # Style the button blue and center it expanding horizontally
         self.commit_btn.setStyleSheet("""
             QPushButton {
                 background-color: #0078d4;
@@ -376,10 +374,8 @@ class GitVersionControl(PanelShell):
         self.commit_history = GitCommitHistory(self)
         self.history_stack.addWidget(self.commit_history)
 
-        self.history_container = QFrame()
-        self.history_layout = QVBoxLayout(self.history_container)
-        self.history_layout.setContentsMargins(0, 0, 0, 0)
-        self.history_stack.addWidget(self.history_container)
+        self.graph_view = GitGraph(self)
+        self.history_stack.addWidget(self.graph_view)
 
         self.workspace_stack.addWidget(page)
 
@@ -427,36 +423,16 @@ class GitVersionControl(PanelShell):
             self.commit_history.set_repo(self._repo)
 
             try:
-                history_data = git_control.get_commit_history(self._repo, 1)
+                history_data = git_control.get_commit_history(self._repo)
+                commits = history_data.get("commits", [])
+                processed_commits = compute_commit_graph(commits)
+                self.graph_view.set_commits(processed_commits)
+
                 self._status_label.setText(
                     f"Branch: {history_data.get('branch', 'main')}"
                 )
             except Exception:
                 self._status_label.setText("Branch: Unknown")
-
-        for i in reversed(range(self.history_layout.count())):
-            widget = self.history_layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
-
-        if self._repo is not None:
-            try:
-                history_data = git_control.get_commit_history(self._repo)
-                processed_commits = []
-                for commit_obj in history_data.get("commits", []):
-                    processed_commits.append(
-                        (
-                            0,
-                            [(0, 0)],
-                            commit_obj.message.strip(),
-                            commit_obj.author.name,
-                        )
-                    )
-
-                self.graph_view = GitGraph(processed_commits)
-                self.history_layout.addWidget(self.graph_view)
-            except Exception:
-                pass
 
     def _action_git_init(self) -> None:
         if not self._root_path:

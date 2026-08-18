@@ -30,24 +30,119 @@ from PyQt6.QtCore import Qt, QRectF, QEvent
 from editor.widgets.QToolTip import ToolTip
 
 
+def compute_commit_graph(commits):
+    """
+    Compute lane assignments and connections for a list of git commits (newest first).
+    Returns a list of dictionaries with row metadata and geometric graph paths.
+    """
+    if not commits:
+        return []
+
+    active_lanes = []
+    results = []
+    overall_max_lanes = 1
+
+    for commit in commits:
+        sha = commit.hexsha
+
+        # 1. Determine lane for current commit
+        if sha in active_lanes:
+            my_lane = active_lanes.index(sha)
+        else:
+            if None in active_lanes:
+                my_lane = active_lanes.index(None)
+                active_lanes[my_lane] = sha
+            else:
+                my_lane = len(active_lanes)
+                active_lanes.append(sha)
+
+        # Active lanes entering from top of row
+        in_lanes = [i for i, l_sha in enumerate(active_lanes) if l_sha is not None]
+
+        # 2. Compute outgoing connections (from center_y to bottom_y)
+        next_lanes = list(active_lanes)
+        out_connections = []
+
+        # Pass-through connections for other active branches
+        for i, l_sha in enumerate(next_lanes):
+            if i != my_lane and l_sha is not None:
+                out_connections.append((i, i, i))
+
+        parents = commit.parents if commit.parents else []
+
+        if not parents:
+            next_lanes[my_lane] = None
+        else:
+            # Primary parent connection
+            p0_sha = parents[0].hexsha
+            if p0_sha in next_lanes:
+                p0_lane = next_lanes.index(p0_sha)
+                out_connections.append((my_lane, p0_lane, my_lane))
+                next_lanes[my_lane] = None
+            else:
+                next_lanes[my_lane] = p0_sha
+                out_connections.append((my_lane, my_lane, my_lane))
+
+            # Secondary parents (merge sources)
+            for p in parents[1:]:
+                p_sha = p.hexsha
+                if p_sha in next_lanes:
+                    p_lane = next_lanes.index(p_sha)
+                    out_connections.append((my_lane, p_lane, my_lane))
+                else:
+                    if None in next_lanes:
+                        p_lane = next_lanes.index(None)
+                        next_lanes[p_lane] = p_sha
+                    else:
+                        p_lane = len(next_lanes)
+                        next_lanes.append(p_sha)
+                    out_connections.append((my_lane, p_lane, my_lane))
+
+        active_lanes = next_lanes
+        overall_max_lanes = max(overall_max_lanes, len(active_lanes), my_lane + 1)
+
+        msg = commit.message.strip().split("\n")[0] if commit.message else ""
+        author = commit.author.name if commit.author else ""
+
+        results.append(
+            {
+                "lane": my_lane,
+                "in_lanes": in_lanes,
+                "out_connections": out_connections,
+                "message": msg,
+                "author": author,
+                "sha": sha,
+            }
+        )
+
+    for res in results:
+        res["max_lanes"] = overall_max_lanes
+
+    return results
+
+
 class GitGraphDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.lane_width = 20
-        self.padding_left = 10
+        self.lane_width = 18
+        self.padding_left = 12
         self.lane_colors = [
             QColor("#3b82f6"),  # Blue
             QColor("#ef4444"),  # Red
             QColor("#10b981"),  # Emerald
             QColor("#f59e0b"),  # Amber
             QColor("#8b5cf6"),  # Purple
+            QColor("#ec4899"),  # Pink
+            QColor("#06b6d4"),  # Cyan
         ]
 
     def paint(self, painter: QPainter, option, index):
         lane = index.data(Qt.ItemDataRole.UserRole + 1)
-        connections = index.data(Qt.ItemDataRole.UserRole + 2) or []
-        message = index.data(Qt.ItemDataRole.UserRole + 3) or ""
-        author = index.data(Qt.ItemDataRole.UserRole + 4) or ""
+        in_lanes = index.data(Qt.ItemDataRole.UserRole + 2) or []
+        out_connections = index.data(Qt.ItemDataRole.UserRole + 3) or []
+        message = index.data(Qt.ItemDataRole.UserRole + 4) or ""
+        author = index.data(Qt.ItemDataRole.UserRole + 5) or ""
+        max_lanes = index.data(Qt.ItemDataRole.UserRole + 6) or 1
 
         if lane is None:
             super().paint(painter, option, index)
@@ -65,11 +160,16 @@ class GitGraphDelegate(QStyledItemDelegate):
         row_h = option.rect.height()
         center_y = row_y + (row_h / 2)
 
-        max_seen_lane = lane
-        for from_lane, to_lane in connections:
-            max_seen_lane = max(max_seen_lane, from_lane, to_lane)
+        # 1. Draw top half lines (inbound lanes)
+        for l_idx in in_lanes:
+            color = self.lane_colors[l_idx % len(self.lane_colors)]
+            painter.setPen(QPen(color, 2))
+            x = self.padding_left + (l_idx * self.lane_width) + (self.lane_width / 2)
+            painter.drawLine(int(x), int(row_y), int(x), int(center_y))
 
-            color = self.lane_colors[from_lane % len(self.lane_colors)]
+        # 2. Draw bottom half lines (outbound connections)
+        for from_lane, to_lane, color_lane in out_connections:
+            color = self.lane_colors[color_lane % len(self.lane_colors)]
             painter.setPen(QPen(color, 2))
 
             start_x = (
@@ -83,21 +183,23 @@ class GitGraphDelegate(QStyledItemDelegate):
 
             if from_lane == to_lane:
                 painter.drawLine(
-                    int(start_x), int(row_y), int(start_x), int(row_y + row_h)
+                    int(start_x), int(center_y), int(start_x), int(row_y + row_h)
                 )
             else:
                 painter.drawLine(
-                    int(start_x), int(row_y), int(end_x), int(row_y + row_h)
+                    int(start_x), int(center_y), int(end_x), int(row_y + row_h)
                 )
 
+        # 3. Draw commit node
         node_color = self.lane_colors[lane % len(self.lane_colors)]
         node_x = self.padding_left + (lane * self.lane_width) + (self.lane_width / 2)
 
         painter.setPen(QPen(QColor("#ffffff"), 1.5))
         painter.setBrush(QBrush(node_color))
-        painter.drawEllipse(QRectF(node_x - 5, center_y - 5, 10, 10))
+        painter.drawEllipse(QRectF(node_x - 4.5, center_y - 4.5, 9, 9))
 
-        text_start_x = self.padding_left + ((max_seen_lane + 1) * self.lane_width) + 15
+        # 4. Draw commit text aligned to a fixed graph column
+        text_start_x = self.padding_left + (max_lanes * self.lane_width) + 12
         font_metrics = painter.fontMetrics()
         font = painter.font()
 
@@ -129,8 +231,8 @@ class GitGraphDelegate(QStyledItemDelegate):
 
 
 class GitGraph(QWidget):
-    def __init__(self, commits: list):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.resize(600, 420)
 
         layout = QVBoxLayout(self)
@@ -144,24 +246,31 @@ class GitGraph(QWidget):
         layout.addWidget(self.tree_view)
 
         self.tooltip = ToolTip(self.tree_view)
+        self._current_hover_row = -1
 
         self.tree_view.setMouseTracking(True)
         self.tree_view.entered.connect(self.on_tree_item_hovered)
         self.tree_view.viewport().installEventFilter(self)
 
-        model = QStandardItemModel()
-        for lane, connections, msg, author in commits:
-            item = QStandardItem()
-            item.setData(lane, Qt.ItemDataRole.UserRole + 1)
-            item.setData(connections, Qt.ItemDataRole.UserRole + 2)
-            item.setData(msg, Qt.ItemDataRole.UserRole + 3)
-            item.setData(author, Qt.ItemDataRole.UserRole + 4)
-            model.appendRow(item)
+        self.model = QStandardItemModel()
+        self.tree_view.setModel(self.model)
 
-        self.tree_view.setModel(model)
+    def set_commits(self, processed_commits: list):
+        self.model.clear()
+        for c in processed_commits:
+            item = QStandardItem()
+            item.setData(c["lane"], Qt.ItemDataRole.UserRole + 1)
+            item.setData(c["in_lanes"], Qt.ItemDataRole.UserRole + 2)
+            item.setData(c["out_connections"], Qt.ItemDataRole.UserRole + 3)
+            item.setData(c["message"], Qt.ItemDataRole.UserRole + 4)
+            item.setData(c["author"], Qt.ItemDataRole.UserRole + 5)
+            item.setData(c["max_lanes"], Qt.ItemDataRole.UserRole + 6)
+            item.setData(c["sha"], Qt.ItemDataRole.UserRole + 7)
+            self.model.appendRow(item)
 
     def eventFilter(self, source, event):
         if source == self.tree_view.viewport() and event.type() == QEvent.Type.Leave:
+            self._current_hover_row = -1
             self.tooltip.start_hide_sequence()
         return super().eventFilter(source, event)
 
@@ -171,61 +280,57 @@ class GitGraph(QWidget):
             return
 
         lane = index.data(Qt.ItemDataRole.UserRole + 1)
-        connections = index.data(Qt.ItemDataRole.UserRole + 2) or []
-        message = index.data(Qt.ItemDataRole.UserRole + 3) or ""
-        author = index.data(Qt.ItemDataRole.UserRole + 4) or ""
+        message = index.data(Qt.ItemDataRole.UserRole + 4) or ""
+        author = index.data(Qt.ItemDataRole.UserRole + 5) or ""
+        max_lanes = index.data(Qt.ItemDataRole.UserRole + 6) or 1
+        sha = index.data(Qt.ItemDataRole.UserRole + 7) or "head"
 
         if lane is None:
             self.tooltip.start_hide_sequence()
             return
 
+        self._current_hover_row = index.row()
+
         self.tooltip.set_commit_info(
-            commit_sha=f"sha_{index.row()}",
+            commit_sha=sha[:7],
             author=author,
-            date="Just now",
+            date="Recent",
             message=message,
             branch="main",
         )
 
+        self.tooltip.adjustSize()
+
         visual_rect = self.tree_view.visualRect(index)
         viewport = self.tree_view.viewport()
 
-        padding_left = 10
-        lane_width = 20
-        max_seen_lane = lane
-        for from_lane, to_lane in connections:
-            max_seen_lane = max(max_seen_lane, from_lane, to_lane)
+        padding_left = 12
+        lane_width = 18
+        text_x = padding_left + (max_lanes * lane_width) + 12
 
-        text_start_x = padding_left + ((max_seen_lane + 1) * lane_width) + 15
+        local_point = visual_rect.topLeft()
+        local_point.setX(int(text_x))
+        local_point.setY(int(visual_rect.center().y()))
 
-        font_metrics = self.tree_view.fontMetrics()
-        text_width = (
-            font_metrics.horizontalAdvance(message)
-            + 12
-            + font_metrics.horizontalAdvance(author)
-        )
+        global_pos = viewport.mapToGlobal(local_point)
 
-        content_end_x = text_start_x + text_width
-
-        local_side_point = visual_rect.topLeft()
-        local_side_point.setX(int(content_end_x + 20))
-
-        global_side_pos = viewport.mapToGlobal(local_side_point)
-
-        self.tooltip.adjustSize()
         tooltip_width = self.tooltip.width()
+        tooltip_height = self.tooltip.height()
 
-        screen = (
-            QGuiApplication.screenAt(global_side_pos) or QGuiApplication.primaryScreen()
-        )
+        screen = QGuiApplication.screenAt(global_pos) or QGuiApplication.primaryScreen()
         screen_geo = screen.availableGeometry()
 
-        target_x = global_side_pos.x()
-        target_y = global_side_pos.y() - 4
+        target_x = global_pos.x()
+        target_y = global_pos.y() - (tooltip_height // 2)
 
         if target_x + tooltip_width > screen_geo.right():
-            global_row_left = viewport.mapToGlobal(visual_rect.topLeft())
-            target_x = global_row_left.x() + text_start_x - tooltip_width - 20
+            target_x = global_pos.x() - tooltip_width - 20
 
+        if target_y < screen_geo.top():
+            target_y = screen_geo.top() + 4
+        elif target_y + tooltip_height > screen_geo.bottom():
+            target_y = screen_geo.bottom() - tooltip_height - 4
+
+        self.tooltip.hide_timer.stop()
         self.tooltip.move(target_x, target_y)
         self.tooltip.show()
