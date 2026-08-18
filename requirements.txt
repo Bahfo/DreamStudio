@@ -6,7 +6,8 @@ pyqt6_sip==13.11.1
 pyqtgraph==0.14.0
 pyte==0.8.2
 pytest==9.1.1
-pywinpty==3.0.5
 PyYAML==6.0.3
 
-# This is some test only to see if switch is correct
+# Platform-specific terminal backends
+pywinpty==3.0.5; sys_platform == 'win32'
+ptyprocess==0.7.0; sys_platform != 'win32'
