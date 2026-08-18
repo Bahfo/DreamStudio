@@ -7,9 +7,9 @@ This code is protected under the GPLv3 License.
 
 # Written By Bahaa Nofal - 26/May/2026
 
-import json
 import logging
 import pathlib
+import json
 import stat
 import re
 
@@ -22,6 +22,7 @@ from PyQt6.QtGui import (
     QPalette,
     QPainter,
     QPixmap,
+    QCursor,
     QColor,
     QImage,
     QBrush,
@@ -38,7 +39,8 @@ from editor.Ironica.utils.hover_controller import HoverController
 from editor.Ironica.utils.completion import CompletionController
 from editor.Ironica.utils.debug_frame import StackInfoFrame
 from editor.Ironica.analysis_worker import AnalysisManager
-from editor.Ironica.regex import IronicaLexer
+from editor.Ironica.right_click import RightClickMenu
+from editor.Ironica.regex import *
 
 from fonts.font_strapper import Fonts
 
@@ -108,10 +110,6 @@ class CodeEditor(QsciScintilla):
     CIRCLE_RADIUS = 4
 
     # Works for three types: Hex, RGB, and RGBA
-    COLOR_REGEX = re.compile(
-        r"(#(?:[0-9a-fA-F]{3,4}){1,2}\b|"
-        r"rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*(?:0?\.\d+|\d+(?:\.\d+)?)\s*)?\))"
-    )
     COLOR_MARKER_START = 10
     COLOR_MARKER_END = 24
 
@@ -137,6 +135,12 @@ class CodeEditor(QsciScintilla):
         self._diagnostic_indicators = {}
         self._next_diag_slot = 8  # Slots 8-15 allocated for diagnostics to avoid
         # semantic overlaps
+
+        ###############################################
+        # Right-click menu
+        ###############################################
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos))
 
         # Bracket-pair highlight state (custom, indicator-based).
         self._bracket_hl_ranges: list = []
@@ -249,9 +253,17 @@ class CodeEditor(QsciScintilla):
         ###############################################
         self._autocompletion_widget = CompletionController(self)
 
-    # ------------------------------------------------------------------
-    # Dirty state
-    # ------------------------------------------------------------------
+    ###############################################
+    # CONTEXT MENU
+    ###############################################
+
+    def show_context_menu(self, pos):
+        menu = RightClickMenu(self)
+        menu.exec(QCursor.pos())
+
+    ###############################################
+    # DIRTY STATE
+    ###############################################
 
     def _on_text_changed(self) -> None:
         if not self._is_dirty:
@@ -283,9 +295,20 @@ class CodeEditor(QsciScintilla):
                 )
                 break
 
-    ############################################
-    # Snippets Manager
-    ############################################
+    def clear_dirty(self) -> None:
+        """Reset the editor's modified (dirty) flag."""
+        self.setModified(False)
+        if self._is_dirty:
+            self._is_dirty = False
+            self.dirty_state_changed.emit(False)
+
+    def is_dirty(self) -> bool:
+        """Return ``True`` if the editor buffer has been modified."""
+        return self._is_dirty
+
+    ###############################################
+    # SNIPPETS
+    ###############################################
 
     def load_snippets(self, snippets_path: str) -> None:
         """Load snippet definitions from a JSON file into ``snippet_map``.
@@ -346,9 +369,9 @@ class CodeEditor(QsciScintilla):
         self.endUndoAction()
         self._is_replacing = False
 
-    ############################################
-    # Folds Manager
-    ############################################
+    ###############################################
+    # FOLDS & ANALYSIS
+    ###############################################
 
     def _schedule_fold_recompute(self) -> None:
         """Debounce fold recomputation on text change."""
@@ -379,10 +402,6 @@ class CodeEditor(QsciScintilla):
             self._analysis_active = True
             self.analysis_started.emit()
         self._analysis_manager.request_analysis(text)
-
-    ############################################
-    # Analysis Manager
-    ############################################
 
     def _on_analysis_finished(self) -> None:
         """Clear the active-analysis flag and notify listeners."""
@@ -473,9 +492,9 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Fold application failed: %s", exc)
 
-    ############################################
-    # Zoom Manager
-    ############################################
+    ###############################################
+    # ZOOM
+    ###############################################
 
     def _get_zoom_level(self) -> int:
         """
@@ -501,9 +520,9 @@ class CodeEditor(QsciScintilla):
         # IDK WHY I ADDED THIS...
         self.zoomTo(0)
 
-    ############################################
-    # Hover Manager
-    ############################################
+    ###############################################
+    # HOVER
+    ###############################################
 
     def _setup_hover_engine(self) -> None:
         """Create and attach the DocumentationFlyout + HoverController."""
@@ -541,9 +560,13 @@ class CodeEditor(QsciScintilla):
         if self._hover_flyout and self._hover_flyout.isVisible():
             self._hover_flyout.dismiss(force=force)
 
-    ############################################
-    # Helpers
-    ############################################
+    def _dismiss_all_popups(self) -> None:
+        """Dismiss every open sub-menu (hover flyout)."""
+        self._dismiss_hover_flyout()
+
+    ###############################################
+    # EDITOR SETUP
+    ###############################################
 
     def _setup_indentation(self) -> None:
         """Configure indentation, tab width, and backspace behaviour."""
@@ -563,10 +586,6 @@ class CodeEditor(QsciScintilla):
         mid = bg.lighter(130) if bg.lightness() < 128 else bg.darker(115)
         border = bg.lighter(150) if bg.lightness() < 128 else bg.darker(130)
         return bg, text, mid, border
-
-    ############################################
-    # Margins
-    ############################################
 
     def setup_symbol_margin(
         self, margin: int, *marker_ids: int, width: int = 18
@@ -714,6 +733,20 @@ class CodeEditor(QsciScintilla):
         self.setBraceMatching(QsciScintilla.BraceMatch.NoBraceMatch)
         self._setup_brace_highlight()
 
+    def set_wrap_mode(self, enabled: bool = False) -> None:
+        """Enable or disable word wrapping."""
+        self.setWrapMode(
+            QsciScintilla.WrapMode.WrapNone
+            if not enabled
+            else QsciScintilla.WrapMode.WrapWord
+        )
+        if not enabled:
+            self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+    ###############################################
+    # BRACKET HIGHLIGHTING
+    ###############################################
+
     def _setup_brace_highlight(self) -> None:
         """Configure the smooth, theme-aware bracket-pair highlight.
 
@@ -821,9 +854,9 @@ class CodeEditor(QsciScintilla):
             self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, active, 1)
             self._bracket_hl_ranges = [(active, 1)]
 
-    # ------------------------------------------------------------------
-    # Position / signals
-    # ------------------------------------------------------------------
+    ###############################################
+    # EVENTS
+    ###############################################
 
     def _emit_position(self, line: int, col: int) -> None:
         """Forward cursor position changes to the ``position_changed`` signal."""
@@ -863,9 +896,9 @@ class CodeEditor(QsciScintilla):
         self._dismiss_hover_flyout()
         super().focusOutEvent(event)
 
-    # ------------------------------------------------------------------
-    # Font management
-    # ------------------------------------------------------------------
+    ###############################################
+    # FONT MANAGEMENT
+    ###############################################
 
     @property
     def font_size(self) -> int:
@@ -906,19 +939,9 @@ class CodeEditor(QsciScintilla):
         """Set the editor font point size."""
         self.font_size = int(font_size)
 
-    def set_wrap_mode(self, enabled: bool = False) -> None:
-        """Enable or disable word wrapping."""
-        self.setWrapMode(
-            QsciScintilla.WrapMode.WrapNone
-            if not enabled
-            else QsciScintilla.WrapMode.WrapWord
-        )
-        if not enabled:
-            self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-    # ------------------------------------------------------------------
-    # Keyboard events
-    # ------------------------------------------------------------------
+    ###############################################
+    # KEYBOARD
+    ###############################################
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         """Intercept key events for goto definition and enhanced enter/return behaviour."""
@@ -951,9 +974,9 @@ class CodeEditor(QsciScintilla):
 
         super().keyPressEvent(e)
 
-    # ------------------------------------------------------------------
-    # Mouse events / hover
-    # ------------------------------------------------------------------
+    ###############################################
+    # MOUSE
+    ###############################################
 
     def mouseMoveEvent(self, e):
         """Track cursor movement for breakpoint margin hover."""
@@ -1006,13 +1029,9 @@ class CodeEditor(QsciScintilla):
 
         super().mousePressEvent(e)
 
-    def _dismiss_all_popups(self) -> None:
-        """Dismiss every open sub-menu (hover flyout)."""
-        self._dismiss_hover_flyout()
-
-    # ------------------------------------------------------------------
-    # Debugger and Breakpoints
-    # ------------------------------------------------------------------
+    ###############################################
+    # DEBUGGER & BREAKPOINTS
+    ###############################################
 
     @staticmethod
     def _create_circle_image(size: int, radius: int, color: QColor) -> QImage:
@@ -1197,9 +1216,9 @@ class CodeEditor(QsciScintilla):
                 frame_x, frame_y, frame_width, frame_height
             )
 
-    # ------------------------------------------------------------------
-    # ColorWheel
-    # ------------------------------------------------------------------
+    ###############################################
+    # COLOR WHEEL
+    ###############################################
 
     def _get_color_by_line(self, line_number: int) -> tuple[Any, str, int, int] | None:
         """
@@ -1207,7 +1226,7 @@ class CodeEditor(QsciScintilla):
         using a set of compiled regular expressions (COLOR_REGEX)
         """
         line_text = self.text(line_number)
-        match = self.COLOR_REGEX.search(line_text)
+        match = COLOR_REGEX.search(line_text)
         if not match:
             return None
 
@@ -1371,9 +1390,9 @@ class CodeEditor(QsciScintilla):
 
         return hex_str.upper() if is_uppercase else hex_str
 
-    # ------------------------------------------------------------------
-    # Go-to definition
-    # ------------------------------------------------------------------
+    ###############################################
+    # GO-TO DEFINITION
+    ###############################################
 
     def execute_goto_definition(self, line: int = None, col: int = None) -> None:
         """Resolve the symbol under the cursor and navigate to its definition.
@@ -1425,9 +1444,9 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Go-to-definition failed: %s", exc)
 
-    # ------------------------------------------------------------------
-    # Language / lexer
-    # ------------------------------------------------------------------
+    ###############################################
+    # LANGUAGE & LEXER
+    ###############################################
 
     def setLanguage(self, lang: str) -> None:
         """Assign a language to the editor and isolate native folding features."""
@@ -1474,6 +1493,10 @@ class CodeEditor(QsciScintilla):
         the language JSON config.
         """
         return IronicaLexer(self, config)
+
+    ###############################################
+    # THEME
+    ###############################################
 
     def _active_theme(self) -> str:
         """Return the current IDE theme name, falling back to the active one."""
@@ -1569,9 +1592,9 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # Semantic indicators (imports, special keywords)
-    # ------------------------------------------------------------------
+    ###############################################
+    # SEMANTIC INDICATORS
+    ###############################################
 
     @staticmethod
     def _scintilla_rgb(hex_color: str) -> int:
@@ -1592,19 +1615,9 @@ class CodeEditor(QsciScintilla):
         """
         self._request_analysis()
 
-    def deleteLater(self) -> None:
-        """Shut down the analysis worker before destroying the widget."""
-        manager = getattr(self, "_analysis_manager", None)
-        if manager is not None:
-            try:
-                manager.shutdown()
-            except Exception:
-                pass
-        super().deleteLater()
-
-    # ------------------------------------------------------------------
-    # File I/O
-    # ------------------------------------------------------------------
+    ###############################################
+    # FILE I/O
+    ###############################################
 
     def load_from_file(self, file_path: str) -> None:
         """Load file contents into the editor.
@@ -1670,17 +1683,6 @@ class CodeEditor(QsciScintilla):
                 "Could not check file permissions for %s: %s", file_path, exc
             )
 
-    def clear_dirty(self) -> None:
-        """Reset the editor's modified (dirty) flag."""
-        self.setModified(False)
-        if self._is_dirty:
-            self._is_dirty = False
-            self.dirty_state_changed.emit(False)
-
-    def is_dirty(self) -> bool:
-        """Return ``True`` if the editor buffer has been modified."""
-        return self._is_dirty
-
     def save(self) -> bool:
         """Save the current buffer to ``current_file_path``.
 
@@ -1734,9 +1736,9 @@ class CodeEditor(QsciScintilla):
             logger.error("Save failed for %s: %s", file_path, exc)
             return False
 
-    # ------------------------------------------------------------------
-    # Clipboard helpers
-    # ------------------------------------------------------------------
+    ###############################################
+    # CLIPBOARD
+    ###############################################
 
     def copy_selection_as_plain_text(self) -> None:
         """Copy the current selection to the system clipboard as plain text."""
@@ -1745,9 +1747,9 @@ class CodeEditor(QsciScintilla):
             clipboard = QApplication.clipboard()
             clipboard.setText(selected_text)
 
-    # ------------------------------------------------------------------
-    # Read-only management
-    # ------------------------------------------------------------------
+    ###############################################
+    # READ-ONLY
+    ###############################################
 
     def make_file_readonly(self) -> None:
         """Toggle the file's read-only permission on disk and in the editor."""
@@ -1804,9 +1806,9 @@ class CodeEditor(QsciScintilla):
                 tab_bar.mark_readonly(i, is_readonly)
                 break
 
-    # ------------------------------------------------------------------
-    # Code formatting
-    # ------------------------------------------------------------------
+    ###############################################
+    # CODE FORMATTING
+    ###############################################
 
     def format_current_file(self) -> None:
         """Pass the buffer through the current provider's formatter.
@@ -1838,9 +1840,9 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Format query failed: %s", exc)
 
-    # ------------------------------------------------------------------
-    # Diagnostic Underlining
-    # ------------------------------------------------------------------
+    ###############################################
+    # DIAGNOSTICS
+    ###############################################
 
     def add_diagnostic_underline(
         self, line: int, start_col: int, end_col: int, color_hex: str = "#FF0000"
@@ -1906,9 +1908,9 @@ class CodeEditor(QsciScintilla):
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
             self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, doc_length)
 
-    # ------------------------------------------------------------------
-    # Ghost Text System (End-of-Line and Inline Annotations)
-    # ------------------------------------------------------------------
+    ###############################################
+    # GHOST TEXT
+    ###############################################
 
     def set_ghost_text(self, line: int, text: str, color_hex: str = "#8a8a8a") -> None:
         """
@@ -1949,3 +1951,17 @@ class CodeEditor(QsciScintilla):
         """Clear every active ghost text annotation throughout the entire document buffer."""
         # SCI_ANNOTATIONCLEARALL = 2546
         self.SendScintilla(2546)
+
+    ###############################################
+    # LIFECYCLE
+    ###############################################
+
+    def deleteLater(self) -> None:
+        """Shut down the analysis worker before destroying the widget."""
+        manager = getattr(self, "_analysis_manager", None)
+        if manager is not None:
+            try:
+                manager.shutdown()
+            except Exception:
+                pass
+        super().deleteLater()

@@ -118,15 +118,21 @@ _BRACKET_PAIRS = {"(": ")", "[": "]", "{": "}"}
 # ~6-10x faster than a per-char Python loop over large prefixes.
 _BRACKET_REGEX = re.compile(r"[()\[\]{}]")
 
+# Colors
+COLOR_REGEX = re.compile(
+    r"(#(?:[0-9a-fA-F]{3,4}){1,2}\b|"
+    r"rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*(?:0?\.\d+|\d+(?:\.\d+)?)\s*)?\))"
+)
+
 # ------------------------------------------------------------------
 # Incremental scanner states (carried across styleText calls)
 # ------------------------------------------------------------------
-_ST_DEFAULT = 0    # plain code
-_ST_SINGLE = 1     # inside a '...' string
-_ST_DOUBLE = 2     # inside a "..." string
-_ST_TRIPLE_S = 3   # inside a '''...''' string
-_ST_TRIPLE_D = 4   # inside a """...""" string
-_ST_COMMENT = 5    # inside a # comment (until end of line)
+_ST_DEFAULT = 0  # plain code
+_ST_SINGLE = 1  # inside a '...' string
+_ST_DOUBLE = 2  # inside a "..." string
+_ST_TRIPLE_S = 3  # inside a '''...''' string
+_ST_TRIPLE_D = 4  # inside a """...""" string
+_ST_COMMENT = 5  # inside a # comment (until end of line)
 
 
 class IronicaLexer(QsciLexerCustom):
@@ -192,7 +198,9 @@ class IronicaLexer(QsciLexerCustom):
                 if kw in self._keyword_map:
                     logger.debug(
                         "Keyword %r appears in multiple lists (%r and %r); keeping first",
-                        kw, self._keyword_style_names.get(self._keyword_map[kw], "?"), style_name,
+                        kw,
+                        self._keyword_style_names.get(self._keyword_map[kw], "?"),
+                        style_name,
                     )
                     continue
                 self._keyword_map[kw] = sid
@@ -222,8 +230,12 @@ class IronicaLexer(QsciLexerCustom):
             resolve_colour(styles.get("bracket_2", "#E5C07B"), palette, "#E5C07B"),
             resolve_colour(styles.get("bracket_3", "#C678DD"), palette, "#C678DD"),
         )
-        number_colour = resolve_colour(styles.get("number", "#B5CEA8"), palette, "#B5CEA8")
-        operator_colour = resolve_colour(styles.get("operator", "#D4D4D4"), palette, "#D4D4D4")
+        number_colour = resolve_colour(
+            styles.get("number", "#B5CEA8"), palette, "#B5CEA8"
+        )
+        operator_colour = resolve_colour(
+            styles.get("operator", "#D4D4D4"), palette, "#D4D4D4"
+        )
 
         for offset, triple in (
             (self._paren_offset, paren_colours),
@@ -236,8 +248,12 @@ class IronicaLexer(QsciLexerCustom):
         self.setColor(QColor(number_colour), self._number_style)
         self.setColor(QColor(operator_colour), self._operator_style)
 
-        string_colour = resolve_colour(styles.get("string", "#CE9178"), palette, "#CE9178")
-        comment_colour = resolve_colour(styles.get("comment", "#6A9955"), palette, "#6A9955")
+        string_colour = resolve_colour(
+            styles.get("string", "#CE9178"), palette, "#CE9178"
+        )
+        comment_colour = resolve_colour(
+            styles.get("comment", "#6A9955"), palette, "#6A9955"
+        )
         self.setColor(QColor(string_colour), self._string_style)
         self.setColor(QColor(comment_colour), self._comment_style)
 
@@ -382,10 +398,7 @@ class IronicaLexer(QsciLexerCustom):
                     state = _ST_DEFAULT
             elif state in (_ST_TRIPLE_S, _ST_TRIPLE_D):
                 delim = b"'''" if state == _ST_TRIPLE_S else b'"""'
-                if (
-                    data[at : at + 3] == delim
-                    and not cls._is_escaped(data, at)
-                ):
+                if data[at : at + 3] == delim and not cls._is_escaped(data, at):
                     state = _ST_DEFAULT
             elif state == _ST_COMMENT:
                 if ch == 0x0A:
