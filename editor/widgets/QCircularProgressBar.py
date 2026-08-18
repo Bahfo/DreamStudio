@@ -48,6 +48,7 @@ class CircularProgressBar(QWidget):
         self._spin_span = 80 * 16
 
         self.setFixedSize(QSize(diameter, diameter))
+        self.setStyleSheet("background-color: transparent;")
 
         self._spin_timer = QTimer(self)
         self._spin_timer.setInterval(_DEFAULT_SPIN_INTERVAL_MS)

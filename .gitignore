@@ -28,6 +28,9 @@ tools.txt
 .fake
 redundant
 
+# Build Directories
+editor/analysis/build
+
 # Config files
 config.json
 
