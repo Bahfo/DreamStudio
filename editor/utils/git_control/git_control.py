@@ -298,6 +298,53 @@ def switch_branch(
         raise
 
 
+def get_status_map(repo: Repo) -> dict[str, str]:
+    """
+    Collect a name-only working-tree status map for fast VCS coloring.
+
+    Unlike ``get_changed_files``, no numstat or content diffs are computed,
+    keeping scans cheap enough for operation-triggered refreshes.
+
+    Args:
+        repo: An open GitPython repository handle.
+
+    Returns:
+        Mapping of repository-relative paths to single-letter statuses:
+        ``M`` modified, ``U`` untracked, ``A`` staged-added. Renames are
+        reported as additions; deletions are omitted because deleted files
+        never render in the filesystem tree.
+    """
+    status_map: dict[str, str] = {}
+
+    try:
+        for diff in repo.index.diff(None):
+            if diff.change_type == "D":
+                continue
+            key = diff.b_path or diff.a_path or ""
+            if key:
+                status_map[key] = "U" if diff.change_type == "R" else "M"
+    except Exception:
+        pass
+
+    try:
+        for path in repo.untracked_files:
+            status_map[path] = "U"
+    except Exception:
+        pass
+
+    try:
+        for diff in repo.index.diff("HEAD"):
+            if diff.change_type == "D":
+                continue
+            key = diff.b_path or diff.a_path or ""
+            if key:
+                status_map[key] = "A" if diff.change_type in ("A", "R") else "M"
+    except Exception:
+        pass
+
+    return status_map
+
+
 if __name__ == "__main__":
     repo = return_repository(None)
     commits, tree = check_last_commits(repo, 5)

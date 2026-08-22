@@ -47,6 +47,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QStandardItem, QStandardItemModel
 from PyQt6.Qsci import QsciScintilla
 
+COMPLETION_DEBOUNCE_MS: int = 40
+
 
 @dataclass
 class CompletionItem:
@@ -75,7 +77,9 @@ class CompletionDelegate(QStyledItemDelegate):
 
     # Absolute icon directory resolution relative to this file
     _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    _ICON_DIR = os.path.join(_BASE_DIR, "assets", "editor")
+    _ICON_DIR = os.path.abspath(
+        os.path.join(_BASE_DIR, "..", "..", "..", "assets", "editor")
+    )
 
     _KIND_ICON_MAP = {
         "function": "function.png",
@@ -348,7 +352,7 @@ class CompletionHintBar(QFrame):
             button.setPalette(pal)
 
             button.clicked.connect(
-                lambda checked=False, name=action: (self.action_triggered.emit(name))
+                lambda checked=False, name=action: self.action_triggered.emit(name)
             )
             self.buttons.append(button)
             layout.addWidget(button)
@@ -716,10 +720,12 @@ class CompletionController(QObject):
         self.editor.installEventFilter(self)
         QApplication.instance().installEventFilter(self)
 
-        # FIX: Debounce timer (120ms) to eliminate keystroke lag
+        # NOTE: Short debounce only gates the very first popup. While the
+        # popup is open every keystroke re-filters cached items instantly;
+        # the timer merely schedules a background refresh of the results.
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
-        self._debounce_timer.setInterval(120)
+        self._debounce_timer.setInterval(COMPLETION_DEBOUNCE_MS)
         self._debounce_timer.timeout.connect(self._request_completions)
 
         try:
@@ -728,13 +734,14 @@ class CompletionController(QObject):
             pass
 
         self._current_prefix = ""
+        self._current_ident = ""
         self._active = False
         self._committing = False
         self._last_cursor_pos = -1
-        self._commit_line = 0
-        self._commit_start_col = 0
-        self._saved_prefix = ""
         self._connected_manager = None
+        self._cached_items: List[CompletionItem] = []
+        self._cache_ident = ""
+        self._requested_context = ("", "")
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if obj is self.editor:
@@ -873,16 +880,38 @@ class CompletionController(QObject):
             ident = ""
             prefix = groups[0] or ""
         self._current_prefix = prefix or ""
+        self._current_ident = ident
 
         # Require dot OR at least 2 characters to auto-trigger
         if not dot and len(self._current_prefix) < 2:
             self._close()
             return
 
+        # Fast path: while the popup is already open, narrow the cached
+        # results synchronously so the list tracks every keystroke with
+        # zero perceived latency. The debounce only refreshes the cache.
+        if self.popup.isVisible() and self._cached_items and ident == self._cache_ident:
+            self._refresh_from_cache()
+
         # Restart single-shot timer (Debounce)
         self._debounce_timer.start()
 
+    def _refresh_from_cache(self) -> None:
+        """Re-populate the popup from cached items for the current prefix.
+
+        Returns without touching the popup when nothing matches, letting
+        the pending background request decide the final state.
+        """
+        matches = [
+            item
+            for item in self._cached_items
+            if item.text.lower().startswith(self._current_prefix.lower())
+        ]
+        if matches:
+            self.popup.populate(matches)
+
     def _request_completions(self) -> None:
+        self._requested_context = (self._current_ident, self._current_prefix)
         provider = getattr(self.editor, "current_provider", None)
 
         if provider is None:
@@ -916,11 +945,32 @@ class CompletionController(QObject):
         else:
             items = []
 
-        if not items:
-            items = self._get_document_tokens()
+        self._present_items(items)
 
-        if items:
-            self._show_popup(items)
+    def _present_items(self, items: List[CompletionItem]) -> None:
+        """Cache fresh results and display those matching the typed prefix.
+
+        The cache powers the synchronous keystroke filter, so results are
+        stored unfiltered while only prefix matches become visible. When
+        a provider yields nothing the document-token fallback runs.
+
+        Args:
+            items: Raw completion items returned by the active provider.
+        """
+        self._cached_items = list(items)
+        self._cache_ident = self._requested_context[0]
+
+        prefix_lower = self._current_prefix.lower()
+        visible = [
+            item
+            for item in self._cached_items
+            if item.text.lower().startswith(prefix_lower)
+        ]
+        if not visible and not items:
+            visible = self._get_document_tokens()
+
+        if visible:
+            self._show_popup(visible)
         else:
             self._close()
 
@@ -944,15 +994,27 @@ class CompletionController(QObject):
 
     @pyqtSlot(int, list)
     def _on_completions_ready(self, request_id: int, raw_items: list) -> None:
-        items = self._coerce_items(raw_items or [])
+        self._present_items(self._coerce_items(raw_items or []))
 
-        if not items:
-            items = self._get_document_tokens()
+    @staticmethod
+    def _full_insert_text(text: str, candidate: str) -> str:
+        """Pick a safe insertion string from a provider payload.
 
-        if items:
-            self._show_popup(items)
-        else:
-            self._close()
+        Legacy payloads carry jedi's ``complete`` attribute, which is only
+        the missing suffix of the word (typed ``imp`` -> ``ort``). Since
+        insertion replaces the whole typed fragment, any insert shorter
+        than the display text is treated as a suffix and discarded.
+
+        Args:
+            text: Full display text (the complete identifier).
+            candidate: Provider-supplied insert text, possibly a suffix.
+
+        Returns:
+            The candidate when it fully covers the word, else *text*.
+        """
+        if len(candidate) >= max(1, len(text)) and candidate:
+            return candidate
+        return text
 
     @staticmethod
     def _coerce_items(raw_items: list) -> List[CompletionItem]:
@@ -964,9 +1026,12 @@ class CompletionController(QObject):
             elif isinstance(raw, dict):
                 # FIX: Read dictionary keys sent across IPC bridge
                 text = raw.get("text") or raw.get("name") or ""
-                insert_text = raw.get("insert_text") or raw.get("complete") or text
                 icon_name = raw.get("kind") or raw.get("icon_name") or ""
                 signature = raw.get("signature") or ""
+                insert_text = CompletionController._full_insert_text(
+                    text,
+                    raw.get("insert_text") or raw.get("complete") or "",
+                )
                 if text:
                     result.append(
                         CompletionItem(
@@ -982,7 +1047,9 @@ class CompletionController(QObject):
                     result.append(
                         CompletionItem(
                             text=text,
-                            insert_text=getattr(raw, "insert_text", "") or text,
+                            insert_text=CompletionController._full_insert_text(
+                                text, getattr(raw, "insert_text", "")
+                            ),
                             icon_name=getattr(raw, "kind", "")
                             or getattr(raw, "icon_name", ""),
                             signature=getattr(raw, "signature", ""),
@@ -1016,10 +1083,6 @@ class CompletionController(QObject):
             return
 
         pos = self.editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
-        line, col = self.editor.lineIndexFromPosition(pos)
-        self._commit_line = line
-        self._commit_start_col = max(0, col - len(self._current_prefix))
-        self._saved_prefix = self._current_prefix
 
         x = self.editor.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, pos)
         y = self.editor.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, pos)
@@ -1065,6 +1128,18 @@ class CompletionController(QObject):
         self._active = True
 
     def _insert_completion(self, item: CompletionItem) -> None:
+        """Replace the fragment before the cursor with the chosen item.
+
+        Anchors are recomputed from the live document at commit time
+        instead of positions captured when results arrived. Async answers
+        routinely land after the user has kept typing, so stale anchors
+        previously produced corrupted words (``imp`` + ``import`` ->
+        ``impt``/``importt``). With live anchoring the inserted text is
+        always the full identifier swapped over whatever is typed now.
+
+        Args:
+            item: The completion entry selected in the popup.
+        """
         if self._committing:
             return
 
@@ -1072,16 +1147,20 @@ class CompletionController(QObject):
         self._close()
 
         try:
-            line = self._commit_line
-            start_col = self._commit_start_col
-            prefix = self._saved_prefix
-            end_col = start_col + len(prefix)
+            insert_text = item.insert_text or item.text
+            line, col = self.editor.getCursorPosition()
+            before_cursor = self.editor.text(line)[:col]
+            match = re.search(r"[A-Za-z_]\w*$", before_cursor)
+            start_col = match.start() if match else col
 
             self.editor.beginUndoAction()
             try:
-                self.editor.setSelection(line, start_col, line, end_col)
-                self.editor.replaceSelectedText(item.insert_text)
-                self.editor.setCursorPosition(line, start_col + len(item.insert_text))
+                if start_col != col:
+                    self.editor.setSelection(line, start_col, line, col)
+                    self.editor.replaceSelectedText(insert_text)
+                else:
+                    self.editor.insertAt(insert_text, line, col)
+                self.editor.setCursorPosition(line, start_col + len(insert_text))
             finally:
                 self.editor.endUndoAction()
         finally:
@@ -1089,6 +1168,8 @@ class CompletionController(QObject):
 
     def close(self) -> None:
         self._close()
+        self._cached_items = []
+        self._cache_ident = ""
         if self._connected_manager is not None:
             try:
                 self._connected_manager.completions_ready.disconnect(

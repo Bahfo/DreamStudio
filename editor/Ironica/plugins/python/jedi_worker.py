@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
@@ -80,9 +80,7 @@ class _DiagnosticWorker(threading.Thread):
             raise AnalysisProcessError(f"server error: {response}")
         return response[2]
 
-    def _fallback_diagnostics(
-        self, request: _AnalysisRequest
-    ) -> List[Diagnostic]:
+    def _fallback_diagnostics(self, request: _AnalysisRequest) -> List[Diagnostic]:
         """Graceful degradation: run jedi in-process when the server is down."""
         try:
             return detect_problems(request.source, request.file_path)
@@ -119,9 +117,7 @@ class _DiagnosticWorker(threading.Thread):
 
             if not self._is_shutting_down and self._current_request is None:
                 try:
-                    self._owner._results_ready.emit(
-                        request.request_id, diagnostics
-                    )
+                    self._owner._results_ready.emit(request.request_id, diagnostics)
                 except RuntimeError:
                     pass  # Owner torn down while we were computing
 
@@ -235,7 +231,10 @@ class DiagnosticManager(QObject):
 # Completion Worker
 # =====================================================================
 
-COMPLETION_DEBOUNCE_MS: int = 150
+# NOTE: The completion controller already debounces keystrokes (40 ms)
+# before reaching this manager, so only a token coalescing delay is kept
+# here to merge bursts arriving from multiple editors.
+COMPLETION_DEBOUNCE_MS: int = 30
 _MAX_COMPLETION_ITEMS: int = 50
 
 
@@ -333,7 +332,8 @@ class _CompletionWorker(threading.Thread):
                 results.append(
                     {
                         "text": c.name,
-                        "insert_text": c.complete if c.complete else c.name,
+                        # NOTE: c.complete is a suffix; full word required.
+                        "insert_text": c.name,
                         "kind": c.type if c.type else "",
                         "signature": ", ".join(sigs),
                     }
@@ -370,9 +370,7 @@ class _CompletionWorker(threading.Thread):
                 if request.request_id < self._owner._request_counter:
                     continue
                 try:
-                    self._owner.completions_ready.emit(
-                        request.request_id, completions
-                    )
+                    self._owner.completions_ready.emit(request.request_id, completions)
                 except RuntimeError:
                     pass
 

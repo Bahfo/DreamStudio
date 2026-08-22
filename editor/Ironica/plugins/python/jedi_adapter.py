@@ -211,7 +211,9 @@ class JediAdapter(IJediAdapter):
             results.append(
                 CompletionDetails(
                     text=comp.name,
-                    insert_text=comp.complete or comp.name,
+                    # NOTE: comp.complete is only the missing suffix; callers
+                    # replace the typed prefix, so insert the full word.
+                    insert_text=comp.name,
                     kind=comp.type or "",
                     signature=signature,
                 )

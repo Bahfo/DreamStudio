@@ -27,8 +27,10 @@ from editor.utils.explorer.collapsable_menu import (
     ExplorerOptionsMenu,
     create_options_button,
 )
+from editor.utils.git_control.status_service import get_status_service
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
 from editor.utils.explorer.icons import DreamStudioIconProvider
+from editor.utils.explorer.vcs_colors import build_status_index
 from editor.utils.explorer.packages import DependenciesView
 from editor.utils.explorer.api import ExplorerAPI
 from editor.utils.panel_shell import PanelShell
@@ -302,6 +304,26 @@ class SolutionExplorer(PanelShell):
             QApplication.instance().focusChanged.connect(self._on_app_focus_changed)
             self._focus_connected = True
 
+        self.base_model.fileRenamed.connect(self._notify_vcs_activity)
+        get_status_service().statuses_updated.connect(self._on_vcs_statuses_updated)
+
+    def _on_vcs_statuses_updated(self, repo_root: str, snapshot: dict) -> None:
+        """
+        Translate a published snapshot into the proxy color index.
+
+        Args:
+            repo_root: Repository working directory from the scan.
+            snapshot: Repo-relative path to ``M``/``U``/``A`` symbols.
+        """
+        if not repo_root or not snapshot:
+            self.proxy_model.apply_vcs_index({})
+            return
+        self.proxy_model.apply_vcs_index(build_status_index(repo_root, snapshot))
+
+    def _notify_vcs_activity(self, *args) -> None:
+        """Request a rescan after a local mutating operation."""
+        get_status_service().request_scan("explorer")
+
     def _setup_options_menu(self) -> None:
         self._options_menu = ExplorerOptionsMenu(
             proxy_model=self.proxy_model,
@@ -310,7 +332,8 @@ class SolutionExplorer(PanelShell):
         )
 
         self._options_btn = create_options_button(
-            self._options_menu, parent=self,
+            self._options_menu,
+            parent=self,
         )
         self._status_row.addWidget(self._options_btn)
 
@@ -459,6 +482,7 @@ class SolutionExplorer(PanelShell):
         target = self._current_directory()
         if target:
             ExplorerAPI.paste_item(self, target)
+        self._notify_vcs_activity()
 
     def _menu_copy_path(self) -> None:
         self._run_if_selected(ExplorerAPI.copy_path)
@@ -468,6 +492,7 @@ class SolutionExplorer(PanelShell):
 
     def _menu_delete(self) -> None:
         self._run_if_selected(lambda path: ExplorerAPI.delete_item(self, path))
+        self._notify_vcs_activity()
 
     def _menu_open_explorer(self) -> None:
         self._run_if_selected(ExplorerAPI.open_in_system_explorer)
@@ -490,12 +515,15 @@ class SolutionExplorer(PanelShell):
 
     def _toolbar_new_file(self) -> None:
         self._run_if_directory(lambda target: ExplorerAPI.new_file(self, target))
+        self._notify_vcs_activity()
 
     def _toolbar_new_folder(self) -> None:
         self._run_if_directory(lambda target: ExplorerAPI.new_folder(self, target))
+        self._notify_vcs_activity()
 
     def _toolbar_delete_item(self) -> None:
         self._run_if_selected(lambda path: ExplorerAPI.delete_item(self, path))
+        self._notify_vcs_activity()
 
     def _toolbar_refresh(self) -> None:
         self.refresh()
@@ -539,6 +567,7 @@ class SolutionExplorer(PanelShell):
 
         self._ensure_root_visible()
         self._update_status_label()
+        self._notify_vcs_activity()
 
     def go_to_parent_workspace(self) -> None:
         """
@@ -690,6 +719,7 @@ class SolutionExplorer(PanelShell):
     def create_file_here(self) -> None:
         target = self.selected_directory()
         ExplorerAPI.new_file(self, target)
+        self._notify_vcs_activity()
 
     def create_folder_here(self) -> None:
         target = self.selected_directory()

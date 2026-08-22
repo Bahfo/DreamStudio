@@ -20,6 +20,7 @@ from PyQt6.QtGui import QAction
 
 from editor.utils.panel_shell import PanelShell
 from editor.utils.git_control.commit_history import GitGraph, compute_commit_graph
+from editor.utils.git_control.status_service import get_status_service
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
 from editor.utils.git_control.commit_text import ExpandingTextEdit
 import editor.utils.git_control.git_control as git_control
@@ -406,6 +407,7 @@ class GitVersionControl(PanelShell):
     def set_workspace(self, root_path: str) -> None:
         self._root_path = os.path.abspath(root_path)
         self._refresh()
+        get_status_service().set_root(root_path)
 
     def _refresh(self) -> None:
         if not self._root_path:
@@ -434,6 +436,8 @@ class GitVersionControl(PanelShell):
             except Exception:
                 self._status_label.setText("Branch: Unknown")
 
+        get_status_service().request_scan("source-control:refresh")
+
     def _action_git_init(self) -> None:
         if not self._root_path:
             return
@@ -442,6 +446,7 @@ class GitVersionControl(PanelShell):
 
             Repo.init(self._root_path)
             self._refresh()
+            get_status_service().set_root(self._root_path)
         except Exception:
             pass
 
@@ -548,6 +553,7 @@ class GitVersionControl(PanelShell):
             return
 
         success, msg = git_control.commit_staged(self._repo, message, checked_files)
+        get_status_service().request_scan("source-control:commit")
         if success:
             self.commit_input.clear()
             self._refresh()

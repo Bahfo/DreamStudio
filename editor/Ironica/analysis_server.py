@@ -194,7 +194,10 @@ def _handle_completions(request_id: int, source: str, line: int, col: int, file_
         results.append(
             {
                 "text": c.name,
-                "insert_text": c.complete or c.name,
+                # NOTE: ``c.complete`` is only the missing suffix (typed
+                # "imp" -> "ort"); clients replace the typed prefix, so the
+                # full identifier must be inserted instead.
+                "insert_text": c.name,
                 "kind": c.type or "",
                 "signature": "",
             }

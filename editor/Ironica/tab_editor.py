@@ -32,6 +32,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QPushButton,
     QVBoxLayout,
+    QHBoxLayout,
 )
 from PyQt6.QtGui import QShortcut, QKeySequence, QPalette, QIcon
 
@@ -47,6 +48,13 @@ from editor.Ironica.code_editor import CodeEditor
 from editor.Ironica.process_manager import process_manager
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 from designer.toolbox.designer import DesignerTab
+
+
+def _webviewer_cls():
+    """Lazy import of WebViewer to avoid early QtWebEngine init."""
+    from editor.Ironica.supportive.web_browser import WebViewer
+
+    return WebViewer
 
 
 class DreamTabbedEditor(QDreamTabEditor):
@@ -126,6 +134,47 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.setCornerWidget(self._minimap_toggle, Qt.Corner.TopRightCorner)
 
         self.currentChanged.connect(self._on_editor_tab_changed)
+
+        # --- Corner Widget Container ---
+        self._corner_container = QWidget()
+        self._corner_layout = QHBoxLayout(self._corner_container)
+        self._corner_layout.setContentsMargins(0, 0, 0, 0)
+        self._corner_layout.setSpacing(4)
+
+        # HTML Preview Button
+        self._preview_tabs: dict[str, int] = {}
+        self._preview_button = QPushButton()
+        self._preview_button.setIcon(QIcon("assets/menus/browser.png"))
+        self._preview_button.setIconSize(QSize(20, 20))
+        self._preview_button.setFixedSize(24, 24)
+        self._preview_button.setToolTip("Open HTML Preview")
+        self._preview_button.setStyleSheet(
+            "QPushButton { background: rgba(128,128,128,40); "
+            "border: none; border-radius: 4px; }"
+            "QPushButton:hover { background: rgba(128,128,128,90); }"
+        )
+        self._preview_button.clicked.connect(self.open_preview_tab)
+        self._preview_button.setVisible(False)
+        self._corner_layout.addWidget(self._preview_button)
+
+        # Minimap toggle
+        self._minimap_visible = True
+        self._minimap_toggle = QPushButton()
+        self._minimap_toggle.setIcon(QIcon("assets/editor/minimap.png"))
+        self._minimap_toggle.setIconSize(QSize(20, 20))
+        self._minimap_toggle.setFixedSize(24, 24)
+        self._minimap_toggle.setCheckable(True)
+        self._minimap_toggle.setChecked(True)
+        self._minimap_toggle.setToolTip("Hide Minimap")
+        self._minimap_toggle.clicked.connect(self._toggle_minimap)
+        self._minimap_toggle.setVisible(False)
+        self._corner_layout.addWidget(self._minimap_toggle)
+
+        # Set the unified container as the top-right corner widget
+        self.setCornerWidget(self._corner_container, Qt.Corner.TopRightCorner)
+
+        self.currentChanged.connect(self._update_preview_button_visibility)
+        self.add_close_interceptor(self._on_preview_close_interceptor)
 
     # ------------------------------------------------------------------
     # Theme / style
@@ -210,6 +259,91 @@ class DreamTabbedEditor(QDreamTabEditor):
             if self.widget(i) is editor:
                 self.tabBar().mark_dirty(i, is_dirty)
                 break
+
+    # ------------------------------------------------------------------
+    # HTML Preview
+    # ------------------------------------------------------------------
+
+    def _update_preview_button_visibility(self) -> None:
+        """Show the preview button when any open tab is an HTML editor."""
+        has_html = False
+        for i in range(self.count()):
+            code_editor = self._unwrap_code_editor(self.widget(i))
+            if (
+                code_editor is not None
+                and getattr(code_editor, "current_lang", None) == "html"
+            ):
+                has_html = True
+                break
+        self._preview_button.setVisible(has_html)
+        self._reposition_preview_button()
+
+    def _reposition_preview_button(self) -> None:
+        """Place the preview button at the top-right of the editor area."""
+        if not self._preview_button.isVisible():
+            return
+        tab_bar_height = self.tabBar().height()
+        btn_w = self._preview_button.width()
+        x = self.width() - btn_w - 4
+        self._preview_button.move(x, tab_bar_height + 4)
+        self._preview_button.raise_()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._reposition_preview_button()
+
+    def open_preview_tab(self) -> None:
+        """Open or focus an HTML preview tab for the active editor.
+
+        If a preview for the same file is already open the existing
+        preview tab is raised instead of creating a duplicate.
+        """
+        index = self.currentIndex()
+        if index < 0 or index >= self.count():
+            return
+
+        widget = self.widget(index)
+        if isinstance(widget, _webviewer_cls()):
+            return
+
+        code_editor = self._unwrap_code_editor(widget)
+        if code_editor is None:
+            return
+        if getattr(code_editor, "current_lang", None) != "html":
+            return
+
+        file_path = code_editor.current_file_path
+        if not file_path:
+            return
+
+        norm_path = os.path.normcase(os.path.normpath(file_path))
+        if norm_path in self._preview_tabs:
+            existing = self._preview_tabs[norm_path]
+            if existing < self.count() and isinstance(
+                self.widget(existing), _webviewer_cls()
+            ):
+                self.setCurrentIndex(existing)
+                return
+            del self._preview_tabs[norm_path]
+
+        file_name = pathlib.Path(file_path).name
+        preview = _webviewer_cls()(file_path, parent=self)
+        preview.file_key = f"__preview_{norm_path}"
+
+        index = self.addTab(preview, f"Preview: {file_name}")
+        self.setCurrentIndex(index)
+        self._preview_tabs[norm_path] = index
+        self._update_preview_button_visibility()
+
+    def _on_preview_close_interceptor(self, index: int, editor) -> bool | None:
+        """Clean up preview tracking when a preview tab is closed."""
+        if isinstance(editor, _webviewer_cls()):
+            for path, preview_idx in list(self._preview_tabs.items()):
+                if preview_idx == index:
+                    del self._preview_tabs[path]
+                    break
+            self._update_preview_button_visibility()
+        return None
 
     # ------------------------------------------------------------------
     # Font
@@ -699,7 +833,11 @@ class DreamTabbedEditor(QDreamTabEditor):
         for i in range(self.count()):
             editor = self.widget(i)
             code_editor = self._unwrap_code_editor(editor) or editor
-            if code_editor and hasattr(code_editor, "save") and code_editor.current_file_path:
+            if (
+                code_editor
+                and hasattr(code_editor, "save")
+                and code_editor.current_file_path
+            ):
                 code_editor.save()
         self.tabBar().rebuild_dirty_indices()
 

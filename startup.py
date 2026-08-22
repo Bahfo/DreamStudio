@@ -18,9 +18,10 @@ if _PROJECT_ROOT not in sys.path:
 
 
 def main() -> None:
-    from PyQt6.QtCore import QTimer
+    from PyQt6.QtCore import Qt, QTimer
     from PyQt6.QtWidgets import QApplication
 
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication(sys.argv)
     app.setApplicationName("DreamStudio")
     app.setStyle("Fusion")

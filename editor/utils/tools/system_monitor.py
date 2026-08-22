@@ -2,7 +2,6 @@ import time
 import psutil
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QLabel,
     QWidget,
@@ -17,12 +16,12 @@ from PyQt6.QtWidgets import (
 )
 
 from editor.widgets.QSystemGraphWidget import SystemGraphUtil
+from editor.utils.tools.port_info import fetch_pid_to_ports, service_name
 
 from fonts.font_strapper import Fonts
 
 
 class SystemMonitor(QWidget):
-
     def __init__(self, _parent=None):
         super().__init__(_parent)
         self._theme = None
@@ -151,6 +150,51 @@ class SystemMonitor(QWidget):
 
         QTimer.singleShot(100, self._collect)
 
+    def _apply_tab_styling(self):
+        """Style the inner QTabWidget to match the monitor palette."""
+        self.tabs.setStyleSheet(
+            f"""
+            QTabWidget::pane {{
+                border: 1px solid {self._grid_color};
+                background-color: {self._bg_color};
+            }}
+            QTabBar::tab {{
+                background-color: {self._bg_color};
+                color: {self._text_color};
+                padding: 5px 14px;
+                border: 1px solid {self._grid_color};
+                border-bottom: none;
+            }}
+            QTabBar::tab:selected {{
+                color: #D4D4D4;
+                border-bottom: 2px solid #61AFEF;
+            }}
+            """
+        )
+
+    def _apply_table_styling(self):
+        """Style the process table to match the monitor palette."""
+        self.process_table.setStyleSheet(
+            f"""
+            QTableWidget {{
+                background-color: {self._bg_color};
+                alternate-background-color: {self._grid_color};
+                color: #D4D4D4;
+                gridline-color: {self._grid_color};
+                border: none;
+            }}
+            QHeaderView::section {{
+                background-color: {self._grid_color};
+                color: {self._text_color};
+                border: none;
+                padding: 4px;
+            }}
+            QTableWidget::item:selected {{
+                background-color: #3A3F44;
+            }}
+            """
+        )
+
     def _collect(self):
         self._collect_cpu()
         self._collect_ram()
@@ -211,6 +255,7 @@ class SystemMonitor(QWidget):
     def _collect_processes(self):
         self.process_table.setSortingEnabled(False)
         current_pids = set()
+        pid_to_ports = fetch_pid_to_ports(listen_only=True)
 
         for proc in psutil.process_iter(
             ["pid", "name", "cpu_percent", "memory_info", "io_counters"]
@@ -236,11 +281,14 @@ class SystemMonitor(QWidget):
                     writes = proc.info["io_counters"].write_bytes / (1024**2)
                     disk = f"{reads:.1f} / {writes:.1f} MB"
 
+                internet = self._format_internet(pid_to_ports.get(pid))
+
                 if pid in self._process_items:
                     row = self._process_items[pid]
                     self.process_table.item(row, 2).setText(cpu)
                     self.process_table.item(row, 3).setText(ram)
                     self.process_table.item(row, 4).setText(disk)
+                    self.process_table.item(row, 5).setText(internet)
                 else:
                     row = self.process_table.rowCount()
                     self.process_table.insertRow(row)
@@ -249,7 +297,7 @@ class SystemMonitor(QWidget):
                     self.process_table.setItem(row, 2, QTableWidgetItem(cpu))
                     self.process_table.setItem(row, 3, QTableWidgetItem(ram))
                     self.process_table.setItem(row, 4, QTableWidgetItem(disk))
-                    self.process_table.setItem(row, 5, QTableWidgetItem("N/A"))
+                    self.process_table.setItem(row, 5, QTableWidgetItem(internet))
                     self._process_items[pid] = row
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
@@ -265,3 +313,23 @@ class SystemMonitor(QWidget):
             }
 
         self.process_table.setSortingEnabled(True)
+
+    def _format_internet(self, port_entries) -> str:
+        """Render a process's listening ports for the Internet column.
+
+        Args:
+            port_entries: Set of ``(port, proto)`` tuples from
+                ``fetch_pid_to_ports``, or None when the process owns no
+                listening sockets.
+
+        Returns:
+            Comma-joined ``port (service)`` labels, or ``"-"``.
+        """
+        if not port_entries:
+            return "-"
+        ordered = sorted(port_entries, key=lambda e: int(e[0]))
+        labels = []
+        for port, proto in ordered:
+            resolved = service_name(port, proto)
+            labels.append(f"{port} ({resolved})" if resolved != "-" else port)
+        return ", ".join(labels)

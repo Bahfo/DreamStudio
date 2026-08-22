@@ -1,34 +1,70 @@
+"""
+(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+
+Ports tab widget for the terminal panel. Lists every process that owns
+listening network sockets together with its port numbers, resolved IANA
+service names and live resource usage, and hosts an embedded system
+monitor utility.
+"""
+
 import psutil
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QMenu,
     QWidget,
     QLineEdit,
     QComboBox,
     QHeaderView,
+    QLabel,
+    QTabWidget,
     QVBoxLayout,
     QHBoxLayout,
     QTableWidget,
     QTableWidgetItem,
 )
 
+from editor.utils.tools.port_info import fetch_pid_to_ports, service_name
+from editor.utils.tools.system_monitor import SystemMonitor
+
+_ACTIVE_STATUSES = {
+    psutil.STATUS_RUNNING,
+    psutil.STATUS_SLEEPING,
+    psutil.STATUS_DISK_SLEEP,
+}
+_STOPPED_STATUSES = {
+    psutil.STATUS_STOPPED,
+    psutil.STATUS_TRACING_STOP,
+    psutil.STATUS_ZOMBIE,
+}
+
 
 class PortsWidget(QWidget):
+    """Port-owning process table plus embedded system monitor."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        self._tabs = QTabWidget(self)
+        self._tabs.setDocumentMode(True)
+
+        ports_page = QWidget(self)
+        ports_layout = QVBoxLayout(ports_page)
+        ports_layout.setContentsMargins(0, 0, 0, 0)
+
         self.table_count = [
             "PID",
             "Process Name",
             "Port Number",
+            "Service Name",
             "CPU Usage",
             "Memory Usage",
             "Disk Usage",
         ]
 
-        layout.addSpacing(10)
+        ports_layout.addSpacing(10)
 
         top_controls_layout = QHBoxLayout()
         top_controls_layout.setContentsMargins(0, 0, 0, 0)
@@ -47,8 +83,15 @@ class PortsWidget(QWidget):
 
         self.sortByDropDown.currentTextChanged.connect(self.refresh_data)
 
+        # NOTE: Ephemeral outbound ports look like noise in a ports view;
+        # listening sockets are what a user expects, so default to them.
+        self.listen_only_check = QCheckBox("Listening only", self)
+        self.listen_only_check.setChecked(True)
+        self.listen_only_check.toggled.connect(self.refresh_data)
+
         top_controls_layout.addWidget(self.search_bar)
         top_controls_layout.addWidget(self.sortByDropDown)
+        top_controls_layout.addWidget(self.listen_only_check)
         top_controls_layout.addStretch()
 
         self.table = QTableWidget(0, len(self.table_count), self)
@@ -58,7 +101,7 @@ class PortsWidget(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeMode.Stretch
         )
-        for i in [0, 2, 3, 4, 5]:
+        for i in (0, 2, 3, 4, 5, 6):
             self.table.horizontalHeader().setSectionResizeMode(
                 i, QHeaderView.ResizeMode.ResizeToContents
             )
@@ -70,10 +113,14 @@ class PortsWidget(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(24)
         self.table.verticalHeader().setVisible(False)
 
-        layout.addLayout(top_controls_layout)
-        layout.addWidget(self.table)
+        ports_layout.addLayout(top_controls_layout)
+        ports_layout.addWidget(self.table)
 
-        self._process_cache = {}
+        self._tabs.addTab(ports_page, "Ports")
+        self._monitor = None
+        self._tabs.currentChanged.connect(self._ensure_monitor)
+
+        layout.addWidget(self._tabs)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_data)
@@ -81,46 +128,108 @@ class PortsWidget(QWidget):
 
         self.refresh_data()
 
-    def refresh_data(self):
-        search_query = self.search_bar.text().strip()
-        pid_to_ports = {}
+    def _ensure_monitor(self, index: int) -> None:
+        """Create the embedded system monitor lazily on first open.
 
+        Args:
+            index: Index of the newly selected inner tab.
+        """
+        if self._monitor is not None or index != 1:
+            return
         try:
-            for conn in psutil.net_connections(kind="inet"):
-                if conn.pid:
-                    if conn.pid not in pid_to_ports:
-                        pid_to_ports[conn.pid] = set()
-                    pid_to_ports[conn.pid].add(str(conn.laddr.port))
-        except (psutil.AccessDenied, PermissionError):
-            pass
+            self._monitor = SystemMonitor()
+            self._tabs.addTab(self._monitor, "System Monitor")
+        except Exception:
+            label = QLabel("System monitor is unavailable.")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._tabs.addTab(label, "System Monitor")
+            self._monitor = label
+
+    @staticmethod
+    def _passes_filters(
+        pid: int,
+        name: str,
+        status: str,
+        port_str: str,
+        service_str: str,
+        search_query: str,
+        status_filter: str,
+    ) -> bool:
+        """Check whether one process matches the current UI filters.
+
+        Args:
+            pid: Process identifier.
+            name: Process executable name.
+            status: psutil status string for the process.
+            port_str: Comma-joined port numbers owned by the process.
+            service_str: Comma-joined resolved service names.
+            search_query: Text typed in the search bar.
+            status_filter: Selected entry of the filter drop-down.
+
+        Returns:
+            True when the process should be rendered as a table row.
+        """
+        haystack = f"{port_str} {service_str} {name} {pid}".lower()
+        if search_query and search_query.lower() not in haystack:
+            return False
+
+        if status_filter == "Active Processes":
+            return status in _ACTIVE_STATUSES
+        if status_filter == "Stopped Process":
+            return status in _STOPPED_STATUSES
+        return True
+
+    def refresh_data(self):
+        """Rebuild the table from live socket and process information."""
+        search_query = self.search_bar.text().strip()
+        status_filter = self.sortByDropDown.currentText()
+        listen_only = self.listen_only_check.isChecked()
+        pid_to_ports = fetch_pid_to_ports(listen_only=listen_only)
 
         self.table.setRowCount(0)
         current_pids = set()
 
-        for proc in psutil.process_iter(["pid", "name", "status"]):
+        for proc in psutil.process_iter(
+            ["pid", "name", "status", "cpu_percent", "memory_info", "io_counters"]
+        ):
             try:
                 pid = proc.info["pid"]
-                ports = pid_to_ports.get(pid, set())
-                port_str = ", ".join(ports)
-
-                if search_query and search_query not in port_str:
+                port_entries = pid_to_ports.get(pid)
+                if not port_entries:
                     continue
 
-                if pid not in self._process_cache:
-                    self._process_cache[pid] = psutil.Process(pid)
+                ordered_ports = sorted(port_entries, key=lambda e: int(e[0]))
+                port_str = ", ".join(port for port, _ in ordered_ports)
 
-                p = self._process_cache[pid]
-                name = proc.info["name"]
+                services: list = []
+                seen_services = set()
+                for port, proto in ordered_ports:
+                    resolved = service_name(port, proto)
+                    if resolved != "-" and resolved not in seen_services:
+                        seen_services.add(resolved)
+                        services.append(resolved)
+                service_str = ", ".join(services) if services else "-"
+
+                name = proc.info["name"] or "unknown"
                 status = proc.info["status"]
 
-                cpu = p.cpu_percent()
-                mem = p.memory_info().rss / (1024 * 1024)
+                if not self._passes_filters(
+                    pid,
+                    name,
+                    status,
+                    port_str,
+                    service_str,
+                    search_query,
+                    status_filter,
+                ):
+                    continue
 
-                try:
-                    io = p.io_counters()
-                    disk = (io.read_bytes + io.write_bytes) / (1024 * 1024)
-                except (psutil.AccessDenied, AttributeError):
-                    disk = 0.0
+                cpu = proc.info["cpu_percent"] or 0.0
+                mem_info = proc.info["memory_info"]
+                mem = mem_info.rss / (1024 * 1024) if mem_info else 0.0
+
+                io = proc.info["io_counters"]
+                disk = (io.read_bytes + io.write_bytes) / (1024 * 1024) if io else 0.0
 
                 row = self.table.rowCount()
                 self.table.insertRow(row)
@@ -129,6 +238,7 @@ class PortsWidget(QWidget):
                     QTableWidgetItem(str(pid)),
                     QTableWidgetItem(name),
                     QTableWidgetItem(port_str),
+                    QTableWidgetItem(service_str),
                     QTableWidgetItem(f"{cpu:.1f}"),
                     QTableWidgetItem(f"{mem:.1f}"),
                     QTableWidgetItem(f"{disk:.1f}"),
@@ -150,14 +260,23 @@ class PortsWidget(QWidget):
 
                 current_pids.add(pid)
 
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            except (
+                psutil.NoSuchProcess,
+                psutil.AccessDenied,
+                psutil.ZombieProcess,
+                TypeError,
+                ValueError,
+                RuntimeError,
+                OverflowError,
+            ):
                 continue
 
-        for pid in list(self._process_cache.keys()):
-            if pid not in current_pids:
-                del self._process_cache[pid]
-
     def show_context_menu(self, pos):
+        """Open the process control menu for the row under *pos*.
+
+        Args:
+            pos: Viewport-relative position of the context-menu request.
+        """
         item = self.table.itemAt(pos)
         if not item:
             return

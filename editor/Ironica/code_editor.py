@@ -675,14 +675,30 @@ class CodeEditor(QsciScintilla):
         """
         self.SendScintilla(QsciScintilla.SCI_FOLDDISPLAYTEXTSETSTYLE, 1)
 
-        gray_color = QColor(128, 128, 128)
+        self._apply_folding_display_colors()
+
+        self.SendScintilla(SCI_SETDEFAULTFOLDDISPLAYTEXT, 0, b" ... ")
+
+    def _apply_folding_display_colors(self) -> None:
+        """Blend the fold display text with the editor paper colour.
+
+        Scintilla defaults the ``STYLE_FOLDDISPLAYTEXT`` background to
+        white; without an explicit ``SCI_STYLESETBACK`` the ghost text
+        renders as a white box on dark themes. Style backgrounds do not
+        support alpha, so matching the paper colour is the only way to
+        make the label appear transparent.
+        """
+        bg = self._theme_colors()[0]
         self.SendScintilla(
             QsciScintilla.SCI_STYLESETFORE,
             QsciScintilla.STYLE_FOLDDISPLAYTEXT,
-            gray_color,
+            QColor(128, 128, 128),
         )
-
-        self.SendScintilla(SCI_SETDEFAULTFOLDDISPLAYTEXT, 0, b" ... ")
+        self.SendScintilla(
+            QsciScintilla.SCI_STYLESETBACK,
+            QsciScintilla.STYLE_FOLDDISPLAYTEXT,
+            bg,
+        )
 
     def set_custom_import_fold_text(self, line: int, import_count: int):
         """
@@ -1564,6 +1580,8 @@ class CodeEditor(QsciScintilla):
                 fold_manager.retheme(bg)
             except Exception:
                 pass
+
+        self._apply_folding_display_colors()
 
         autocompletion = getattr(self, "_autocompletion_widget", None)
         if autocompletion is not None:

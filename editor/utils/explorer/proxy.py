@@ -1,9 +1,13 @@
 import os
 
+from typing import Dict, Optional
+
 from PyQt6.QtCore import QDir, QSortFilterProxyModel, Qt, QTimer, QModelIndex
+from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import QTreeView
 
 from editor.utils.explorer.collapsable_menu import SortMode
+from editor.utils.explorer.vcs_colors import *
 
 
 class ExplorerFilterProxy(QSortFilterProxyModel):
@@ -21,6 +25,8 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         self._show_hidden = True
         self._root_path = ""
         self._sort_mode: SortMode = SortMode.ALPHA_ASC
+        self._vcs_index: Dict[str, str] = {}
+        self._vcs_colors = resolve_vcs_colors(30)
 
         self.setRecursiveFilteringEnabled(True)
         self.setAutoAcceptChildRows(True)
@@ -66,6 +72,19 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
 
     def sort_mode(self) -> SortMode:
         return self._sort_mode
+
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
+        """Serve VCS foreground colors, delegating everything else."""
+        if role == Qt.ItemDataRole.ForegroundRole:
+            source_model = self.sourceModel()
+            if source_model is not None and index.isValid():
+                source_index = self.mapToSource(index)
+                if source_index.isValid():
+                    path = source_model.filePath(source_index)
+                    color = self.vcs_color_for_path(path) if path else None
+                    if color is not None:
+                        return QBrush(color)
+        return super().data(index, role)
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         source_model = self.sourceModel()
@@ -130,6 +149,32 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
             source_model.filePath(left).casefold()
             < source_model.filePath(right).casefold()
         )
+
+    def apply_vcs_index(self, index: Dict[str, str]) -> None:
+        """
+        Replace the VCS color index and repaint affected rows.
+
+        Args:
+            index: Normalized absolute path to ``modified``/``added``.
+        """
+        self._vcs_index = index
+        self.layoutChanged.emit()
+
+    def apply_vcs_theme(self, background: str) -> None:
+        """Re-resolve VCS colors against the themed background color."""
+        parsed = QColor(background)
+        lightness = parsed.lightness() if parsed.isValid() else 30
+        self._vcs_colors = resolve_vcs_colors(lightness)
+        self.layoutChanged.emit()
+
+    def vcs_color_for_path(self, path: str) -> Optional[QColor]:
+        """Resolve a display color for one path, or None when unchanged."""
+        kind = self._vcs_index.get(os.path.normpath(path))
+        if kind == MODIFIED_KIND:
+            return self._vcs_colors[MODIFIED_KIND]
+        if kind == ADDED_KIND:
+            return self._vcs_colors[ADDED_KIND]
+        return None
 
 
 class DreamTreeView(QTreeView):
