@@ -3,14 +3,11 @@
 Terminal Emulator Logic for DreamStudio.
 """
 
-from collections import deque
+from editor import *
 
 from pyte.screens import HistoryScreen, Char
 from pyte.streams import Stream
 
-from PyQt6.QtWidgets import QWidget, QApplication
-from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics, QPen
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QRect
 
 ANSI_COLORS = [
     QColor(0x00, 0x00, 0x00),

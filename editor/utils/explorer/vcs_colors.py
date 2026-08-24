@@ -5,10 +5,7 @@ Pure translation helpers converting VCS status snapshots into absolute
 path color indices and theme-aware brushes for the Solution Explorer.
 """
 
-import os
-from typing import Dict
-
-from PyQt6.QtGui import QColor
+from editor import *
 
 MODIFIED_KIND = "modified"
 ADDED_KIND = "added"

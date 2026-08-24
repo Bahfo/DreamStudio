@@ -1,9 +1,4 @@
-import os
-
-from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QLabel, QMenu
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QIcon, QAction
-
+from editor import *
 
 class ToolbarMenuButton(QPushButton):
     """

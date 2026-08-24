@@ -32,33 +32,7 @@ preventing editor crashes on massive files.
 
 from __future__ import annotations
 
-import logging
-from typing import Optional
-
-from PyQt6.QtCore import (
-    Qt,
-    QTimer,
-    pyqtSignal,
-)
-from PyQt6.QtGui import (
-    QFont,
-    QColor,
-    QPainter,
-    QMouseEvent,
-    QWheelEvent,
-    QPaintEvent,
-    QResizeEvent,
-    QFontMetrics,
-)
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QVBoxLayout,
-    QSizePolicy,
-    QStyle,
-    QStyleOption,
-    QToolButton,
-    QWidget,
-)
+from editor import *
 
 logger = logging.getLogger(__name__)
 

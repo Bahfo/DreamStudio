@@ -15,10 +15,7 @@ defined in ``editor.Ironica.folding`` and re-exported here for
 backward compatibility.
 """
 
-import logging
-from typing import List, Optional
-
-from PyQt6.Qsci import QsciScintilla
+from editor import *
 
 from editor.Ironica.utils.folding import FoldRegion, FoldManager  # noqa: F401
 

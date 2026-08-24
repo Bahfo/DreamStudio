@@ -1,6 +1,4 @@
-import logging
-from pathlib import Path
-from PyQt6.QtGui import QFont, QFontDatabase
+from editor import *
 
 logger = logging.getLogger(__name__)
 

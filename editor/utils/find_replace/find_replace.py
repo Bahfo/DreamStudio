@@ -4,19 +4,7 @@
 Find/Replace Widget for Global Solution Find and Replace.
 """
 
-from PyQt6.QtWidgets import (
-    QFrame,
-    QLabel,
-    QWidget,
-    QLineEdit,
-    QPushButton,
-    QHBoxLayout,
-    QVBoxLayout,
-    QListWidget,
-    QListWidgetItem,
-)
-from PyQt6.QtCore import Qt
-import logging, os
+from editor import *
 
 # Local Imports
 from editor.utils.find_replace.search_engine import SearchWorker

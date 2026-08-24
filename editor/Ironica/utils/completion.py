@@ -5,47 +5,7 @@ The main completion widget for Ironica.
 
 from __future__ import annotations
 
-import os
-import re
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
-
-from PyQt6.QtCore import (
-    pyqtSignal,
-    QObject,
-    QEvent,
-    QPoint,
-    QRect,
-    QSize,
-    Qt,
-    QTimer,
-)
-from PyQt6.QtCore import pyqtSlot
-from PyQt6.QtGui import (
-    QFont,
-    QFontMetrics,
-    QPainter,
-    QColor,
-    QIcon,
-    QPalette,
-)
-from PyQt6.QtWidgets import (
-    QStyleOptionViewItem,
-    QStyledItemDelegate,
-    QAbstractItemView,
-    QApplication,
-    QHBoxLayout,
-    QToolButton,
-    QVBoxLayout,
-    QSizePolicy,
-    QListView,
-    QFrame,
-    QLabel,
-    QStyle,
-    QWidget,
-)
-from PyQt6.QtGui import QStandardItem, QStandardItemModel
-from PyQt6.Qsci import QsciScintilla
+from editor import *
 
 COMPLETION_DEBOUNCE_MS: int = 40
 

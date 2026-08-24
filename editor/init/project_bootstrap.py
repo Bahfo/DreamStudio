@@ -1,17 +1,7 @@
-import os
-import sys
+from editor import *
 import yaml
-import shutil
-import logging
-import platform
-import subprocess
-import threading
-import traceback
 
-from collections import deque
-from typing import Any, Optional
 
-from PyQt6.QtCore import pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
 

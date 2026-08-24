@@ -3,21 +3,7 @@ UI Views for the Python IDE Features.
 Written strictly using PySide6. Fully decoupled from Jedi logic.
 """
 
-from typing import List, Optional
-from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtWidgets import (
-    QLabel,
-    QWidget,
-    QDialog,
-    QLineEdit,
-    QVBoxLayout,
-    QHBoxLayout,
-    QListWidget,
-    QPushButton,
-    QTreeWidget,
-    QListWidgetItem,
-    QTreeWidgetItem,
-)
+from editor import *
 from ..domain_models import ReferenceLocation, ComplexityReport
 
 

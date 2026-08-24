@@ -1,6 +1,13 @@
 from editor import *
+from editor.workspace_container import WorkspaceContainer
 from editor.api.editor_api import EditorAPI
 from editor.api.menus_api import MenusAPI
+
+# Local Imports
+from editor.base.statusBar import StatusBar
+from editor.base.optionsBar import OptionsMenu
+from editor.base.verticalBar import VerticalSidebar
+from editor.base.titleBar import DreamStudioTitleBar
 
 
 class DreamStudio(MenusAPI, EditorAPI, QMainWindow):

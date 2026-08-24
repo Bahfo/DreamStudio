@@ -1,8 +1,4 @@
-from typing import Optional
-from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtCore import QSize
-from PyQt6.QtGui import QIcon
-
+from editor import *
 
 class ToolbarButton(QPushButton):
     """

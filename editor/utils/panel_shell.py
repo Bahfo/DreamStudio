@@ -1,13 +1,4 @@
-from PyQt6.QtCore import QDir, Qt, pyqtSignal
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QVBoxLayout,
-    QToolButton,
-    QWidget,
-    QFrame,
-    QLabel,
-)
-
+from editor import *
 
 class PanelShell(QWidget):
     """

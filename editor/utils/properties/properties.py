@@ -1,17 +1,4 @@
-from PyQt6.QtCore import Qt, QEvent, QSize
-from PyQt6.QtWidgets import (
-    QFrame,
-    QLabel,
-    QWidget,
-    QSplitter,
-    QTabWidget,
-    QTreeWidget,
-    QHeaderView,
-    QHBoxLayout,
-    QVBoxLayout,
-    QApplication,
-    QTreeWidgetItem,
-)
+from editor import *
 
 from editor.utils.properties.env import *
 from editor.utils.panel_shell import PanelShell

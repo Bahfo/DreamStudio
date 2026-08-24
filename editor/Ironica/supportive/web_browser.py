@@ -4,17 +4,8 @@ Embedded browser widget for rendering HTML file previews inside
 DreamStudio tabs via Qt WebEngine.
 """
 
-import os
-from PyQt6.QtCore import QUrl, QSize
-from PyQt6.QtGui import QIcon
+from editor import *
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QStyle,
-    QVBoxLayout,
-    QPushButton,
-    QWidget,
-)
 
 _BTN_STYLE = (
     "QPushButton { background: rgba(128,128,128,40); "

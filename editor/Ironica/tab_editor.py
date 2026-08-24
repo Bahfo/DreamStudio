@@ -24,23 +24,10 @@ The editor widget (``CodeEditor``) owns:
 
 # Written by Bahaa Nofal
 
-from PyQt6.QtCore import Qt, QEvent, QTimer, QSize
-from PyQt6.QtWidgets import (
-    QStyle,
-    QLabel,
-    QWidget,
-    QFileDialog,
-    QPushButton,
-    QVBoxLayout,
-    QHBoxLayout,
-)
-from PyQt6.QtGui import QShortcut, QKeySequence, QPalette, QIcon
+from editor import *
 
 from editor.widgets.QDreamTabEditor import QDreamTabEditor
 
-import os
-import logging
-import pathlib
 
 logger = logging.getLogger(__name__)
 

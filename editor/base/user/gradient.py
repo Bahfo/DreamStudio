@@ -1,7 +1,4 @@
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QLinearGradient, QColor, QPainterPath, QPen
-from PyQt6.QtCore import Qt
-
+from editor import *
 
 class GradientBanner(QWidget):
     def __init__(self, parent=None):

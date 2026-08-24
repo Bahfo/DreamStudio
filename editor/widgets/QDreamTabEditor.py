@@ -1,13 +1,4 @@
-from PyQt6.QtCore import Qt, QSize, QRect, QPoint, QEvent, QTimer, pyqtProperty
-from PyQt6.QtWidgets import (
-    QStyle,
-    QTabBar,
-    QTabWidget,
-    QStyleOptionTab,
-    QGraphicsOpacityEffect,
-)
-from PyQt6.QtGui import QPen, QColor, QPainter, QPalette
-
+from editor import *
 
 class DreamStudioIDETabBar(QTabBar):
 

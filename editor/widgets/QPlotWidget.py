@@ -1,9 +1,6 @@
 import pyqtgraph as PyGr
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                             QMainWindow, QApplication, QSpacerItem, QSizePolicy)
-from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QSize, Qt
 
+from editor import *
 
 class PlotWidget(QWidget):
     def __init__(self, parent=None):

@@ -4,9 +4,8 @@
 Jedi integration adapter for DreamStudio.
 """
 
-import logging
+from editor import *
 import jedi
-from typing import List, Optional
 
 from .domain_models import (
     PythonContext,

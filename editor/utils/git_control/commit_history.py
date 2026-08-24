@@ -8,24 +8,7 @@ widget of Git Source Control. It follows branch history detailed strcuture.
 Alongside the ability to view info about a certain push.
 """
 
-from PyQt6.QtWidgets import (
-    QStyledItemDelegate,
-    QVBoxLayout,
-    QTreeView,
-    QWidget,
-    QStyle,
-)
-from PyQt6.QtGui import (
-    QStandardItemModel,
-    QGuiApplication,
-    QStandardItem,
-    QPainter,
-    QColor,
-    QBrush,
-    QFont,
-    QPen,
-)
-from PyQt6.QtCore import Qt, QRectF, QEvent
+from editor import *
 
 from editor.widgets.QToolTip import ToolTip
 

@@ -5,11 +5,7 @@ EditorContainer: Public wrapper around the tab editor that
 exposes a clean interface for toolbar callbacks and the IDE.
 """
 
-import logging
-import os
-from typing import Optional
-
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
+from editor import *
 
 # Local Imports
 from editor.Ironica.api import EditorAPI

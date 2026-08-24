@@ -7,12 +7,7 @@ exclusively to this service, which owns the scanning thread and the
 lock-guarded status snapshot.
 """
 
-import logging
-import threading
-from typing import Dict, Optional
-
-from PyQt6.QtCore import QObject, QThread, pyqtSignal
-from PyQt6.QtWidgets import QApplication
+from editor import *
 
 from editor.utils.git_control.git_control import get_status_map, return_repository
 

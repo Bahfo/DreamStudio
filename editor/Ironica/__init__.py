@@ -1,4 +1,4 @@
-import os
+from editor import *
 
 # Ironica APIs and Modules
 from editor.Ironica.api import *

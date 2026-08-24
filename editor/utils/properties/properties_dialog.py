@@ -1,16 +1,4 @@
-import os
-
-from PyQt6.QtCore import Qt, QFileInfo
-from PyQt6.QtWidgets import (
-    QFrame,
-    QLineEdit,
-    QTextEdit,
-    QComboBox,
-    QTreeWidget,
-    QHeaderView,
-    QTreeWidgetItem,
-    QStyledItemDelegate,
-)
+from editor import *
 
 # Local Imports
 from editor.Ironica.code_editor import CodeEditor

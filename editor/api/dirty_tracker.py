@@ -8,11 +8,7 @@ Immediate dirty-state synchronization without debounce.
 
 from __future__ import annotations
 
-import logging
-import weakref
-from typing import Optional
-
-from PyQt6.QtCore import QObject, pyqtSignal
+from editor import *
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,4 @@
-from PyQt6.QtWidgets import (
-    QPushButton,
-    QWidget,
-    QHBoxLayout,
-)
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QIcon
-
+from editor import *
 
 class TitleBar(QWidget):
     def __init__(self, parent, title):

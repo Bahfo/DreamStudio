@@ -5,9 +5,7 @@ Python Debugger Module: Helper script to communicate with C++ debugging utilitie
 for the debugger monitor.
 """
 
-import os
-import json
-import subprocess
+from editor import *
 
 # Local Imports
 from editor.widgets.QExitDialog import ErrorDialog

@@ -1,22 +1,4 @@
-import os
-
-from PyQt6.QtCore import Qt, QDateTime
-from PyQt6.QtWidgets import (
-    QTreeWidgetItem,
-    QStackedWidget,
-    QApplication,
-    QVBoxLayout,
-    QHBoxLayout,
-    QSplitter,
-    QTreeWidget,
-    QPushButton,
-    QHeaderView,
-    QWidget,
-    QFrame,
-    QLabel,
-    QMenu,
-)
-from PyQt6.QtGui import QAction
+from editor import *
 
 from editor.utils.panel_shell import PanelShell
 from editor.utils.git_control.commit_history import GitGraph, compute_commit_graph

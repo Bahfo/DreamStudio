@@ -1,10 +1,4 @@
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QVBoxLayout,
-    QWidget,
-    QLabel,
-)
-from PyQt6.QtCore import Qt
+from editor import *
 
 from designer.toolbox.toolbox import ToolBox
 

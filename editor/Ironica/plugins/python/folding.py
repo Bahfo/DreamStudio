@@ -10,9 +10,7 @@ them into the core :class:`FoldManager` API.
 
 from __future__ import annotations
 
-import re
-import logging
-from typing import List
+from editor import *
 
 logger = logging.getLogger(__name__)
 

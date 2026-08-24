@@ -1,9 +1,4 @@
-import json
-import os
-
-from PyQt6.QtWidgets import QFrame, QHBoxLayout
-from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtCore import Qt
+from editor import *
 
 # Local Imports
 from editor.Ironica.utils.debug_frame import DebugControlFrame

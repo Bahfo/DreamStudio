@@ -1,16 +1,4 @@
-import json
-import logging
-
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QKeySequence
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QMenu,
-    QWidget,
-    QWidgetAction,
-)
+from editor import *
 
 logger = logging.getLogger(__name__)
 

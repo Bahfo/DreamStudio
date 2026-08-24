@@ -1,8 +1,4 @@
-import json
-import os
-
-from PyQt6.QtWidgets import QFrame, QVBoxLayout
-from PyQt6.QtCore import Qt
+from editor import *
 
 # Local Imports
 from editor.widgets.QToolButton import ToolbarButton

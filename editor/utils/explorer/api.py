@@ -8,19 +8,7 @@ buttons or context-menu actions.
 
 from __future__ import annotations
 
-import os
-import shutil
-import subprocess
-import sys
-
-from PyQt6.QtWidgets import (
-    QApplication,
-    QInputDialog,
-    QLineEdit,
-    QTreeView,
-    QWidget,
-)
-from PyQt6.QtCore import QSortFilterProxyModel
+from editor import *
 
 from editor.widgets.QExitDialog import ConfirmDialog, RenameDialog
 from editor.utils.notifications.notification_manager import get_notification_manager

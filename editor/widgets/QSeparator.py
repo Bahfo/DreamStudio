@@ -1,5 +1,4 @@
-from PyQt6.QtWidgets import QFrame
-
+from editor import *
 
 class Separator(QFrame):
     """

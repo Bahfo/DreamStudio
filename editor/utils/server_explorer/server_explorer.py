@@ -9,16 +9,7 @@ extended with full remote file browsing, editing, and management
 capabilities.
 """
 
-from PyQt6.QtWidgets import (
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QFrame,
-    QWidget,
-    QStackedWidget,
-    QPushButton,
-)
-from PyQt6.QtCore import Qt
+from editor import *
 
 from editor.utils.panel_shell import PanelShell
 

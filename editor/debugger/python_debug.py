@@ -5,12 +5,7 @@ Python Debugger Module: Helper methods and classes to compute Python debugging
 using the official Python Debugger.
 """
 
-import bisect
-import logging
-import os
-import subprocess
-
-from PyQt6.QtCore import QObject, pyqtSignal
+from editor import *
 
 from editor.utils.notifications.notification_manager import get_notification_manager
 

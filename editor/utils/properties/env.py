@@ -1,12 +1,4 @@
-import os
-import sys
-import fnmatch
-import platform
-import sysconfig
-from pathlib import Path
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy
+from editor import *
 
 # Local Imports
 from editor.widgets.QSegmentedProgressBar import (

@@ -6,10 +6,11 @@ regions, jedi diagnostics) in a dedicated interpreter, so heavy typing
 in large files never freezes the IDE's main thread.
 
 The server is intentionally launched as a *plain script* rather than
-``python -m``.  Package ``__init__`` chains are bypassed by stubbing the
-``editor`` / ``editor.Ironica`` packages before any ``editor.*`` module is
-imported — the real ``editor/__init__.py`` pulls in the whole GUI stack
-(terminal, docker, git …) which must not exist inside the analysis child.
+``python -m``.  The ``editor`` package itself is a pure standard-library
+/ PyQt6 import hub (safe to load here), but ``editor.Ironica`` still
+pulls the whole widget GUI chain, so the ``Ironica`` subtree is stubbed
+as namespace-only packages before any ``editor.Ironica.*`` module is
+imported - those modules must never exist inside the analysis child.
 
 Wire protocol (mirrors ``analysis_bridge``): 8-byte little-endian length
 followed by a pickle payload, strictly request/response over stdin/stdout.
@@ -50,9 +51,13 @@ def _install_package_stubs() -> None:
     if "editor" in sys.modules:
         return
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    editor_root = os.path.join(root, "editor")
-    ironica_root = os.path.join(editor_root, "Ironica")
-    _stub_package("editor", editor_root)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    ironica_root = os.path.join(root, "editor", "Ironica")
+    # NOTE: the ``editor`` package itself is only an import hub now, so the
+    # child loads it directly; plugin modules rely on its namespace.
+    import editor  # noqa: F401
+
     _stub_package("editor.Ironica", ironica_root)
     _stub_package("editor.Ironica.utils", os.path.join(ironica_root, "utils"))
     _stub_package("editor.Ironica.plugins", os.path.join(ironica_root, "plugins"))

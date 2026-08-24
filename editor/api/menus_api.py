@@ -9,9 +9,7 @@ It is designed to be mixed into the DreamStudio QMainWindow alongside
 ``EditorAPI`` so that ``getattr(self, action_str)`` resolution works.
 """
 
-import pathlib
-
-from PyQt6.QtWidgets import QFileDialog
+from editor import *
 
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 

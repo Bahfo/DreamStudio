@@ -2,15 +2,7 @@
 #################### May not behave the same way it is written in right now.
 ################### Future reconstruction and rework will occur.
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (
-    QPushButton,
-    QVBoxLayout,
-    QLineEdit,
-    QFrame,
-    QLabel,
-)
-from PyQt6.QtGui import QColor, QPainter, QLinearGradient, QBrush
+from editor import *
 
 from editor.widgets.QCustomLabels import AnimatedGradientLabel
 

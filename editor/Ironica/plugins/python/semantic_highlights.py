@@ -23,11 +23,7 @@ The provider exposes two independent output paths:
   caused by multi-byte characters or non-breaking spaces.
 """
 
-import ast
-import io
-import keyword
-import tokenize
-from typing import Dict, List, Optional, Tuple
+from editor import *
 
 from editor.Ironica.utils.highlighting_api import (
     ITokenProvider,

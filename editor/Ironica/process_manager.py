@@ -17,10 +17,7 @@ standalone editors use.  Once engaged, only the focused owner submits.
 
 from __future__ import annotations
 
-import atexit
-import logging
-import threading
-from typing import Optional
+from editor import *
 
 from editor.Ironica.analysis_bridge import AnalysisProcess
 

@@ -1,24 +1,6 @@
 from __future__ import annotations
-from typing import Callable, Optional
-from dataclasses import dataclass
-from pathlib import Path
 
-import os
-
-from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QStackedWidget,
-    QApplication,
-    QHBoxLayout,
-    QVBoxLayout,
-    QPushButton,
-    QLineEdit,
-    QWidget,
-    QLabel,
-    QFrame,
-)
-from PyQt6.QtCore import QModelIndex, QTimer, QDir, Qt
-from PyQt6.QtGui import QFileSystemModel
+from editor import *
 
 # Local Imports
 from editor.utils.explorer.proxy import ExplorerFilterProxy, DreamTreeView

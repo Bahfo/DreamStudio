@@ -1,15 +1,4 @@
-from PyQt6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QLabel,
-    QPushButton,
-    QHBoxLayout,
-    QLineEdit,
-    QListWidget,
-    QListWidgetItem,
-)
-from PyQt6.QtCore import Qt, QPropertyAnimation, QSequentialAnimationGroup, QPoint
-
+from editor import *
 
 class ExitDialog(QDialog):
     def __init__(self, parent=None):

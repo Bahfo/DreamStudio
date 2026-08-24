@@ -1,6 +1,4 @@
-from PyQt6.QtCore import QRegularExpression
-from PyQt6.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QFont
-
+from editor import *
 
 class PromptXHighlighter(QSyntaxHighlighter):
     def __init__(self, document):

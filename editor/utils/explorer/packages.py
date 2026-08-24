@@ -1,19 +1,4 @@
-import importlib.metadata
-import sys
-
-from PyQt6.QtCore import QProcess, Qt
-from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QFrame,
-    QInputDialog,
-    QLabel,
-    QLineEdit,
-    QMessageBox,
-    QTableWidget,
-    QTableWidgetItem,
-    QVBoxLayout,
-    QWidget,
-)
+from editor import *
 
 from editor.widgets.QToolBox import ExplorerToolbar
 

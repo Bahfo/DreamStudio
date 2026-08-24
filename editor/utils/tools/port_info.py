@@ -6,9 +6,7 @@ and the system monitor. Prefers ``psutil.net_connections`` and degrades
 gracefully to parsing ``ss`` output when the system call is denied.
 """
 
-import re
-import socket
-import subprocess
+from editor import *
 
 import psutil
 

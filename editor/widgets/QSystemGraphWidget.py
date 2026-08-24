@@ -1,10 +1,4 @@
-from PyQt6.QtCore import Qt, QPointF
-from PyQt6.QtGui import (
-    QPainter, QColor, QPen, QFont, QPainterPath,
-    QLinearGradient, QBrush
-)
-from PyQt6.QtWidgets import (QWidget)
-
+from editor import *
 
 _CORE_COLORS = [
     "#E06C75", "#61AFEF", "#98C379", "#E5C07B",

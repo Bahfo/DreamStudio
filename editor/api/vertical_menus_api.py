@@ -7,11 +7,7 @@ entries are shown/hidden on demand via QTabBar.setTabVisible().
 
 from __future__ import annotations
 
-from typing import Optional
-
-from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QSplitter, QWidget
-
+from editor import *
 
 class VerticalMenusAPI(QObject):
     """

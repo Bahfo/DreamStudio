@@ -1,10 +1,4 @@
-import platform
-import ctypes
-import json
-
-from pathlib import Path
-from enum import IntEnum
-
+from editor import *
 
 class DiagnosticCategory(IntEnum):
     GrammarError = 0

@@ -21,12 +21,7 @@ Style index layout (per language config):
 
 from __future__ import annotations
 
-import re
-import logging
-from typing import Dict, List, Optional, Set, Tuple
-
-from PyQt6.QtGui import QColor
-from PyQt6.Qsci import QsciLexerCustom, QsciScintilla
+from editor import *
 
 from editor.Ironica.retheme import resolve_colour
 

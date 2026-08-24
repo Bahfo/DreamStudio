@@ -9,15 +9,7 @@ analysis (undefined names) even when syntax is actively broken during typing.
 
 from __future__ import annotations
 
-import ast
-import builtins
-import io
-import keyword
-import logging
-import re
-import tokenize
-from dataclasses import dataclass, field
-from typing import List, Optional
+from editor import *
 
 import jedi
 

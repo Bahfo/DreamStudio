@@ -4,9 +4,7 @@
 HoverController: Non-blocking manager for the Documentation Flyout.
 """
 
-from PyQt6.QtCore import QObject, QTimer, QPoint, Qt, QEvent
-from PyQt6.QtWidgets import QWidget
-
+from editor import *
 
 class HoverController(QObject):
     """

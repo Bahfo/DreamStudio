@@ -1,7 +1,4 @@
-import os
-import re
-import fnmatch
-from PyQt6.QtCore import QThread, pyqtSignal
+from editor import *
 
 DEFAULT_IGNORED_DIRS = {
     "venv",

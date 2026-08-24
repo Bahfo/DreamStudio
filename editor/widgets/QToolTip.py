@@ -1,6 +1,4 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel
-from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QGuiApplication
+from editor import *
 
 from fonts.font_strapper import Fonts
 

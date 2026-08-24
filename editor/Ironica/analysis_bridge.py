@@ -20,14 +20,7 @@ package stubs, so importing it never pulls in the heavyweight
 
 from __future__ import annotations
 
-import logging
-import os
-import pickle
-import struct
-import subprocess
-import sys
-import threading
-from typing import Optional
+from editor import *
 
 logger = logging.getLogger(__name__)
 

@@ -7,12 +7,7 @@ actions for the Solution Explorer status bar.
 
 from __future__ import annotations
 
-from enum import IntEnum
-from typing import TYPE_CHECKING
-
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QActionGroup, QFont
-from PyQt6.QtWidgets import QApplication, QMenu, QPushButton, QWidget
+from editor import *
 
 if TYPE_CHECKING:
     from editor.utils.explorer.proxy import ExplorerFilterProxy

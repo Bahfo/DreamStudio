@@ -8,21 +8,8 @@ monitor utility.
 """
 
 import psutil
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import (
-    QCheckBox,
-    QMenu,
-    QWidget,
-    QLineEdit,
-    QComboBox,
-    QHeaderView,
-    QLabel,
-    QTabWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QTableWidget,
-    QTableWidgetItem,
-)
+
+from editor import *
 
 from editor.utils.tools.port_info import fetch_pid_to_ports, service_name
 from editor.utils.tools.system_monitor import SystemMonitor

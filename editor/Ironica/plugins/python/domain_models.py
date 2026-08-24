@@ -6,9 +6,7 @@ support system. These models are completely decoupled from any providers
 such as Jedi, Qt, or the filesystem.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
-
+from editor import *
 
 @dataclass
 class PythonContext:

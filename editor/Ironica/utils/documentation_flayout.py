@@ -4,20 +4,7 @@
 Stateful and non-blocking documentation flayout widget.
 """
 
-from PyQt6.QtCore import Qt, pyqtSignal, QEvent, QSize
-from PyQt6.QtGui import QPalette, QColor
-from PyQt6.QtWidgets import (
-    QTextBrowser,
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
-    QStyle,
-    QLabel,
-    QFrame,
-    QToolButton,
-    QApplication,
-)
-
+from editor import *
 
 class DocumentationFlyout(QFrame):
     """

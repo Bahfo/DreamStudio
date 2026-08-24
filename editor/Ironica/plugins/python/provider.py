@@ -14,10 +14,8 @@ coordinate convention.
 """
 
 import html as _html
-import keyword
-import logging
-import re
-from typing import Optional, Tuple
+
+from editor import *
 
 try:
     from editor.Ironica.language_engine import BaseLanguageProvider

@@ -1,19 +1,6 @@
-import time
+from editor import *
 import psutil
 
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import (
-    QLabel,
-    QWidget,
-    QTabWidget,
-    QVBoxLayout,
-    QGridLayout,
-    QHeaderView,
-    QScrollArea,
-    QProgressBar,
-    QTableWidget,
-    QTableWidgetItem,
-)
 
 from editor.widgets.QSystemGraphWidget import SystemGraphUtil
 from editor.utils.tools.port_info import fetch_pid_to_ports, service_name

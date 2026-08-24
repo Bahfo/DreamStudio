@@ -1,6 +1,4 @@
-from PyQt6.QtWidgets import QPlainTextEdit
-from PyQt6.QtCore import Qt
-
+from editor import *
 
 class ExpandingTextEdit(QPlainTextEdit):
     """

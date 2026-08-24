@@ -9,13 +9,9 @@ notifications across the IDE. Notifications are categorized by type
 Notifications panel.
 """
 
-import logging
-from enum import Enum
-from typing import Optional
-from dataclasses import dataclass, field
+from editor import *
 from datetime import datetime
 
-from PyQt6.QtCore import QObject, pyqtSignal
 
 # Local I
 

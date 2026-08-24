@@ -1,7 +1,4 @@
-from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QFileInfo
-from PyQt6.QtWidgets import QFileIconProvider
-
+from editor import *
 
 class DreamStudioIconProvider(QFileIconProvider):
     def icon(self, file_info: QFileInfo) -> QIcon:

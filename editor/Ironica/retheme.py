@@ -19,13 +19,7 @@ Public entry points:
   foreground, selection) from the active QSS file.
 """
 
-import json
-import os
-import re
-from dataclasses import dataclass
-from typing import Dict, List, Optional
-
-from PyQt6.QtGui import QColor
+from editor import *
 
 _THEMES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "themes"))
 _QSS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "qss"))

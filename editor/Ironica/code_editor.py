@@ -7,31 +7,7 @@ This code is protected under the GPLv3 License.
 
 # Written By Bahaa Nofal - 26/May/2026
 
-import logging
-import pathlib
-import json
-import stat
-import re
-
-from typing import Optional, Any
-
-from PyQt6.QtGui import (
-    QKeySequence,
-    QShortcut,
-    QKeyEvent,
-    QPalette,
-    QPainter,
-    QPixmap,
-    QCursor,
-    QColor,
-    QImage,
-    QBrush,
-    QFont,
-    QPen,
-)
-from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QTimer
-from PyQt6.QtWidgets import QApplication, QColorDialog
-from PyQt6.Qsci import QsciScintilla
+from editor import *
 
 from editor.Ironica.language_engine import LanguageRegistry, BaseLanguageProvider
 from editor.Ironica.utils.documentation_flayout import DocumentationFlyout

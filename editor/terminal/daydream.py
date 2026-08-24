@@ -16,10 +16,8 @@ Developed and Maintained by DreamStudio Team - EXcellent TechStacks. 2026
 # Written by Bahaa Nofal - 5/2026
 
 import tkinter as tk
-import os
-import threading
-import shutil
-import subprocess
+
+from editor import *
 import psutil
 
 help_tool = """

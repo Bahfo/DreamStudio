@@ -1,10 +1,4 @@
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QPlainTextEdit,
-)
-from PyQt6.QtGui import QTextCursor
-
+from editor import *
 
 class ProblemsWidget(QWidget):
     def __init__(self, parent=None):

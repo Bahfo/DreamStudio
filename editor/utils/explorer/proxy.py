@@ -1,10 +1,4 @@
-import os
-
-from typing import Dict, Optional
-
-from PyQt6.QtCore import QDir, QSortFilterProxyModel, Qt, QTimer, QModelIndex
-from PyQt6.QtGui import QBrush, QColor
-from PyQt6.QtWidgets import QTreeView
+from editor import *
 
 from editor.utils.explorer.collapsable_menu import SortMode
 from editor.utils.explorer.vcs_colors import *

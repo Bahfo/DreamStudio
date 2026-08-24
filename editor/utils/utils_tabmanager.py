@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
-
-from PyQt6.QtCore import pyqtSignal, QSize
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
-from PyQt6.QtGui import QColor
+from editor import *
 
 # Local Imports
 from editor.widgets.QDreamTabEditor import DreamStudioIDETabBar

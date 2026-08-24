@@ -1,7 +1,4 @@
-from PyQt6.QtCore import Qt, QRectF, QSize, QPoint, QRect
-from PyQt6.QtGui import QPainter, QPainterPath
-from PyQt6.QtWidgets import QWidget, QLayout
-
+from editor import *
 
 class SegmentedProgressBar(QWidget):
     def __init__(self, parent=None):

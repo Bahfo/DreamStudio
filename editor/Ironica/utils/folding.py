@@ -6,14 +6,7 @@ Consolidated folding utilities for DreamStudio.
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass
-from typing import Dict, List, Optional
-
-from PyQt6.QtCore import QPointF, Qt
-from PyQt6.QtGui import QColor, QPainter, QPen, QBrush, QPixmap
-from PyQt6.QtWidgets import QWidget
-from PyQt6.Qsci import QsciScintilla
+from editor import *
 
 logger = logging.getLogger(__name__)
 

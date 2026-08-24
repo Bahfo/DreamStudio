@@ -9,11 +9,9 @@ Custom Widgets for DreamStudio: Animated Label with Gradient Colors.
 
 # Written By Bahaa Nofal 2026
 
-from PyQt6.QtWidgets import QLabel
-from PyQt6.QtCore import Qt, QPropertyAnimation, pyqtProperty
+from editor import *
 
 from fonts.font_strapper import Fonts
-from PyQt6.QtGui import QPainter, QLinearGradient, QColor, QFont
 
 
 class AnimatedGradientLabel(QLabel):

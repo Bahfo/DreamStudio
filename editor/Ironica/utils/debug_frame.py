@@ -1,7 +1,4 @@
-import os
-
-from PyQt6.QtCore import Qt, QEvent, QPoint
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
+from editor import *
 
 from editor.widgets.QToolButton import ToolbarButton
 

@@ -7,9 +7,8 @@ implementations.
 """
 
 from .domain_models import *
-from typing import List, Optional
-from abc import ABC, abstractmethod
 
+from editor import *
 
 class IJediAdapter(ABC):
     """

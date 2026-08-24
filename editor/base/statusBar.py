@@ -1,14 +1,4 @@
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint
-from PyQt6.QtWidgets import (
-    QProgressBar,
-    QHBoxLayout,
-    QVBoxLayout,
-    QListWidget,
-    QLabel,
-    QFrame,
-    QMenu,
-)
-from PyQt6.QtGui import QAction, QColor, QPalette
+from editor import *
 
 from editor.widgets.QToolButton import ToolbarButton
 from editor.widgets.QCircularProgressBar import CircularProgressBar

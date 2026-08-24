@@ -3,8 +3,7 @@
 Background module to control GIT actions for DreamStudio.
 """
 
-import os
-import logging
+from editor import *
 from git import Repo
 
 from editor.utils.notifications.notification_manager import get_notification_manager

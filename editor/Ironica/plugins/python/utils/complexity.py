@@ -3,8 +3,7 @@ Stateless service analyzing Cyclomatic Complexity and Nesting Depth using AST.
 Does not require imports, runtimes, or filesystem access.
 """
 
-import ast
-from typing import List
+from editor import *
 from ..domain_models import ComplexityReport, FunctionComplexity
 from ..interfaces import IComplexityService
 

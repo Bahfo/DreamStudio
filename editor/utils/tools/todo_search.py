@@ -1,19 +1,4 @@
-import os
-import re
-import logging
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import (
-    QLineEdit,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QHeaderView,
-    QTableWidget,
-    QTableWidgetItem,
-    QWidget,
-    QFrame,
-)
+from editor import *
 
 from editor.utils.panel_shell import PanelShell
 from editor.widgets.QToolBox import ToolbarButton

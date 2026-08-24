@@ -10,13 +10,7 @@ menu rebuilds dynamically on each show.
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QMenu, QTreeView, QWidget
-from PyQt6.QtGui import QAction, QFileSystemModel, QKeySequence, QIcon
-
-import os
-import json
-from typing import Callable
-
+from editor import *
 
 class MenuItem:
     """Describes a single menu entry."""

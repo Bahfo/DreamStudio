@@ -1,9 +1,4 @@
-import json
-import re
-
-from PyQt6.QtGui import *
-from PyQt6.QtCore import *
-from PyQt6.QtWidgets import *
+from editor import *
 
 from editor.utils.tools.commands_window import CommandWindow
 

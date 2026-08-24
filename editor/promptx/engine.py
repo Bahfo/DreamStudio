@@ -57,22 +57,9 @@ whoami          Displays the current user
 zip             Creates a zip archive
 """
 
-import os
-import cmd
-import sys
-import socket
-import signal
+from editor import *
 import psutil
-import shutil
-import getpass
-import zipfile
 import datetime
-import platform
-import subprocess
-import urllib.request
-import urllib.error
-from itertools import islice
-from collections import deque
 
 
 class BridgeInterpreter:

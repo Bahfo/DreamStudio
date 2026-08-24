@@ -3,13 +3,7 @@
 Background module for searching files across the inner repository for DreamStudio.
 """
 
-import re
-import os
-import fnmatch
-import concurrent.futures
-
-from pathlib import Path
-
+from editor import *
 
 def regex_compile_query(query, is_regex=False, is_ignore_case=False):
     """

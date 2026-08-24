@@ -3,17 +3,7 @@
 Terminal Emulator Logic for DreamStudio.
 """
 
-import os
-import sys
-import codecs
-import signal
-import platform
-import subprocess
-import threading
-
-from abc import ABC, abstractmethod
-from collections import deque
-from PyQt6.QtCore import pyqtSignal, QObject, QTimer
+from editor import *
 
 try:
     import pty

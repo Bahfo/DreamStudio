@@ -12,9 +12,7 @@ Supports two modes:
   a background process is still working.
 """
 
-from PyQt6.QtCore import QSize, QTimer, Qt
-from PyQt6.QtGui import QColor, QPainter, QPen
-from PyQt6.QtWidgets import QWidget
+from editor import *
 
 _DEFAULT_SPIN_INTERVAL_MS = 16
 

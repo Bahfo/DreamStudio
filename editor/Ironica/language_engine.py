@@ -25,15 +25,7 @@ would simply be passed in at registration time.
 No changes to the public API are required to add LSP support.
 """
 
-import re
-import json
-import logging
-
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
-
-from PyQt6.QtGui import QColor
-from PyQt6.Qsci import QsciLexerCustom
+from editor import *
 
 from editor.Ironica.retheme import resolve_colour
 

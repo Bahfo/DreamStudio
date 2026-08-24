@@ -8,18 +8,7 @@ based on notification type (WARNING: yellow, ERROR: red, SUCCESS: green,
 INFO: blue). Adapts to the current IDE theme via QSS object names.
 """
 
-from PyQt6.QtWidgets import (
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QFrame,
-    QWidget,
-    QScrollArea,
-    QPushButton,
-    QSizePolicy,
-)
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
+from editor import *
 
 from editor.utils.panel_shell import PanelShell
 from editor.utils.notifications.notification_manager import (

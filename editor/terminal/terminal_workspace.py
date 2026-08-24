@@ -3,27 +3,7 @@
 Terminal Emulator Logic for DreamStudio.
 """
 
-import os
-import sys
-import logging
-
-from PyQt6.QtWidgets import (
-    QWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-    QPushButton,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QStackedWidget,
-    QFrame,
-    QSplitter,
-    QScrollBar,
-    QMenu,
-    QApplication,
-)
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer
-from PyQt6.QtGui import QIcon, QPixmap, QAction, QCursor
+from editor import *
 
 from editor.terminal.emulator import ShellEmulator
 from editor.terminal.terminal_display import TerminalDisplay

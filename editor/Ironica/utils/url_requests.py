@@ -4,15 +4,7 @@
 Utility to support URL links out of the box.
 """
 
-import re
-import urllib.request
-from typing import Dict, Tuple, Optional
-from concurrent.futures import ThreadPoolExecutor
-
-from PyQt6.QtCore import Qt, QTimer, QUrl, QPoint, QObject, pyqtSignal, QEvent
-from PyQt6.QtGui import QColor, QDesktopServices, QCursor
-from PyQt6.QtWidgets import QToolTip
-from PyQt6.Qsci import QsciScintilla
+from editor import *
 
 URL_REGEX = re.compile(r"https?://[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/))")
 

@@ -1,7 +1,4 @@
-import re
-
-from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtGui import QColor
+from editor import *
 
 # Local Imports
 from editor.utils.find_replace.find_replace import FindReplace

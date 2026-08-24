@@ -1,17 +1,4 @@
-import sys
-import os
-from PyQt6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QFrame,
-    QStackedWidget,
-)
-from PyQt6.QtCore import Qt
-
+from editor import *
 
 from fonts.font_strapper import Fonts
 
