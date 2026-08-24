@@ -665,7 +665,7 @@ OptionsMenu QToolButton:pressed {
 }
 
 OptionsMenu QFrame#Separator {
-    background-color: #1a1a1a;
+    background-color: #3c3c3c;
 }
 
 /* ==========================================================================
@@ -1146,6 +1146,16 @@ QWidget#CodeEditor QFrame#DocumentationFlyout {
 QWidget#CodeEditor QFrame#IntelliSenseContainer {
     background-color: #000000;
     border: 1px solid #1a1a1a;
+}
+
+QWidget#MiniMapHostWidget,
+QWidget#MinimapPanel {
+    background-color: #000000;
+}
+
+QWidget#CodeEditor QScrollBar:vertical,
+QWidget#CodeEditor QScrollBar:horizontal {
+    background: #000000;
 }
 
 UtilityTabBar {

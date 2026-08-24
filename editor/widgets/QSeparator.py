@@ -14,3 +14,4 @@ class Separator(QFrame):
         super().__init__()
         self.setFixedWidth(_width)
         self.setFixedHeight(_height)
+        self.setObjectName("Separator")

@@ -99,7 +99,7 @@ OptionsMenu QToolButton:pressed {
 }
 
 OptionsMenu QFrame#Separator {
-    background-color: #E0E0E0;
+    background-color: #c8c8c8;
 }
 
 VerticalSidebar,
@@ -718,6 +718,16 @@ QWidget#CodeEditor QFrame#DocumentationFlyout {
 QWidget#CodeEditor QFrame#IntelliSenseContainer {
     background-color: #FFFFFF;
     border: 1px solid #E0E0E0;
+}
+
+QWidget#MiniMapHostWidget,
+QWidget#MinimapPanel {
+    background-color: #FFFFFF;
+}
+
+QWidget#CodeEditor QScrollBar:vertical,
+QWidget#CodeEditor QScrollBar:horizontal {
+    background: #FFFFFF;
 }
 
 QPlainTextEdit {

@@ -1,11 +1,10 @@
-from PyQt6.QtCore import Qt, QEvent
+from PyQt6.QtCore import Qt, QEvent, QSize
 from PyQt6.QtWidgets import (
     QFrame,
     QLabel,
     QWidget,
     QSplitter,
     QTabWidget,
-    QScrollArea,
     QTreeWidget,
     QHeaderView,
     QHBoxLayout,
@@ -14,19 +13,13 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
 )
 
+from editor.utils.properties.env import *
 from editor.utils.panel_shell import PanelShell
-from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
-from editor.utils.properties.get_env import (
-    get_interpreter_info,
-    get_interpreter_path,
-    get_env_variables,
-)
 from editor.Ironica.code_editor import CodeEditor
+from editor.utils.properties.env import LanguageAnalyzer
+from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
+from editor.utils.properties.properties_dialog import FilePropertiesGrid
 from editor.utils.properties.project_data_engine import ProjectDataEngine
-from editor.utils.properties.properties_dialog import (
-    SolutionPropertiesGrid,
-    FilePropertiesGrid,
-)
 
 
 class PropertiesExplorer(PanelShell):
@@ -133,8 +126,9 @@ class PropertiesExplorer(PanelShell):
         top_layout = QVBoxLayout(top_container)
         top_layout.setContentsMargins(4, 0, 4, 0)
         top_layout.setSpacing(4)
+        top_layout.addSpacing(10)
 
-        global_label = QLabel("Global Properties")
+        global_label = QLabel("Properties")
         top_layout.addWidget(global_label)
 
         self.env_tree = QTreeWidget()
@@ -161,34 +155,7 @@ class PropertiesExplorer(PanelShell):
         self._populate_python_info()
         top_layout.addWidget(self.env_tree)
 
-        bottom_container = QWidget()
-        bottom_layout = QVBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(4, 0, 4, 0)
-        bottom_layout.setSpacing(4)
-
-        config_label = QLabel("Configuration")
-        bottom_layout.addWidget(config_label)
-
-        self.config_scroll_area = QScrollArea()
-        self.config_scroll_area.setWidgetResizable(True)
-        self.config_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.config_scroll_area.setStyleSheet(
-            "QScrollArea { border: none; background: transparent; }"
-        )
-
-        self.config_container = QWidget()
-        self.config_layout = QVBoxLayout(self.config_container)
-        self.config_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.config_grid = SolutionPropertiesGrid(self.config_container)
-        self.config_grid.itemChanged.connect(self._on_config_property_changed)
-        self.config_layout.addWidget(self.config_grid)
-
-        self.config_scroll_area.setWidget(self.config_container)
-        bottom_layout.addWidget(self.config_scroll_area, 1)
-
         splitter.addWidget(top_container)
-        splitter.addWidget(bottom_container)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 2)
         tab_layout.addWidget(splitter)
@@ -201,7 +168,6 @@ class PropertiesExplorer(PanelShell):
         file_label = QLabel("Active Object Metrics")
         layout.addWidget(file_label)
 
-        # Attach the newly designed File Grid tracking utility
         self.file_grid = FilePropertiesGrid(self.file_tab)
         layout.addWidget(self.file_grid, 1)
 
@@ -236,45 +202,56 @@ class PropertiesExplorer(PanelShell):
                 return True
         return super().eventFilter(source, event)
 
+    def analyze_languages(self) -> LanguageAnalyzer:
+        analysis_widget = LanguageAnalyzer()
+        analysis_widget.analyze_directory(os.curdir)
+        return analysis_widget
+
     def _populate_python_info(self) -> None:
         sections = [
             ("Interpreter", get_interpreter_info()),
-            ("Paths", get_interpreter_path()),
-            ("Environment", get_env_variables()),
+            ("Languages", self.analyze_languages()),
         ]
 
         for section_title, data in sections:
             parent = QTreeWidgetItem(self.env_tree)
             parent.setText(0, section_title)
             parent.setFlags(parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
-
             parent.setExpanded(False)
 
-            for key, value in data.items():
+            if isinstance(data, QWidget):
                 child = QTreeWidgetItem(parent)
-                child.setText(0, key)
-                if isinstance(value, list):
-                    display = self._elide_path_list(value)
-                    child.setText(1, display)
-                    child.setToolTip(1, "\n".join(value) if value else "--")
-                else:
-                    text = str(value) if value is not None else "--"
-                    if any(
-                        t in key.lower()
-                        for t in (
-                            "executable",
-                            "prefix",
-                            "stdlib",
-                            "purelib",
-                            "path",
-                            "dir",
-                        )
-                    ):
-                        child.setText(1, self._elide_string(text))
-                        child.setToolTip(1, text)
+                child.setText(0, "")
+                child.setSizeHint(1, QSize(200, 65))
+
+                self.env_tree.setItemWidget(child, 1, data)
+
+            elif isinstance(data, dict):
+                for key, value in data.items():
+                    child = QTreeWidgetItem(parent)
+                    child.setText(0, key)
+                    if isinstance(value, list):
+                        display = self._elide_path_list(value)
+                        child.setText(1, display)
+                        child.setToolTip(1, "\n".join(value) if value else "--")
                     else:
-                        child.setText(1, text)
-                        child.setToolTip(1, text)
+                        text = str(value) if value is not None else "--"
+                        if any(
+                            t in key.lower()
+                            for t in (
+                                "executable",
+                                "prefix",
+                                "stdlib",
+                                "purelib",
+                                "path",
+                                "dir",
+                            )
+                        ):
+                            child.setText(1, self._elide_string(text))
+                            child.setToolTip(1, text)
+                        else:
+                            child.setText(1, text)
+                            child.setToolTip(1, text)
 
     def set_active_editor(self, editor: CodeEditor | None) -> None:
         """

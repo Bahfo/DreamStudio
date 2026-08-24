@@ -43,7 +43,6 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QFont,
     QColor,
-    QPalette,
     QPainter,
     QMouseEvent,
     QWheelEvent,
@@ -55,6 +54,8 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QSizePolicy,
+    QStyle,
+    QStyleOption,
     QToolButton,
     QWidget,
 )
@@ -106,6 +107,7 @@ class VirtualMinimap(QWidget):
     ):
         super().__init__(parent)
         self._source = source
+        self.setObjectName("MiniMapHostWidget")
 
         # ── Visual configuration ──────────────────────────────────
         self._char_width: float = 1.8  # pixels per character
@@ -134,44 +136,32 @@ class VirtualMinimap(QWidget):
         self._scroll_debounce.setInterval(16)  # ~60 fps
         self._scroll_debounce.timeout.connect(self.update)
 
+        self._apply_theme()
+
         # ── Configuration ─────────────────────────────────────────
         self.setFixedWidth(110)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
 
-        # Background.
-        pal = self.palette()
-        bg = pal.color(QPalette.ColorRole.Window)
-        self._apply_theme(bg)
-
     def _apply_theme(
         self,
-        bg: QColor,
         palette: Optional[dict] = None,
     ) -> None:
-        """Derive every minimap colour from *bg* and the theme palette.
+        """Resolve the syntax-approximation bar colours from the theme palette.
 
-        The minimap is a pure ``QPainter`` widget, so it has no lexer
-        of its own; its colours must be recomputed from the active IDE
-        theme.  When *palette* is omitted the currently active theme's
-        palette is used so the initial paint already matches the theme
-        under which the editor was created.
+        The widget surface (background) is owned entirely by the active
+        ``.qss`` stylesheet — this method deliberately makes no
+        background decisions.  Only the tiny painted text bars need
+        colours here because they are ``QPainter`` primitives and can
+        therefore not be styled through QSS.
         """
         from editor.Ironica.retheme import active_theme_name, theme_palette
 
         if palette is None:
             palette = theme_palette(active_theme_name())
 
-        dark = bg.lightness() < 128
-        if dark:
-            self._bg_color = bg.darker(120)
-            self._overlay_color = QColor(128, 128, 128, 60)
-            self._line_default_color = QColor(160, 160, 160, 40)
-        else:
-            self._bg_color = bg.darker(104)
-            self._overlay_color = QColor(128, 128, 128, 60)
-            self._line_default_color = QColor(100, 100, 100, 30)
-        self._text_color = bg.lighter(220) if dark else bg.darker(160)
+        self._overlay_color = QColor(128, 128, 128, 60)
+        self._line_default_color = QColor(160, 160, 160, 40)
 
         def token(key: str, default: str) -> QColor:
             colour = palette.get(key, default)
@@ -187,13 +177,6 @@ class VirtualMinimap(QWidget):
         self._line_function_color = token("DEFINITION_COLOR", "#DCDCAA")
         self._line_import_color = token("IMPORT_COLOR", "#C586C0")
         self._line_number_color = token("NUMBER_COLOR", "#B5CEA8")
-
-    def retheme(self, theme_name: str, bg: QColor) -> None:
-        """Recolour the minimap after the IDE switches to *theme_name*."""
-        from editor.Ironica.retheme import theme_palette
-
-        self._apply_theme(bg, theme_palette(theme_name))
-        self.update()
 
     # ------------------------------------------------------------------
     # Font / metric management
@@ -330,8 +313,14 @@ class VirtualMinimap(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
-        # Background.
-        painter.fillRect(self.rect(), self._bg_color)
+        # Background: delegated entirely to the active .qss theme via
+        # the ``QWidget#MiniMapHostWidget`` rule.  Drawing PE_Widget is
+        # what lets a plain-QPainter widget honour the stylesheet.
+        option = QStyleOption()
+        option.initFrom(self)
+        self.style().drawPrimitive(
+            QStyle.PrimitiveElement.PE_Widget, option, painter, self
+        )
 
         total = self._source_line_count()
         if total == 0 or self._visible_line_count == 0:
@@ -518,7 +507,6 @@ class MiniMapHostWidget(QWidget):
         minimap_width: int = 80,
     ):
         super().__init__(parent)
-        self.setObjectName("MiniMapHostWidget")
 
         self._editor = editor
         self._minimap_width = minimap_width
@@ -538,6 +526,11 @@ class MiniMapHostWidget(QWidget):
 
         # ── Minimap container (vertical: up btn + minimap + down btn) ──
         self._minimap_container = QWidget(self)
+        self._minimap_container.setObjectName("MinimapPanel")
+        # Plain QWidget needs this flag to render its QSS background.
+        self._minimap_container.setAttribute(
+            Qt.WidgetAttribute.WA_StyledBackground, True
+        )
         minimap_layout = QVBoxLayout(self._minimap_container)
         minimap_layout.setContentsMargins(0, 0, 0, 0)
         minimap_layout.setSpacing(0)
@@ -557,19 +550,6 @@ class MiniMapHostWidget(QWidget):
 
         # The virtual minimap.
         self._minimap = VirtualMinimap(editor, self._minimap_container)
-
-        # The editor's own retheme runs inside ``CodeEditor.__init__``,
-        # i.e. before this host exists, so the minimap's initial colours
-        # would otherwise be derived from the widget's default palette
-        # (always light) instead of the active theme.  Theme it explicitly
-        # from the QSS-driven editor colours of the active theme.
-        from editor.Ironica.retheme import active_theme_name, editor_colors
-
-        try:
-            bg = editor_colors(active_theme_name())["bg"]
-            self._minimap.retheme(active_theme_name(), bg)
-        except Exception:
-            pass
 
         # Down scroll button.
         self._btn_down = QToolButton(self._minimap_container)
