@@ -38,3 +38,12 @@ Major Refactoring to take the standard form of DreamStudio required.
 - Ports table now sources CPU/RAM/IO through one `process_iter` call, removing the stale PID cache.
 
 #### Notes: Live-verified rows against `/proc` and `ss -tlnpH`; only real PIDs owning real listeners are shown.
+
+#### Changes in Fix - (ISLANDS_DARK_THEME)
+- Added `editor/qss/islands_dark.qss`: full UI stylesheet adapting the JetBrains IntelliJ IDEA "Islands Dark" look — dark island surfaces (`#191A1C`) floating on a lighter canvas (`#2B2D30`, meeting JetBrains' 1.20:1 island/canvas contrast guideline), raised popups/menus (`#33353B`), editor-attached popups (`#27282B`), azure accent (`#3871E1`) and soft blue selection (`#233558`); borderless islands per the original design.
+- Added `editor/Ironica/themes/islands_dark.json`: syntax palette taken from the authentic `IslandSchemeDark.xml` editor scheme — keywords `#CF8E6D`, strings `#6AAB73`, numbers/builtins `#2AACB8`, comments `#7A7E85`, function declarations `#56A8F5`, decorators `#B3AE60`, exceptions `#F75464`.
+- Registered "Islands Dark" in the Change Theme menu (`editor/base/json/optionbar.json`) with a matching `_set_theme_islands_dark()` API method in `editor/api/editor_api.py`.
+
+#### Notes: Theme satisfies all shipped contracts — minimap background equals editor paper, editor scrollbar track equals paper, `UtilityTabBar::tab:selected` feeds the runtime selection colour (`#233558`), and both theme engines plus ResourceManager discover it automatically.
+
+Date of Change: 08/26/2026

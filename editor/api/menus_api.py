@@ -47,9 +47,7 @@ class MenusAPI:
 
     def set_open_file(self) -> None:
         """Open a file from the system via a file chooser dialog."""
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Open File", "", "All Files (*)"
-        )
+        path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*)")
         if path:
             self.hero_window._text_editor_center.methods.open_file(path)
             self._defer_menu_sync()
@@ -120,9 +118,7 @@ class MenusAPI:
         if dirty_files:
             from editor.widgets.QExitDialog import UnsavedChangesDialog
 
-            dlg = UnsavedChangesDialog(
-                parent=self, dirty_files=dirty_files
-            )
+            dlg = UnsavedChangesDialog(parent=self, dirty_files=dirty_files)
             dlg.exec()
             choice = dlg.result
 

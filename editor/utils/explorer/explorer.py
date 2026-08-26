@@ -82,7 +82,7 @@ class SolutionExplorer(PanelShell):
         self._setup_options_menu()
 
         self.set_workspace(self._root_path)
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(235)
 
     def _build_shell(self) -> None:
         """

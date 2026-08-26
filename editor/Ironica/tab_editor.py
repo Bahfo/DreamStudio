@@ -28,13 +28,13 @@ from editor import *
 
 from editor.widgets.QDreamTabEditor import QDreamTabEditor
 
-
 logger = logging.getLogger(__name__)
 
 from editor.Ironica.code_editor import CodeEditor
 from editor.Ironica.process_manager import process_manager
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 from designer.toolbox.designer import DesignerTab
+from editor.base.user.trial import FreeTrialWindow
 
 
 def _webviewer_cls():
@@ -491,6 +491,20 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         tab = DesignerTab(self)
         index = self.addTab(tab, "Designer")
+        self.setCurrentIndex(index)
+        self.setFocus()
+
+    def open_free_trial_tab(self) -> None:
+        """
+        Opens the tab responsible for subscriptions and free trials.
+        """
+        for i in range(self.count()):
+            if isinstance(self.widget(i), FreeTrialWindow):
+                self.setCurrentIndex(i)
+                return
+
+        tab = FreeTrialWindow(self)
+        index = self.addTab(tab, "DreamStudio Subscriptions")
         self.setCurrentIndex(index)
         self.setFocus()
 

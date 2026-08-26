@@ -1,11 +1,13 @@
 from editor import *
 
+
 class QuickStartMenu(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(20, 20, 20, 20)
+        self.setStyleSheet("border: none;")
 
         self.set_main_menu()
 

@@ -76,7 +76,7 @@ class WorkspaceContainer(QWidget):
             "left",
             splitter=self._top_horizontal_splitter,
             splitter_index=0,
-            default_width=350,
+            default_width=220,
         )
         self._vertical_menus_api.register_panel(
             "source_control",
@@ -85,7 +85,7 @@ class WorkspaceContainer(QWidget):
             "left",
             splitter=self._top_horizontal_splitter,
             splitter_index=0,
-            default_width=350,
+            default_width=220,
         )
         self._vertical_menus_api.register_panel(
             "properties",
@@ -94,7 +94,7 @@ class WorkspaceContainer(QWidget):
             "right",
             splitter=self._top_horizontal_splitter,
             splitter_index=2,
-            default_width=350,
+            default_width=220,
         )
         self._vertical_menus_api.register_panel(
             "todo_search",
@@ -103,7 +103,7 @@ class WorkspaceContainer(QWidget):
             "right",
             splitter=self._top_horizontal_splitter,
             splitter_index=2,
-            default_width=350,
+            default_width=220,
         )
         self._vertical_menus_api.register_panel(
             "server_explorer",
@@ -112,7 +112,7 @@ class WorkspaceContainer(QWidget):
             "right",
             splitter=self._top_horizontal_splitter,
             splitter_index=2,
-            default_width=350,
+            default_width=220,
         )
         self._vertical_menus_api.register_panel(
             "notifications",
@@ -121,7 +121,7 @@ class WorkspaceContainer(QWidget):
             "right",
             splitter=self._top_horizontal_splitter,
             splitter_index=2,
-            default_width=350,
+            default_width=220,
         )
 
         self._left_utils_manager.panel_close_requested.connect(
@@ -141,9 +141,9 @@ class WorkspaceContainer(QWidget):
             0,
             lambda: self._top_horizontal_splitter.setSizes(
                 [
-                    250,
-                    max(0, self._top_horizontal_splitter.width() - 500),
-                    250,
+                    235,
+                    max(0, self._top_horizontal_splitter.width() - 470),
+                    235,
                 ]
             ),
         )

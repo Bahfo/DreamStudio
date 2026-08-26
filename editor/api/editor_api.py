@@ -108,6 +108,9 @@ class EditorAPI:
     def _open_toolbox(self) -> None:
         self.hero_window._text_editor_center.tabs.open_designer_tab()
 
+    def _open_subscriptions(self) -> None:
+        self.hero_window._text_editor_center.tabs.open_free_trial_tab()
+
     # ------------------------------------------------------------------
     # Sidebar button state
     # ------------------------------------------------------------------

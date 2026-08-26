@@ -18,7 +18,7 @@ class PropertiesExplorer(PanelShell):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(235)
 
         self.current_project_dir = None
         self.data_engine = ProjectDataEngine()

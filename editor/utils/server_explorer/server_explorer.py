@@ -32,7 +32,7 @@ class ServerExplorer(PanelShell):
         """Initialize the Server Explorer panel."""
         self._current_connection = None
         super().__init__(parent)
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(235)
 
     def _build_body(self) -> None:
         """Construct the main panel body with placeholder content."""
@@ -78,8 +78,10 @@ class ServerExplorer(PanelShell):
         placeholder_layout = QVBoxLayout(placeholder)
         placeholder_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        placeholder_label = QLabel("No server connections configured.\n\n"
-                                   "Click the (+) button to add a new connection.")
+        placeholder_label = QLabel(
+            "No server connections configured.\n\n"
+            "Click the (+) button to add a new connection."
+        )
         placeholder_label.setObjectName("ServerExplorerPlaceholderText")
         placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         placeholder_label.setWordWrap(True)

@@ -239,6 +239,6 @@
         "tooltip":"Find in File",
         "size":[30, 30],
         "icon_size":[22, 22],
-        "callback": false
+        "callback": "_open_subscriptions"
     }
 ]

@@ -1,0 +1,22 @@
+{
+    "theme": "islands_dark",
+    "name": "Islands Dark",
+    "palette": {
+        "KEYWORD_COLOR": "#CF8E6D",
+        "BUILTIN_COLOR": "#2AACB8",
+        "DEFINITION_COLOR": "#56A8F5",
+        "CLASS_COLOR": "#BCBEC4",
+        "STRING_COLOR": "#6AAB73",
+        "NUMBER_COLOR": "#2AACB8",
+        "COMMENT_COLOR": "#7A7E85",
+        "DECORATOR_COLOR": "#B3AE60",
+        "ADDITIONAL_COLOR": "#CF8E6D",
+        "OPERATOR_COLOR": "#BCBEC4",
+        "BRACKET_COLOR": "#ECBC7B",
+        "BRACKET2_COLOR": "#A894F6",
+        "BRACKET3_COLOR": "#71A1FE",
+        "EXCEPTION_COLOR": "#F75464",
+        "IMPORT_COLOR": "#CF8E6D",
+        "VARIABLE_COLOR": "#BCBEC4"
+    }
+}

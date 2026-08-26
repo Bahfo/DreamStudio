@@ -111,6 +111,7 @@ class LanguageAnalyzer(QWidget):
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(4, 8, 4, 8)
         self.main_layout.setSpacing(10)
+        self.setStyleSheet("background-color: transparent;")
 
         self.setMinimumHeight(65)
 

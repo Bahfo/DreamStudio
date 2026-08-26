@@ -25,7 +25,7 @@ class TODOSearch(PanelShell):
         main_window = self.window()
         self._base_dir = getattr(main_window, "currentDirectory", os.getcwd())
         self.path_input.setText(self._base_dir)
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(235)
 
     def _build_shell(self) -> None:
         self._main_layout = QVBoxLayout(self)

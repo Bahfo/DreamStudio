@@ -1,5 +1,6 @@
 from editor import *
 
+
 class DreamStudioIDETabBar(QTabBar):
 
     def __init__(self, _parent=None):
@@ -23,6 +24,7 @@ class DreamStudioIDETabBar(QTabBar):
         self._border_color = QColor("#1E1E1E")
         self._hover_border_color = QColor("#3E3E42")
         self._inactive_border_color = QColor("#252526")
+        self._border_buttom = QColor("#005190")
 
         self._text_selected = QColor("#FFFFFF")
         self._text_inactive = QColor("#969696")
@@ -76,7 +78,9 @@ class DreamStudioIDETabBar(QTabBar):
         self._hover_border_color = QColor(color)
         self.update()
 
-    hover_border_color = pyqtProperty(QColor, get_hover_border_color, set_hover_border_color)
+    hover_border_color = pyqtProperty(
+        QColor, get_hover_border_color, set_hover_border_color
+    )
 
     def get_inactive_border_color(self):
         return self._inactive_border_color
@@ -85,9 +89,9 @@ class DreamStudioIDETabBar(QTabBar):
         self._inactive_border_color = QColor(color)
         self.update()
 
-    inactive_border_color = pyqtProperty(QColor, get_inactive_border_color, set_inactive_border_color)
-
-    # -- Q_PROPERTY: text / indicator colors -----------------------------
+    inactive_border_color = pyqtProperty(
+        QColor, get_inactive_border_color, set_inactive_border_color
+    )
 
     def get_text_selected(self):
         return self._text_selected
@@ -257,14 +261,11 @@ class DreamStudioIDETabBar(QTabBar):
 
         painter.fillRect(rect, bg_color)
 
-        # Subtle layout boundary line isolation rules
         pen = QPen(border_color)
-        pen.setWidth(1)
+        pen.setWidth(2)
         painter.setPen(pen)
 
         if selected:
-            painter.drawLine(rect.left(), rect.top(), rect.left(), rect.bottom())
-            painter.drawLine(rect.right(), rect.top(), rect.right(), rect.bottom())
             painter.drawLine(rect.left(), rect.bottom(), rect.right(), rect.bottom())
         else:
             painter.setPen(QPen(self.inactive_bg.lighter(110)))

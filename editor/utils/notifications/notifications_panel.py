@@ -45,9 +45,7 @@ class NotificationCard(QFrame):
         """Build the card UI."""
         self.setObjectName("NotificationCard")
         self.setFrameShape(QFrame.Shape.NoFrame)
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
         border_color = NOTIFICATION_COLORS.get(
             self._notification.notification_type, "#3B82F6"
@@ -131,7 +129,7 @@ class NotificationsPanel(PanelShell):
         self._notification_manager = get_notification_manager()
         self._cards: dict[int, NotificationCard] = {}
         super().__init__(parent)
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(235)
 
         self._notification_manager.notification_added.connect(
             self._on_notification_added
@@ -166,9 +164,7 @@ class NotificationsPanel(PanelShell):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._notifications_container = QWidget()
         self._notifications_layout = QVBoxLayout(self._notifications_container)
