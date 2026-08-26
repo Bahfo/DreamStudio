@@ -169,10 +169,7 @@ def _handle_analysis(request_id: int, source: str, config: dict, theme_name: str
 
 
 def _handle_diagnostics(request_id: int, source: str, file_path):
-    from editor.Ironica.plugins.python.detect_problems import detect_problems
-
-    diagnostics = detect_problems(source, file_path)
-    return ("diagnostics", request_id, diagnostics)
+    return ("diagnostics", request_id, [])
 
 
 _MAX_COMPLETION_ITEMS = 50

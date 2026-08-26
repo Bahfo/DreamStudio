@@ -43,6 +43,7 @@ def main() -> None:
             window.setEnabled(True)
             window.showMaximized()
             window.show()
+            window.ui_ready.emit()
 
         QTimer.singleShot(5000, _reveal)
     else:

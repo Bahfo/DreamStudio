@@ -14,7 +14,6 @@ from __future__ import annotations
 from editor import *
 
 from editor.Ironica.analysis_bridge import AnalysisProcess, AnalysisProcessError
-from editor.Ironica.plugins.python.detect_problems import Diagnostic, detect_problems
 from editor.Ironica.process_manager import process_manager
 
 logger = logging.getLogger("DreamStudio.Diagnostics.Worker")
@@ -75,13 +74,9 @@ class _DiagnosticWorker(threading.Thread):
             raise AnalysisProcessError(f"server error: {response}")
         return response[2]
 
-    def _fallback_diagnostics(self, request: _AnalysisRequest) -> List[Diagnostic]:
+    def _fallback_diagnostics(self, request: _AnalysisRequest) -> List[dict]:
         """Graceful degradation: run jedi in-process when the server is down."""
-        try:
-            return detect_problems(request.source, request.file_path)
-        except Exception as exc:
-            logger.error("In-process diagnostics failed: %s", exc)
-            return []
+        return []
 
     def run(self) -> None:
         while not self._is_shutting_down:

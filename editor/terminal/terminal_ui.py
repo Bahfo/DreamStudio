@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 TAB_SYSTEM_SHELL = 0
 TAB_PROMPTX = 1
 TAB_OUTPUT = 2
-TAB_PROBLEMS = 3
-TAB_PORTS = 4
+TAB_PORTS = 3
 
 
 class _TerminalTabBar(DreamStudioIDETabBar):
@@ -371,7 +370,6 @@ class TerminalPanel(QWidget):
         self.system_shell_tab = TerminalWorkspace(self)
         self.promptXShell_tab = PromptXTerminalWidget(self)
         self.output_tab = OutputWidget(self)
-        self.problems_tab = ProblemsWidget(self)
         self.ports_tab = PortsWidget()
 
         # Connecting the close button to the system shell emulator
@@ -381,7 +379,6 @@ class TerminalPanel(QWidget):
             TAB_SYSTEM_SHELL: (self.system_shell_tab, "TERMINAL"),
             TAB_PROMPTX: (self.promptXShell_tab, "PROMPTX"),
             TAB_OUTPUT: (self.output_tab, "OUTPUT"),
-            TAB_PROBLEMS: (self.problems_tab, "PROBLEMS"),
             TAB_PORTS: (self.ports_tab, "PORTS"),
         }
 

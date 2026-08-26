@@ -593,6 +593,7 @@ VerticalSidebar,
 QFrame#VerticalSidebar {
     background-color: #1c1c1c;
     border-right: 1px solid #2D2D30;
+    border-left: 1px solid #2D2D30;
 }
 
 VerticalSidebar QPushButton,

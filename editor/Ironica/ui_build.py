@@ -13,6 +13,9 @@ from editor.Ironica.tab_editor import DreamTabbedEditor
 from editor.base.user.quickStartMenu import QuickStartMenu
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 
+from editor.terminal.api import TerminalPanel
+from editor.debugger.problems_widget import ProblemsWidget
+
 logger = logging.getLogger(__name__)
 
 
@@ -115,3 +118,33 @@ class EditorContainer(QWidget):
     def status_bar(self):
         win = self._main_window()
         return getattr(win, "status_bar", None)
+
+
+class UtilsContainer(QWidget):
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+
+        self.currentDirectory = os.getcwd()
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self._stack = QStackedWidget(self)
+        layout.addWidget(self._stack)
+
+        self.terminal_window = TerminalPanel(self)
+        self.problems_window = ProblemsWidget(self)
+
+        self._stack.addWidget(self.terminal_window)
+        self._stack.addWidget(self.problems_window)
+
+        self.terminal_window.close_requested.connect(self._hide_show_terminal)
+
+    def _hide_show_terminal(self) -> None:
+        workspace = self.parent().parent()
+        splitter = workspace._main_vertical_splitter
+        self.setVisible(False)
+        splitter.setSizes([1, 0])
+
+    def _hide_problems_widget(self) -> None:
+        pass

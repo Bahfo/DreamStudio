@@ -61,7 +61,7 @@ import zipfile
 
 from abc import ABC, abstractmethod
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from enum import Enum, IntEnum
 from itertools import islice

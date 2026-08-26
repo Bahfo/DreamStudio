@@ -19,6 +19,8 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
     files, theme files, or startup paths.
     """
 
+    ui_ready = pyqtSignal()
+
     def __init__(self, _parent=None, registry=None):
         super().__init__(parent=_parent)
         self._parent = _parent
@@ -33,6 +35,8 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         self.setup_layout()
+
+        self.ui_ready.connect(self._on_ui_ready)
 
         # Apply the theme provided by the bootstrap kernel.
         theme_content = self._registry.get("theme_content") if self._registry else None
@@ -114,6 +118,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
     def _build_status_bar(self, main_layout: QVBoxLayout) -> None:
         self.status_bar = StatusBar(self, self.currentDirectory)
         self.status_bar.notificationBtn.clicked.connect(self._toggle_notifications)
+        self.status_bar.errorsBtn.clicked.connect(self._toggle_problems)
         main_layout.addWidget(self.status_bar)
 
     def _sync_menu_state(self) -> None:
@@ -130,3 +135,8 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         from PyQt6.QtCore import QTimer
 
         QTimer.singleShot(0, self._sync_menu_state)
+
+    def _on_ui_ready(self):
+        workspace_root = QDir.currentPath()
+        problems = self.hero_window._lower_widget.problems_window
+        problems.run_workspace_analysis(workspace_root)

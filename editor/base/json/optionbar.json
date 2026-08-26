@@ -111,8 +111,8 @@
         "id":"btn",
         "icon_path":"assets/system/run.png",
         "tooltip":"Run Current File",
-        "size":[140, 30],
-        "text":"  Run and Debug",
+        "size":[70, 30],
+        "text":"  Run",
         "icon_size":[19, 19],
         "callback": false
     },
@@ -219,32 +219,24 @@
     },
     {
         "id":"btn",
-        "icon_path":"assets/system/theme.png",
-        "tooltip":"Change Theme",
+        "icon_path":"assets/system/ai.png",
+        "tooltip":"Ether AI",
         "size":[30, 30],
         "icon_size":[22, 22],
         "callback": false
     }, 
     {
         "id":"btn",
-        "icon_path":"assets/system/theme.png",
-        "tooltip":"Change Theme",
+        "icon_path":"assets/system/lock.png",
+        "tooltip":"Make File Read-Only",
         "size":[30, 30],
         "icon_size":[22, 22],
         "callback": false
     }, 
     {
         "id":"btn",
-        "icon_path":"assets/system/theme.png",
-        "tooltip":"Change Theme",
-        "size":[30, 30],
-        "icon_size":[22, 22],
-        "callback": false
-    }, 
-    {
-        "id":"btn",
-        "icon_path":"assets/system/theme.png",
-        "tooltip":"Change Theme",
+        "icon_path":"assets/menus/find.png",
+        "tooltip":"Find in File",
         "size":[30, 30],
         "icon_size":[22, 22],
         "callback": false

@@ -124,7 +124,7 @@ class OptionsMenu(QFrame):
                     self._debug_button = btn
 
             elif widget_id == "sep":
-                width = item.get("width", 2)
+                width = item.get("width", 1)
                 height = item.get("height", 25)
 
                 sep = Separator(_width=width, _height=height)

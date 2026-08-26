@@ -59,15 +59,34 @@ class EditorAPI:
             api.activate_panel("notifications")
 
     def _toggle_terminal(self) -> None:
-        terminal = self.hero_window.terminal_window
+        container = self.hero_window._lower_widget
         splitter = self.hero_window._main_vertical_splitter
-        if terminal.isVisible():
-            terminal.setVisible(False)
-            splitter.setSizes([1, 0])
+        if container.isVisible():
+            if container._stack.currentWidget() is container.terminal_window:
+                container.setVisible(False)
+                splitter.setSizes([1, 0])
+            else:
+                container._stack.setCurrentWidget(container.terminal_window)
+                container.terminal_window.switch_tab(0)
         else:
-            terminal.setVisible(True)
+            container._stack.setCurrentWidget(container.terminal_window)
+            container.setVisible(True)
             splitter.setSizes([600, 400])
-            terminal.switch_tab(0)
+            container.terminal_window.switch_tab(0)
+
+    def _toggle_problems(self) -> None:
+        container = self.hero_window._lower_widget
+        splitter = self.hero_window._main_vertical_splitter
+        if container.isVisible():
+            if container._stack.currentWidget() is container.problems_window:
+                container.setVisible(False)
+                splitter.setSizes([1, 0])
+            else:
+                container._stack.setCurrentWidget(container.problems_window)
+        else:
+            container._stack.setCurrentWidget(container.problems_window)
+            container.setVisible(True)
+            splitter.setSizes([600, 400])
 
     def _toggle_search_widget(self) -> None:
         if (
@@ -274,7 +293,7 @@ class EditorAPI:
 
     def _apply_custom_theme(self) -> None:
         self.hero_window.set_theme(self._qss_bg, self._qss_fg, self._qss_sel)
-        self.hero_window.terminal_window.set_theme(
+        self.hero_window._lower_widget.terminal_window.set_theme(
             self._qss_bg, self._qss_fg, self._qss_sel
         )
 

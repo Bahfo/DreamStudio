@@ -43,8 +43,8 @@ class PropertiesExplorer(PanelShell):
 
         if not focused and hasattr(self, "env_tree"):
             self.env_tree.clearSelection()
-        if not focused and hasattr(self, "config_grid"):
-            self.config_grid.clearSelection()
+        if not focused and hasattr(self, "file_grid"):
+            self.file_grid.clearSelection()
 
     def _build_shell(self) -> None:
         self._main_layout = QVBoxLayout(self)
@@ -209,9 +209,10 @@ class PropertiesExplorer(PanelShell):
             if isinstance(data, QWidget):
                 child = QTreeWidgetItem(parent)
                 child.setText(0, "")
-                child.setSizeHint(1, QSize(200, 65))
+                child.setSizeHint(0, QSize(200, 65))
+                child.setFirstColumnSpanned(True)
 
-                self.env_tree.setItemWidget(child, 1, data)
+                self.env_tree.setItemWidget(child, 0, data)
 
             elif isinstance(data, dict):
                 for key, value in data.items():
