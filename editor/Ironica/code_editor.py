@@ -942,6 +942,14 @@ class CodeEditor(QsciScintilla):
             e.accept()
             return
 
+        if self.isReadOnly():
+            # Block all editing keys when read-only; allow navigation.
+            if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                e.ignore()
+                return
+            super().keyPressEvent(e)
+            return
+
         if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             line, index = self.getCursorPosition()
             current_line_text = self.text(line)
@@ -1670,8 +1678,21 @@ class CodeEditor(QsciScintilla):
 
         # Check read-only permissions.
         try:
-            if not (path_obj.stat().st_mode & stat.S_IWUSR):
+            write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+            if not (path_obj.stat().st_mode & write_bits):
                 self.setReadOnly(True)
+                try:
+                    self._update_readonly_tab_indicator(True)
+                except Exception:
+                    pass
+            else:
+                # Ensure editor is writable when file has write permission.
+                if self.isReadOnly():
+                    self.setReadOnly(False)
+                    try:
+                        self._update_readonly_tab_indicator(False)
+                    except Exception:
+                        pass
         except OSError as exc:
             logger.warning(
                 "Could not check file permissions for %s: %s", file_path, exc
@@ -1685,6 +1706,19 @@ class CodeEditor(QsciScintilla):
         Returns:
             ``True`` on success, ``False`` on failure or cancellation.
         """
+        if self.isReadOnly():
+            from editor.widgets.QExitDialog import ConfirmDialog
+
+            dialog = ConfirmDialog(
+                parent=self,
+                title="Read-Only",
+                message="File is read-only. Toggle read-only off to save.",
+                confirm_text="OK",
+                cancel_text="CANCEL",
+                destructive=False,
+            )
+            dialog.exec()
+            return False
         if self.current_file_path:
             return self.save_to_file(self.current_file_path)
         return self.save_as()
@@ -1695,6 +1729,19 @@ class CodeEditor(QsciScintilla):
         Returns:
             ``True`` on success, ``False`` on failure or cancellation.
         """
+        if self.isReadOnly():
+            from editor.widgets.QExitDialog import ConfirmDialog
+
+            dialog = ConfirmDialog(
+                parent=self,
+                title="Read-Only",
+                message="File is read-only. Toggle read-only off to save.",
+                confirm_text="OK",
+                cancel_text="CANCEL",
+                destructive=False,
+            )
+            dialog.exec()
+            return False
         from PyQt6.QtWidgets import QFileDialog
 
         file_path, _ = QFileDialog.getSaveFileName(
@@ -1716,6 +1763,19 @@ class CodeEditor(QsciScintilla):
         Returns:
             ``True`` on success, ``False`` on any I/O error.
         """
+        if self.isReadOnly():
+            from editor.widgets.QExitDialog import ConfirmDialog
+
+            dialog = ConfirmDialog(
+                parent=self,
+                title="Read-Only",
+                message="File is read-only. Toggle read-only off to save.",
+                confirm_text="OK",
+                cancel_text="CANCEL",
+                destructive=False,
+            )
+            dialog.exec()
+            return False
         try:
             content = self.text()
             with open(file_path, "w", encoding="utf-8") as f:
@@ -1764,15 +1824,27 @@ class CodeEditor(QsciScintilla):
         try:
             file_path = pathlib.Path(self.current_file_path)
             current_mode = file_path.stat().st_mode
+            write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
 
-            if current_mode & stat.S_IWUSR:
-                new_mode = current_mode & ~stat.S_IWUSR
+            if current_mode & write_bits:
+                # Store original mode to restore exactly on toggle back.
+                self._pre_readonly_mode = current_mode
+                new_mode = current_mode & ~write_bits
                 self.setReadOnly(True)
                 self._update_readonly_tab_indicator(True)
             else:
-                new_mode = current_mode | stat.S_IWUSR | stat.S_IXUSR
+                pre = getattr(self, "_pre_readonly_mode", None)
+                if pre is not None and (pre & write_bits):
+                    new_mode = current_mode | (pre & write_bits)
+                else:
+                    # No history - at least restore user write.
+                    new_mode = current_mode | stat.S_IWUSR
                 self.setReadOnly(False)
                 self._update_readonly_tab_indicator(False)
+                try:
+                    delattr(self, "_pre_readonly_mode")
+                except AttributeError:
+                    pass
 
             file_path.chmod(new_mode)
         except OSError as exc:
@@ -1792,13 +1864,37 @@ class CodeEditor(QsciScintilla):
     def _update_readonly_tab_indicator(self, is_readonly: bool) -> None:
         """Notify the tab bar to show or hide the read-only lock icon."""
         tab_widget = self._parent
+        # After wrapping, CodeEditor's Qt parent is MiniMapHostWidget,
+        # while the tab manager is stored in _parent. Fallback to
+        # parent chain if _parent is stale.
+        if tab_widget is None:
+            # Try to resolve via Qt parent chain.
+            parent = self.parent()
+            while parent is not None:
+                if hasattr(parent, "tabBar") and hasattr(parent, "count"):
+                    tab_widget = parent
+                    break
+                parent = parent.parent() if hasattr(parent, "parent") else None
         if tab_widget is None:
             return
-        tab_bar = tab_widget.tabBar()
+        try:
+            tab_bar = tab_widget.tabBar()
+        except Exception:
+            return
         for i in range(tab_widget.count()):
-            if tab_widget.widget(i) is self:
+            w = tab_widget.widget(i)
+            if w is self or getattr(w, "editor", None) is self:
                 tab_bar.mark_readonly(i, is_readonly)
                 break
+            # Fallback for identity via MiniMapHostWidget wrapper.
+            try:
+                from editor.Ironica.utils.minimap import MiniMapHostWidget
+
+                if isinstance(w, MiniMapHostWidget) and w.editor is self:
+                    tab_bar.mark_readonly(i, is_readonly)
+                    break
+            except Exception:
+                pass
 
     ###############################################
     # CODE FORMATTING
@@ -1810,6 +1906,8 @@ class CodeEditor(QsciScintilla):
         All provider errors are caught so that a plugin failure
         never crashes the editor.
         """
+        if self.isReadOnly():
+            return
         if not self.current_provider:
             return
 

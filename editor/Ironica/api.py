@@ -48,6 +48,8 @@ class EditorAPI:
 
     def cut(self) -> None:
         """Cut the current selection to the clipboard."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.hasSelectedText():
             self._editor.cut()
 
@@ -58,15 +60,21 @@ class EditorAPI:
 
     def paste(self) -> None:
         """Paste from the clipboard at the current cursor position."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         self._editor.paste()
 
     def delete(self) -> None:
         """Delete the current selection."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.hasSelectedText():
             self._editor.removeSelectedText()
 
     def duplicate_line(self) -> None:
         """Duplicate the line containing the cursor."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         line, _ = self._editor.getCursorPosition()
         text = self._editor.text(line)
         self._editor.insertAt(f"\n{text}", line + 1, 0)
@@ -168,16 +176,22 @@ class EditorAPI:
 
     def undo(self) -> None:
         """Undo the last editing action, if available."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.isUndoAvailable():
             self._editor.undo()
 
     def redo(self) -> None:
         """Redo the last undone action, if available."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.isRedoAvailable():
             self._editor.redo()
 
     def indent(self) -> None:
         """Indent the selection or insert a tab of spaces."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.hasSelectedText():
             self._editor.SendScintilla(QsciScintilla.SCI_TAB)
         else:
@@ -187,11 +201,15 @@ class EditorAPI:
 
     def unindent(self) -> None:
         """Unindent the current selection."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.hasSelectedText():
             self._editor.SendScintilla(QsciScintilla.SCI_BACKTAB)
 
     def comment(self) -> None:
         """Comment out every selected line with a ``#`` prefix."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if not self._editor.hasSelectedText():
             return
         self._editor.beginUndoAction()
@@ -202,6 +220,8 @@ class EditorAPI:
 
     def uncomment(self) -> None:
         """Remove a leading ``# `` from every selected line."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if not self._editor.hasSelectedText():
             return
         self._editor.beginUndoAction()
@@ -216,12 +236,16 @@ class EditorAPI:
 
     def uppercase(self) -> None:
         """Convert the selection to upper case."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.hasSelectedText():
             text = self._editor.selectedText()
             self._editor.replaceSelectedText(text.upper())
 
     def lowercase(self) -> None:
         """Convert the selection to lower case."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if self._editor.hasSelectedText():
             text = self._editor.selectedText()
             self._editor.replaceSelectedText(text.lower())
@@ -250,6 +274,8 @@ class EditorAPI:
         Returns:
             ``True`` on success, ``False`` on failure or cancellation.
         """
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return False
         return self._editor.save()
 
     def save_as(self) -> bool:
@@ -258,6 +284,8 @@ class EditorAPI:
         Returns:
             ``True`` on success, ``False`` on failure or cancellation.
         """
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return False
         return self._editor.save_as()
 
     def reload(self) -> None:
@@ -296,6 +324,8 @@ class EditorAPI:
         Returns:
             ``True`` if a match was found and replaced.
         """
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return False
         if not find_text:
             return False
         found = self._editor.findFirst(find_text, False, False, False, False)
@@ -317,6 +347,8 @@ class EditorAPI:
         Returns:
             The number of replacements made.
         """
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return 0
         if not find_text:
             return 0
         if find_text == replace_text:
@@ -382,19 +414,27 @@ class EditorAPI:
         Args:
             text: The new text content.
         """
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         self._editor.setText(text)
 
     def append_text(self, text: str) -> None:
         """Append *text* to the end of the buffer."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         self._editor.append(text)
 
     def insert_text(self, text: str) -> None:
         """Insert *text* at the current cursor position."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         line, col = self._editor.getCursorPosition()
         self._editor.insertAt(text, line, col)
 
     def clear(self) -> None:
         """Clear the entire text buffer."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         self._editor.clear()
 
     # ------------------------------------------------------------------
@@ -451,6 +491,8 @@ class EditorAPI:
 
     def format_code(self) -> None:
         """Delegate formatting to the active language provider."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
         if hasattr(self._editor, "format_current_file"):
             self._editor.format_current_file()
 

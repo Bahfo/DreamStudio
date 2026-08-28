@@ -199,22 +199,25 @@ class RightClickMenu(QMenu):
         has_provider = editor.current_provider is not None
         has_file = bool(editor.current_file_path)
         has_folds = hasattr(editor, "_fold_manager") and editor._fold_manager is not None
+        is_readonly = editor.isReadOnly() if hasattr(editor, "isReadOnly") else False
 
         self._set_enabled("go_to_definition", has_provider)
-        self._set_enabled("undo", can_undo)
-        self._set_enabled("redo", can_redo)
-        self._set_enabled("cut", has_selection)
+        self._set_enabled("undo", can_undo and not is_readonly)
+        self._set_enabled("redo", can_redo and not is_readonly)
+        self._set_enabled("cut", has_selection and not is_readonly)
         self._set_enabled("copy", has_selection)
         self._set_enabled("copy_file_path", has_file)
-        self._set_enabled("paste", has_clipboard)
+        self._set_enabled("paste", has_clipboard and not is_readonly)
         self._set_enabled("make_file_read_only", has_file)
-        self._set_enabled("rename_current_file", has_file)
+        self._set_enabled("rename_current_file", has_file and not is_readonly)
         self._set_enabled("expand_all_folds", has_folds)
         self._set_enabled("collapse_all_folds", has_folds)
         self._set_enabled("expand_current_fold", has_folds)
         self._set_enabled("collapse_current_fold", has_folds)
-        self._set_enabled("comment", has_selection)
-        self._set_enabled("uncomment", has_selection)
+        self._set_enabled("comment", has_selection and not is_readonly)
+        self._set_enabled("uncomment", has_selection and not is_readonly)
+        # Block formatting when read-only.
+        self._set_enabled("format_code", not is_readonly)
 
     def _set_enabled(self, key, enabled):
         action = self._actions.get(key)
@@ -239,16 +242,22 @@ class RightClickMenu(QMenu):
 
     def undo_action(self):
         editor = self._editor()
+        if editor and hasattr(editor, "isReadOnly") and editor.isReadOnly():
+            return
         if editor and editor.isUndoAvailable():
             editor.undo()
 
     def redo_action(self):
         editor = self._editor()
+        if editor and hasattr(editor, "isReadOnly") and editor.isReadOnly():
+            return
         if editor and editor.isRedoAvailable():
             editor.redo()
 
     def cut(self):
         editor = self._editor()
+        if editor and hasattr(editor, "isReadOnly") and editor.isReadOnly():
+            return
         if editor and editor.hasSelectedText():
             editor.cut()
 
@@ -264,6 +273,8 @@ class RightClickMenu(QMenu):
 
     def paste(self):
         editor = self._editor()
+        if editor and hasattr(editor, "isReadOnly") and editor.isReadOnly():
+            return
         if editor:
             editor.paste()
 
@@ -290,6 +301,8 @@ class RightClickMenu(QMenu):
     def rename_current_file(self):
         editor = self._editor()
         if editor is None or not editor.current_file_path:
+            return
+        if hasattr(editor, "isReadOnly") and editor.isReadOnly():
             return
         from editor.utils.explorer.api import ExplorerAPI
 
@@ -339,12 +352,16 @@ class RightClickMenu(QMenu):
 
     def format_code(self):
         editor = self._editor()
+        if editor and hasattr(editor, "isReadOnly") and editor.isReadOnly():
+            return
         if editor:
             editor.format_current_file()
 
     def comment_current_line(self):
         editor = self._editor()
         if editor is None:
+            return
+        if hasattr(editor, "isReadOnly") and editor.isReadOnly():
             return
         line, _ = editor.getCursorPosition()
         line_text = editor.text(line)
@@ -358,6 +375,8 @@ class RightClickMenu(QMenu):
     def uncomment_current_line(self):
         editor = self._editor()
         if editor is None:
+            return
+        if hasattr(editor, "isReadOnly") and editor.isReadOnly():
             return
         line, _ = editor.getCursorPosition()
         line_text = editor.text(line)

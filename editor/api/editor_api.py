@@ -108,9 +108,6 @@ class EditorAPI:
     def _open_toolbox(self) -> None:
         self.hero_window._text_editor_center.tabs.open_designer_tab()
 
-    def _open_subscriptions(self) -> None:
-        self.hero_window._text_editor_center.tabs.open_free_trial_tab()
-
     # ------------------------------------------------------------------
     # Sidebar button state
     # ------------------------------------------------------------------
@@ -166,6 +163,9 @@ class EditorAPI:
 
     def _save_all_files(self) -> None:
         self.hero_window._text_editor_center.methods.save_all()
+
+    def _make_file_readonly(self) -> None:
+        self.hero_window._text_editor_center.tabs._make_file_readonly()
 
     # ------------------------------------------------------------------
     # Clipboard & undo/redo
@@ -476,6 +476,21 @@ class EditorAPI:
 
         # No file open.
         if widget is None:
+            return
+
+        # Block execution when read-only.
+        if hasattr(widget, "isReadOnly") and widget.isReadOnly():
+            from editor.widgets.QExitDialog import ConfirmDialog
+
+            dlg = ConfirmDialog(
+                parent=self,
+                title="Read-Only",
+                message="Cannot execute a read-only file. Toggle read-only off first.",
+                confirm_text="OK",
+                cancel_text="CANCEL",
+                destructive=False,
+            )
+            dlg.exec()
             return
 
         file_path = getattr(widget, "current_file_path", None)

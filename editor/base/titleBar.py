@@ -50,20 +50,38 @@ class DreamStudioTitleBar(QWidget):
 
         layout.addStretch()
 
+        self.free_trial_btn = QPushButton("Start Free Trial")
+        self.free_trial_btn.setObjectName("FreeTrial")
+        self.free_trial_btn.setStyleSheet("""
+        QPushButton#FreeTrial {
+            background-color: transparent;
+            border: 1px solid white;
+            border-radius: 12px;
+            color: white;
+        }
+        QPushButton#FreeTrial:hover {
+            border: 1px solid #C9C9C9;
+            color: #C9C9C9;
+        }
+        """)
+        self.free_trial_btn.setFixedSize(115, 25)
+        layout.addWidget(self.free_trial_btn)
+        self.free_trial_btn.clicked.connect(self._title_parent._on_free_trial_click)
+
         self.btn_minimize = self._build_control_button(
-            "—", 12, self._title_parent.showMinimized, layout
+            "—", self._title_parent.showMinimized, layout
         )
         self.btn_maximize = self._build_control_button(
-            "◻", 12, self.toggle_maximize, layout
+            "◻", self.toggle_maximize, layout
         )
         self.btn_close = self._build_control_button(
-            "✕", 14, self._title_parent.close, layout
+            "✕", self._title_parent.close, layout
         )
 
         self.load_menus_from_json("editor/base/json/menus.json")
         self._update_menu_state(False)
 
-    def _build_control_button(self, text, font_size, callback, layout):
+    def _build_control_button(self, text, callback, layout):
         btn = QPushButton(text)
         btn.setFixedSize(40, 30)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -87,13 +105,15 @@ class DreamStudioTitleBar(QWidget):
             menu.setObjectName("TitleBarMenu")
             self._build_menu_items(menu, items)
 
-    _EDITOR_MENU_ACTIONS = frozenset({
-        "set_save_current_file",
-        "set_save_file_as",
-        "set_save_all_files",
-        "set_save_all_and_close",
-        "set_close_editor",
-    })
+    _EDITOR_MENU_ACTIONS = frozenset(
+        {
+            "set_save_current_file",
+            "set_save_file_as",
+            "set_save_all_files",
+            "set_save_all_and_close",
+            "set_close_editor",
+        }
+    )
 
     def _build_menu_items(self, parent_menu, items):
         """Recursively populates submenus, actions, and separators."""
@@ -122,7 +142,8 @@ class DreamStudioTitleBar(QWidget):
                 if action_str:
                     # Dynamically look up local functions or parent methods
                     target = getattr(
-                        self, action_str,
+                        self,
+                        action_str,
                         getattr(self._title_parent, action_str, None),
                     )
                     if target:

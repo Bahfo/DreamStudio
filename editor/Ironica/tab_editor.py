@@ -796,6 +796,8 @@ class DreamTabbedEditor(QDreamTabEditor):
         if not editor or not hasattr(editor, "save"):
             return
         code_editor = self._unwrap_code_editor(editor) or editor
+        if hasattr(code_editor, "isReadOnly") and code_editor.isReadOnly():
+            return
         was_unsaved = not getattr(code_editor, "current_file_path", None)
         code_editor.save()
         if was_unsaved and getattr(code_editor, "current_file_path", None):
@@ -809,6 +811,8 @@ class DreamTabbedEditor(QDreamTabEditor):
         if not editor or not hasattr(editor, "save_as"):
             return
         code_editor = self._unwrap_code_editor(editor) or editor
+        if hasattr(code_editor, "isReadOnly") and code_editor.isReadOnly():
+            return
         old_path = getattr(code_editor, "current_file_path", None)
         code_editor.save_as()
         new_path = getattr(code_editor, "current_file_path", None)
@@ -838,6 +842,9 @@ class DreamTabbedEditor(QDreamTabEditor):
                 code_editor
                 and hasattr(code_editor, "save")
                 and code_editor.current_file_path
+                and not (
+                    hasattr(code_editor, "isReadOnly") and code_editor.isReadOnly()
+                )
             ):
                 code_editor.save()
         self.tabBar().rebuild_dirty_indices()
@@ -881,7 +888,19 @@ class DreamTabbedEditor(QDreamTabEditor):
         """Delegate formatting to the active editor's language provider."""
         editor = self.currentWidget()
         if editor and hasattr(editor, "format_current_file"):
+            code = self._unwrap_code_editor(editor) or editor
+            if hasattr(code, "isReadOnly") and code.isReadOnly():
+                return
             editor.format_current_file()
+
+    def _make_file_readonly(self):
+        current_tab = self.currentWidget()
+        if current_tab is None:
+            return
+        code_editor = self._unwrap_code_editor(current_tab)
+        target = code_editor if code_editor is not None else current_tab
+        if hasattr(target, "make_file_readonly"):
+            target.make_file_readonly()
 
 
 class FallBack(QWidget):

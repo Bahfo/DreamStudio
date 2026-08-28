@@ -1,5 +1,6 @@
 from editor import *
 
+
 class PanelShell(QWidget):
     """
     Generic shell for sidebar-style panels.
@@ -43,22 +44,6 @@ class PanelShell(QWidget):
         self._build_header_row()
         self._build_body()
 
-    def _build_header_row(self) -> None:
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(6)
-
-        self.title = QLabel(self.TITLE_TEXT)
-        self.title.setObjectName(self.TITLE_OBJECT_NAME)
-
-        row.addWidget(self.title)
-        row.addStretch(1)
-
-        for widget in self._header_right_widgets():
-            row.addWidget(widget)
-
-        self._frame_layout.addLayout(row)
-
     def _build_body(self) -> None:
         """Override in subclasses."""
         raise NotImplementedError
@@ -68,10 +53,6 @@ class PanelShell(QWidget):
         return []
 
     def _build_header_row(self) -> None:
-        """
-        A helper function to set a window utility undockable, by building a top
-        header row that contains a docking options.
-        """
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(6)

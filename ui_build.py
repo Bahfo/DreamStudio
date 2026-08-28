@@ -140,3 +140,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         workspace_root = QDir.currentPath()
         problems = self.hero_window._lower_widget.problems_window
         problems.run_workspace_analysis(workspace_root)
+
+    def _on_free_trial_click(self) -> None:
+        self.hero_window._text_editor_center.tabs.open_free_trial_tab()

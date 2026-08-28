@@ -285,7 +285,7 @@ class DreamStudioIDETabBar(QTabBar):
         if index in self._readonly_indices:
             painter.save()
             pen = QPen(self._readonly_color)
-            pen.setWidth(1.5)
+            pen.setWidthF(1.5)
             painter.setPen(pen)
             lock_x = rect.left() + 8 + text_offset
             lock_y = rect.center().y() - 3

@@ -231,7 +231,7 @@
         "tooltip":"Make File Read-Only",
         "size":[30, 30],
         "icon_size":[22, 22],
-        "callback": false
+        "callback": "_make_file_readonly"
     }, 
     {
         "id":"btn",
@@ -239,6 +239,6 @@
         "tooltip":"Find in File",
         "size":[30, 30],
         "icon_size":[22, 22],
-        "callback": "_open_subscriptions"
+        "callback": false
     }
 ]
