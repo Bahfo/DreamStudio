@@ -24,6 +24,16 @@ class ExplorerAPI:
     _clipboard: dict[str, str] = {}
 
     @staticmethod
+    def _notify_vcs(reason: str = "explorer:api") -> None:
+        """Request a VCS rescan after a mutating filesystem operation."""
+        try:
+            from editor.utils.git_control.status_service import get_status_service
+
+            get_status_service().request_scan(reason)
+        except Exception:
+            pass
+
+    @staticmethod
     def source_index(tree_view: QTreeView, proxy_index):
         """Resolve a proxy-model index back to its source-model index."""
         model = tree_view.model()
@@ -91,6 +101,7 @@ class ExplorerAPI:
             )
             return None
 
+        ExplorerAPI._notify_vcs("explorer:api:new_file")
         return file_path
 
     @staticmethod
@@ -128,6 +139,7 @@ class ExplorerAPI:
             )
             return None
 
+        ExplorerAPI._notify_vcs("explorer:api:new_folder")
         return folder_path
 
     @staticmethod
@@ -166,6 +178,7 @@ class ExplorerAPI:
             )
             return False
 
+        ExplorerAPI._notify_vcs("explorer:api:delete")
         return True
 
     @staticmethod
@@ -208,6 +221,7 @@ class ExplorerAPI:
             )
             return None
 
+        ExplorerAPI._notify_vcs("explorer:api:rename")
         return new_path
 
     @classmethod
@@ -281,6 +295,7 @@ class ExplorerAPI:
             )
             return None
 
+        cls._notify_vcs("explorer:api:paste")
         return dest_path
 
     @staticmethod

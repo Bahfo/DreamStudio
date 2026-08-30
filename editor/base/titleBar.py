@@ -291,7 +291,4 @@ class DreamStudioTitleBar(QWidget):
 
     def show_welcome(self) -> None:
         """Open the IDE welcome / start page window."""
-        from editor.base.user.whats_new import IDEStartPage
-
-        self._welcome_window = IDEStartPage()
-        self._welcome_window.show()
+        self._title_parent._on_welcome_btn_click()

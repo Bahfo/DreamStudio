@@ -143,3 +143,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _on_free_trial_click(self) -> None:
         self.hero_window._text_editor_center.tabs.open_free_trial_tab()
+
+    def _on_welcome_btn_click(self) -> None:
+        self.hero_window._text_editor_center.tabs.open_welcome_window()

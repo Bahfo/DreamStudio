@@ -83,6 +83,13 @@ class DirtyTracker(QObject):
         if current != previous:
             self._states[editor] = current
             self.dirty_state_changed.emit(editor, current)
+            try:
+                from editor.utils.git_control.status_service import get_status_service
+
+                reason = "dirty_tracker:dirty_true" if current else "dirty_tracker:dirty_false"
+                get_status_service().request_scan(reason)
+            except Exception:
+                pass
 
     def _on_editor_destroyed(self, obj) -> None:
         self._states.pop(obj, None)

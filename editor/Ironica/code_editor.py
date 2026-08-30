@@ -245,6 +245,12 @@ class CodeEditor(QsciScintilla):
         if not self._is_dirty:
             self._is_dirty = True
             self.dirty_state_changed.emit(True)
+            try:
+                from editor.utils.git_control.status_service import get_status_service
+
+                get_status_service().request_scan("editor:dirty_true")
+            except Exception:
+                pass
         if self.current_provider and self.current_provider.has_folding():
             self._schedule_fold_recompute()
         if self.current_provider:
@@ -277,6 +283,12 @@ class CodeEditor(QsciScintilla):
         if self._is_dirty:
             self._is_dirty = False
             self.dirty_state_changed.emit(False)
+            try:
+                from editor.utils.git_control.status_service import get_status_service
+
+                get_status_service().request_scan("editor:dirty_false")
+            except Exception:
+                pass
 
     def is_dirty(self) -> bool:
         """Return ``True`` if the editor buffer has been modified."""
@@ -521,9 +533,16 @@ class CodeEditor(QsciScintilla):
     def _teardown_hover_engine(self) -> None:
         """Destroy the current hover flyout and controller."""
         if self._hover_controller:
+            try:
+                self._hover_controller.shutdown()
+            except Exception:
+                pass
             self._hover_controller = None
         if self._hover_flyout:
-            self._hover_flyout.hide()
+            try:
+                self._hover_flyout.hide()
+            except Exception:
+                pass
             self._hover_flyout = None
 
     def _dismiss_hover_flyout(self, force: bool = False) -> None:
@@ -536,9 +555,9 @@ class CodeEditor(QsciScintilla):
         if self._hover_flyout and self._hover_flyout.isVisible():
             self._hover_flyout.dismiss(force=force)
 
-    def _dismiss_all_popups(self) -> None:
+    def _dismiss_all_popups(self, force: bool = False) -> None:
         """Dismiss every open sub-menu (hover flyout)."""
-        self._dismiss_hover_flyout()
+        self._dismiss_hover_flyout(force=force)
 
     ###############################################
     # EDITOR SETUP
@@ -880,12 +899,17 @@ class CodeEditor(QsciScintilla):
             finally:
                 self._in_change_event = False
         elif event.type() == QEvent.Type.WindowStateChange:
-            self._dismiss_all_popups()
+            self._dismiss_all_popups(force=True)
         super().changeEvent(event)
+
+    def hideEvent(self, event) -> None:
+        """Dismiss hover when the editor is hidden (tab switch)."""
+        self._dismiss_all_popups(force=True)
+        super().hideEvent(event)
 
     def focusOutEvent(self, event) -> None:
         """Dismiss hover flyout when the editor loses focus."""
-        self._dismiss_hover_flyout()
+        self._dismiss_hover_flyout(force=True)
         super().focusOutEvent(event)
 
     ###############################################
@@ -1009,6 +1033,9 @@ class CodeEditor(QsciScintilla):
     def leaveEvent(self, event):
         """Mouse left the editor — clear margin hover."""
         self._clear_hover_breakpoint()
+        # Soft-dismiss hover but keep it if mouse entered the flyout
+        # itself (flyout tracks _is_mouse_inside).
+        self._dismiss_hover_flyout(force=False)
         super().leaveEvent(event)
 
     def mousePressEvent(self, e: QKeyEvent) -> None:
@@ -1668,11 +1695,19 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
 
+        prev_dirty = self._is_dirty
         self.setText(content)
         self.setModified(False)
         self._is_dirty = False
         self._fold_display_text_cache.clear()
         self.dirty_state_changed.emit(False)
+        if prev_dirty:
+            try:
+                from editor.utils.git_control.status_service import get_status_service
+
+                get_status_service().request_scan("editor:load_dirty_false")
+            except Exception:
+                pass
         self._dismiss_hover_flyout()
         self._recompute_folds()
 
@@ -1782,9 +1817,21 @@ class CodeEditor(QsciScintilla):
                 f.write(content)
             self.current_file_path = file_path
             self.setModified(False)
+            was_dirty = self._is_dirty
             if self._is_dirty:
                 self._is_dirty = False
                 self.dirty_state_changed.emit(False)
+            try:
+                from editor.utils.git_control.status_service import get_status_service
+
+                # Covers: file modified / added (requirement 5) and
+                # dirty false transition (requirement 2).
+                if was_dirty:
+                    get_status_service().request_scan("editor:save_dirty_false")
+                else:
+                    get_status_service().request_scan("editor:save")
+            except Exception:
+                pass
             return True
         except OSError as exc:
             logger.error("Save failed for %s: %s", file_path, exc)

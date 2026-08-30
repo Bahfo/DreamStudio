@@ -35,6 +35,7 @@ from editor.Ironica.process_manager import process_manager
 from editor.Ironica.utils.minimap import MiniMapHostWidget
 from designer.toolbox.designer import DesignerTab
 from editor.base.user.trial import FreeTrialWindow
+from editor.base.user.whats_new import IDEStartPage
 
 
 def _webviewer_cls():
@@ -219,15 +220,18 @@ class DreamTabbedEditor(QDreamTabEditor):
             self._minimap_toggle.setVisible(should_show)
             QTimer.singleShot(0, self.updateGeometry)
 
-        # Deactivate every non-focused editor first so their pending and
-        # future requests are dropped / suppressed.
+        # Dismiss hover popups on all editors so stale docs never
+        # linger after a tab switch (force=True ignores pin state).
         for i in range(self.count()):
-            if i == index:
-                continue
             widget = self.widget(i)
             code = self._unwrap_code_editor(widget)
             if code is not None:
-                code.set_analysis_active(False)
+                try:
+                    code._dismiss_all_popups(force=True)
+                except Exception:
+                    pass
+                if i != index:
+                    code.set_analysis_active(False)
 
         code = None
         if 0 <= index < self.count():
@@ -246,6 +250,13 @@ class DreamTabbedEditor(QDreamTabEditor):
             if self.widget(i) is editor:
                 self.tabBar().mark_dirty(i, is_dirty)
                 break
+        try:
+            from editor.utils.git_control.status_service import get_status_service
+
+            reason = "editor:dirty_true" if is_dirty else "editor:dirty_false"
+            get_status_service().request_scan(reason)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # HTML Preview
@@ -508,6 +519,20 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.setCurrentIndex(index)
         self.setFocus()
 
+    def open_welcome_window(self) -> None:
+        """
+        Opens the welcome tab.
+        """
+        for i in range(self.count()):
+            if isinstance(self.widget(i), IDEStartPage):
+                self.setCurrentIndex(i)
+                return
+
+        tab = IDEStartPage()
+        index = self.addTab(tab, "Welcome")
+        self.setCurrentIndex(index)
+        self.setFocus()
+
     # ------------------------------------------------------------------
     # Close interceptors
     # ------------------------------------------------------------------
@@ -628,6 +653,14 @@ class DreamTabbedEditor(QDreamTabEditor):
             try:
                 code_editor.textChanged.disconnect()
             except (TypeError, RuntimeError):
+                pass
+
+        # Teardown hover controller/flyout to remove global event filters
+        # and prevent segfaults from dangling QApplication filters.
+        if code_editor is not None and hasattr(code_editor, "_teardown_hover_engine"):
+            try:
+                code_editor._teardown_hover_engine()
+            except Exception:
                 pass
 
         key = getattr(editor, "file_key", None)

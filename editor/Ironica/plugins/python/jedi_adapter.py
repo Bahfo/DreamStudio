@@ -74,7 +74,7 @@ class JediAdapter(IJediAdapter):
 
         try:
             try:
-                jedi_line = context.line + 1
+                jedi_line = context.line
                 definitions = script.help(line=jedi_line, column=context.column)
                 if not definitions:
                     definitions = script.infer(line=jedi_line, column=context.column)

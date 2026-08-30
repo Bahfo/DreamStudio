@@ -3,19 +3,26 @@ from __future__ import annotations
 from editor import *
 
 # Local Imports
-from editor.utils.explorer.proxy import ExplorerFilterProxy, DreamTreeView
+from editor.utils.explorer.proxy import (
+    ExplorerFilterProxy,
+    DreamTreeView,
+    ExplorerDelegate,
+)
 from editor.utils.explorer.menu import ExplorerClickMenu, MenuRegistry
 from editor.utils.explorer.collapsable_menu import (
     ExplorerOptionsMenu,
     create_options_button,
 )
 from editor.utils.git_control.status_service import get_status_service
+from editor.utils.explorer.gitignore import get_gitignore_service
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
 from editor.utils.explorer.icons import DreamStudioIconProvider
 from editor.utils.explorer.vcs_colors import build_status_index
 from editor.utils.explorer.packages import DependenciesView
 from editor.utils.explorer.api import ExplorerAPI
 from editor.utils.panel_shell import PanelShell
+
+logger = logging.getLogger(__name__)
 
 MENU_JSON = Path(__file__).resolve().with_name("menu.json")
 
@@ -245,6 +252,7 @@ class SolutionExplorer(PanelShell):
         self.proxy_model.set_root_path(self._root_path)
 
         self.tree_view.setModel(self.proxy_model)
+        self.tree_view.setItemDelegate(ExplorerDelegate(self.tree_view))
         self.tree_view.sortByColumn(0, Qt.SortOrder.AscendingOrder)
 
         selection_model = self.tree_view.selectionModel()
@@ -287,7 +295,18 @@ class SolutionExplorer(PanelShell):
             self._focus_connected = True
 
         self.base_model.fileRenamed.connect(self._notify_vcs_activity)
+        self.base_model.directoryLoaded.connect(self._notify_vcs_activity)
+        self.base_model.rootPathChanged.connect(self._notify_vcs_activity)
+        try:
+            self.base_model.rowsInserted.connect(self._notify_vcs_activity)
+            self.base_model.rowsRemoved.connect(self._notify_vcs_activity)
+            self.base_model.dataChanged.connect(self._notify_vcs_activity)
+        except Exception:
+            pass
         get_status_service().statuses_updated.connect(self._on_vcs_statuses_updated)
+        self._setup_vfs_watcher()
+        self._connect_dirty_tracker()
+        self._setup_gitignore_service()
 
     def _on_vcs_statuses_updated(self, repo_root: str, snapshot: dict) -> None:
         """
@@ -305,6 +324,102 @@ class SolutionExplorer(PanelShell):
     def _notify_vcs_activity(self, *args) -> None:
         """Request a rescan after a local mutating operation."""
         get_status_service().request_scan("explorer")
+
+    def _setup_vfs_watcher(self) -> None:
+        """Watch workspace root for external file add/delete/modify events."""
+        try:
+            self._fs_watcher = QFileSystemWatcher(self)
+            self._fs_watcher.directoryChanged.connect(self._notify_vcs_activity)
+            self._fs_watcher.fileChanged.connect(self._notify_vcs_activity)
+            if self._root_path and os.path.isdir(self._root_path):
+                self._fs_watcher.addPath(self._root_path)
+        except Exception:
+            self._fs_watcher = None
+
+    def _refresh_vfs_watcher(self) -> None:
+        """Re-point the filesystem watcher at the current workspace root."""
+        watcher = getattr(self, "_fs_watcher", None)
+        if watcher is None:
+            return
+        try:
+            for p in watcher.directories():
+                watcher.removePath(p)
+            for p in watcher.files():
+                watcher.removePath(p)
+            if self._root_path and os.path.isdir(self._root_path):
+                watcher.addPath(self._root_path)
+        except Exception:
+            pass
+
+    def _connect_dirty_tracker(self) -> None:
+        """Wire dirty-state changes from code editors to VCS activity.
+
+        Covers requirements:
+        1. Dirty state true for a file inside the code editor.
+        2. Dirty state updated (true->false or false->true).
+        This hooks every ``dirty_state_changed`` signal found in the
+        application, including future editors created after startup.
+        """
+
+        def _hook() -> None:
+            app = QApplication.instance()
+            if app is None:
+                return
+            for w in app.allWidgets():
+                if hasattr(w, "dirty_state_changed"):
+                    try:
+                        if not getattr(w, "_vcs_dirty_connected", False):
+                            w.dirty_state_changed.connect(self._notify_vcs_activity)
+                            w._vcs_dirty_connected = True  # type: ignore
+                    except Exception:
+                        pass
+
+        QTimer.singleShot(400, _hook)
+        self._dirty_hook_timer = QTimer(self)
+        self._dirty_hook_timer.setInterval(1200)
+        self._dirty_hook_timer.timeout.connect(_hook)
+        self._dirty_hook_timer.start()
+
+    def _setup_gitignore_service(self) -> None:
+        """Wire the gitignore parser service to the proxy model.
+
+        - Reads ``.gitignore`` line by line via :mod:`editor.utils.explorer.gitignore`.
+        - Highlights ignored files with a faded-gray text color (VSCode-like).
+        - Updates each time ``.gitignore`` is modified (resaved).
+        - If no ``.gitignore`` exists the service emits ``[]`` and stays
+          idle until the file is created for the first time.
+        """
+        try:
+            service = get_gitignore_service()
+            try:
+                service.patterns_updated.disconnect(self._on_gitignore_updated)
+            except Exception:
+                pass
+            service.patterns_updated.connect(self._on_gitignore_updated)
+            if self._root_path:
+                service.set_root(self._root_path)
+                patterns = service.patterns()
+                self.proxy_model.apply_gitignore_patterns(patterns)
+        except Exception as exc:
+            logger.debug("GitIgnore setup failed: %s", exc)
+
+    def _on_gitignore_updated(self, patterns: list) -> None:
+        """Apply new gitignore patterns to the proxy and repaint.
+
+        Args:
+            patterns: Raw pattern list emitted by :class:`GitIgnoreService`.
+                Empty list means no ``.gitignore`` – highlighting disabled.
+        """
+        try:
+            self.proxy_model.apply_gitignore_patterns(patterns or [])
+            if self.tree_view is not None:
+                try:
+                    self.tree_view.viewport().update()
+                    self.tree_view.update()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def _setup_options_menu(self) -> None:
         self._options_menu = ExplorerOptionsMenu(
@@ -360,6 +475,11 @@ class SolutionExplorer(PanelShell):
         self._update_status_label()
         self.proxy_model.set_search_text(self.search_bar.text())
         self._ensure_root_visible()
+        self._refresh_vfs_watcher()
+        try:
+            get_gitignore_service().set_root(self._root_path)
+        except Exception:
+            pass
 
     def set_root_path(self, root_path: str) -> None:
         """
@@ -470,11 +590,25 @@ class SolutionExplorer(PanelShell):
         self._run_if_selected(ExplorerAPI.copy_path)
 
     def _menu_rename(self) -> None:
-        self._run_if_selected(lambda path: ExplorerAPI.rename_item(self, path))
+        path = self._selected_path()
+        if path:
+            result = ExplorerAPI.rename_item(self, path)
+            if result:
+                self._notify_vcs_activity()
+            else:
+                # QFileSystemModel may still emit fileRenamed; ensure scan
+                self._notify_vcs_activity()
 
     def _menu_delete(self) -> None:
-        self._run_if_selected(lambda path: ExplorerAPI.delete_item(self, path))
-        self._notify_vcs_activity()
+        path = self._selected_path()
+        if path:
+            result = ExplorerAPI.delete_item(self, path)
+            if result:
+                self._notify_vcs_activity()
+            else:
+                self._notify_vcs_activity()
+        else:
+            self._notify_vcs_activity()
 
     def _menu_open_explorer(self) -> None:
         self._run_if_selected(ExplorerAPI.open_in_system_explorer)
@@ -705,7 +839,8 @@ class SolutionExplorer(PanelShell):
 
     def create_folder_here(self) -> None:
         target = self.selected_directory()
-        ExplorerAPI.new_folder(self, target)
+        result = ExplorerAPI.new_folder(self, target)
+        self._notify_vcs_activity()
 
     def copy_selected_path(self) -> None:
         self._menu_copy_path()

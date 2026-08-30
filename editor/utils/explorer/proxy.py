@@ -2,6 +2,8 @@ from editor import *
 
 from editor.utils.explorer.collapsable_menu import SortMode
 from editor.utils.explorer.vcs_colors import *
+from editor.utils.explorer.gitignore import is_ignored as _is_gitignored_match
+from editor.utils.explorer.gitignore import GITIGNORE_FG_BRUSH
 
 
 class ExplorerFilterProxy(QSortFilterProxyModel):
@@ -21,6 +23,8 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         self._sort_mode: SortMode = SortMode.ALPHA_ASC
         self._vcs_index: Dict[str, str] = {}
         self._vcs_colors = resolve_vcs_colors(30)
+        self._gitignore_patterns: list[str] = []
+        self._gitignore_fg = GITIGNORE_FG_BRUSH
 
         self.setRecursiveFilteringEnabled(True)
         self.setAutoAcceptChildRows(True)
@@ -68,13 +72,18 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         return self._sort_mode
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
-        """Serve VCS foreground colors, delegating everything else."""
+        """Serve VCS foreground and gitignore faded-gray text colors."""
         if role == Qt.ItemDataRole.ForegroundRole:
             source_model = self.sourceModel()
             if source_model is not None and index.isValid():
                 source_index = self.mapToSource(index)
                 if source_index.isValid():
                     path = source_model.filePath(source_index)
+                    is_dir = source_model.isDir(source_index)
+                    # Gitignored files use faded-gray (VSCode-like) and take
+                    # precedence over VCS colors; remove purple background.
+                    if path and self.is_gitignored(path, is_dir):
+                        return self._gitignore_fg
                     color = self.vcs_color_for_path(path) if path else None
                     if color is not None:
                         return QBrush(color)
@@ -169,6 +178,90 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         if kind == ADDED_KIND:
             return self._vcs_colors[ADDED_KIND]
         return None
+
+    def apply_gitignore_patterns(self, patterns: list[str]) -> None:
+        """Replace the gitignore pattern list and repaint.
+
+        Args:
+            patterns: Raw gitignore patterns as parsed from ``.gitignore``.
+                An empty list disables highlighting.
+        """
+        self._gitignore_patterns = list(patterns or [])
+        self.layoutChanged.emit()
+        # Ensure views repaint foreground role even if layout is cached
+        try:
+            top = self.index(0, 0, QModelIndex())
+            bottom = self.index(self.rowCount() - 1, 0, QModelIndex())
+            if top.isValid() and bottom.isValid():
+                self.dataChanged.emit(
+                    top, bottom, [Qt.ItemDataRole.ForegroundRole]
+                )
+        except Exception:
+            pass
+        self.invalidateFilter()
+
+    def gitignore_patterns(self) -> list[str]:
+        """Return a copy of the current gitignore patterns."""
+        return list(self._gitignore_patterns)
+
+    def is_gitignored(self, abs_path: str, is_dir: bool = False) -> bool:
+        """Return ``True`` when *abs_path* matches the gitignore patterns.
+
+        Args:
+            abs_path: Absolute filesystem path.
+            is_dir: Whether the path is a directory.
+
+        Returns:
+            ``True`` when the path should be highlighted with the
+            faded-gray text color (VSCode-like).
+        """
+        if not self._gitignore_patterns or not self._root_path or not abs_path:
+            return False
+        try:
+            rel = os.path.relpath(os.path.normpath(abs_path), os.path.normpath(self._root_path))
+        except Exception:
+            return False
+        if rel.startswith("..") or rel == ".":
+            return False
+        # .gitignore itself should not be highlighted as ignored
+        if rel == ".gitignore":
+            return False
+        # Gitignore matching is case-sensitive and uses posix separators
+        rel_posix = rel.replace(os.sep, "/")
+        return _is_gitignored_match(rel_posix, bool(is_dir), self._gitignore_patterns)
+
+
+class ExplorerDelegate(QStyledItemDelegate):
+    """Delegate that respects BackgroundRole even when QSS is applied.
+
+    QSS `QTreeView::item` rules override the default model background
+    painting. This delegate explicitly fills the item rect with the
+    model's BackgroundRole brush before the styled painting, ensuring
+    the purple-ish gitignore highlight is visible on both dark and
+    light themes while preserving hover/selection from QSS.
+    """
+
+    def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex) -> None:
+        super().initStyleOption(option, index)
+        bg = index.data(Qt.ItemDataRole.BackgroundRole)
+        if isinstance(bg, QBrush) and bg.style() != Qt.BrushStyle.NoBrush:
+            # Keep the brush but ensure it's not overridden by QSS palette
+            option.backgroundBrush = bg
+
+    def paint(
+        self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> None:
+        bg = index.data(Qt.ItemDataRole.BackgroundRole)
+        if isinstance(bg, QBrush) and bg.style() != Qt.BrushStyle.NoBrush:
+            # Don't paint over selected/hovered items – QSS handles those
+            state = option.state
+            is_selected = bool(state & QStyle.StateFlag.State_Selected)
+            is_mouse_over = bool(state & QStyle.StateFlag.State_MouseOver)
+            if not is_selected and not is_mouse_over:
+                painter.save()
+                painter.fillRect(option.rect, bg)
+                painter.restore()
+        super().paint(painter, option, index)
 
 
 class DreamTreeView(QTreeView):

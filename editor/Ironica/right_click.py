@@ -306,7 +306,14 @@ class RightClickMenu(QMenu):
             return
         from editor.utils.explorer.api import ExplorerAPI
 
-        ExplorerAPI.rename_item(parent=editor, path=editor.current_file_path)
+        result = ExplorerAPI.rename_item(parent=editor, path=editor.current_file_path)
+        if result:
+            try:
+                from editor.utils.git_control.status_service import get_status_service
+
+                get_status_service().request_scan("editor:rename_current_file")
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # Folding

@@ -164,37 +164,46 @@ def _format_qt_tooltip(details: HoverDetails) -> str:
 
 
 def _format_hover_html(details: HoverDetails) -> str:
-    """Rich HTML suitable for ``QTextBrowser`` or ``QLabel`` with rich-text."""
+    """Rich HTML suitable for ``QTextBrowser`` with structured sections."""
     parts = []
 
-    kind_label = _html.escape(details.kind.upper() if details.kind else "SYMBOL")
-    name_esc = _html.escape(details.name)
-    parts.append(
-        f'<p style="margin:0;">'
-        f'<b style="color:#569CD6; font-size:14px;">{name_esc}</b>'
-        f' <span style="color:#888888; font-size:12px;">({kind_label})</span>'
-        f"</p>"
-    )
-
-    sig_esc = _html.escape(details.signature)
-    parts.append(
-        '<table style="margin:4px 0;" cellspacing="0" cellpadding="6" '
-        'width="100%">'
-        "<tr>"
-        f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
-        f'font-family:monospace; font-size:12px; border-radius:4px;">'
-        f'<pre style="margin:0; white-space:pre-wrap;">{sig_esc}</pre>'
-        "</td>"
-        "</tr>"
-        "</table>"
-    )
+    # Title is rendered in the flyout header — do not duplicate here.
+    # Start directly with signature.
+    sig_esc = _html.escape(details.signature) if details.signature else ""
+    if sig_esc:
+        parts.append(
+            '<table style="margin:0 0 8px 0;" cellspacing="0" cellpadding="7" '
+            'width="100%">'
+            "<tr>"
+            f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
+            f'font-family:monospace; font-size:12px; border-radius:4px; '
+            f'border: 1px solid #2D2D2D;">'
+            f'<pre style="margin:0; white-space:pre-wrap; '
+            f'word-wrap:break-word;">{sig_esc}</pre>'
+            "</td>"
+            "</tr>"
+            "</table>"
+        )
 
     if details.parameters:
-        parts.append('<p style="margin:8px 0 4px 0;"><b>Parameters:</b></p>')
-        parts.append('<table style="margin:0;" cellspacing="0" cellpadding="2">')
+        parts.append(
+            '<p style="margin:8px 0 4px 0; font-size:12px;">'
+            "<b>Parameters</b>"
+            f' <span style="color:#888888; font-size:11px;">'
+            f"({len(details.parameters)})</span></p>"
+        )
+        parts.append(
+            '<table style="margin:0;" cellspacing="0" cellpadding="3" '
+            'width="100%">'
+        )
         for param in details.parameters:
             p_name = _html.escape(param.name)
-            cells = f'<td style="padding-right:8px;"><b style="color:#9CDCFE;">{p_name}</b></td>'
+            # Bullet + name
+            cells = (
+                f'<td style="padding-right:6px; color:#888888;">&#8226;</td>'
+                f'<td style="padding-right:8px;">'
+                f'<b style="color:#9CDCFE;">{p_name}</b></td>'
+            )
             if param.type_hint:
                 cells += (
                     f'<td style="padding-right:8px;">'
@@ -202,29 +211,44 @@ def _format_hover_html(details: HoverDetails) -> str:
                     f"{_html.escape(param.type_hint)}</font></td>"
                 )
             else:
-                cells += "<td></td>"
+                cells += '<td style="color:#6B6B6B; font-style:italic;">any</td>'
             if param.default_value is not None:
                 cells += (
                     f'<td><font color="#B5CEA8">'
                     f"= {_html.escape(param.default_value)}</font></td>"
                 )
+            else:
+                # Keep table columns aligned
+                cells += "<td></td>"
             parts.append(f"<tr>{cells}</tr>")
         parts.append("</table>")
 
     if details.return_type:
         ret_esc = _html.escape(details.return_type)
         parts.append(
-            f'<p style="margin:8px 0 4px 0;"><b>Returns:</b> '
-            f'<font color="#4EC9B0;">{ret_esc}</font></p>'
+            f'<p style="margin:10px 0 4px 0; font-size:12px;">'
+            f"<b>Returns</b> "
+            f'<span style="color:#4EC9B0; font-family:monospace;">'
+            f"{ret_esc}</span>"
+            f"</p>"
         )
 
     if details.docstring:
         cleaned = _clean_docstring(details.docstring)
         doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
         parts.append(
-            '<hr style="border:0; border-top:1px solid #444444; ' 'margin:8px 0;"/>'
+            '<hr style="border:0; border-top:1px solid #3A3A3A; ' 'margin:10px 0;"/>'
         )
-        parts.append(f'<p style="color:#A9A9A9; font-style:italic;">' f"{doc_esc}</p>")
+        parts.append(
+            f'<p style="color:#A9A9A9; font-style:italic; '
+            f'font-size:12px; line-height:1.4;">{doc_esc}</p>'
+        )
+
+    if not parts:
+        # Fallback when only name/kind available.
+        parts.append(
+            '<p style="color:#888888; font-style:italic;">No additional documentation available.</p>'
+        )
 
     return "\n".join(parts)
 
@@ -325,10 +349,15 @@ class PythonLanguageProvider(BaseLanguageProvider):
         if not details:
             return None
 
-        kind_str = f"<i>({details.kind})</i>" if details.kind else ""
+        # Rich title: bold name + muted kind.  Flyout extracts kind for badge.
+        kind_str = f"({details.kind})" if details.kind else ""
+        kind_esc = _html.escape(kind_str)
+        name_esc = _html.escape(details.name)
         title_html = (
-            f'<span style="font-weight:bold; font-size:13px;">{details.name}</span> '
-            f'<span style="color:#888888; font-style:italic;">{kind_str}</span>'
+            f'<span style="font-weight:700; font-size:13px; '
+            f'color:#569CD6;">{name_esc}</span> '
+            f'<span style="color:#858585; font-style:italic; '
+            f'font-size:11px;">{kind_esc}</span>'
         )
         body_html = _format_hover_html(details)
         return title_html, body_html
