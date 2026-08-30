@@ -14,17 +14,7 @@
 
 ## Specific Rules: 
 - All other rules are contained inside `.ai/` folder. It contains `styles.md` and `styles.yaml`. 
-```
----
-#### Changes in Fix - (FIX_ID)
-- Change-1
-- Change-2
-- ... etc.
-#### Notes: ....
 
-Date of Change: X/X/20XX
----
-```
 - **Tests**: All tests are `.py` files starting with the word `test`. After each change. Run tests accompanying to the change made.
 
 ## Mandatory Rules
