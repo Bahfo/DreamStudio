@@ -494,7 +494,7 @@ QScrollBar:horizontal {
 
 QScrollBar::handle:vertical,
 QScrollBar::handle:horizontal {
-    background-color: transparent;
+    background-color: rgba(101, 123, 131, 0.55);
     border-radius: 5px;
 }
 
@@ -1070,7 +1070,7 @@ QScrollBar#terminalViewScrollbar::handle:vertical,
 QScrollBar#terminalViewScrollbar::handle:horizontal,
 QPlainTextEdit#terminalTextEdit QScrollBar::handle:vertical,
 QPlainTextEdit#terminalTextEdit QScrollBar::handle:horizontal {
-    background: transparent;
+    background: rgba(101, 123, 131, 0.55);
     border-radius: 4px;
 }
 
