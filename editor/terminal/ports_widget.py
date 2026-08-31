@@ -27,52 +27,50 @@ _STOPPED_STATUSES = {
 
 
 class PortsWidget(QWidget):
-    """Port-owning process table plus embedded system monitor."""
+    """Full process table, port monitor, and embedded system monitor."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         self._tabs = QTabWidget(self)
         self._tabs.setDocumentMode(True)
 
         ports_page = QWidget(self)
         ports_layout = QVBoxLayout(ports_page)
-        ports_layout.setContentsMargins(0, 0, 0, 0)
+        ports_layout.setContentsMargins(10, 10, 10, 10)
+        ports_layout.setSpacing(10)
 
-        self.table_count = [
+        self.table_headers = [
             "PID",
             "Process Name",
-            "Port Number",
-            "Service Name",
-            "CPU Usage",
-            "Memory Usage",
-            "Disk Usage",
+            "Port(s)",
+            "Service",
+            "CPU (%)",
+            "RAM (MB)",
+            "I/O (MB)",
         ]
-
-        ports_layout.addSpacing(10)
 
         top_controls_layout = QHBoxLayout()
         top_controls_layout.setContentsMargins(0, 0, 0, 0)
+        top_controls_layout.setSpacing(15)
 
         self.search_bar = QLineEdit(self)
-        self.search_bar.setMaximumWidth(300)
-        self.search_bar.setPlaceholderText("Search Port Number ...")
+        self.search_bar.setMaximumWidth(350)
+        self.search_bar.setPlaceholderText("Search PID, Name, Port, or Service...")
         self.search_bar.textChanged.connect(self.refresh_data)
+        self.search_bar.setStyleSheet("padding: 5px; border-radius: 4px;")
 
         self.sortByDropDown = QComboBox(self)
-        self.sortByDropDown.view().setFixedWidth(150)
-        self.sortByDropDown.setPlaceholderText("Filter Processes By ...")
-        options = ["Active Processes", "Stopped Process", "All Processes"]
+        self.sortByDropDown.setMinimumWidth(160)
+        options = ["All Processes", "Active Processes", "Stopped Processes"]
         self.sortByDropDown.addItems(options)
-        self.sortByDropDown.setStyleSheet("border: 1px;")
-
+        self.sortByDropDown.setStyleSheet("padding: 4px; border-radius: 4px;")
         self.sortByDropDown.currentTextChanged.connect(self.refresh_data)
 
-        # NOTE: Ephemeral outbound ports look like noise in a ports view;
-        # listening sockets are what a user expects, so default to them.
-        self.listen_only_check = QCheckBox("Listening only", self)
+        self.listen_only_check = QCheckBox("Listening Sockets Only", self)
         self.listen_only_check.setChecked(True)
         self.listen_only_check.toggled.connect(self.refresh_data)
 
@@ -81,9 +79,30 @@ class PortsWidget(QWidget):
         top_controls_layout.addWidget(self.listen_only_check)
         top_controls_layout.addStretch()
 
-        self.table = QTableWidget(0, len(self.table_count), self)
-        self.table.setHorizontalHeaderLabels(self.table_count)
-        self.table.setStyleSheet("border: none;")
+        self.table = QTableWidget(0, len(self.table_headers), self)
+        self.table.setHorizontalHeaderLabels(self.table_headers)
+
+        # Clean UI styling for the data table
+        self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
+        self.table.setStyleSheet("""
+            QTableWidget {
+                border: 1px solid #444;
+                border-radius: 4px;
+                background-color: transparent;
+            }
+            QTableWidget::item {
+                padding: 4px;
+                border-bottom: 1px solid #333;
+            }
+            QHeaderView::section {
+                background-color: #2b2b2b;
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid #555;
+                font-weight: bold;
+            }
+        """)
 
         self.table.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeMode.Stretch
@@ -97,13 +116,13 @@ class PortsWidget(QWidget):
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
-        self.table.verticalHeader().setDefaultSectionSize(24)
+        self.table.verticalHeader().setDefaultSectionSize(28)
         self.table.verticalHeader().setVisible(False)
 
         ports_layout.addLayout(top_controls_layout)
         ports_layout.addWidget(self.table)
 
-        self._tabs.addTab(ports_page, "Ports")
+        self._tabs.addTab(ports_page, "Processes & Ports")
         self._monitor = None
         self._tabs.currentChanged.connect(self._ensure_monitor)
 
@@ -116,11 +135,7 @@ class PortsWidget(QWidget):
         self.refresh_data()
 
     def _ensure_monitor(self, index: int) -> None:
-        """Create the embedded system monitor lazily on first open.
-
-        Args:
-            index: Index of the newly selected inner tab.
-        """
+        """Create the embedded system monitor lazily on first open."""
         if self._monitor is not None or index != 1:
             return
         try:
@@ -142,27 +157,14 @@ class PortsWidget(QWidget):
         search_query: str,
         status_filter: str,
     ) -> bool:
-        """Check whether one process matches the current UI filters.
-
-        Args:
-            pid: Process identifier.
-            name: Process executable name.
-            status: psutil status string for the process.
-            port_str: Comma-joined port numbers owned by the process.
-            service_str: Comma-joined resolved service names.
-            search_query: Text typed in the search bar.
-            status_filter: Selected entry of the filter drop-down.
-
-        Returns:
-            True when the process should be rendered as a table row.
-        """
+        """Check whether one process matches the current UI filters."""
         haystack = f"{port_str} {service_str} {name} {pid}".lower()
         if search_query and search_query.lower() not in haystack:
             return False
 
         if status_filter == "Active Processes":
             return status in _ACTIVE_STATUSES
-        if status_filter == "Stopped Process":
+        if status_filter == "Stopped Processes":
             return status in _STOPPED_STATUSES
         return True
 
@@ -182,20 +184,23 @@ class PortsWidget(QWidget):
             try:
                 pid = proc.info["pid"]
                 port_entries = pid_to_ports.get(pid)
-                if not port_entries:
-                    continue
 
-                ordered_ports = sorted(port_entries, key=lambda e: int(e[0]))
-                port_str = ", ".join(port for port, _ in ordered_ports)
+                # Process all network and non-network processes
+                if port_entries:
+                    ordered_ports = sorted(port_entries, key=lambda e: int(e[0]))
+                    port_str = ", ".join(port for port, _ in ordered_ports)
 
-                services: list = []
-                seen_services = set()
-                for port, proto in ordered_ports:
-                    resolved = service_name(port, proto)
-                    if resolved != "-" and resolved not in seen_services:
-                        seen_services.add(resolved)
-                        services.append(resolved)
-                service_str = ", ".join(services) if services else "-"
+                    services: list = []
+                    seen_services = set()
+                    for port, proto in ordered_ports:
+                        resolved = service_name(port, proto)
+                        if resolved != "-" and resolved not in seen_services:
+                            seen_services.add(resolved)
+                            services.append(resolved)
+                    service_str = ", ".join(services) if services else "-"
+                else:
+                    port_str = "-"
+                    service_str = "-"
 
                 name = proc.info["name"] or "unknown"
                 status = proc.info["status"]
@@ -232,7 +237,6 @@ class PortsWidget(QWidget):
                 ]
 
                 for col, item in enumerate(items):
-                    # Align Process Name (col 1) to the left, center everything else
                     if col == 1:
                         item.setTextAlignment(
                             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
@@ -259,11 +263,7 @@ class PortsWidget(QWidget):
                 continue
 
     def show_context_menu(self, pos):
-        """Open the process control menu for the row under *pos*.
-
-        Args:
-            pos: Viewport-relative position of the context-menu request.
-        """
+        """Open the process control menu for the row under *pos*."""
         item = self.table.itemAt(pos)
         if not item:
             return
