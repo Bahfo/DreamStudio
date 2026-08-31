@@ -74,6 +74,11 @@ class CodeEditor(QsciScintilla):
     BRACKET_HL_SLOT = 16
     BRACKET_BAD_SLOT = 17
 
+    # Occurrence highlight (VS Code-style word occurrence) slot.
+    OCCURRENCE_HL_SLOT = 18
+    OCCURRENCE_MIN_LENGTH = 2
+    OCCURRENCE_MAX_OCC = 200
+
     MARGIN_BREAKPOINT = 1
     MARKER_BREAKPOINT = 1
     COLOR_MARGIN = 2
@@ -221,6 +226,8 @@ class CodeEditor(QsciScintilla):
         # Load file if provided.
         if file_path:
             self.load_from_file(file_path)
+
+        self._setup_occurrence_highlight()
 
         self.retheme(self._active_theme())
 
@@ -866,6 +873,160 @@ class CodeEditor(QsciScintilla):
             self._bracket_hl_ranges = [(active, 1)]
 
     ###############################################
+    # OCCURRENCE HIGHLIGHT (VS CODE-STYLE)
+    ###############################################
+
+    def _setup_occurrence_highlight(self) -> None:
+        """Configure VS Code-style word-occurrence highlight.
+
+        A small gray semi-transparent rounded box is drawn around every
+        other occurrence of the currently selected word.  The highlight
+        uses indicator slot ``OCCURRENCE_HL_SLOT`` (18) which is outside
+        the semantic (0-7), diagnostic (8-15) and bracket (16-17)
+        allocations.
+        """
+        self._occurrence_ranges: list = []
+        self._occurrence_timer = QTimer(self)
+        self._occurrence_timer.setSingleShot(True)
+        self._occurrence_timer.setInterval(90)
+        self._occurrence_timer.timeout.connect(self._update_occurrence_highlight)
+        try:
+            self.selectionChanged.connect(self._schedule_occurrence_update)
+        except Exception:
+            pass
+        self.textChanged.connect(self._schedule_occurrence_update)
+        self._apply_occurrence_highlight_colors()
+
+    def _apply_occurrence_highlight_colors(self, bg=None) -> None:
+        """Derive the occurrence indicator colours from the theme.
+
+        Args:
+            bg: Optional paper ``QColor``.  When ``None`` the current
+                theme colours are resolved automatically.
+        """
+        if bg is None:
+            bg, _, _, _ = self._theme_colors()
+        if bg.lightness() < 128:
+            hex_color, alpha, outline = "#8A8A8A", 55, 45
+        else:
+            hex_color, alpha, outline = "#9E9E9E", 70, 60
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETSTYLE,
+            self.OCCURRENCE_HL_SLOT,
+            QsciScintilla.INDIC_ROUNDBOX,
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETFORE,
+            self.OCCURRENCE_HL_SLOT,
+            self._scintilla_rgb(hex_color),
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETALPHA, self.OCCURRENCE_HL_SLOT, alpha
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETOUTLINEALPHA,
+            self.OCCURRENCE_HL_SLOT,
+            outline,
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETUNDER, self.OCCURRENCE_HL_SLOT, 0
+        )
+
+    def _schedule_occurrence_update(self) -> None:
+        """Debounce occurrence highlight recomputation."""
+        timer = getattr(self, "_occurrence_timer", None)
+        if timer is not None:
+            timer.start()
+
+    def _clear_occurrence_highlight(self) -> None:
+        """Remove every active occurrence highlight."""
+        ranges = getattr(self, "_occurrence_ranges", None)
+        if not ranges:
+            return
+        self.SendScintilla(
+            QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT
+        )
+        for pos, length in ranges:
+            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, pos, length)
+        self._occurrence_ranges = []
+
+    def _update_occurrence_highlight(self) -> None:
+        """Highlight all other occurrences of the selected word.
+
+        Only single-line, non-empty selections of at least
+        ``OCCURRENCE_MIN_LENGTH`` characters are considered.  Word-like
+        selections (``^\\w+$``) are matched with word boundaries so that
+        ``foo`` does not highlight inside ``foobar``.  Other selections
+        use a literal substring search.  The current selection itself is
+        never highlighted, matching VS Code behaviour.  The search is
+        capped at ``OCCURRENCE_MAX_OCC`` hits.
+        """
+        self._clear_occurrence_highlight()
+        if not self.hasSelectedText():
+            return
+        sel = self.selectedText()
+        if not sel or "\n" in sel or "\r" in sel:
+            return
+        if len(sel.strip()) < self.OCCURRENCE_MIN_LENGTH:
+            return
+        if len(sel) > 100:
+            return
+        if sel.strip() == "":
+            return
+
+        is_word = bool(re.match(r"^\w+$", sel))
+        if is_word:
+            pattern = r"\b" + re.escape(sel) + r"\b"
+        else:
+            pattern = re.escape(sel)
+
+        try:
+            regex = re.compile(pattern)
+        except re.error:
+            return
+
+        try:
+            sel_start = self.SendScintilla(QsciScintilla.SCI_GETSELECTIONSTART)
+            sel_end = self.SendScintilla(QsciScintilla.SCI_GETSELECTIONEND)
+        except Exception:
+            return
+        if sel_start > sel_end:
+            sel_start, sel_end = sel_end, sel_start
+
+        ranges: list = []
+        total_lines = self.lines()
+        for line in range(total_lines):
+            line_text = self.text(line)
+            if sel not in line_text:
+                continue
+            line_start_byte = self.SendScintilla(
+                QsciScintilla.SCI_POSITIONFROMLINE, line
+            )
+            if line_start_byte == -1:
+                continue
+            for match in regex.finditer(line_text):
+                byte_start = line_start_byte + len(
+                    line_text[: match.start()].encode("utf-8")
+                )
+                byte_len = len(match.group(0).encode("utf-8"))
+                if byte_start >= sel_start and byte_start + byte_len <= sel_end:
+                    continue
+                ranges.append((byte_start, byte_len))
+                if len(ranges) >= self.OCCURRENCE_MAX_OCC:
+                    break
+            if len(ranges) >= self.OCCURRENCE_MAX_OCC:
+                break
+
+        if not ranges:
+            return
+        self.SendScintilla(
+            QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT
+        )
+        for pos, length in ranges:
+            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, pos, length)
+        self._occurrence_ranges = ranges
+
+    ###############################################
     # EVENTS
     ###############################################
 
@@ -896,6 +1057,10 @@ class CodeEditor(QsciScintilla):
                 self._setup_folding()
                 self._setup_edge()
                 self._apply_brace_highlight_colors()
+                try:
+                    self._apply_occurrence_highlight_colors()
+                except Exception:
+                    pass
             finally:
                 self._in_change_event = False
         elif event.type() == QEvent.Type.WindowStateChange:
@@ -1575,6 +1740,10 @@ class CodeEditor(QsciScintilla):
         self.setEdgeColor(colors["edge"])
         self._apply_indent_guide_color(fg)
         self._apply_brace_highlight_colors(bg)
+        try:
+            self._apply_occurrence_highlight_colors(bg)
+        except Exception:
+            pass
 
         if self._lexer is not None and self.current_lang:
             config = LanguageRegistry.get_config(self.current_lang)
