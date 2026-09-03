@@ -105,9 +105,6 @@ class EditorAPI:
         else:
             self._find_replace_window._show()
 
-    def _open_toolbox(self) -> None:
-        self.hero_window._text_editor_center.tabs.open_designer_tab()
-
     # ------------------------------------------------------------------
     # Sidebar button state
     # ------------------------------------------------------------------

@@ -17,14 +17,6 @@
     },
     {
         "id":"btn",
-        "icon_path":"assets/system/toolbox.png",
-        "tooltip":"Toolbox",
-        "size":[40, 40],
-        "icon_size":[27, 27],
-        "callback": "_open_toolbox"
-    },
-    {
-        "id":"btn",
         "icon_path":"assets/system/shell.png",
         "tooltip":"Server Explorer",
         "size":[40, 40],
