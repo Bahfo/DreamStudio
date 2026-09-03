@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Global Defaults
+   Global Defaults (canvas / backdrop)
    ========================================================================== */
 
 QMainWindow, QWidget {
@@ -24,10 +24,14 @@ QToolTip {
 
 QSplitter {
     background-color: #1e1816;
+    border: none;
+    width: 1px;
 }
 
 QSplitter::handle {
     background-color: #3d332c;
+    border: none;
+    width: 1px;
 }
 
 QSplitter::handle:horizontal {
@@ -109,6 +113,7 @@ QLineEdit::placeholder {
 
 QLineEdit#DreamStudioTitleBarSearch {
     background-color: transparent;
+    border: none;
 }
 
 QPlainTextEdit {
@@ -192,14 +197,19 @@ QTreeWidget#PropertiesEnvTree::item:selected {
     color: #d4c5b0;
 }
 
+QHeaderView {
+    background-color: #1e1816;
+    border: none;
+}
+
 QHeaderView::section {
     background-color: #2c2420;
     color: #8a7d6c;
-    padding: 4px 8px;
+    font-weight: bold;
+    padding: 8px 12px;
     border: none;
-    border-right: 1px solid #1e1816;
-    border-bottom: 1px solid #1e1816;
-    font-size: 11px;
+    border-bottom: 1px solid #2c2420;
+    text-align: left;
 }
 
 /* ==========================================================================
@@ -282,21 +292,29 @@ QListWidget::item:selected {
 QTableWidget {
     background-color: #1e1816;
     color: #d4c5b0;
-    border: 1px solid #2c2420;
-    gridline-color: #2c2420;
+    border: none;
+    gridline-color: transparent;
+    outline: none;
 }
 
 QTableWidget::item {
-    padding: 4px;
+    padding: 8px 12px;
+    border: none;
 }
 
 QTableWidget::item:hover {
     background-color: #3d332c;
+    color: #DDDFE4;
 }
 
 QTableWidget::item:selected {
     background-color: #4a3f36;
     color: #d4c5b0;
+}
+
+QTableWidget::item:focus {
+    outline: none;
+    border: none;
 }
 
 /* ==========================================================================
@@ -530,7 +548,7 @@ QScrollBar::sub-page:horizontal {
 }
 
 /* ==========================================================================
-   Title Bar
+   Title Bar (main window chrome stays on the canvas)
    ========================================================================== */
 
 DreamStudioTitleBar,
@@ -566,12 +584,13 @@ DreamStudioTitleBar QPushButton#iconButton {
 }
 
 /* ==========================================================================
-   Vertical Sidebar
+   Vertical Sidebar (tool window stripe lives on the canvas)
    ========================================================================== */
 
 VerticalSidebar,
 QFrame#VerticalSidebar {
     background-color: #252019;
+    border-left: 1px solid #2c2420;
     border-right: 1px solid #2c2420;
 }
 
@@ -622,12 +641,11 @@ MenuBar::item:selected, QMenu#MenuBar::item:selected {
 }
 
 /* ==========================================================================
-   Workspace Container
+   Workspace Container (canvas backdrop around the islands)
    ========================================================================== */
 
 WorkspaceContainer QFrame {
     background-color: #1e1816;
-    border: 1px solid #2c2420;
 }
 
 WorkspaceContainer QLabel {
@@ -682,12 +700,10 @@ QStackedWidget#GitStackedWidget {
     background: transparent;
 }
 
-QFrame#PropertiesFrame,
-QFrame#ExplorerFrame,
-QFrame#GitFrame,
 QFrame#PanelFrame {
     background-color: #1e1816;
-    border: 1px solid #2c2420;
+    border-left: 1px solid #2c2420;
+    border-right: 1px solid #2c2420;
 }
 
 QFrame#TODOSearchFrame {
@@ -870,6 +886,95 @@ QTextEdit#GitCommitInput:focus {
 QFrame#GitCommitBox {
     background: transparent;
     border: none;
+}
+
+
+/* ==========================================================================
+   Find and Replace
+   ========================================================================== */
+
+QFrame#FindReplaceMenu {
+    background-color: #2c2420;
+    border: 1px solid #3d332c;
+    border-radius: 6px;
+}
+
+QFrame#FindReplaceMenu QLineEdit {
+    background-color: #1e1816;
+    color: #BCBEC4;
+    border: 1px solid #3d332c;
+    border-radius: 3px;
+    padding: 5px 6px;
+    selection-background-color: #4a3f36;
+}
+
+QFrame#FindReplaceMenu QLineEdit:focus {
+    border: 1px solid #d4915e;
+    background-color: #1e1816;
+}
+
+QFrame#replaceContainer {
+    background-color: #1e1816;
+    border: 1px solid #3d332c;
+    border-radius: 3px;
+}
+
+QFrame#FindReplaceMenu QLineEdit#replaceInput {
+    border: none;
+    background-color: transparent;
+}
+
+QFrame#FindReplaceMenu QLineEdit#replaceInput:focus {
+    border: none;
+}
+
+QFrame#FindReplaceMenu QPushButton {
+    color: #B5B7BD;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 4px;
+    font-size: 12px;
+}
+
+QFrame#FindReplaceMenu QPushButton:hover {
+    background-color: #3d332c;
+    color: #FFFFFF;
+}
+
+QFrame#FindReplaceMenu QPushButton:pressed {
+    background-color: #d4915e;
+    color: #FFFFFF;
+}
+
+QFrame#FindReplaceMenu QPushButton:checked {
+    background-color: #4a3f36;
+    border: 1px solid #d4915e;
+    color: #FFFFFF;
+}
+
+QFrame#FindReplaceMenu QPushButton#btnReplaceAll {
+    background-color: #3d332c;
+    border: 1px solid transparent;
+    padding: 2px 8px;
+    margin: 2px 0px;
+}
+
+QFrame#FindReplaceMenu QPushButton#btnReplaceAll:hover {
+    background-color: #d4915e;
+    color: #FFFFFF;
+}
+
+QFrame#menuSeparator {
+    background-color: #3d332c;
+    max-height: 1px;
+    margin: 4px 0px;
+}
+
+QFrame#FindReplaceMenu QLabel#tipLabel {
+    color: #73767C;
+    font-size: 11px;
+    padding-bottom: 4px;
 }
 
 /* ==========================================================================
@@ -1188,7 +1293,7 @@ UtilityTabBar::tab:hover:!selected {
 
 QFrame#StatusBar {
     background-color: #1e1816;
-    border: none;
+    border-top: 1px solid #2c2420;
 }
 
 QFrame#StatusBar QLabel,

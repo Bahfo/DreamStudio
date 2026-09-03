@@ -294,6 +294,40 @@ class EditorAPI:
     def _set_theme_coffee_light(self) -> None:
         self._set_theme_by_name("coffee_light")
 
+    def _open_color_picker(self) -> str | None:
+        """Open a color dialog and return the selected color as hex string.
+
+        Returns:
+            Hex color string (e.g. ``"#ff0000"``) if valid, else ``None``.
+        """
+        color = QColorDialog.getColor(parent=self)
+        if color.isValid():
+            return color.name()
+        return None
+
+    def _set_titlebar_gradient(self) -> None:
+        """Change the title bar gradient end color for the current theme.
+
+        Opens a color picker and applies the chosen color as the gradient
+        end for whatever theme is currently active (``_current_theme_name``).
+        Works for built-in themes (``dark``, ``light``) and custom themes
+        (``moses``, ``tokyonight``, etc.) by creating or updating an entry
+        in ``DreamStudioTitleBar._TITLE_BAR_BLUE_ENDS``. Triggers a repaint
+        via ``update()``.
+        """
+        color = self._open_color_picker()
+        if color is None:
+            return
+        qcolor = QColor(color)
+        if not qcolor.isValid():
+            return
+        theme = getattr(self, "_current_theme_name", None) or getattr(
+            self, "current_theme", "dark"
+        )
+        # Correct chain per ui_build.py:71 -> self.title_bar
+        self.title_bar._TITLE_BAR_BLUE_ENDS[theme] = qcolor
+        self.title_bar.update()
+
     def _apply_custom_theme(self) -> None:
         self.hero_window.set_theme(self._qss_bg, self._qss_fg, self._qss_sel)
         self.hero_window._lower_widget.terminal_window.set_theme(

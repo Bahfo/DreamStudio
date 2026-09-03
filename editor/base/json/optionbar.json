@@ -208,6 +208,14 @@
             {
                 "text": "Coffee Light",
                 "callback": "_set_theme_coffee_light"
+            },
+            {
+                "type": "separator"
+            },
+            {
+                "text": "Custom Gradient...",
+                "icon_path": "assets/system/theme.png",
+                "callback": "_set_titlebar_gradient"
             }
         ]
     },
