@@ -121,7 +121,7 @@ class TODOSearch(PanelShell):
             "dist",
             "build",
             ".egg-info",
-            " eggs",
+            "eggs",
             ".eggs",
         }
     )
@@ -147,7 +147,12 @@ class TODOSearch(PanelShell):
             self._apply_error_border()
             return
 
-        if os.path.commonpath([base_dir, root_dir]) != base_dir:
+        try:
+            common = os.path.commonpath([base_dir, root_dir])
+        except ValueError:
+            self._apply_error_border()
+            return
+        if common != base_dir:
             self._apply_error_border()
             return
 

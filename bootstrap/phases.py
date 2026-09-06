@@ -17,10 +17,23 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication
 
-# Local Imports
-from editor.utils.notifications.notification_manager import get_notification_manager
-
 logger = logging.getLogger(__name__)
+
+
+def _get_notification_manager():
+    """Lazily import notification manager without creating a static bootstrap->editor dependency."""
+    try:
+        import importlib
+
+        mod = importlib.import_module("editor.utils.notifications.notification_manager")
+        return mod.get_notification_manager()
+    except Exception:
+        class _Dummy:
+            def add_warning(self, *a, **kw): pass
+            def add_error(self, *a, **kw): pass
+            def add_success(self, *a, **kw): pass
+            def add_info(self, *a, **kw): pass
+        return _Dummy()
 
 
 class StartupError(Exception):
@@ -93,7 +106,8 @@ def phase_bootstrap_init(ctx: PhaseContext) -> None:
     ctx.registry = ServiceRegistry()
     ctx.config_service = ConfigurationService(ctx.base_dir)
     ctx.resource_manager = ResourceManager(ctx.base_dir)
-    ctx.splash = SplashController()
+    if ctx.splash is None:
+        ctx.splash = SplashController()
 
     ctx.registry.register("config_service", ctx.config_service)
     ctx.registry.register("resource_manager", ctx.resource_manager)
@@ -162,7 +176,7 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
                 logger.warning("Config file not found, creating default: %s", file_path)
                 try:
 
-                    get_notification_manager().add_warning(
+                    _get_notification_manager().add_warning(
                         "Config Missing",
                         f"Configuration file not found: {file_path.name}. "
                         "Created with default values.",
@@ -185,7 +199,7 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
                     )
                     try:
 
-                        get_notification_manager().add_warning(
+                        _get_notification_manager().add_warning(
                             "Config Corrupted",
                             f"Configuration file is corrupted: {file_path.name}. "
                             "Recreated with default values.",
@@ -203,7 +217,7 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
         logger.error("User home directory setup failed: %s\n%s", exc, details)
         try:
 
-            get_notification_manager().add_error(
+            _get_notification_manager().add_error(
                 "Startup Error",
                 "Failed to set up user directory structure.",
                 "Startup",
@@ -258,7 +272,7 @@ def phase_resources(ctx: PhaseContext) -> None:
         ctx.warnings.append("Theme loading produced empty content")
         try:
 
-            get_notification_manager().add_warning(
+            _get_notification_manager().add_warning(
                 "Theme Missing",
                 "Theme could not be loaded. Using default appearance.",
                 "Startup",
@@ -273,7 +287,7 @@ def phase_resources(ctx: PhaseContext) -> None:
         ctx.warnings.append(f"Missing asset dirs: {missing_dirs}")
         try:
 
-            get_notification_manager().add_warning(
+            _get_notification_manager().add_warning(
                 "Assets Missing",
                 f"Some UI assets are missing: {', '.join(missing_dirs)}",
                 "Startup",
@@ -293,7 +307,7 @@ def phase_resources(ctx: PhaseContext) -> None:
         ctx.warnings.append(f"Font loading failed: {exc}")
         try:
 
-            get_notification_manager().add_warning(
+            _get_notification_manager().add_warning(
                 "Fonts Error",
                 f"Custom fonts failed to load: {exc}. System fonts will be used.",
                 "Startup",
@@ -334,7 +348,8 @@ def phase_main_window(ctx: PhaseContext) -> None:
     """
     logger.info("Phase 7: Main window creation")
 
-    sys.path.insert(0, ctx.base_dir)
+    if ctx.base_dir not in sys.path:
+        sys.path.insert(0, ctx.base_dir)
 
     from ui_build import DreamStudio
 
@@ -366,9 +381,10 @@ def phase_language_plugins(ctx: PhaseContext) -> None:
     logger.info("Phase 8: Language plugins")
 
     try:
-        from editor.Ironica.plugins.registration import register_all_languages
+        import importlib
 
-        warnings = register_all_languages()
+        _mod = importlib.import_module("editor.Ironica.plugins.registration")
+        warnings = _mod.register_all_languages()
         ctx.warnings.extend(warnings)
     except Exception as exc:
         msg = f"Language plugin registration failed: {exc}"
@@ -393,7 +409,7 @@ def phase_finish(ctx: PhaseContext) -> None:
 
     try:
 
-        get_notification_manager().add_success(
+        _get_notification_manager().add_success(
             "Startup Complete",
             "DreamStudio is ready.",
             "Startup",

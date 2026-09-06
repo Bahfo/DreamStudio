@@ -65,19 +65,38 @@ class UnixPty(BasePty):
 
     def spawn(self, argv: list[str], cwd: str | None, env: dict,
               rows: int = 24, cols: int = 80) -> int:
-        master_fd, slave_fd = pty.openpty()
+        try:
+            master_fd, slave_fd = pty.openpty()
+        except OSError as exc:
+            raise RuntimeError(f"Failed to allocate PTY: {exc}") from exc
         self._master_fd = master_fd
-        self._process = subprocess.Popen(
-            argv,
-            stdin=slave_fd,
-            stdout=slave_fd,
-            stderr=slave_fd,
-            cwd=cwd,
-            env=env,
-            close_fds=True,
-            preexec_fn=os.setsid,
-        )
-        os.close(slave_fd)
+        try:
+            self._process = subprocess.Popen(
+                argv,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                cwd=cwd,
+                env=env,
+                close_fds=True,
+                preexec_fn=os.setsid,
+            )
+        except Exception:
+            try:
+                os.close(slave_fd)
+            except OSError:
+                pass
+            try:
+                os.close(master_fd)
+            except OSError:
+                pass
+            self._master_fd = -1
+            raise
+        else:
+            try:
+                os.close(slave_fd)
+            except OSError:
+                pass
         # Apply the requested initial dimensions immediately after the PTY
         # is created so the child shell sees the correct geometry from the
         # very first read, avoiding a one-frame size mismatch.
@@ -164,8 +183,13 @@ class WinPty(BasePty):
         80x24.  The caller should query the active display metrics and pass
         those values to avoid an initial mismatched-resize flash.
         """
-        if platform.system() == "Windows":
+        try:
             from pywinpty import PtyProcess
+        except ImportError as exc:
+            raise RuntimeError(
+                "pywinpty is required on Windows for terminal emulation. "
+                "Install it via: pip install pywinpty"
+            ) from exc
 
         self._proc = PtyProcess.spawn(
             argv[0],
@@ -264,9 +288,12 @@ class PtyReader(QObject):
 
         try:
             while self._running:
+                fd = self._pty.fd
+                if fd < 0:
+                    break
                 # select() with a short timeout so we can periodically
                 # check the _running flag even when no data arrives.
-                r, _, _ = select.select([self._pty.fd], [], [], 0.15)
+                r, _, _ = select.select([fd], [], [], 0.15)
                 if r:
                     try:
                         data = self._pty.read()
@@ -403,10 +430,13 @@ class ShellEmulator(QObject):
         if merged:
             self.raw_output_received.emit(merged)
 
-    def write(self, text: str) -> None:
+    def write(self, text: str | bytes) -> None:
         if self._pty is not None and self._running:
             try:
-                self._pty.write(text.encode("utf-8"))
+                if isinstance(text, bytes):
+                    self._pty.write(text)
+                else:
+                    self._pty.write(text.encode("utf-8"))
             except OSError:
                 pass
 

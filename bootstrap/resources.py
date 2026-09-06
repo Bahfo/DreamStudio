@@ -79,8 +79,10 @@ class ResourceManager:
         path = os.path.join(base, icon_name)
         if os.path.isfile(path):
             return path
-        if not icon_name.endswith(".png"):
-            path_png = path + ".png"
+        # Handle names without extension or with different extension
+        name_without_ext, ext = os.path.splitext(icon_name)
+        if ext.lower() != ".png":
+            path_png = os.path.join(base, name_without_ext + ".png")
             if os.path.isfile(path_png):
                 return path_png
         self._missing.append(f"{category}/{icon_name}")

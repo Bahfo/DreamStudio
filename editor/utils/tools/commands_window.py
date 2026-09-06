@@ -69,7 +69,8 @@ class CommandWindow(QMenu):
 
     def _load_commands_list(self):
         try:
-            with open("editor/utils/tools/json/commands_list.json", "r") as file:
+            cmd_path = Path(__file__).parent / "json" / "commands_list.json"
+            with open(cmd_path, "r") as file:
                 commands = json.load(file)
 
             for command, display in commands.items():

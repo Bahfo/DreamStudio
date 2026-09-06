@@ -64,11 +64,15 @@ class PortsWidget(QWidget):
         self.search_bar.setStyleSheet("padding: 5px; border-radius: 4px;")
 
         self.sortByDropDown = QComboBox(self)
+        self.sortByDropDown.setEditable(True)
+        self.sortByDropDown.lineEdit().setReadOnly(True)
         self.sortByDropDown.setMinimumWidth(160)
         options = ["All Processes", "Active Processes", "Stopped Processes"]
         self.sortByDropDown.addItems(options)
         self.sortByDropDown.setStyleSheet("padding: 4px; border-radius: 4px;")
         self.sortByDropDown.currentTextChanged.connect(self.refresh_data)
+        # Also react to programmatic setCurrentText with non-existent entry
+        self.sortByDropDown.lineEdit().textChanged.connect(self.refresh_data)
 
         self.listen_only_check = QCheckBox("Listening Sockets Only", self)
         self.listen_only_check.setChecked(True)
@@ -162,9 +166,10 @@ class PortsWidget(QWidget):
         if search_query and search_query.lower() not in haystack:
             return False
 
-        if status_filter == "Active Processes":
+        # Tolerant matching: accept both singular/plural and substring checks
+        if "Active" in status_filter:
             return status in _ACTIVE_STATUSES
-        if status_filter == "Stopped Processes":
+        if "Stopped" in status_filter:
             return status in _STOPPED_STATUSES
         return True
 

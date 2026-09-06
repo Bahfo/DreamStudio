@@ -275,6 +275,15 @@ class DebugSession(QObject):
         line = self._sorted_bp_lines[prev_idx]
         self.on_debugger_paused(line)
 
+    def step_out(self):
+        """Step out of current function – for now treated as step_over.
+
+        Real step-out requires frame introspection; until implemented,
+        advance to the next breakpoint to avoid AttributeError crash when
+        the UI invokes step_out.
+        """
+        self.step_over()
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

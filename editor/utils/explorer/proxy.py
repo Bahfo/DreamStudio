@@ -51,12 +51,21 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         self._show_hidden = show_hidden
         source_model = self.sourceModel()
         if source_model is not None:
-            current = source_model.filter()
+            try:
+                current = source_model.filter()
+            except Exception:
+                current = QDir.Filter.NoFilter
+            # QDir.Filter is a Flag; use explicit add/remove without ~ to avoid clobbering bits
             if show_hidden:
                 current |= QDir.Filter.Hidden
             else:
-                current &= ~QDir.Filter.Hidden
-            source_model.setFilter(current)
+                # Remove only Hidden flag
+                if current & QDir.Filter.Hidden:
+                    current &= ~QDir.Filter.Hidden
+            try:
+                source_model.setFilter(current)
+            except Exception:
+                pass
         self.invalidateFilter()
 
     def show_hidden(self) -> bool:

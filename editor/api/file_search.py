@@ -100,7 +100,8 @@ def execute_search(
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
         # Chunking tasks maximizes CPU efficiency by reducing IPC overhead
-        chunk_size = max(1, len(target_files) // (os.cpu_count() * 4))
+        cpu_cnt = os.cpu_count() or 1
+        chunk_size = max(1, len(target_files) // (cpu_cnt * 4))
 
         futures = [
             executor.submit(search_file, f, compiled_pattern) for f in target_files

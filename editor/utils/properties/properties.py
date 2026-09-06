@@ -5,7 +5,7 @@ from editor.utils.panel_shell import PanelShell
 from editor.Ironica.code_editor import CodeEditor
 from editor.utils.properties.env import LanguageAnalyzer
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
-from editor.utils.properties.properties_dialog import FilePropertiesGrid
+from editor.utils.properties.properties_dialog import FilePropertiesGrid, SolutionPropertiesGrid
 from editor.utils.properties.project_data_engine import ProjectDataEngine
 
 
@@ -143,6 +143,10 @@ class PropertiesExplorer(PanelShell):
         top_layout.addWidget(self.env_tree)
 
         splitter.addWidget(top_container)
+        self.config_grid = SolutionPropertiesGrid(self)
+        self.config_grid.itemChanged.connect(self._on_config_property_changed)
+        splitter.addWidget(self.config_grid)
+
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 2)
         tab_layout.addWidget(splitter)
@@ -165,7 +169,7 @@ class PropertiesExplorer(PanelShell):
         self.current_project_dir = project_dir
         self.data_engine.set_project_dir(project_dir)
 
-        if self.data_engine.is_valid_project():
+        if self.data_engine.is_valid_project() and hasattr(self, "config_grid"):
             self.config_grid.blockSignals(True)
             project_data = self.data_engine.extract_solution_properties()
             self.config_grid.load_grid_data(project_data)
@@ -174,6 +178,8 @@ class PropertiesExplorer(PanelShell):
     def _on_config_property_changed(self, item: QTreeWidgetItem, column: int) -> None:
         """Listens directly to the grid inputs to save modified values straight to disk."""
         if column != 1 or not self.data_engine.is_valid_project():
+            return
+        if not hasattr(self, "config_grid"):
             return
 
         updated_payload = self.config_grid.save_grid_data()

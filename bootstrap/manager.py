@@ -13,6 +13,8 @@ import traceback
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from PyQt6.QtCore import QTimer
+
 from bootstrap.phases import (
     PhaseContext,
     StartupError,
@@ -176,16 +178,30 @@ class BootstrapManager:
         from PyQt6.QtWidgets import QApplication
 
         if self._recovery_window:
-            self._recovery_window.close()
+            try:
+                self._recovery_window.close()
+            except Exception:
+                pass
             self._recovery_window = None
 
         app = QApplication.instance()
         if app:
-            for w in app.topLevelWidgets():
-                w.close()
+            for w in list(app.topLevelWidgets()):
+                if w is self._recovery_window:
+                    continue
+                try:
+                    w.close()
+                except RuntimeError:
+                    pass
+            # Avoid re-entrancy: reset phases to defaults without duplicating custom phases
+            self._phases = list(self._DEFAULT_PHASES)
+            for name, fn in self._custom_phases:
+                # re-insert custom phases before finish
+                self._phases.insert(len(self._phases) - 1, (name, fn))
 
         self._ctx = PhaseContext(base_dir=self._base_dir)
-        self.run()
+        # Run asynchronously to avoid recursion depth growth inside signal handler
+        QTimer.singleShot(0, lambda: self.run())
 
     # ------------------------------------------------------------------
     # Context access (for testing / introspection)

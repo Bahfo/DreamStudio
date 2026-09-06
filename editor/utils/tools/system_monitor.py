@@ -291,12 +291,34 @@ class SystemMonitor(QWidget):
 
         dead_pids = set(self._process_items.keys()) - current_pids
         for pid in dead_pids:
-            row = self._process_items[pid]
-            self.process_table.removeRow(row)
-            del self._process_items[pid]
+            row = self._process_items.get(pid)
+            if row is None or row >= self.process_table.rowCount():
+                self._process_items.pop(pid, None)
+                continue
+            try:
+                # Validate row still contains expected pid before removal
+                item_pid = self.process_table.item(row, 0)
+                if item_pid is None or int(item_pid.text()) != pid:
+                    # Row mapping stale – find correct row by scanning
+                    found = -1
+                    for r in range(self.process_table.rowCount()):
+                        it = self.process_table.item(r, 0)
+                        if it and it.text() == str(pid):
+                            found = r
+                            break
+                    if found == -1:
+                        self._process_items.pop(pid, None)
+                        continue
+                    row = found
+                self.process_table.removeRow(row)
+            except (ValueError, RuntimeError, AttributeError):
+                pass
+            self._process_items.pop(pid, None)
+        if dead_pids:
             self._process_items = {
                 int(self.process_table.item(r, 0).text()): r
                 for r in range(self.process_table.rowCount())
+                if self.process_table.item(r, 0) is not None
             }
 
         self.process_table.setSortingEnabled(True)

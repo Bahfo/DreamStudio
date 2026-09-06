@@ -32,7 +32,9 @@ class SegmentedProgressBar(QWidget):
             if seg_width <= 0:
                 continue
 
-            painter.fillRect(QRectF(x, 0, seg_width - gap, self.height()), color)
+            draw_width = max(0.0, seg_width - gap)
+            if draw_width > 0:
+                painter.fillRect(QRectF(x, 0, draw_width, self.height()), color)
             x += seg_width
 
 

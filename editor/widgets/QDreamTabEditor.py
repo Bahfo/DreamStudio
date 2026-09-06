@@ -339,8 +339,11 @@ class DreamStudioIDETabBar(QTabBar):
 
     def rebuild_dirty_indices(self) -> None:
         self._dirty_indices.clear()
-        for i in range(self._parent.count()):
-            w = self._parent.widget(i)
+        parent = self._parent if self._parent is not None else self.parent()
+        if parent is None or not hasattr(parent, "count") or not hasattr(parent, "widget"):
+            return
+        for i in range(parent.count()):
+            w = parent.widget(i)
             if w is not None and hasattr(w, "is_dirty"):
                 try:
                     if w.is_dirty():
@@ -350,8 +353,11 @@ class DreamStudioIDETabBar(QTabBar):
 
     def rebuild_readonly_indices(self) -> None:
         self._readonly_indices.clear()
-        for i in range(self._parent.count()):
-            w = self._parent.widget(i)
+        parent = self._parent if self._parent is not None else self.parent()
+        if parent is None or not hasattr(parent, "count") or not hasattr(parent, "widget"):
+            return
+        for i in range(parent.count()):
+            w = parent.widget(i)
             if w is not None and hasattr(w, "isReadOnly"):
                 try:
                     if w.isReadOnly():

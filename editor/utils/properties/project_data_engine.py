@@ -58,7 +58,7 @@ class ProjectDataEngine:
             except Exception:
                 pass
 
-        txt_path = self.ds_dir = self.ds_dir / "metadata.txt"
+        txt_path = self.ds_dir / "metadata.txt"
         if txt_path.exists():
             try:
                 with open(txt_path, "r", encoding="utf-8") as f:

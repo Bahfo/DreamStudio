@@ -209,6 +209,7 @@ class TerminalDisplay(QWidget):
         self._sel_active = False
         self._sel_start: tuple[int, int] | None = None
         self._sel_end: tuple[int, int] | None = None
+        self._pending_feed: list[str] = []
 
     _EMPTY = Char(data=" ")
 
@@ -408,6 +409,10 @@ class TerminalDisplay(QWidget):
             self._sel_start = None
             self._sel_end = None
             visible = self._get_visible_lines()
+            if self._cw <= 0 or self._ch <= 0:
+                self.update()
+                event.accept()
+                return
             row = int(event.position().y() // self._ch)
             col = int(event.position().x() // self._cw)
             if 0 <= col < self._columns and 0 <= row < len(visible):
@@ -423,6 +428,9 @@ class TerminalDisplay(QWidget):
     def mouseMoveEvent(self, event):
         if self._sel_active and event.buttons() & Qt.MouseButton.LeftButton:
             visible = self._get_visible_lines()
+            if self._cw <= 0 or self._ch <= 0:
+                event.accept()
+                return
             row = int(event.position().y() // self._ch)
             col = int(event.position().x() // self._cw)
             col = max(0, min(col, self._columns - 1))
@@ -491,11 +499,36 @@ class TerminalDisplay(QWidget):
                 self._emulator.resize(rows, cols)
         finally:
             self._resizing = False
+        # Drain any feeds buffered while resizing
+        if self._pending_feed:
+            pending = "".join(self._pending_feed)
+            self._pending_feed.clear()
+            try:
+                self._stream.feed(pending)
+            except Exception:
+                pass
         self.update()
         self.history_changed.emit(0, self._count_history_lines())
 
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._pending_feed:
+            pending = "".join(self._pending_feed)
+            self._pending_feed.clear()
+            try:
+                self._stream.feed(pending)
+            except Exception:
+                pass
+            self._cache_valid = False
+            self.update()
+            self.history_changed.emit(0, self._count_history_lines())
+
     def feed(self, text: str) -> None:
         if self._resizing or not self.isVisible():
+            self._pending_feed.append(text)
+            # Prevent unbounded growth – join and truncate if too large
+            if len(self._pending_feed) > 1000:
+                self._pending_feed = ["".join(self._pending_feed)]
             return
         try:
             self._stream.feed(text)

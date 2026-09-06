@@ -35,19 +35,43 @@ def main() -> None:
     bootstrap = BootstrapManager(base_dir=_PROJECT_ROOT)
     result = bootstrap.run(splash=splash)
 
-    if result.success:
+    if result.success and result.window is not None:
         window = result.window
 
         def _reveal():
-            splash.close()
+            try:
+                if splash.is_visible:
+                    splash.close()
+            except Exception:
+                try:
+                    splash.close()
+                except Exception:
+                    pass
             window.setEnabled(True)
             window.showMaximized()
-            window.show()
-            window.ui_ready.emit()
+            try:
+                window.ui_ready.emit()
+            except Exception:
+                pass
 
-        QTimer.singleShot(5000, _reveal)
+        QTimer.singleShot(0, _reveal)
     else:
-        splash.close()
+        try:
+            if splash.is_visible:
+                splash.close()
+        except Exception:
+            try:
+                splash.close()
+            except Exception:
+                pass
+        if result.success and result.window is None:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.critical(
+                None,
+                "Startup Error",
+                "Main window failed to initialize (registry missing).",
+            )
 
     sys.exit(app.exec())
 

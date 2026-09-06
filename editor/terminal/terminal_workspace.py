@@ -262,8 +262,8 @@ class TerminalWorkspace(QWidget):
         init_rows = display._rows
         # If the widget already has a real size, recompute from metrics.
         if display._cw > 0 and display._ch > 0 and display.width() > 0:
-            init_cols = max(20, display.width() // display._cw)
-            init_rows = max(5, display.height() // display._ch)
+            init_cols = max(20, display.width() // max(1, display._cw))
+            init_rows = max(5, display.height() // max(1, display._ch))
 
         emulator.start(cwd=cwd or os.getcwd(), rows=init_rows, cols=init_cols)
 
