@@ -22,6 +22,14 @@ from editor.utils.explorer.packages import DependenciesView
 from editor.utils.explorer.api import ExplorerAPI
 from editor.utils.panel_shell import PanelShell
 
+try:
+    import sip  # type: ignore
+except ImportError:
+    try:
+        from PyQt6 import sip  # type: ignore
+    except ImportError:
+        sip = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 MENU_JSON = Path(__file__).resolve().with_name("menu.json")
@@ -362,15 +370,29 @@ class SolutionExplorer(PanelShell):
         """
 
         def _hook() -> None:
+            if not hasattr(self, "_dirty_hook_timer") or self._dirty_hook_timer is None:
+                return
             app = QApplication.instance()
             if app is None:
                 return
             for w in app.allWidgets():
                 if hasattr(w, "dirty_state_changed"):
                     try:
+                        # Skip deleted wrappers
+                        if not w:
+                            continue
+                        if sip is not None and sip.isdeleted(w):
+                            continue
                         if not getattr(w, "_vcs_dirty_connected", False):
                             w.dirty_state_changed.connect(self._notify_vcs_activity)
                             w._vcs_dirty_connected = True  # type: ignore
+                            # Auto-cleanup on destruction
+                            try:
+                                w.destroyed.connect(lambda _=None, ww=w: self._on_editor_destroyed_for_vcs(ww))
+                            except Exception:
+                                pass
+                    except RuntimeError:
+                        pass
                     except Exception:
                         pass
 
@@ -379,6 +401,31 @@ class SolutionExplorer(PanelShell):
         self._dirty_hook_timer.setInterval(1200)
         self._dirty_hook_timer.timeout.connect(_hook)
         self._dirty_hook_timer.start()
+        try:
+            self.destroyed.connect(self._cleanup_dirty_tracker)
+        except Exception:
+            pass
+
+    def _on_editor_destroyed_for_vcs(self, obj):
+        try:
+            if hasattr(obj, "_vcs_dirty_connected"):
+                delattr(obj, "_vcs_dirty_connected")
+        except Exception:
+            pass
+
+    def _cleanup_dirty_tracker(self):
+        t = getattr(self, "_dirty_hook_timer", None)
+        if t is not None:
+            try:
+                t.stop()
+                t.deleteLater()
+            except Exception:
+                pass
+            self._dirty_hook_timer = None
+
+    def closeEvent(self, event):
+        self._cleanup_dirty_tracker()
+        super().closeEvent(event)
 
     def _setup_gitignore_service(self) -> None:
         """Wire the gitignore parser service to the proxy model.

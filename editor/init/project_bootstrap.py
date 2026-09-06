@@ -33,15 +33,17 @@ class ProjectBootstrapWorker(QObject):
         self._is_windows = platform.system() == "Windows"
 
         self._events: deque = deque()
+        self._events_lock = threading.Lock()
         self._poll_timer = QTimer(self)
         self._poll_timer.timeout.connect(self._poll_events)
 
     def _poll_events(self):
         while True:
-            try:
-                kind, args = self._events.popleft()
-            except IndexError:
-                break
+            with self._events_lock:
+                try:
+                    kind, args = self._events.popleft()
+                except IndexError:
+                    break
             if kind == "step_changed":
                 self.step_changed.emit(*args)
             elif kind == "step_progress":
@@ -54,7 +56,8 @@ class ProjectBootstrapWorker(QObject):
                 return
 
     def _emit_event(self, kind, args):
-        self._events.append((kind, args))
+        with self._events_lock:
+            self._events.append((kind, args))
 
     def run(self):
         success = False
@@ -315,12 +318,17 @@ class ProjectBootstrap:
         return self._worker.finished
 
     def start(self) -> None:
-        self._worker._poll_timer.start(50)
-        self._thread.start()
+        if not self._thread.is_alive():
+            if not self._worker._poll_timer.isActive():
+                self._worker._poll_timer.start(50)
+            self._thread.start()
 
     def stop(self) -> None:
         self._worker._poll_timer.stop()
 
     def wait(self, timeout: int = 600000) -> bool:
+        # timeout is in milliseconds (historical API), Thread.join expects seconds
+        if timeout > 1000:  # heuristic: treat >1000 as ms
+            timeout = timeout / 1000.0
         self._thread.join(timeout)
         return not self._thread.is_alive()

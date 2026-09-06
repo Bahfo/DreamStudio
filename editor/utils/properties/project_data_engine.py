@@ -88,6 +88,18 @@ class ProjectDataEngine:
 
         return data
 
+    def _atomic_write(self, path: Path, content: str) -> None:
+        """Write atomically via temp file + rename."""
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(content)
+            try:
+                f.flush()
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, path)
+
     def commit_solution_properties(self, updates: Dict[str, Any]) -> bool:
         """
         Writes revised property dictionaries back to their corresponding file
@@ -102,16 +114,16 @@ class ProjectDataEngine:
                 "name": updates.get("name", ""),
                 "authors": updates.get("authors", ""),
             }
-            with open(yaml_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(yaml_data, f, default_flow_style=False)
+            yaml_str = yaml.safe_dump(yaml_data, default_flow_style=False)
+            self._atomic_write(yaml_path, yaml_str)
 
             json_path = self.ds_dir / "properties.json"
             json_data = {
                 "copyright": updates.get("copyright", ""),
                 "details": updates.get("details", ""),
             }
-            with open(json_path, "w", encoding="utf-8") as f:
-                json.dump(json_data, f, indent=4)
+            json_str = json.dumps(json_data, indent=4)
+            self._atomic_write(json_path, json_str)
 
             self._write_root_doc(
                 ["CODE-OF-CONDUCT", "CODE_OF_CONDUCT.md"],
@@ -153,10 +165,14 @@ class ProjectDataEngine:
         for name in filenames:
             target_path = self.project_dir / name
             if target_path.exists():
-                with open(target_path, "w", encoding="utf-8") as f:
-                    f.write(content)
+                try:
+                    self._atomic_write(target_path, content)
+                except Exception:
+                    pass
                 return
 
         default_path = self.project_dir / filenames[0]
-        with open(default_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        try:
+            self._atomic_write(default_path, content)
+        except Exception:
+            pass

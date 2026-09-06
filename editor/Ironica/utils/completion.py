@@ -678,7 +678,13 @@ class CompletionController(QObject):
         self.popup.item_selected.connect(self._insert_completion)
 
         self.editor.installEventFilter(self)
-        QApplication.instance().installEventFilter(self)
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
+        try:
+            self.editor.destroyed.connect(self.close)
+        except Exception:
+            pass
 
         # NOTE: Short debounce only gates the very first popup. While the
         # popup is open every keystroke re-filters cached items instantly;
@@ -1130,6 +1136,16 @@ class CompletionController(QObject):
         self._close()
         self._cached_items = []
         self._cache_ident = ""
+        try:
+            self.editor.removeEventFilter(self)
+        except Exception:
+            pass
+        try:
+            app = QApplication.instance()
+            if app is not None:
+                app.removeEventFilter(self)
+        except Exception:
+            pass
         if self._connected_manager is not None:
             try:
                 self._connected_manager.completions_ready.disconnect(

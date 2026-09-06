@@ -172,13 +172,29 @@ class WorkspaceContainer(QWidget):
         """Re-apply user widths to overwrite the minimize crush."""
         total_w = self._top_horizontal_splitter.width()
         if total_w <= 0:
+            QTimer.singleShot(50, self._restore_user_sizes)
             return
 
         left_w = self._left_target_width if self._left_utils_manager.isVisible() else 0
         right_w = (
             self._right_target_width if self._right_utils_manager.isVisible() else 0
         )
-        center_w = max(0, total_w - left_w - right_w)
+        # Respect center minimum (300) even on narrow restores
+        min_center = self._text_editor_center.minimumWidth() or 300
+        center_w = max(min_center, total_w - left_w - right_w)
+        # If still not enough space, proportionally shrink sides
+        if left_w + center_w + right_w > total_w:
+            excess = left_w + center_w + right_w - total_w
+            # Shrink sides first
+            if left_w > 0:
+                shrink = min(left_w - 50, excess)
+                left_w -= max(0, shrink)
+                excess -= max(0, shrink)
+            if right_w > 0 and excess > 0:
+                shrink = min(right_w - 50, excess)
+                right_w -= max(0, shrink)
+                excess -= max(0, shrink)
+            center_w = max(min_center, total_w - left_w - right_w)
 
         self._top_horizontal_splitter.setSizes([left_w, center_w, right_w])
 
@@ -190,9 +206,14 @@ class WorkspaceContainer(QWidget):
             QTimer.singleShot(0, self._apply_initial_layout)
 
     def _apply_initial_layout(self) -> None:
-        self._top_horizontal_splitter.setSizes(
-            [235, max(0, self._top_horizontal_splitter.width() - 470), 235]
-        )
+        w = self._top_horizontal_splitter.width()
+        if w <= 0:
+            # Defer until layout has valid width (HiDPI / first show race)
+            QTimer.singleShot(50, self._apply_initial_layout)
+            return
+        min_center = self._text_editor_center.minimumWidth() or 300
+        center = max(min_center, w - 470)
+        self._top_horizontal_splitter.setSizes([235, center, 235])
         # Seed targets with the exact initial state
         sizes = self._top_horizontal_splitter.sizes()
         self._left_target_width = sizes[0] if sizes[0] > 0 else 235

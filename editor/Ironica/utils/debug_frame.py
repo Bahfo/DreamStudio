@@ -99,8 +99,32 @@ class DebugControlFrame(QFrame):
 
         self.disable_controls()
 
-        if self.parentWidget():
-            self.parentWidget().installEventFilter(self)
+        self._filter_parent = self.parentWidget()
+        if self._filter_parent is not None:
+            self._filter_parent.installEventFilter(self)
+            try:
+                self._filter_parent.destroyed.connect(self._on_parent_destroyed)
+            except Exception:
+                pass
+
+    def _on_parent_destroyed(self):
+        self._filter_parent = None
+
+    def _remove_parent_filter(self):
+        if getattr(self, "_filter_parent", None) is not None:
+            try:
+                self._filter_parent.removeEventFilter(self)
+            except Exception:
+                pass
+            self._filter_parent = None
+
+    def closeEvent(self, event):
+        self._remove_parent_filter()
+        super().closeEvent(event)
+
+    def hideEvent(self, event):
+        # Keep filter while hidden (widget is reused), do not remove
+        super().hideEvent(event)
 
     def show_at_default_position(self):
         """Shows the widget at 20% from the left and 10% from

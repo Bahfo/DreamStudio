@@ -26,7 +26,15 @@ class DreamStudioTitleBar(QWidget):
         layout.setSpacing(10)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self.window().installEventFilter(self)
+        self._filter_window = self.window()
+        try:
+            self._filter_window.installEventFilter(self)
+        except Exception:
+            pass
+        try:
+            self.destroyed.connect(self._cleanup_filter)
+        except Exception:
+            pass
 
         self.icon_btn = QPushButton("DreamStudio")
         self.icon_btn.setObjectName("iconButton")
@@ -215,8 +223,20 @@ class DreamStudioTitleBar(QWidget):
     def moveEvent(self, event):
         super().moveEvent(event)
 
+    def _cleanup_filter(self):
+        win = getattr(self, "_filter_window", None)
+        if win is not None:
+            try:
+                win.removeEventFilter(self)
+            except Exception:
+                pass
+
+    def closeEvent(self, event):
+        self._cleanup_filter()
+        super().closeEvent(event)
+
     def eventFilter(self, obj, event):
-        if obj == self.window():
+        if obj == getattr(self, "_filter_window", None) or obj == self.window():
             if event.type() == QEvent.Type.WindowStateChange:
                 self.sync_titlebar_state()
         return super().eventFilter(obj, event)

@@ -104,10 +104,11 @@ class VerticalMenusAPI(QObject):
         if splitter is not None:
             sizes = splitter.sizes()
             if sidx < len(sizes) and sizes[sidx] < 50:
-                delta = min(default_width - sizes[sidx], sizes[1])
-                sizes[1] -= delta
-                sizes[sidx] += delta
-                splitter.setSizes(sizes)
+                delta = max(0, min(default_width - sizes[sidx], sizes[1]))
+                if delta > 0:
+                    sizes[1] -= delta
+                    sizes[sidx] += delta
+                    splitter.setSizes(sizes)
 
         self.panel_visibility_changed.emit(panel_id, True)
 

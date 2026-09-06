@@ -454,6 +454,9 @@ class CodeEditor(QsciScintilla):
 
             slot = colour_to_slot.get(colour_hex)
             if slot is None:
+                if len(colour_to_slot) >= _SLOTS:
+                    # Exhausted — deterministic skip to avoid overwriting active slot color
+                    continue
                 slot = next_slot % _SLOTS
                 colour_to_slot[colour_hex] = slot
                 next_slot += 1

@@ -311,11 +311,28 @@ class ExplorerAPI:
         target = path if os.path.isdir(path) else ExplorerAPI.parent_dir(path)
         try:
             if sys.platform == "win32":
-                os.startfile(target)
+                try:
+                    os.startfile(target)
+                except OSError as exc:
+                    raise OSError(str(exc)) from exc
             elif sys.platform == "darwin":
-                subprocess.Popen(["open", target])
+                subprocess.Popen(
+                    ["open", target],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    close_fds=True,
+                    start_new_session=True,
+                )
             else:
-                subprocess.Popen(["xdg-open", target])
+                subprocess.Popen(
+                    ["xdg-open", target],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    close_fds=True,
+                    start_new_session=True,
+                )
         except OSError as exc:
             print(f"[explorer] open_in_system_explorer error: {exc}")
             get_notification_manager().add_error(
@@ -360,12 +377,13 @@ class ExplorerAPI:
         query = text.strip()
 
         if ".." in query:
-            proxy_model.setFilterFixedString("")
-            return
-
-        if root_path and os.path.isabs(query):
+            query = ""
+        elif root_path and os.path.isabs(query):
             if not query.startswith(root_path):
-                proxy_model.setFilterFixedString("")
-                return
+                query = ""
 
-        proxy_model.setFilterFixedString(query)
+        # Proxy uses custom _search_text filtering, not filterFixedString
+        if hasattr(proxy_model, "set_search_text"):
+            proxy_model.set_search_text(query)
+        else:
+            proxy_model.setFilterFixedString(query)

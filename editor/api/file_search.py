@@ -9,22 +9,22 @@ def regex_compile_query(query, is_regex=False, is_ignore_case=False):
     """
     Preparses the query ensuring what type of search the user required.
     """
-    if is_regex:
-        if is_ignore_case:
-            return re.compile(query, re.IGNORECASE)
+    flags = re.IGNORECASE if is_ignore_case else 0
+    try:
+        if is_regex:
+            return re.compile(query, flags)
+        elif "*" in query or "?" in query:
+            # fnmatch.translate adds \Z anchor for full-string match; we want substring search
+            pat = fnmatch.translate(query)
+            # Strip trailing \Z anchor to allow substring matching via search()
+            if pat.endswith(r"\Z"):
+                pat = pat[:-2]
+            return re.compile(pat, flags)
         else:
-            return re.compile(query)
-    elif "*" in query or "?" in query:
-        # translate: This converts wildcards to a standard regex pattern
-        if is_ignore_case:
-            return re.compile(fnmatch.translate(query), re.IGNORECASE)
-        else:
-            return re.compile(fnmatch.translate(query))
-    else:
-        if is_ignore_case:
-            return re.compile(re.escape(query), re.IGNORECASE)
-        else:
-            return re.compile(re.escape(query))
+            return re.compile(re.escape(query), flags)
+    except re.error:
+        # Fallback to literal search on invalid regex
+        return re.compile(re.escape(query), flags)
 
 
 def search_file(file_path, compiled_regex):
@@ -68,9 +68,17 @@ def execute_search(
         ".vscode",  # VSCode folder
         ".vs",  # Visual Studio folder
     }
-    search_roots = (
-        [Path(root_dir) / sd for sd in scope_dirs] if scope_dirs else [Path(root_dir)]
-    )
+    search_roots = []
+    if scope_dirs:
+        for sd in scope_dirs:
+            p = Path(sd)
+            # If sd is absolute, don't join with root_dir (Path handles this, but be explicit)
+            if p.is_absolute():
+                search_roots.append(p)
+            else:
+                search_roots.append(Path(root_dir) / p)
+    else:
+        search_roots.append(Path(root_dir))
 
     for root_target in search_roots:
         if not root_target.exists():
@@ -98,17 +106,17 @@ def execute_search(
 
     results = []
 
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        # Chunking tasks maximizes CPU efficiency by reducing IPC overhead
-        cpu_cnt = os.cpu_count() or 1
-        chunk_size = max(1, len(target_files) // (cpu_cnt * 4))
-
+    # Use ThreadPool since search_file is IO-bound and avoids Windows spawn issues
+    with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(search_file, f, compiled_pattern) for f in target_files
         ]
 
         for future in concurrent.futures.as_completed(futures):
-            res = future.result()
+            try:
+                res = future.result()
+            except Exception:
+                continue
             if res:
                 results.extend(res)
 

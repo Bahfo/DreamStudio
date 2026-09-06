@@ -55,9 +55,8 @@ def is_ignored(relative_posix: str, is_dir: bool, patterns: list[str]) -> bool:
         raw = pat[1:] if negated else pat
         if not raw:
             continue
-        raw_norm = raw.replace("**", "*")
-        is_dir_pat = raw_norm.endswith("/")
-        pat_core = raw_norm.rstrip("/")
+        is_dir_pat = raw.endswith("/")
+        pat_core = raw.rstrip("/")
         if not pat_core:
             continue
         anchored = pat_core.startswith("/")
@@ -66,7 +65,33 @@ def is_ignored(relative_posix: str, is_dir: bool, patterns: list[str]) -> bool:
 
         matched = False
 
+        def _translate_pat(pat: str) -> str:
+            # Translate gitignore pat with ** support to regex
+            # Handle /**/, **/, /**, ** specially for zero-or-more dirs
+            # Escape first, then replace placeholders
+            # Order matters: handle /**/ first
+            esc = re.escape(pat)
+            # /**/ -> (?:/.*)?/  (zero or more dirs)
+            esc = esc.replace(r"/\*\*/", r"/___DS___/")
+            esc = esc.replace(r"\*\*/", r"___DS_SLASH___")
+            esc = esc.replace(r"/\*\*", r"___SLASH_DS___")
+            esc = esc.replace(r"\*\*", "___STARSTAR___")
+            esc = esc.replace(r"\*", r"[^/]*")
+            esc = esc.replace(r"\?", r"[^/]")
+            esc = esc.replace(r"/___DS___/", r"(?:/.*)?/")
+            esc = esc.replace("___DS_SLASH___", r"(?:.*/)?")
+            esc = esc.replace("___SLASH_DS___", r"(?:/.*)?")
+            esc = esc.replace("___STARSTAR___", r".*")
+            return esc
+
         def _match(name: str, pattern: str) -> bool:
+            # Handle ** via regex, otherwise fnmatch with ** support
+            if "**" in pattern:
+                try:
+                    rx = _translate_pat(pattern)
+                    return re.fullmatch(rx, name) is not None
+                except re.error:
+                    return fnmatch.fnmatch(name, pattern.replace("**", "*"))
             return fnmatch.fnmatch(name, pattern)
 
         if anchored:

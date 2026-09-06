@@ -47,9 +47,12 @@ class HoverController(QObject):
         if app is not None:
             app.installEventFilter(self)
 
+        self._orig_window = None
         if hasattr(self.editor, "window") and self.editor.window():
             try:
-                self.editor.window().installEventFilter(self)
+                win = self.editor.window()
+                self._orig_window = win
+                win.installEventFilter(self)
             except Exception:
                 pass
 
@@ -279,8 +282,12 @@ class HoverController(QObject):
         except Exception:
             pass
         try:
-            win = self.editor.window()
+            win = getattr(self, "_orig_window", None) or self.editor.window()
             if win is not None:
                 win.removeEventFilter(self)
+            # Also try current window if different
+            cur_win = self.editor.window()
+            if cur_win is not None and cur_win is not win:
+                cur_win.removeEventFilter(self)
         except Exception:
             pass

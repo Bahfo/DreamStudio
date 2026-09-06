@@ -43,15 +43,26 @@ class ProblemsAnalyzer(ProblemProvider):
         """
         self._problems = []
         self.dictionary_of_errors = {"errors": [], "warnings": []}
-        for root, dirs, files in os.walk(self.codebase_path):
+        for root, dirs, files in os.walk(self.codebase_path, followlinks=False):
+            # Skip symlinked directories to avoid cycles
             dirs[:] = [
                 directory
                 for directory in dirs
                 if directory not in {"venv", ".venv", "__pycache__", ".git"}
+                and not os.path.islink(os.path.join(root, directory))
             ]
             for file in files:
                 file_path = os.path.join(root, file)
+                # Skip symlinked files and non-regular files
+                if os.path.islink(file_path):
+                    continue
                 if pathlib.Path(file_path).suffix in self.required_extensions:
+                    # Skip huge files to avoid OOM
+                    try:
+                        if os.path.getsize(file_path) > 5 * 1024 * 1024:
+                            continue
+                    except OSError:
+                        continue
                     try:
                         with open(file_path, "r", encoding="utf-8") as f:
                             content = f.read()
@@ -78,8 +89,10 @@ class ProblemsAnalyzer(ProblemProvider):
                                 "column": e.offset,
                             }
                         )
+                    except (OSError, UnicodeDecodeError) as e:
+                        logger.debug("Walker skip %s: %s", file_path, e)
                     except Exception as e:
-                        print("ERROR: ", e)
+                        logger.debug("Walker parse error %s: %s", file_path, e)
         return list(self._problems)
 
     def return_analysis_result(self) -> None:

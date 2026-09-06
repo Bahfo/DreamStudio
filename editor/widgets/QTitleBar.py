@@ -12,7 +12,15 @@ class TitleBar(QWidget):
         layout.setSpacing(10)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self.window().installEventFilter(self)
+        self._filter_window = self.window()
+        try:
+            self._filter_window.installEventFilter(self)
+        except Exception:
+            pass
+        try:
+            self.destroyed.connect(self._cleanup_filter)
+        except Exception:
+            pass
 
         #################################
         # Title
@@ -74,3 +82,15 @@ class TitleBar(QWidget):
 
         self.btn_minimize.clicked.connect(self._title_parent.showMinimized)
         self.btn_close.clicked.connect(self._title_parent.close)
+
+    def _cleanup_filter(self):
+        win = getattr(self, "_filter_window", None)
+        if win is not None:
+            try:
+                win.removeEventFilter(self)
+            except Exception:
+                pass
+
+    def closeEvent(self, event):
+        self._cleanup_filter()
+        super().closeEvent(event)

@@ -103,19 +103,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         self._format_shortcut = QShortcut(QKeySequence("Ctrl+Alt+F"), self)
         self._format_shortcut.activated.connect(self.format_current_file)
 
-        # Minimap toggle (corner widget on the right side of the tab bar)
-        self._minimap_visible = True
-        self._minimap_toggle = QPushButton()
-        self._minimap_toggle.setIcon(QIcon("assets/editor/minimap.png"))
-        self._minimap_toggle.setIconSize(QSize(20, 20))
-        self._minimap_toggle.setFixedSize(24, 24)
-        self._minimap_toggle.setCheckable(True)
-        self._minimap_toggle.setChecked(True)
-        self._minimap_toggle.setToolTip("Hide Minimap")
-        self._minimap_toggle.clicked.connect(self._toggle_minimap)
-        self._minimap_toggle.setVisible(False)
-        self.setCornerWidget(self._minimap_toggle, Qt.Corner.TopRightCorner)
-
         self.currentChanged.connect(self._on_editor_tab_changed)
 
         # --- Corner Widget Container ---
@@ -157,6 +144,10 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.setCornerWidget(self._corner_container, Qt.Corner.TopRightCorner)
 
         self.currentChanged.connect(self._update_preview_button_visibility)
+        try:
+            self.tabBar().tabMoved.connect(self._on_tabs_reordered)
+        except Exception:
+            pass
         self.add_close_interceptor(self._on_preview_close_interceptor)
 
     # ------------------------------------------------------------------
@@ -237,10 +228,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         else:
             process_manager.set_active(None)
 
-    def _on_editor_dirty_changed(self, is_dirty: bool) -> None:
-        editor = self.sender()
-        if editor is None:
-            return
+    def _on_editor_dirty_changed_explicit(self, editor: QWidget, is_dirty: bool) -> None:
         for i in range(self.count()):
             if self.widget(i) is editor:
                 self.tabBar().mark_dirty(i, is_dirty)
@@ -253,11 +241,49 @@ class DreamTabbedEditor(QDreamTabEditor):
         except Exception:
             pass
 
+    def _on_editor_dirty_changed(self, is_dirty: bool) -> None:
+        editor = self.sender()
+        if editor is None:
+            return
+        self._on_editor_dirty_changed_explicit(editor, is_dirty)
+        try:
+            from editor.utils.git_control.status_service import get_status_service
+
+            reason = "editor:dirty_true" if is_dirty else "editor:dirty_false"
+            get_status_service().request_scan(reason)
+        except Exception:
+            pass
+
     # ------------------------------------------------------------------
     # HTML Preview
     # ------------------------------------------------------------------
 
-    def _update_preview_button_visibility(self) -> None:
+    def _on_tabs_reordered(self, _from: int = -1, _to: int = -1) -> None:
+        """Rebuild path→index maps after user drags tabs."""
+        try:
+            new_map: dict[str, int] = {}
+            for i in range(self.count()):
+                w = self.widget(i)
+                # Unwrap host to get underlying file path if available
+                fp = None
+                if w is not None:
+                    if hasattr(w, "editor") and hasattr(w.editor, "current_file_path"):
+                        fp = w.editor.current_file_path
+                    elif hasattr(w, "current_file_path"):
+                        fp = w.current_file_path
+                    if fp:
+                        new_map[os.path.normpath(fp)] = i
+            self.opened_files = new_map
+            # Rebuild preview indices as well (best-effort)
+            for k in list(self._preview_tabs.keys()):
+                fp = k
+                if fp in self.opened_files:
+                    # Keep mapping consistent; preview tabs track preview editors separately
+                    pass
+        except Exception:
+            pass
+
+    def _update_preview_button_visibility(self, _idx: int = -1) -> None:
         """Show the preview button when any open tab is an HTML editor."""
         has_html = False
         for i in range(self.count()):
@@ -464,7 +490,10 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.opened_files[key] = index
 
         if isinstance(new_editor, MiniMapHostWidget):
-            new_editor.dirty_state_changed.connect(self._on_editor_dirty_changed)
+            # Explicit capture avoids sender() fragility when signal is forwarded
+            new_editor.dirty_state_changed.connect(
+                lambda is_dirty, ed=new_editor: self._on_editor_dirty_changed_explicit(ed, is_dirty)
+            )
 
         self.tabBar().rebuild_dirty_indices()
 

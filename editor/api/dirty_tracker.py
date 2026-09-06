@@ -21,32 +21,67 @@ class DirtyTracker(QObject):
     def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
         self._states = weakref.WeakKeyDictionary()
+        self._slots: dict[int, object] = {}
+        self._actual_map: dict[int, QObject] = {}
+
+    def _resolve_editor(self, editor: QObject) -> QObject:
+        """Unwrap MiniMapHostWidget to inner CodeEditor if needed."""
+        try:
+            inner = getattr(editor, "editor", None)
+            if inner is not None and hasattr(inner, "textChanged"):
+                return inner
+        except Exception:
+            pass
+        return editor
 
     def watch(self, editor: QObject) -> None:
-        if editor in self._states:
+        actual = self._resolve_editor(editor)
+        if actual in self._states:
             return
-        self._states[editor] = self._query_dirty(editor)
-        if hasattr(editor, "textChanged"):
+        self._states[actual] = self._query_dirty(actual)
+        if hasattr(actual, "textChanged"):
             try:
-                editor.textChanged.connect(self._on_editor_changed)
+                slot = lambda *_, ed=actual: self._on_editor_changed(ed)
+                self._slots[id(actual)] = slot
+                self._actual_map[id(actual)] = actual
+                actual.textChanged.connect(slot)
             except Exception:
                 logger.exception("Failed to connect textChanged.")
         try:
-            editor.destroyed.connect(self._on_editor_destroyed)
+            actual.destroyed.connect(self._on_editor_destroyed)
         except Exception:
             logger.exception("Failed to connect destroyed.")
+        # Also track host wrapper if different, to clean up WeakKey mapping
+        if actual is not editor:
+            self._states[editor] = self._states[actual]
 
     def unwatch(self, editor: QObject) -> None:
+        actual = self._resolve_editor(editor)
+        self._states.pop(actual, None)
         self._states.pop(editor, None)
-        if hasattr(editor, "textChanged"):
+        slot = self._slots.pop(id(actual), None)
+        self._actual_map.pop(id(actual), None)
+        if slot is not None and hasattr(actual, "textChanged"):
             try:
-                editor.textChanged.disconnect(self._on_editor_changed)
+                actual.textChanged.disconnect(slot)
             except Exception:
                 pass
+        else:
+            # Fallback for legacy connections using sender()
+            if hasattr(actual, "textChanged"):
+                try:
+                    actual.textChanged.disconnect(self._on_editor_changed)
+                except Exception:
+                    pass
         try:
-            editor.destroyed.disconnect(self._on_editor_destroyed)
+            actual.destroyed.disconnect(self._on_editor_destroyed)
         except Exception:
             pass
+        if actual is not editor:
+            try:
+                editor.destroyed.disconnect(self._on_editor_destroyed)
+            except Exception:
+                pass
 
     def sync_state(self, editor: QObject) -> None:
         self._update(editor)
@@ -70,8 +105,12 @@ class DirtyTracker(QObject):
             logger.exception("Dirty query failed.")
         return False
 
-    def _on_editor_changed(self, *args) -> None:
-        editor = self.sender()
+    def _on_editor_changed(self, editor: QObject | None = None) -> None:
+        if editor is None:
+            try:
+                editor = self.sender()
+            except Exception:
+                editor = None
         if editor is not None:
             self._update(editor)
 

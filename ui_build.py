@@ -121,7 +121,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self.status_bar.errorsBtn.clicked.connect(self._toggle_problems)
         main_layout.addWidget(self.status_bar)
 
-    def _sync_menu_state(self) -> None:
+    def _sync_menu_state(self, _idx: int = -1) -> None:
         """Update File menu enabled/disabled state from current tab count."""
         has_tabs = self.tab_editors.count() > 0
         self.title_bar._update_menu_state(has_tabs)

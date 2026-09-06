@@ -47,11 +47,21 @@ def build_status_index(repo_root: str, snapshot: Dict[str, str]) -> Dict[str, st
             continue
 
         current = os.path.normpath(os.path.join(repo_root, relative))
+        # Use normcase for case-insensitive comparison on Windows
+        root_norm_case = os.path.normcase(root_norm)
+        # Ignore snapshot entries that resolve outside the repo (e.g. "../" traversal)
+        cur_case = os.path.normcase(current)
+        if not (cur_case == root_norm_case or cur_case.startswith(root_norm_case + os.sep)):
+            continue
         while True:
             if index.get(current) != MODIFIED_KIND:
                 index[current] = kind
             parent = os.path.dirname(current)
-            if parent == current or not parent.startswith(root_norm):
+            if parent == current:
+                break
+            # Proper prefix check: parent must be exactly root or inside root
+            parent_case = os.path.normcase(parent)
+            if not (parent_case == root_norm_case or parent_case.startswith(root_norm_case + os.sep)):
                 break
             current = parent
 

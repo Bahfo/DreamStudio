@@ -170,14 +170,29 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
             index: Normalized absolute path to ``modified``/``added``.
         """
         self._vcs_index = index
-        self.layoutChanged.emit()
+        # Use dataChanged instead of layoutChanged to preserve selection/expansion
+        try:
+            top = self.index(0, 0, QModelIndex())
+            bottom = self.index(self.rowCount() - 1, 0, QModelIndex())
+            if top.isValid() and bottom.isValid():
+                self.dataChanged.emit(top, bottom, [Qt.ItemDataRole.ForegroundRole])
+        except Exception:
+            pass
+        self.invalidate()
 
     def apply_vcs_theme(self, background: str) -> None:
         """Re-resolve VCS colors against the themed background color."""
         parsed = QColor(background)
         lightness = parsed.lightness() if parsed.isValid() else 30
         self._vcs_colors = resolve_vcs_colors(lightness)
-        self.layoutChanged.emit()
+        try:
+            top = self.index(0, 0, QModelIndex())
+            bottom = self.index(self.rowCount() - 1, 0, QModelIndex())
+            if top.isValid() and bottom.isValid():
+                self.dataChanged.emit(top, bottom, [Qt.ItemDataRole.ForegroundRole])
+        except Exception:
+            pass
+        self.invalidate()
 
     def vcs_color_for_path(self, path: str) -> Optional[QColor]:
         """Resolve a display color for one path, or None when unchanged."""
@@ -196,8 +211,6 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
                 An empty list disables highlighting.
         """
         self._gitignore_patterns = list(patterns or [])
-        self.layoutChanged.emit()
-        # Ensure views repaint foreground role even if layout is cached
         try:
             top = self.index(0, 0, QModelIndex())
             bottom = self.index(self.rowCount() - 1, 0, QModelIndex())
@@ -207,6 +220,7 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
                 )
         except Exception:
             pass
+        self.invalidate()
         self.invalidateFilter()
 
     def gitignore_patterns(self) -> list[str]:

@@ -131,6 +131,13 @@ class SystemMonitor(QWidget):
         self.tabs.addTab(perf_scroll, "Performance")
         self.tabs.addTab(self.proc_tab, "Processes")
 
+        # Prime cpu_percent to avoid 0.0 on first tick
+        try:
+            psutil.cpu_percent(interval=None)
+            psutil.cpu_percent(interval=None, percpu=True)
+        except Exception:
+            pass
+
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._collect)
         self._timer.start(1000)
@@ -194,10 +201,10 @@ class SystemMonitor(QWidget):
         self.update()
 
     def _collect_cpu(self):
-        total_cpu = psutil.cpu_percent()
+        total_cpu = psutil.cpu_percent(interval=None)
         self._cpu_graph.append("Total", total_cpu)
 
-        per_core = psutil.cpu_percent(percpu=True)
+        per_core = psutil.cpu_percent(interval=None, percpu=True)
         for i in range(min(len(per_core), self._num_cores)):
             self._core_bars[i].setValue(int(per_core[i]))
 
