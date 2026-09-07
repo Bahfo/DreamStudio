@@ -390,6 +390,10 @@ const char *elf_section_flags_name(uint64_t flags) {
 }
 
 
+void inspector_free(void *ptr) {
+    free(ptr);
+}
+
 const char *inspector_version(void) {
     return "0.1.0";
 }

@@ -388,6 +388,111 @@ class DreamTabbedEditor(QDreamTabEditor):
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _is_elf_binary(file_path: str) -> bool:
+        """Return ``True`` when *file_path* is an ELF64 executable.
+
+        Uses fast magic check plus native inspector verification.
+        Never raises.
+        """
+        if not file_path or not os.path.isfile(file_path):
+            return False
+        try:
+            # Fast path: use hex_view helper to avoid ctypes load overhead
+            from editor.Ironica.inspector.hex_view import is_elf_file
+
+            if not is_elf_file(file_path):
+                return False
+            # Confirm via native inspector for robustness
+            try:
+                from editor.Ironica.inspector.binding import get_inspector
+
+                return get_inspector().is_elf(file_path)
+            except Exception:
+                # Magic already matched — treat as binary
+                return True
+        except Exception:
+            return False
+
+    def add_binary_editor(self, file_name: str, file_path: str):
+        """Create a tab for a binary/ELF file in read-only hex mode."""
+        key = self.resolve_key(file_path) if file_path else None
+        if key and key in self.opened_files:
+            index = self.opened_files[key]
+            if index != -1 and index < self.count():
+                self.setCurrentIndex(index)
+                return self.widget(index)
+            else:
+                del self.opened_files[key]
+
+        try:
+            code_editor = CodeEditor(self, language=None)
+            ok = code_editor.load_binary_file(file_path)
+            if not ok:
+                raise OSError("Failed to load binary file")
+            new_editor = MiniMapHostWidget(code_editor, parent=self)
+        except Exception as exc:
+            logger.warning("Failed to load binary %s: %s", file_path, exc)
+            # Fallback: try to show hex via text fallback?
+            try:
+                from editor.utils.notifications.notification_manager import (
+                    get_notification_manager,
+                )
+
+                get_notification_manager().add_error(
+                    "Binary Open Failed",
+                    f"Could not open binary '{file_name}': {exc}",
+                    "Inspector",
+                )
+            except Exception:
+                pass
+            new_editor = FallBack(self)
+            new_editor.setText(f"Failed to open binary file: {file_path}\n{exc}")
+
+        # Wire spinner (binary has no analysis but keep for consistency)
+        code_editor = getattr(new_editor, "editor", None)
+        if code_editor is not None:
+            status = getattr(self._parent, "status_bar", None)
+            if status is not None:
+                start_handler = getattr(status, "start_analysis_spinner", None)
+                finish_handler = getattr(status, "stop_analysis_spinner", None)
+                if start_handler is not None:
+                    code_editor.analysis_started.connect(start_handler)
+                if finish_handler is not None:
+                    code_editor.analysis_finished.connect(finish_handler)
+
+        if isinstance(new_editor, MiniMapHostWidget):
+            if hasattr(self._parent, "update_position_status"):
+                new_editor.position_changed.connect(self._parent.update_position_status)
+
+        if not key:
+            key = f"__untitled_{id(new_editor)}"
+
+        if file_name is None:
+            file_name = f"untitled - {self.count()}"
+
+        index = self.addTab(new_editor, file_name)
+        self.setCurrentIndex(index)
+        new_editor.file_key = key
+        self.opened_files[key] = index
+        if isinstance(new_editor, MiniMapHostWidget):
+            new_editor.dirty_state_changed.connect(
+                lambda is_dirty, ed=new_editor: self._on_editor_dirty_changed_explicit(
+                    ed, is_dirty
+                )
+            )
+        self.tabBar().rebuild_dirty_indices()
+        if isinstance(new_editor, MiniMapHostWidget) and new_editor.isReadOnly():
+            self.tabBar().mark_readonly(index, True)
+        self.setFocus()
+        if hasattr(self._parent, "update_editor_visibility"):
+            self._parent.update_editor_visibility()
+        logger.debug("Opened binary files: %s", self.opened_files)
+        if hasattr(self._parent, "update_position_status"):
+            self._parent.update_position_status()
+        self.return_file_info()
+        return new_editor
+
+    @staticmethod
     def _is_fallback(widget) -> bool:
         """Return ``True`` if *widget* is a ``FallBack`` placeholder."""
         return isinstance(widget, FallBack)
@@ -427,6 +532,12 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         code_editor = None
         if file_path:
+            # Detect binary/ELF before normal text loading
+            if self._is_elf_binary(file_path):
+                return self.add_binary_editor(
+                    file_name=file_name or pathlib.Path(file_path).name,
+                    file_path=file_path,
+                )
             try:
                 code_editor = CodeEditor(self, language=language)
                 code_editor.load_from_file(file_path)
@@ -736,6 +847,10 @@ class DreamTabbedEditor(QDreamTabEditor):
         file_extn = pathlib.Path(file_path).suffix
 
         try:
+            # Binary/ELF files are detected via magic/header, not extension
+            if self._is_elf_binary(file_path):
+                self.add_binary_editor(file_name=file_name, file_path=file_path)
+                return
             self.add_new_editor(
                 file_name=file_name,
                 file_path=file_path,
@@ -743,6 +858,18 @@ class DreamTabbedEditor(QDreamTabEditor):
             )
         except Exception as e:
             logger.error("Open file by path failed: %s", e)
+            try:
+                from editor.utils.notifications.notification_manager import (
+                    get_notification_manager,
+                )
+
+                get_notification_manager().add_error(
+                    "Open File Failed",
+                    f"Could not open '{file_name}': {e}",
+                    "Explorer",
+                )
+            except Exception:
+                pass
 
     def open_file_at_line(self, file_path: str, line: int) -> None:
         """Open *file_path* and jump the cursor to *line*.

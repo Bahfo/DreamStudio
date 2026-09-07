@@ -73,6 +73,8 @@ const char *elf_machine_name(uint16_t machine);
 const char *elf_type_name(uint16_t type);
 const char *elf_section_type_name(uint32_t type);
 const char *elf_section_flags_name(uint64_t flags);
+void inspector_free(void *ptr);
+const char *inspector_version(void);
 
 
 #ifdef __cplusplus

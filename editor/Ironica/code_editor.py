@@ -94,6 +94,10 @@ class CodeEditor(QsciScintilla):
     COLOR_MARKER_START = 10
     COLOR_MARKER_END = 24
 
+    # ELF inspector gutter button margin (binary mode only).
+    MARGIN_ELF = 3
+    MARKER_ELF = 5
+
     def __init__(self, _parent=None, language=None, file_path=None):
         """
         Initialise the editor widget.
@@ -236,6 +240,18 @@ class CodeEditor(QsciScintilla):
         ###############################################
         self._autocompletion_widget = CompletionController(self)
 
+        ###############################################
+        # Binary / ELF inspector state
+        ###############################################
+        self._binary_mode: bool = False
+        self._elf_header = None
+        self._elf_sections: list = []
+        self._elf_file_path: str | None = None
+        self._elf_popup = None
+        self._elf_button: QPushButton | None = None
+        # Drag/drop is disabled in binary mode via flag below
+        self._binary_drag_enabled = True
+
     ###############################################
     # CONTEXT MENU
     ###############################################
@@ -249,6 +265,9 @@ class CodeEditor(QsciScintilla):
     ###############################################
 
     def _on_text_changed(self) -> None:
+        # Binary inspection mode is strict READ-ONLY — never become dirty.
+        if getattr(self, "_binary_mode", False):
+            return
         if not self._is_dirty:
             self._is_dirty = True
             self.dirty_state_changed.emit(True)
@@ -566,8 +585,15 @@ class CodeEditor(QsciScintilla):
             self._hover_flyout.dismiss(force=force)
 
     def _dismiss_all_popups(self, force: bool = False) -> None:
-        """Dismiss every open sub-menu (hover flyout)."""
+        """Dismiss every open sub-menu (hover flyout + ELF popup)."""
         self._dismiss_hover_flyout(force=force)
+        try:
+            pop = getattr(self, "_elf_popup", None)
+            if pop is not None and pop.isVisible():
+                if force:
+                    pop.hide()
+        except Exception:
+            pass
 
     ###############################################
     # EDITOR SETUP
@@ -931,9 +957,7 @@ class CodeEditor(QsciScintilla):
             self.OCCURRENCE_HL_SLOT,
             outline,
         )
-        self.SendScintilla(
-            QsciScintilla.SCI_INDICSETUNDER, self.OCCURRENCE_HL_SLOT, 0
-        )
+        self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.OCCURRENCE_HL_SLOT, 0)
 
     def _schedule_occurrence_update(self) -> None:
         """Debounce occurrence highlight recomputation."""
@@ -1040,10 +1064,20 @@ class CodeEditor(QsciScintilla):
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._update_debug_stack_position()
+        try:
+            self._update_elf_button_position()
+        except Exception:
+            pass
 
     def wheelEvent(self, event) -> None:
         """Dismiss all popups when the editor scrolls."""
         self._dismiss_all_popups()
+        try:
+            popup = getattr(self, "_elf_popup", None)
+            if popup is not None and popup.isVisible():
+                popup.hide()
+        except Exception:
+            pass
         super().wheelEvent(event)
 
     def changeEvent(self, event) -> None:
@@ -1129,6 +1163,38 @@ class CodeEditor(QsciScintilla):
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         """Intercept key events for goto definition and enhanced enter/return behaviour."""
+        # Strict binary read-only guard — block all mutating keys
+        if getattr(self, "_binary_mode", False):
+            # Allow navigation and copy/select, block everything else
+            allowed = {
+                Qt.Key.Key_Left,
+                Qt.Key.Key_Right,
+                Qt.Key.Key_Up,
+                Qt.Key.Key_Down,
+                Qt.Key.Key_PageUp,
+                Qt.Key.Key_PageDown,
+                Qt.Key.Key_Home,
+                Qt.Key.Key_End,
+                Qt.Key.Key_Escape,
+            }
+            mods = e.modifiers()
+            is_ctrl = bool(mods & Qt.KeyboardModifier.ControlModifier)
+            # Allow Ctrl+A (select all), Ctrl+C (copy), Ctrl+F (find)
+            if is_ctrl and e.key() in (
+                Qt.Key.Key_A,
+                Qt.Key.Key_C,
+                Qt.Key.Key_F,
+                Qt.Key.Key_G,
+            ):
+                super().keyPressEvent(e)
+                return
+            if e.key() in allowed:
+                super().keyPressEvent(e)
+                return
+            # F12 is handled before, but block everything else
+            e.ignore()
+            return
+
         if e.key() == Qt.Key.Key_F12:
             self.execute_goto_definition()
             e.accept()
@@ -1223,6 +1289,24 @@ class CodeEditor(QsciScintilla):
                 return
 
         super().mousePressEvent(e)
+
+    def dragEnterEvent(self, event) -> None:
+        if getattr(self, "_binary_mode", False):
+            event.ignore()
+            return
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:
+        if getattr(self, "_binary_mode", False):
+            event.ignore()
+            return
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:
+        if getattr(self, "_binary_mode", False):
+            event.ignore()
+            return
+        super().dropEvent(event)
 
     ###############################################
     # DEBUGGER & BREAKPOINTS
@@ -1836,6 +1920,13 @@ class CodeEditor(QsciScintilla):
             UnicodeDecodeError: If the file cannot be decoded (after
                 fallback attempt).
         """
+        # Leaving binary mode when opening a normal text file
+        if getattr(self, "_binary_mode", False):
+            try:
+                self.exit_binary_mode()
+            except Exception:
+                pass
+
         path_obj = pathlib.Path(file_path)
         if not path_obj.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -2116,6 +2207,284 @@ class CodeEditor(QsciScintilla):
                 pass
 
     ###############################################
+    # BINARY / ELF INSPECTION MODE
+    ###############################################
+
+    def is_binary_mode(self) -> bool:
+        """Return ``True`` when editor is in binary read-only mode."""
+        return bool(getattr(self, "_binary_mode", False))
+
+    def _ensure_elf_button(self) -> QPushButton | None:
+        """Create the gutter inspection button if needed."""
+        if getattr(self, "_elf_button", None) is not None:
+            return self._elf_button
+        try:
+            btn = QPushButton(self)
+            btn.setObjectName("ElfInspectorButton")
+            btn.setToolTip("Show ELF information")
+            btn.setFixedSize(18, 18)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            # Use info icon if available, fallback to text
+            icon_path = "assets/menus/info.png"
+            if pathlib.Path(icon_path).is_file():
+                btn.setIcon(QIcon(icon_path))
+                btn.setIconSize(QSize(12, 12))
+            else:
+                btn.setText("i")
+            btn.setStyleSheet(
+                "QPushButton#ElfInspectorButton {"
+                " background: rgba(80, 140, 255, 90);"
+                " border: 1px solid rgba(80, 140, 255, 160);"
+                " border-radius: 3px; font-size: 10px; font-weight: 700;"
+                " color: #FFFFFF;"
+                "}"
+                "QPushButton#ElfInspectorButton:hover {"
+                " background: rgba(80, 140, 255, 160);"
+                "}"
+            )
+            btn.clicked.connect(self._show_elf_popup)
+            btn.setVisible(False)
+            self._elf_button = btn
+            return btn
+        except Exception as exc:
+            logger.debug("Failed to create ELF button: %s", exc)
+            return None
+
+    def _update_elf_button_position(self) -> None:
+        """Place the ELF button inside the left margin/gutter area."""
+        btn = getattr(self, "_elf_button", None)
+        if btn is None or not btn.isVisible():
+            return
+        try:
+            # Compute total margin width for margins 0,1,2
+            total_margin = 0
+            for m in (0, 1, 2):
+                try:
+                    w = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, m)
+                    total_margin += int(w) if w else 0
+                except Exception:
+                    pass
+            # Position inside gutter, top-aligned
+            # Left offset includes small padding
+            x = 6
+            # If margins are narrow, place overlay near left edge
+            # Use viewport offset to stay inside editor
+            y = 6
+            # Ensure within editor geometry
+            btn.move(x, y)
+            btn.raise_()
+        except Exception:
+            pass
+
+    def _show_elf_popup(self) -> None:
+        """Open compact QWidget popover with ELF summary + section table."""
+        anchor = getattr(self, "_elf_button", None)
+        if anchor is None:
+            anchor = self
+        try:
+            from editor.Ironica.inspector.popup import ElfInfoPopup
+            from editor.Ironica.inspector.binding import get_inspector
+
+            hdr = getattr(self, "_elf_header", None)
+            secs = getattr(self, "_elf_sections", []) or []
+            file_name = pathlib.Path(
+                getattr(self, "_elf_file_path", None)
+                or getattr(self, "current_file_path", "")
+                or "binary"
+            ).name
+            version = ""
+            try:
+                version = get_inspector().version()
+            except Exception:
+                pass
+
+            if self._elf_popup is None or not isinstance(self._elf_popup, ElfInfoPopup):
+                # Parent should be the window so popup is not clipped
+                parent_win = self.window()
+                self._elf_popup = ElfInfoPopup(parent_win)
+
+            self._elf_popup.set_content(file_name, hdr, secs, version)
+            self._elf_popup.show_near(anchor, self)
+        except Exception as exc:
+            logger.debug("Failed to show ELF popup: %s", exc)
+            try:
+                from editor.utils.notifications.notification_manager import (
+                    get_notification_manager,
+                )
+
+                get_notification_manager().add_error(
+                    "ELF Inspection",
+                    f"Failed to show ELF popup: {exc}",
+                    "Inspector",
+                )
+            except Exception:
+                pass
+
+    def _hide_elf_popup(self) -> None:
+        """Hide the ELF popover if visible."""
+        pop = getattr(self, "_elf_popup", None)
+        if pop is not None:
+            try:
+                pop.hide()
+            except Exception:
+                pass
+
+    def load_binary_file(self, file_path: str) -> bool:
+        """Load *file_path* as a binary/ELF file in strict read-only mode.
+
+        Renders a hex dump, marks editor read-only, stores ELF metadata,
+        and shows the gutter inspection button.
+
+        Args:
+            file_path: Absolute path to the ELF executable.
+
+        Returns:
+            ``True`` on success, ``False`` on any error.
+        """
+        try:
+            p = pathlib.Path(file_path)
+            if not p.is_file():
+                raise FileNotFoundError(f"File not found: {file_path}")
+
+            hdr = None
+            secs: list = []
+            try:
+                from editor.Ironica.inspector.binding import get_inspector
+
+                inspector = get_inspector()
+                h, s, err = inspector.inspect(file_path)
+                if err == "" and h is not None:
+                    hdr = h
+                    secs = s
+            except Exception as exc:
+                logger.debug("ELF inspection failed for %s: %s", file_path, exc)
+                hdr = None
+                secs = []
+
+            self._elf_header = hdr
+            self._elf_sections = secs
+            self._elf_file_path = file_path
+            self.current_file_path = file_path
+            self._binary_mode = True
+
+            try:
+                from editor.Ironica.inspector.hex_view import generate_hex_dump
+
+                hex_text = generate_hex_dump(file_path)
+            except Exception as exc:
+                hex_text = f"; Failed to generate hex dump: {exc}\n"
+
+            self.blockSignals(True)
+            try:
+                self.setLexer(None)
+                self.current_lang = None
+                self.current_provider = None
+                self.setText(hex_text)
+                self.setModified(False)
+                self._is_dirty = False
+                self.dirty_state_changed.emit(False)
+            finally:
+                self.blockSignals(False)
+
+            self.setReadOnly(True)
+            try:
+                self.SendScintilla(QsciScintilla.SCI_SETUNDOCOLLECTION, 0)
+            except Exception:
+                pass
+
+            try:
+                self.setAcceptDrops(False)
+            except Exception:
+                pass
+
+            try:
+                self.setCaretLineVisible(False)
+            except Exception:
+                pass
+
+            try:
+                self._update_readonly_tab_indicator(True)
+            except Exception:
+                pass
+
+            btn = self._ensure_elf_button()
+            if btn is not None:
+                btn.setVisible(True)
+                QTimer.singleShot(0, self._update_elf_button_position)
+
+            try:
+                self.setWrapMode(QsciScintilla.WrapMode.WrapNone)
+            except Exception:
+                pass
+
+            try:
+                self._fold_display_text_cache.clear()
+            except Exception:
+                pass
+
+            try:
+                from editor.utils.git_control.status_service import (
+                    get_status_service,
+                )
+
+                get_status_service().request_scan("editor:binary_load")
+            except Exception:
+                pass
+
+            return True
+        except Exception as exc:
+            logger.error("load_binary_file failed for %s: %s", file_path, exc)
+            try:
+                self.blockSignals(True)
+                self.setText(f"; Failed to open binary file: {exc}\n")
+                self.setModified(False)
+                self._is_dirty = False
+            finally:
+                try:
+                    self.blockSignals(False)
+                except Exception:
+                    pass
+            return False
+
+    def exit_binary_mode(self) -> None:
+        """Exit binary inspection mode and restore editable state.
+
+        Called when a different file is loaded or editor is reused.
+        """
+        self._binary_mode = False
+        self._elf_header = None
+        self._elf_sections = []
+        self._elf_file_path = None
+        try:
+            self.SendScintilla(QsciScintilla.SCI_SETUNDOCOLLECTION, 1)
+        except Exception:
+            pass
+        try:
+            self.setAcceptDrops(True)
+        except Exception:
+            pass
+        try:
+            self.setCaretLineVisible(True)
+        except Exception:
+            pass
+        try:
+            self.setReadOnly(False)
+        except Exception:
+            pass
+        btn = getattr(self, "_elf_button", None)
+        if btn is not None:
+            try:
+                btn.setVisible(False)
+            except Exception:
+                pass
+        pop = getattr(self, "_elf_popup", None)
+        if pop is not None:
+            try:
+                pop.hide()
+            except Exception:
+                pass
+
+    ###############################################
     # CODE FORMATTING
     ###############################################
 
@@ -2269,6 +2638,22 @@ class CodeEditor(QsciScintilla):
 
     def deleteLater(self) -> None:
         """Shut down the analysis worker before destroying the widget."""
+        try:
+            pop = getattr(self, "_elf_popup", None)
+            if pop is not None:
+                pop.hide()
+                pop.deleteLater()
+                self._elf_popup = None
+        except Exception:
+            pass
+        try:
+            btn = getattr(self, "_elf_button", None)
+            if btn is not None:
+                btn.hide()
+                btn.deleteLater()
+                self._elf_button = None
+        except Exception:
+            pass
         manager = getattr(self, "_analysis_manager", None)
         if manager is not None:
             try:
