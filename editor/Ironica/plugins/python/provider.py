@@ -417,7 +417,33 @@ class PythonLanguageProvider(BaseLanguageProvider):
             return []
 
     def format_source(self, source_code: str) -> str:
-        return source_code
+        """Format *source_code* using black.
+
+        Uses the ``black`` PyPI module installed in the IDE venv.
+        Keeps the operation minimalistic — delegates to the existing
+        ``CodeEditor.format_current_file`` / right-click ``Format Code``
+        flow without adding any new files.
+
+        Args:
+            source_code: Raw Python source from the editor buffer.
+
+        Returns:
+            Formatted source, or the original text if ``black`` is
+            missing or the code has a syntax error.
+        """
+        if not source_code or not source_code.strip():
+            return source_code
+        try:
+            import black
+
+            mode = black.FileMode(line_length=110)
+            return black.format_str(source_code, mode=mode)
+        except ImportError:
+            logger.debug("black not installed, skipping format")
+            return source_code
+        except Exception as exc:
+            logger.debug("black formatting failed: %s", exc)
+            return source_code
 
     def get_semantic_highlights(self, text: str):
         from .semantic_highlights import get_semantic_highlights

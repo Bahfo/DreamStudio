@@ -11,6 +11,7 @@ Usage:
 import os
 import sys
 
+
 # Ensure the project root is on sys.path so bootstrap/ and editor/ are importable.
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if _PROJECT_ROOT not in sys.path:
