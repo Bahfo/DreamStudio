@@ -1,0 +1,27 @@
+/*
+(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+
+Main Shell Entrance for Poly Builder Specifications for B-Sharp.
+Code is licensed under the GPLv3 License.
+*/
+
+// Written By Bahaa Nofal - 2026
+
+using "StdString"
+using "StdFile"
+using "Stdio"
+
+// Local Imports
+using "builder/builder"
+using "poly/poly_build"
+using "poly/poly_configure"
+using "builder/builder_scripts"
+
+!PRAGMA optimize        // Optimization Support
+!PRAGMA enforce         // Type Enforcement
+!PRAGMA main            // Including Explicit Need for `Main` Function 
+
+fn Main() -> Empty {
+    writeln("Poly Builder Configurations for B-Sharp");
+    writeln("EXcellent TechStacks");
+} // Main

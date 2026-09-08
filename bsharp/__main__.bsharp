@@ -1,0 +1,21 @@
+[!#IfDef]
+
+!PRAGMA build true
+!PRAGMA optimize
+!PRAGMA enforce
+
+[!#Configs]
+fn CnfgMain() {
+    local var x = InitializeComponents();
+    enforce public global fn CnfgMain extend Main;
+}
+
+__inline__(all) Python {
+    def export_model(all): 
+        """
+        Major Export Function into Python
+        """
+        return CnfgMain
+} expects(all)
+
+[!#EndIf]
