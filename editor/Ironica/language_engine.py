@@ -31,7 +31,6 @@ from editor.Ironica.retheme import resolve_colour
 
 logger = logging.getLogger(__name__)
 
-# Identifier token pattern (bytes-mode: UTF-8 byte offsets must stay intact).
 _RE_WORD = re.compile(rb"[A-Za-z0-9_]+")
 
 
@@ -156,7 +155,7 @@ class LanguageLexer(QsciLexerCustom):
             # Identifier in default state — keyword lookup.
             match = _RE_WORD.match(raw, i)
             if match:
-                word = raw[match.start():match.end()].decode("ascii")
+                word = raw[match.start() : match.end()].decode("ascii")
                 style = self.keywords_map.get(word, 0)
                 if i > run_start:
                     self.setStyling(i - run_start, 0)
@@ -221,11 +220,11 @@ class BaseLanguageProvider(ABC):
         return source_code
 
     def get_hover_display(self, text: str, line: int, col: int) -> Optional[tuple]:
-        """Return `(title_html, body_html)` for the symbol under the cursor.
+        """Return `(title_markdown, body_markdown)` for the symbol under the cursor.
 
-        The *title_html* is a short rich-text fragment shown in the flyout
-        header.  The *body_html* is the full documentation body suitable
-        for a `QTextBrowser` or `QLabel` with rich-text support.
+        The *title_markdown* is a short Markdown fragment (typically a
+        heading) shown in the flyout header.  The *body_markdown* is the
+        full documentation body rendered via ``QTextDocument.setMarkdown()``.
 
         Optional method — return `None` when hover documentation is
         unavailable or the provider does not support it.
@@ -496,6 +495,22 @@ class LanguageRegistry:
     def get_config(cls, lang: str) -> Optional[dict]:
         """Return the configuration dictionary for *lang*, or `None`."""
         return cls._configs.get(lang)
+
+    @classmethod
+    def get_snippets(cls, lang: str) -> List[str]:
+        """Return the snippet identifiers for *lang*.
+
+        Args:
+            lang: The language identifier (e.g. ``"python"``).
+
+        Returns:
+            A list of snippet name strings (e.g. ``["/Class", "/Main"]``).
+            Returns an empty list when the language has no snippets defined.
+        """
+        config = cls._configs.get(lang)
+        if config is None:
+            return []
+        return list(config.get("snippets", []))
 
     @classmethod
     def get_provider(cls, lang: str) -> Optional[BaseLanguageProvider]:

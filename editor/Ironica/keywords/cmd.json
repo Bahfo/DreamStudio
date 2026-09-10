@@ -32,5 +32,8 @@
             "taskkill", "tasklist", "time", "title", "tree", "type", 
             "ver", "vol", "where", "whoami", "xcopy"
         ]
-    }
+    },
+    "snippets": [
+        "/Script", "/Menu", "/FileOps", "/Network"
+    ]
 }

@@ -59,6 +59,7 @@ class CompletionDelegate(QStyledItemDelegate):
         "text": "text.png",
         "path": "path.png",
         "symbol-text": "text.png",
+        "snippet": "snippet.png",
     }
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
@@ -202,7 +203,10 @@ class CompletionDelegate(QStyledItemDelegate):
         kind_lower = kind.lower()
         badge_char = kind[0].upper() if kind else "V"
 
-        if "func" in kind_lower or "method" in kind_lower:
+        if "snippet" in kind_lower:
+            bg_color = QColor("#D7BA7D")
+            badge_char = "S"
+        elif "func" in kind_lower or "method" in kind_lower:
             bg_color = QColor("#C586C0")
             badge_char = "f"
         elif "class" in kind_lower:
@@ -827,6 +831,32 @@ class CompletionController(QObject):
         line, col = self.editor.lineIndexFromPosition(pos)
         text_before_cursor = self.editor.text(line)[:col]
 
+        # Snippet trigger: a trailing "/xxx" at the cursor.  A single "/" must
+        # trigger immediately so the user can discover available snippets.
+        snippet_match = re.search(r"/[A-Za-z0-9_]*$", text_before_cursor)
+        if snippet_match:
+            prefix = snippet_match.group(0)
+            ident = ""
+            self._current_prefix = prefix
+            self._current_ident = ident
+
+            if self.popup.isVisible() and self._cached_items and ident == self._cache_ident:
+                self._refresh_from_cache()
+            else:
+                # Show snippets instantly for "/" prefix even before debounce fires
+                # when no cached provider results exist.
+                if prefix == "/":
+                    # Populate synchronously so discovery is instant
+                    snippet_items = self._get_snippet_completions()
+                    if snippet_items:
+                        self._cached_items = list(snippet_items)
+                        self._cache_ident = ""
+                        self.popup.populate(list(snippet_items))
+                        self._show_popup(list(snippet_items))
+                        return
+            self._debounce_timer.start()
+            return
+
         # FIX: Allow dot expressions (e.g., 'os.' or 'os.pa') to trigger completion
         match = re.search(r"([A-Za-z_]\w*)\.([A-Za-z_]\w*)?$", text_before_cursor)
         if not match:
@@ -862,17 +892,118 @@ class CompletionController(QObject):
         # Restart single-shot timer (Debounce)
         self._debounce_timer.start()
 
+    def _get_snippet_completions(self) -> List[CompletionItem]:
+        """Return snippet CompletionItems matching the current prefix.
+
+        Snippets are sourced from ``editor.snippet_map`` (trigger -> body)
+        and, as fallback, from ``LanguageRegistry.get_snippets(lang)``.
+        A prefix starting with ``/`` requires an exact ``/``-prefixed
+        match; otherwise the leading ``/`` is ignored so typing ``Cl``
+        also surfaces ``/Class``.
+        """
+        prefix = self._current_prefix or ""
+        prefix_lower = prefix.lower()
+        stripped_prefix = prefix.lstrip("/").lower()
+        is_snippet_prefix = prefix.startswith("/")
+
+        # Collect trigger -> body, preserving bodies from snippet_map
+        triggers: dict[str, str] = {}
+        snippet_map = getattr(self.editor, "snippet_map", {}) or {}
+        for trig, body in snippet_map.items():
+            triggers[trig] = body
+
+        lang = getattr(self.editor, "current_lang", None)
+        if lang:
+            try:
+                from editor.Ironica.language_engine import LanguageRegistry
+
+                for trig in LanguageRegistry.get_snippets(lang):
+                    if trig not in triggers:
+                        triggers[trig] = trig
+            except Exception:
+                pass
+
+        # If still empty, fall back to any snippet_map entries already collected
+        if not triggers:
+            return []
+
+        result: List[CompletionItem] = []
+        for trig, body in triggers.items():
+            trig_lower = trig.lower()
+            trig_stripped = trig.lstrip("/").lower()
+
+            if is_snippet_prefix:
+                if not trig_lower.startswith(prefix_lower):
+                    continue
+            else:
+                if not prefix_lower:
+                    continue
+                if not trig_stripped.startswith(prefix_lower):
+                    continue
+
+            insert = body if body and body != trig else trig
+            first_line = ""
+            if isinstance(body, str) and body and body != trig:
+                first_line = body.split("\n")[0].strip()
+                if len(first_line) > 60:
+                    first_line = first_line[:57] + "..."
+            signature = first_line or "snippet"
+
+            if is_snippet_prefix:
+                matched = [(0, len(prefix))]
+            else:
+                # Highlight starts after leading "/" if present
+                offset = 1 if trig.startswith("/") else 0
+                matched = [(offset, len(prefix))]
+
+            result.append(
+                CompletionItem(
+                    text=trig,
+                    insert_text=insert,
+                    icon_name="snippet",
+                    signature=signature,
+                    matched_ranges=matched,
+                )
+            )
+
+        result.sort(key=lambda item: item.text.lower())
+        return result
+
     def _refresh_from_cache(self) -> None:
         """Re-populate the popup from cached items for the current prefix.
 
         Returns without touching the popup when nothing matches, letting
-        the pending background request decide the final state.
+        the pending background request decide the final state.  Snippet
+        matches are merged synchronously so ``/``-triggered discovery
+        feels instant.
         """
+        # Snippet prefix: show snippet matches directly
+        if self._current_prefix.startswith("/"):
+            snippet_matches = self._get_snippet_completions()
+            # Also filter cached items that are snippets (if previously cached)
+            cached_matches = [
+                item
+                for item in self._cached_items
+                if item.text.lower().startswith(self._current_prefix.lower())
+            ]
+            # Prefer synchronous snippet matches; they are always fresh
+            combined = snippet_matches if snippet_matches else cached_matches
+            if combined:
+                self.popup.populate(combined)
+            return
+
         matches = [
             item
             for item in self._cached_items
             if item.text.lower().startswith(self._current_prefix.lower())
         ]
+        # Merge snippets that match this word prefix
+        snippet_matches = self._get_snippet_completions()
+        existing = {m.text for m in matches}
+        for s in snippet_matches:
+            if s.text not in existing:
+                matches.append(s)
+
         if matches:
             self.popup.populate(matches)
 
@@ -880,8 +1011,20 @@ class CompletionController(QObject):
         self._requested_context = (self._current_ident, self._current_prefix)
         provider = getattr(self.editor, "current_provider", None)
 
+        # Snippet-only prefix: bypass language provider and show snippets instantly
+        if self._current_prefix.startswith("/"):
+            snippet_items = self._get_snippet_completions()
+            self._present_items(snippet_items)
+            return
+
         if provider is None:
             items = self._get_document_tokens()
+            # Merge snippet completions even without a provider
+            snippet_items = self._get_snippet_completions()
+            existing = {i.text for i in items}
+            for s in snippet_items:
+                if s.text not in existing:
+                    items.append(s)
             if items:
                 self._show_popup(items)
             else:
@@ -919,6 +1062,8 @@ class CompletionController(QObject):
         The cache powers the synchronous keystroke filter, so results are
         stored unfiltered while only prefix matches become visible. When
         a provider yields nothing the document-token fallback runs.
+        Snippet completions from ``LanguageRegistry`` / ``snippet_map``
+        are merged into the visible set so users discover snippet names.
 
         Args:
             items: Raw completion items returned by the active provider.
@@ -927,13 +1072,42 @@ class CompletionController(QObject):
         self._cache_ident = self._requested_context[0]
 
         prefix_lower = self._current_prefix.lower()
+
+        # Snippet-only prefix: items are already snippet-filtered
+        if self._current_prefix.startswith("/"):
+            visible = [
+                item
+                for item in self._cached_items
+                if item.text.lower().startswith(prefix_lower)
+            ]
+            # Ensure fresh snippet filtering even if cache was empty
+            if not visible:
+                visible = self._get_snippet_completions()
+            if visible:
+                self._show_popup(visible)
+            else:
+                self._close()
+            return
+
         visible = [
             item
             for item in self._cached_items
             if item.text.lower().startswith(prefix_lower)
         ]
-        if not visible and not items:
+
+        # Merge snippets that match this word prefix (without needing "/")
+        snippet_items = self._get_snippet_completions()
+        existing_texts = {v.text for v in visible}
+        for s in snippet_items:
+            if s.text not in existing_texts:
+                visible.append(s)
+
+        if not visible and not items and not snippet_items:
             visible = self._get_document_tokens()
+            # Also include snippets in fallback if tokens found no prefix match
+            for s in snippet_items:
+                if s.text not in {v.text for v in visible}:
+                    visible.append(s)
 
         if visible:
             self._show_popup(visible)
@@ -1103,6 +1277,10 @@ class CompletionController(QObject):
         ``impt``/``importt``). With live anchoring the inserted text is
         always the full identifier swapped over whatever is typed now.
 
+        Snippet completions carry multi-line bodies; they are expanded with
+        language-aware indentation so subsequent lines align with the
+        original cursor indentation.
+
         Args:
             item: The completion entry selected in the popup.
         """
@@ -1116,8 +1294,48 @@ class CompletionController(QObject):
             insert_text = item.insert_text or item.text
             line, col = self.editor.getCursorPosition()
             before_cursor = self.editor.text(line)[:col]
-            match = re.search(r"[A-Za-z_]\w*$", before_cursor)
-            start_col = match.start() if match else col
+
+            # Detect snippet trigger including leading "/"
+            snippet_match = None
+            if item.icon_name == "snippet" or item.text.startswith("/"):
+                snippet_match = re.search(r"/[A-Za-z0-9_]*$", before_cursor)
+
+            if snippet_match:
+                start_col = snippet_match.start()
+            else:
+                match = re.search(r"[A-Za-z_]\w*$", before_cursor)
+                start_col = match.start() if match else col
+
+            # Handle multi-line snippet bodies with indentation preservation
+            is_snippet_body = (
+                item.icon_name == "snippet" and "\n" in insert_text
+            )
+            if is_snippet_body:
+                line_text = self.editor.text(line)
+                indentation = line_text[: len(line_text) - len(line_text.lstrip())]
+                lines = insert_text.split("\n")
+                if len(lines) > 1:
+                    insert_text = (
+                        lines[0]
+                        + "\n"
+                        + "\n".join(indentation + l for l in lines[1:])
+                    )
+
+                self.editor.beginUndoAction()
+                try:
+                    self.editor.setSelection(line, start_col, line, col)
+                    self.editor.replaceSelectedText(insert_text)
+                    if len(lines) > 1:
+                        end_line = line + len(lines) - 1
+                        end_col = len(indentation) + len(lines[-1])
+                        self.editor.setCursorPosition(end_line, end_col)
+                    else:
+                        self.editor.setCursorPosition(
+                            line, start_col + len(lines[0])
+                        )
+                finally:
+                    self.editor.endUndoAction()
+                return
 
             self.editor.beginUndoAction()
             try:
@@ -1126,7 +1344,16 @@ class CompletionController(QObject):
                     self.editor.replaceSelectedText(insert_text)
                 else:
                     self.editor.insertAt(insert_text, line, col)
-                self.editor.setCursorPosition(line, start_col + len(insert_text))
+                # For single-line snippet trigger without newlines, place cursor after
+                # the inserted text; for multi-line non-snippet, naive placement is OK
+                if "\n" in insert_text:
+                    lines = insert_text.split("\n")
+                    end_line = line + len(lines) - 1
+                    end_col = len(lines[-1])
+                    # Adjust for possible indentation prefix on first line removal
+                    self.editor.setCursorPosition(end_line, end_col)
+                else:
+                    self.editor.setCursorPosition(line, start_col + len(insert_text))
             finally:
                 self.editor.endUndoAction()
         finally:
@@ -1170,7 +1397,8 @@ class CompletionController(QObject):
         if not text:
             return False
 
-        # FIX: Removed '.' from terminating keys so '.' triggers completion instead of killing popup
+        # FIX: Removed '.' and '/' from terminating keys so '.' and '/' trigger completion
+        # '/' must not terminate because snippets use "/Name" triggers.
         return text in {
             " ",
             "\t",
@@ -1191,7 +1419,6 @@ class CompletionController(QObject):
             "+",
             "-",
             "*",
-            "/",
             "\\",
             "=",
             "<",

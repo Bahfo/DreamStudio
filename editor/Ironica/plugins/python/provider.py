@@ -163,94 +163,45 @@ def _format_qt_tooltip(details: HoverDetails) -> str:
     return "".join(parts)
 
 
-def _format_hover_html(details: HoverDetails) -> str:
-    """Rich HTML suitable for ``QTextBrowser`` with structured sections."""
-    parts = []
+def _format_hover_markdown(details: HoverDetails) -> str:
+    """Rich Markdown suitable for ``QTextBrowser.setMarkdown()``.
 
-    # Title is rendered in the flyout header — do not duplicate here.
-    # Start directly with signature.
-    sig_esc = _html.escape(details.signature) if details.signature else ""
-    if sig_esc:
-        parts.append(
-            '<table style="margin:0 0 8px 0;" cellspacing="0" cellpadding="7" '
-            'width="100%">'
-            "<tr>"
-            f'<td style="background-color:#1E1E1E; color:#D4D4D4; '
-            f'font-family:monospace; font-size:12px; border-radius:4px; '
-            f'border: 1px solid #2D2D2D;">'
-            f'<pre style="margin:0; white-space:pre-wrap; '
-            f'word-wrap:break-word;">{sig_esc}</pre>'
-            "</td>"
-            "</tr>"
-            "</table>"
-        )
+    Qt's Markdown engine renders headings, code fences, bullet lists,
+    horizontal rules and tables.  The output deliberately avoids raw HTML
+    so the flyout can render it through ``QTextDocument.setMarkdown()``
+    using the IDE-controlled stylesheet.
+    """
+    parts: list[str] = []
+
+    if details.signature:
+        sig = details.signature.strip()
+        # Use fenced code block; escape triple-backticks inside signature.
+        sig = sig.replace("```", "\\`\\`\\`")
+        parts.append(f"```python\n{sig}\n```")
 
     if details.parameters:
-        parts.append(
-            '<p style="margin:8px 0 4px 0; font-size:12px;">'
-            "<b>Parameters</b>"
-            f' <span style="color:#888888; font-size:11px;">'
-            f"({len(details.parameters)})</span></p>"
-        )
-        parts.append(
-            '<table style="margin:0;" cellspacing="0" cellpadding="3" '
-            'width="100%">'
-        )
+        parts.append(f"### Parameters ({len(details.parameters)})")
         for param in details.parameters:
-            p_name = _html.escape(param.name)
-            # Bullet + name
-            cells = (
-                f'<td style="padding-right:6px; color:#888888;">&#8226;</td>'
-                f'<td style="padding-right:8px;">'
-                f'<b style="color:#9CDCFE;">{p_name}</b></td>'
-            )
-            if param.type_hint:
-                cells += (
-                    f'<td style="padding-right:8px;">'
-                    f'<font color="#4EC9B0;">'
-                    f"{_html.escape(param.type_hint)}</font></td>"
-                )
-            else:
-                cells += '<td style="color:#6B6B6B; font-style:italic;">any</td>'
+            name = param.name
+            type_hint = f"`{param.type_hint}`" if param.type_hint else "`any`"
             if param.default_value is not None:
-                cells += (
-                    f'<td><font color="#B5CEA8">'
-                    f"= {_html.escape(param.default_value)}</font></td>"
-                )
+                parts.append(f"- **{name}** {type_hint} = `{param.default_value}`")
             else:
-                # Keep table columns aligned
-                cells += "<td></td>"
-            parts.append(f"<tr>{cells}</tr>")
-        parts.append("</table>")
+                parts.append(f"- **{name}** {type_hint}")
 
     if details.return_type:
-        ret_esc = _html.escape(details.return_type)
-        parts.append(
-            f'<p style="margin:10px 0 4px 0; font-size:12px;">'
-            f"<b>Returns</b> "
-            f'<span style="color:#4EC9B0; font-family:monospace;">'
-            f"{ret_esc}</span>"
-            f"</p>"
-        )
+        parts.append(f"**Returns:** `{details.return_type}`")
 
     if details.docstring:
         cleaned = _clean_docstring(details.docstring)
-        doc_esc = _html.escape(cleaned).replace("\n", "<br/>")
-        parts.append(
-            '<hr style="border:0; border-top:1px solid #3A3A3A; ' 'margin:10px 0;"/>'
-        )
-        parts.append(
-            f'<p style="color:#A9A9A9; font-style:italic; '
-            f'font-size:12px; line-height:1.4;">{doc_esc}</p>'
-        )
+        # Keep docstring as blockquote/italic paragraph; escape not needed
+        # because Markdown renders plain text naturally.
+        parts.append(f"---\n\n{cleaned}")
 
     if not parts:
-        # Fallback when only name/kind available.
-        parts.append(
-            '<p style="color:#888888; font-style:italic;">No additional documentation available.</p>'
-        )
+        parts.append("*No additional documentation available.*")
 
-    return "\n".join(parts)
+    return "\n\n".join(parts)
 
 
 class PythonLanguageProvider(BaseLanguageProvider):
@@ -344,23 +295,23 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return None
 
     def get_hover_display(self, text: str, line: int, col: int) -> Optional[tuple]:
-        """Return ``(title_html, body_html)`` for the DocumentationFlyout."""
+        """Return ``(title_markdown, body_markdown)`` for the DocumentationFlyout.
+
+        The flyout renders both fragments through ``QTextDocument.setMarkdown()``
+        so the provider must emit clean Markdown rather than pre-rendered HTML.
+        """
         details = self.get_hover_details(text, line, col)
         if not details:
             return None
 
-        # Rich title: bold name + muted kind.  Flyout extracts kind for badge.
-        kind_str = f"({details.kind})" if details.kind else ""
-        kind_esc = _html.escape(kind_str)
-        name_esc = _html.escape(details.name)
-        title_html = (
-            f'<span style="font-weight:700; font-size:13px; '
-            f'color:#569CD6;">{name_esc}</span> '
-            f'<span style="color:#858585; font-style:italic; '
-            f'font-size:11px;">{kind_esc}</span>'
-        )
-        body_html = _format_hover_html(details)
-        return title_html, body_html
+        # Markdown heading — the flyout strips heading syntax for the header
+        # label but keeps the structure for rendering.
+        if details.kind:
+            title_markdown = f"## {details.name} ({details.kind})"
+        else:
+            title_markdown = f"## {details.name}"
+        body_markdown = _format_hover_markdown(details)
+        return title_markdown, body_markdown
 
     def get_definition_location(
         self, text: str, line: int, col: int

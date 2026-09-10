@@ -151,5 +151,9 @@
             "dpi", "dpcm", "dppx", "x",
             "fr", "cap", "ic"
         ]
-    }
+    },
+    "snippets": [
+        "/Flexbox", "/Grid", "/Animation", "/MediaQuery", "/Transition",
+        "/Button", "/Card", "/Modal"
+    ]
 }

@@ -61,5 +61,9 @@
             "if", "endif", "else", "elseif"
         ],
         "operator": []
-    }
+    },
+    "snippets": [
+        "/BasicTemplate", "/Form", "/Table", "/NavBar", "/Footer",
+        "/Card", "/Modal", "/Head"
+    ]
 }

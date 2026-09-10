@@ -1,293 +1,761 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
 
-HoverController: Non-blocking manager for the Documentation Flyout.
+HoverController: deterministic documentation-hover manager for DreamStudio.
+
+The controller owns the lifetime of DocumentationFlyout.  The important rule
+is that a visible flyout is kept alive only while the cursor is over either:
+
+    1. the symbol that produced the documentation, or
+    2. the flyout itself.
+
+When the cursor leaves both regions a short grace timer is started.  This
+allows the user to move from the editor into the flyout without losing it.
+
+The editor's Leave event is intercepted here because the parent CodeEditor
+must not run an independent 50 ms dismissal timer.  Having two independent
+lifetime controllers was the source of the editor -> flyout race.
 """
 
-from editor import *
+from __future__ import annotations
 
-# IDE-standard hover delay.  500 ms matches IntelliJ IDEA / VS Code
-# defaults: fast enough to feel responsive, slow enough to avoid
-# accidental popups while moving the caret.
+from typing import Optional, Tuple
+
+from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QTimer
+from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QApplication, QWidget
+
+
 _HOVER_DELAY_MS = 500
-# Movement threshold to avoid jitter re-triggering the timer.
 _HOVER_MOVE_THRESHOLD = 3
+
+# Time allowed to cross the gap from the symbol/editor to the flyout.
+_FLYOUT_BRIDGE_MS = 350
+
+# Time allowed after the cursor leaves the active symbol before the card closes.
+_FLYOUT_CLOSE_MS = 180
+
+# The cursor is sampled while the documentation is visible.  This deliberately
+# uses the desktop/global cursor position rather than Qt child enter/leave state.
+_CURSOR_TRACK_MS = 16
 
 
 class HoverController(QObject):
-    """
-    Controller that coordinates mouse hover events, provider resolution,
-    and the DocumentationFlyout lifecycle without blocking the main UI.
-    """
+    """Control symbol hover resolution and DocumentationFlyout lifetime."""
 
     def __init__(self, editor: QWidget, flyout: QWidget, provider=None) -> None:
         super().__init__(editor)
+
         self.editor = editor
         self.flyout = flyout
         self.provider = provider
+        self._viewport = self._get_viewport()
+        self._app = QApplication.instance()
+        self._shutdown = False
+        self._mouse_down = False
+
+        self._target_line = -1
+        self._target_col = -1
+        self._target_position = -1
+        self._token_rect_global = QRect()
+        self._last_editor_pos = QPoint(-10_000, -10_000)
 
         self._hover_timer = QTimer(self)
         self._hover_timer.setSingleShot(True)
         self._hover_timer.setInterval(_HOVER_DELAY_MS)
         self._hover_timer.timeout.connect(self._on_hover_timeout)
 
-        self._last_mouse_pos = QPoint()
-        self._target_line: int = -1
-        self._target_col: int = -1
-        self._last_viewport_pos = QPoint()
+        self._flyout_close_timer = QTimer(self)
+        self._flyout_close_timer.setSingleShot(True)
+        self._flyout_close_timer.timeout.connect(self._on_close_timeout)
 
-        self.editor.installEventFilter(self)
-        if hasattr(self.editor, "viewport") and self.editor.viewport():
-            self.editor.viewport().installEventFilter(self)
+        self._cursor_timer = QTimer(self)
+        self._cursor_timer.setInterval(_CURSOR_TRACK_MS)
+        self._cursor_timer.timeout.connect(self._track_cursor)
 
-        # Application-level events (window deactivate, etc.) are
-        # installed separately so the flyout hides even when the
-        # editor itself does not receive the event.
-        app = QApplication.instance()
-        if app is not None:
-            app.installEventFilter(self)
+        self._editor_watchers = {self.editor}
+        if self._viewport is not None:
+            self._editor_watchers.add(self._viewport)
 
-        self._orig_window = None
-        if hasattr(self.editor, "window") and self.editor.window():
+        # Watch the flyout itself so clicks / hover inside the docs card
+        # never destroy it.  This is the hook that lets users embed
+        # interactive widgets (buttons, links, custom controls) inside the
+        # flyout without losing it on interaction.
+        try:
+            self.flyout.installEventFilter(self)
+        except Exception:
+            pass
+        # The browser and header are children of the flyout – clicks there
+        # would otherwise bypass the flyout filter because the watched
+        # object is the child widget itself.
+        for _child_name in ("browser", "_header"):
             try:
-                win = self.editor.window()
-                self._orig_window = win
-                win.installEventFilter(self)
+                child = getattr(self.flyout, _child_name, None)
+                if child is not None:
+                    child.installEventFilter(self)
+                    # QTextBrowser viewport is the actual hit-test widget
+                    vp = getattr(child, "viewport", None)
+                    if callable(vp):
+                        vp().installEventFilter(self)  # type: ignore[operator]
             except Exception:
                 pass
 
-        # Auto-cleanup when the editor is destroyed (tab closed).
+        # The controller deliberately watches both the editor and the whole
+        # application.  The application filter is only used for cursor state;
+        # it never tries to resolve symbols from widgets outside the editor.
+        for watched in self._editor_watchers:
+            watched.installEventFilter(self)
+        if self._app is not None:
+            self._app.installEventFilter(self)
+
         try:
             self.editor.destroyed.connect(self.shutdown)
         except Exception:
             pass
-
-        if hasattr(self.editor, "verticalScrollBar"):
-            self.editor.verticalScrollBar().valueChanged.connect(
-                self._on_editor_activity
-            )
-        if hasattr(self.editor, "horizontalScrollBar"):
-            self.editor.horizontalScrollBar().valueChanged.connect(
-                self._on_editor_activity
-            )
-
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        etype = event.type()
-
-        if etype == QEvent.Type.MouseMove:
-            pos = event.pos()
-            viewport_pos = self._to_viewport_pos(watched, pos)
-            if (viewport_pos - self._last_viewport_pos).manhattanLength() > _HOVER_MOVE_THRESHOLD:
-                self._last_viewport_pos = viewport_pos
-                self._last_mouse_pos = viewport_pos
-                self._on_mouse_moved()
-
-        elif etype in (
-            QEvent.Type.MouseButtonPress,
-            QEvent.Type.MouseButtonDblClick,
-            QEvent.Type.MouseButtonRelease,
-            QEvent.Type.Wheel,
-            QEvent.Type.KeyPress,
-            QEvent.Type.KeyRelease,
-            QEvent.Type.FocusOut,
-        ):
-            self._on_editor_activity()
-
-        elif etype in (
-            QEvent.Type.Leave,
-            QEvent.Type.Hide,
-            QEvent.Type.Close,
-            QEvent.Type.WindowDeactivate,
-            QEvent.Type.ApplicationDeactivate,
-            QEvent.Type.WindowStateChange,
-        ):
-            self._on_hard_activity()
-
-        return super().eventFilter(watched, event)
-
-    def _to_viewport_pos(self, watched: QObject, pos: QPoint) -> QPoint:
-        """Convert *pos* (in *watched* coords) to viewport coords."""
         try:
-            viewport = self.editor.viewport() if hasattr(self.editor, "viewport") else None
-            if viewport is not None and watched is not viewport:
-                global_pt = watched.mapToGlobal(pos) if hasattr(watched, "mapToGlobal") else pos
-                return viewport.mapFromGlobal(global_pt)
+            self.flyout.destroyed.connect(self.shutdown)
         except Exception:
             pass
-        return pos
 
-    def _on_mouse_moved(self) -> None:
-        """Triggered whenever mouse moves in the editor."""
-        self._hover_timer.stop()
-
-        line, col = self._get_line_col_at_pos(self._last_mouse_pos)
-        if line >= 0 and col >= 0:
-            self._target_line = line
-            self._target_col = col
-            self._hover_timer.start()
-        else:
-            self._dismiss_flyout_if_needed()
-
-    def _on_editor_activity(self) -> None:
-        """Triggered on scroll, keypress, or click (soft dismiss)."""
-        self._hover_timer.stop()
-        self._dismiss_flyout_if_needed()
-
-    def _on_hard_activity(self) -> None:
-        """Triggered on hide/tab-change/minimize (hard dismiss, ignores pin)."""
-        self._hover_timer.stop()
-        if self.flyout and self.flyout.isVisible():
-            self.flyout.dismiss(force=True)
-
-    def _dismiss_flyout_if_needed(self) -> None:
-        """Dismiss flyout unless mouse is inside or window is pinned."""
-        if self.flyout and self.flyout.isVisible():
-            self.flyout.dismiss(force=False)
-
-    def _get_line_col_at_pos(self, pos: QPoint):
-        """Extract line and column from QScintilla mouse point."""
-        try:
-            # Use CLOSE variant when available to avoid snapping to
-            # distant text; fall back to POSITIONFROMPOINT.
-            sci_close = getattr(self.editor, "SCI_POSITIONFROMPOINTCLOSE", None)
-            if sci_close is not None:
-                position = self.editor.SendScintilla(sci_close, pos.x(), pos.y())
-            else:
-                position = self.editor.SendScintilla(
-                    self.editor.SCI_POSITIONFROMPOINT, pos.x(), pos.y()
-                )
-        except Exception:
-            return -1, -1
-        if position < 0:
-            return -1, -1
-        try:
-            line, col = self.editor.lineIndexFromPosition(position)
-            return line, col
-        except Exception:
-            # Fallback to raw Scintilla queries.
+        for method_name in ("verticalScrollBar", "horizontalScrollBar"):
             try:
-                line = self.editor.SendScintilla(self.editor.SCI_LINEFROMPOSITION, position)
-                col = self.editor.SendScintilla(self.editor.SCI_GETCOLUMN, position)
-                return line, col
+                bar = getattr(self.editor, method_name)()
+                if bar is not None:
+                    bar.valueChanged.connect(self._on_editor_scroll)
             except Exception:
-                return -1, -1
+                pass
+
+    # ------------------------------------------------------------------
+    # Event filtering
+    # ------------------------------------------------------------------
+
+    def _event_global_pos(self, event: QEvent) -> Optional[QPoint]:
+        """Best-effort extraction of a global cursor position from *event*."""
+        try:
+            # QMouseEvent / QWheelEvent
+            gp = getattr(event, "globalPosition", None)
+            if callable(gp):
+                return gp().toPoint()
+            gp2 = getattr(event, "globalPos", None)
+            if callable(gp2):
+                return gp2()
+            pos = getattr(event, "pos", None)
+            if callable(pos):
+                # Fallback: map local pos via watched widget if possible
+                return None
+        except Exception:
+            pass
+        return None
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if self._shutdown:
+            return False
+
+        event_type = event.type()
+
+        # ------------------------------------------------------------------
+        # Flyout interaction – clicks / hover inside the docs card must never
+        # destroy it.  This keeps the card alive for complex embedded widgets.
+        # Any mouse interaction whose global position is inside the flyout
+        # (even if the watched object is a deep child not directly filtered,
+        # e.g. QToolButton, QScrollBar) must reset the close timer and never
+        # hide the card.
+        # ------------------------------------------------------------------
+        if self.flyout.isVisible() and event_type in (
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.MouseButtonRelease,
+            QEvent.Type.MouseButtonDblClick,
+            QEvent.Type.Wheel,
+        ):
+            gpos = self._event_global_pos(event)
+            if gpos is None:
+                try:
+                    gpos = QCursor.pos()
+                except Exception:
+                    gpos = None
+            if gpos is not None and self._is_point_in_flyout(gpos):
+                self._flyout_close_timer.stop()
+                self._cursor_timer.start()
+                return False
+            # Also cover hover without event pos (e.g. child not filtered)
+            try:
+                if self._is_cursor_over_flyout():
+                    self._flyout_close_timer.stop()
+                    return False
+            except Exception:
+                pass
+
+        # Safe ancestor check – only QWidgets have isAncestorOf
+        is_flyout_related = False
+        try:
+            if watched is self.flyout:
+                is_flyout_related = True
+            elif isinstance(watched, QWidget) and self.flyout.isAncestorOf(watched):  # type: ignore[arg-type]
+                is_flyout_related = True
+        except Exception:
+            is_flyout_related = False
+
+        if is_flyout_related:
+            if event_type in (
+                QEvent.Type.MouseButtonPress,
+                QEvent.Type.MouseButtonRelease,
+                QEvent.Type.MouseButtonDblClick,
+                QEvent.Type.Enter,
+                QEvent.Type.HoverEnter,
+            ):
+                # Any interaction inside the flyout resets the close countdown.
+                self._flyout_close_timer.stop()
+                if self.flyout.isVisible():
+                    self._cursor_timer.start()
+                return False
+            if event_type == QEvent.Type.Leave:
+                # Let the global cursor tracker decide; do not hide immediately.
+                self._track_cursor()
+                return False
+            if event_type == QEvent.Type.Wheel:
+                # Scrolling inside the docs should not dismiss it.
+                self._flyout_close_timer.stop()
+                return False
+            if event_type == QEvent.Type.FocusIn:
+                self._flyout_close_timer.stop()
+                return False
+            return False
+
+        if event_type == QEvent.Type.MouseMove:
+            self._track_cursor()
+
+            if watched in self._editor_watchers:
+                # Once the flyout exists, a mouse move in the editor is no
+                # longer a reason to blindly keep it open.  The current symbol
+                # rectangle decides whether it remains open.
+                if not self._mouse_down:
+                    self._handle_editor_mouse_move(watched, event)
+            return False
+
+        if watched in self._editor_watchers:
+            if event_type in (
+                QEvent.Type.MouseButtonPress,
+                QEvent.Type.MouseButtonDblClick,
+            ):
+                self._mouse_down = True
+                self._hide_unpinned()
+                return False
+
+            if event_type == QEvent.Type.MouseButtonRelease:
+                self._mouse_down = False
+                return False
+
+            if event_type in (QEvent.Type.KeyPress, QEvent.Type.KeyRelease):
+                self._hover_timer.stop()
+                self._hide_unpinned()
+                return False
+
+            if event_type == QEvent.Type.Leave:
+                self._on_editor_leave(watched)
+                # Crucial: stop CodeEditor's independent leaveEvent dismissal.
+                # The parent currently has a QTimer.singleShot(50, ...); that
+                # race can hide the flyout while the pointer is entering it.
+                if watched is self.editor:
+                    return True
+                return False
+
+            if event_type == QEvent.Type.FocusOut:
+                self._hover_timer.stop()
+                return False
+
+            if event_type == QEvent.Type.Wheel:
+                self._on_editor_scroll()
+                return False
+
+            if event_type in (QEvent.Type.Hide, QEvent.Type.Close):
+                self._hide_unpinned(force=True)
+                self._cursor_timer.stop()
+                return False
+
+        # Do not use WindowDeactivate/ApplicationDeactivate at all.  The flyout
+        # is a separate Tool window and activating it is a valid interaction.
+        return False
+
+    # ------------------------------------------------------------------
+    # Editor hover handling
+    # ------------------------------------------------------------------
+
+    def _handle_editor_mouse_move(self, watched: QObject, event: QEvent) -> None:
+        try:
+            local_pos = event.position().toPoint()
+        except AttributeError:
+            local_pos = event.pos()
+
+        viewport_pos = self._to_viewport_pos(watched, local_pos)
+        if (viewport_pos - self._last_editor_pos).manhattanLength() <= _HOVER_MOVE_THRESHOLD:
+            return
+
+        self._last_editor_pos = viewport_pos
+
+        line, col = self._get_line_col_at_pos(viewport_pos)
+        if line < 0 or col < 0:
+            self._target_line = -1
+            self._target_col = -1
+            self._target_position = -1
+            self._token_rect_global = QRect()
+            self._hover_timer.stop()
+            return
+
+        # If a flyout is already visible, moving away from its symbol starts
+        # the short close countdown.  A new symbol can still start the normal
+        # 500 ms hover resolution timer.
+        if self.flyout.isVisible() and not self._flyout_is_pinned():
+            if self._is_cursor_over_flyout() or self._is_cursor_over_target_token():
+                self._flyout_close_timer.stop()
+            else:
+                self._flyout_close_timer.start(_FLYOUT_CLOSE_MS)
+
+        # Resolve the currently hovered symbol normally.
+        self._target_line = line
+        self._target_col = col
+        self._update_target_position(viewport_pos)
+
+        self._hover_timer.stop()
+        self._hover_timer.start(_HOVER_DELAY_MS)
+
+    def _on_editor_leave(self, watched: QObject) -> None:
+        self._hover_timer.stop()
+
+        if not self.flyout.isVisible() or self._flyout_is_pinned():
+            return
+
+        # Do not call hide() here.  The next global cursor sample determines
+        # whether the pointer reached the flyout during this bridge window.
+        self._flyout_close_timer.start(_FLYOUT_BRIDGE_MS)
+        self._cursor_timer.start()
+        self._track_cursor()
+
+    def _on_editor_scroll(self, *_args) -> None:
+        self._hover_timer.stop()
+        self._target_position = -1
+        self._token_rect_global = QRect()
+        self._hide_unpinned()
+
+    # ------------------------------------------------------------------
+    # Cursor state machine
+    # ------------------------------------------------------------------
+
+    def _track_cursor(self) -> None:
+        if self._shutdown:
+            self._cursor_timer.stop()
+            return
+
+        if not self.flyout.isVisible():
+            self._cursor_timer.stop()
+            self._flyout_close_timer.stop()
+            return
+
+        if self._flyout_is_pinned():
+            self._flyout_close_timer.stop()
+            return
+
+        cursor = QCursor.pos()
+
+        # Highest priority: being over the documentation itself always keeps
+        # it alive, including every child of the QTextBrowser.
+        if self._is_point_in_flyout(cursor):
+            self._flyout_close_timer.stop()
+            return
+
+        # Being over the symbol that produced the card also keeps it alive.
+        # This is what allows small cursor movements on a token.
+        if self._is_point_in_target_token(cursor):
+            self._flyout_close_timer.stop()
+            return
+
+        # Anywhere else is a departure.  The short close period is the bridge
+        # window when crossing toward the flyout and the normal close grace when
+        # the pointer has simply moved elsewhere in the editor/application.
+        if not self._flyout_close_timer.isActive():
+            self._flyout_close_timer.start(_FLYOUT_CLOSE_MS)
+
+    def _on_close_timeout(self) -> None:
+        if self._shutdown or not self.flyout.isVisible():
+            self._cursor_timer.stop()
+            return
+        if self._flyout_is_pinned():
+            return
+
+        cursor = QCursor.pos()
+        if self._is_point_in_flyout(cursor):
+            return
+        if self._is_point_in_target_token(cursor):
+            return
+
+        self._hide_unpinned()
+        self._cursor_timer.stop()
+
+    # ------------------------------------------------------------------
+    # Documentation resolution / display
+    # ------------------------------------------------------------------
 
     def _on_hover_timeout(self) -> None:
-        """Fires after the hover delay when mouse comes to rest on code."""
+        if self._shutdown:
+            return
+
         if self._target_line < 0 or self._target_col < 0:
             return
 
-        text = self.editor.text()
+        # A delayed hover result is valid only while the pointer is still in
+        # the editor.  This prevents a stale result from appearing after the
+        # user has already moved into the flyout or elsewhere.
+        if not self._point_inside_editor(QCursor.pos()):
+            return
+
+        try:
+            text = self.editor.text()
+        except Exception:
+            return
         if not text:
             return
 
-        title_html, body_html = self._resolve_hover_content(
-            text, self._target_line, self._target_col
+        result = self._resolve_hover_content(
+            text,
+            self._target_line,
+            self._target_col,
         )
-
-        if not title_html or not body_html:
+        if not result:
             return
 
-        self.flyout.set_documentation(title_html, body_html)
-
         try:
-            pos = self.editor.positionFromLineIndex(self._target_line, self._target_col)
-        except Exception:
-            # Fallback: compute from line start + column offset.
-            line_pos = self.editor.SendScintilla(
-                self.editor.SCI_POSITIONFROMLINE, self._target_line
+            title_markdown, body_markdown = result
+        except (TypeError, ValueError):
+            return
+
+        if not title_markdown and not body_markdown:
+            return
+
+        # Replace content before positioning so width/height are final before
+        # hit-testing begins.
+        try:
+            self.flyout.set_documentation(
+                title_markdown or "Documentation",
+                body_markdown or "",
             )
-            pos = line_pos + max(0, self._target_col)
-
-        x = self.editor.SendScintilla(
-            self.editor.SCI_POINTXFROMPOSITION, 0, pos
-        )
-        y = self.editor.SendScintilla(
-            self.editor.SCI_POINTYFROMPOSITION, 0, pos
-        )
-        line_height = self.editor.SendScintilla(
-            self.editor.SCI_TEXTHEIGHT, self._target_line
-        )
-
-        # Position just below the token's line.
-        global_pt = self.editor.viewport().mapToGlobal(QPoint(x, y + line_height + 4))
-        # Also try mapping via editor for margin correctness.
-        if global_pt.isNull() or x < 0:
-            global_pt = self.editor.mapToGlobal(QPoint(x, y + line_height + 4))
-
-        # Clamp to screen geometry so the flyout never overflows.
-        try:
-            screen = QApplication.screenAt(global_pt)
-            if screen is None:
-                screen = QApplication.primaryScreen()
-            if screen is not None:
-                avail = screen.availableGeometry()
-                fw = self.flyout.width() if hasattr(self.flyout, "width") else 480
-                fh = self.flyout.height() if hasattr(self.flyout, "height") else 260
-                # Keep inside horizontal bounds.
-                if global_pt.x() + fw > avail.right() - 8:
-                    global_pt.setX(max(avail.left() + 8, avail.right() - fw - 8))
-                # Flip above if not enough space below.
-                if global_pt.y() + fh > avail.bottom() - 8:
-                    above_y = self.editor.viewport().mapToGlobal(QPoint(x, y - fh - 4)).y()
-                    if above_y >= avail.top() + 8:
-                        global_pt.setY(above_y)
-                    else:
-                        global_pt.setY(max(avail.top() + 8, avail.bottom() - fh - 8))
         except Exception:
-            pass
+            return
 
-        self.flyout.move(global_pt)
-        self.flyout.show()
+        anchor = self._position_flyout_anchor(
+            self._target_line,
+            self._target_col,
+        )
+        if anchor is None:
+            return
+
+        self._update_target_token_rect()
+
         try:
-            self.flyout.raise_()
+            self.flyout.show_at(anchor)
         except Exception:
-            pass
+            return
+
+        self._cursor_timer.start()
+        self._track_cursor()
 
     def _resolve_hover_content(self, text: str, line: int, col: int):
-        """Delegate formatting entirely to the language provider."""
-        if not self.provider or not hasattr(self.provider, "get_hover_display"):
-            return None, None
+        resolver = getattr(self.provider, "get_hover_display", None)
+        if resolver is None:
+            return None
+        try:
+            return resolver(text, line, col)
+        except Exception:
+            return None
+
+    # ------------------------------------------------------------------
+    # QScintilla coordinates
+    # ------------------------------------------------------------------
+
+    def _to_viewport_pos(self, watched: QObject, pos: QPoint) -> QPoint:
+        if self._viewport is None or watched is self._viewport:
+            return pos
+        try:
+            return self._viewport.mapFromGlobal(watched.mapToGlobal(pos))
+        except Exception:
+            return pos
+
+    def _get_line_col_at_pos(self, pos: QPoint) -> Tuple[int, int]:
+        try:
+            sci_close = getattr(self.editor, "SCI_POSITIONFROMPOINTCLOSE", None)
+            if sci_close is not None:
+                position = self.editor.SendScintilla(
+                    sci_close,
+                    pos.x(),
+                    pos.y(),
+                )
+            else:
+                position = self.editor.SendScintilla(
+                    self.editor.SCI_POSITIONFROMPOINT,
+                    pos.x(),
+                    pos.y(),
+                )
+        except Exception:
+            return -1, -1
+
+        if position is None or int(position) < 0:
+            return -1, -1
+
+        self._target_position = int(position)
 
         try:
-            result = self.provider.get_hover_display(text, line, col)
+            line, col = self.editor.lineIndexFromPosition(position)
+            return int(line), int(col)
         except Exception:
-            return None, None
+            pass
 
-        if not result:
-            return None, None
+        try:
+            line = self.editor.SendScintilla(
+                self.editor.SCI_LINEFROMPOSITION,
+                position,
+            )
+            col = self.editor.SendScintilla(
+                self.editor.SCI_GETCOLUMN,
+                position,
+            )
+            return int(line), int(col)
+        except Exception:
+            return -1, -1
 
-        return result
+    def _position_from_line_col(self, line: int, col: int) -> Optional[int]:
+        try:
+            return int(self.editor.positionFromLineIndex(line, col))
+        except Exception:
+            try:
+                base = self.editor.SendScintilla(
+                    self.editor.SCI_POSITIONFROMLINE,
+                    line,
+                )
+                return int(base) + max(0, int(col))
+            except Exception:
+                return None
+
+    def _position_flyout_anchor(self, line: int, col: int) -> Optional[QPoint]:
+        position = self._position_from_line_col(line, col)
+        if position is None:
+            return None
+
+        self._target_position = position
+        try:
+            x = int(self.editor.SendScintilla(
+                self.editor.SCI_POINTXFROMPOSITION,
+                0,
+                position,
+            ))
+            y = int(self.editor.SendScintilla(
+                self.editor.SCI_POINTYFROMPOSITION,
+                0,
+                position,
+            ))
+            line_height = max(1, int(self.editor.SendScintilla(
+                self.editor.SCI_TEXTHEIGHT,
+                line,
+            )))
+        except Exception:
+            return None
+
+        if x < 0 or y < 0 or self._viewport is None:
+            return None
+
+        try:
+            return self._viewport.mapToGlobal(
+                QPoint(x, y + line_height + 6)
+            )
+        except Exception:
+            return None
+
+    def _update_target_position(self, viewport_pos: QPoint) -> None:
+        position = self.editor_position_at(viewport_pos)
+        if position is not None:
+            self._target_position = position
+            self._update_target_token_rect()
+
+    def editor_position_at(self, pos: QPoint) -> Optional[int]:
+        try:
+            sci_close = getattr(self.editor, "SCI_POSITIONFROMPOINTCLOSE", None)
+            command = sci_close if sci_close is not None else self.editor.SCI_POSITIONFROMPOINT
+            value = self.editor.SendScintilla(command, pos.x(), pos.y())
+            value = int(value)
+            return value if value >= 0 else None
+        except Exception:
+            return None
+
+    def _update_target_token_rect(self) -> None:
+        self._token_rect_global = QRect()
+        if self._viewport is None or self._target_position < 0:
+            return
+
+        try:
+            start = int(self.editor.SendScintilla(
+                self.editor.SCI_WORDSTARTPOSITION,
+                self._target_position,
+                1,
+            ))
+            end = int(self.editor.SendScintilla(
+                self.editor.SCI_WORDENDPOSITION,
+                self._target_position,
+                1,
+            ))
+            if end <= start:
+                end = start + 1
+
+            x1 = int(self.editor.SendScintilla(
+                self.editor.SCI_POINTXFROMPOSITION,
+                0,
+                start,
+            ))
+            x2 = int(self.editor.SendScintilla(
+                self.editor.SCI_POINTXFROMPOSITION,
+                0,
+                end,
+            ))
+            line = int(self.editor.SendScintilla(
+                self.editor.SCI_LINEFROMPOSITION,
+                self._target_position,
+            ))
+            y = int(self.editor.SendScintilla(
+                self.editor.SCI_POINTYFROMPOSITION,
+                0,
+                start,
+            ))
+            line_height = max(1, int(self.editor.SendScintilla(
+                self.editor.SCI_TEXTHEIGHT,
+                line,
+            )))
+
+            left = min(x1, x2) - 2
+            right = max(x1, x2) + 2
+            rect = QRect(
+                left,
+                max(0, y - 1),
+                max(3, right - left),
+                line_height + 2,
+            )
+            top_left = self._viewport.mapToGlobal(rect.topLeft())
+            bottom_right = self._viewport.mapToGlobal(rect.bottomRight())
+            self._token_rect_global = QRect(top_left, bottom_right).normalized()
+        except Exception:
+            self._token_rect_global = QRect()
+
+    # ------------------------------------------------------------------
+    # Hit testing
+    # ------------------------------------------------------------------
+
+    def _is_point_in_flyout(self, global_pos: QPoint) -> bool:
+        try:
+            return bool(self.flyout.isVisible() and self.flyout.frameGeometry().contains(global_pos))
+        except Exception:
+            try:
+                return bool(self.flyout.rect().contains(self.flyout.mapFromGlobal(global_pos)))
+            except Exception:
+                return False
+
+    def _is_cursor_over_flyout(self) -> bool:
+        return self._is_point_in_flyout(QCursor.pos())
+
+    def _is_point_in_target_token(self, global_pos: QPoint) -> bool:
+        return bool(not self._token_rect_global.isNull() and self._token_rect_global.contains(global_pos))
+
+    def _is_cursor_over_target_token(self) -> bool:
+        return self._is_point_in_target_token(QCursor.pos())
+
+    def _point_inside_editor(self, global_pos: QPoint) -> bool:
+        if self._viewport is not None:
+            try:
+                if self._viewport.isVisible() and self._viewport.rect().contains(
+                    self._viewport.mapFromGlobal(global_pos)
+                ):
+                    return True
+            except Exception:
+                pass
+
+        try:
+            return bool(self.editor.isVisible() and self.editor.rect().contains(
+                self.editor.mapFromGlobal(global_pos)
+            ))
+        except Exception:
+            return False
+
+    # ------------------------------------------------------------------
+    # Flyout lifetime
+    # ------------------------------------------------------------------
+
+    def _hide_unpinned(self, force: bool = False) -> None:
+        self._flyout_close_timer.stop()
+        self._hover_timer.stop()
+        self._target_line = -1
+        self._target_col = -1
+        self._target_position = -1
+        self._token_rect_global = QRect()
+
+        if not self.flyout.isVisible():
+            return
+        if force or not self._flyout_is_pinned():
+            try:
+                self.flyout.dismiss(force=True)
+            except Exception:
+                try:
+                    self.flyout.hide()
+                except Exception:
+                    pass
+
+    def _flyout_is_pinned(self) -> bool:
+        try:
+            return bool(self.flyout.is_pinned)
+        except Exception:
+            return False
+
+    # ------------------------------------------------------------------
+    # Misc
+    # ------------------------------------------------------------------
+
+    def _get_viewport(self) -> Optional[QWidget]:
+        try:
+            method = getattr(self.editor, "viewport", None)
+            if callable(method):
+                return method()
+        except Exception:
+            pass
+        return None
 
     def shutdown(self) -> None:
-        """Stop timers and remove event filters."""
+        if self._shutdown:
+            return
+        self._shutdown = True
+
+        self._hover_timer.stop()
+        self._flyout_close_timer.stop()
+        self._cursor_timer.stop()
+
+        for watched in tuple(self._editor_watchers):
+            try:
+                watched.removeEventFilter(self)
+            except Exception:
+                pass
+
         try:
-            self._hover_timer.stop()
+            self.flyout.removeEventFilter(self)
         except Exception:
             pass
-        try:
-            self.editor.removeEventFilter(self)
-        except Exception:
-            pass
-        try:
-            vp = self.editor.viewport() if hasattr(self.editor, "viewport") else None
-            if vp is not None:
-                vp.removeEventFilter(self)
-        except Exception:
-            pass
-        try:
-            app = QApplication.instance()
-            if app is not None:
-                app.removeEventFilter(self)
-        except Exception:
-            pass
-        try:
-            win = getattr(self, "_orig_window", None) or self.editor.window()
-            if win is not None:
-                win.removeEventFilter(self)
-            # Also try current window if different
-            cur_win = self.editor.window()
-            if cur_win is not None and cur_win is not win:
-                cur_win.removeEventFilter(self)
-        except Exception:
-            pass
+        for _child_name in ("browser", "_header"):
+            try:
+                child = getattr(self.flyout, _child_name, None)
+                if child is not None:
+                    child.removeEventFilter(self)
+                    vp = getattr(child, "viewport", None)
+                    if callable(vp):
+                        try:
+                            vp().removeEventFilter(self)  # type: ignore[operator]
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        if self._app is not None:
+            try:
+                self._app.removeEventFilter(self)
+            except Exception:
+                pass

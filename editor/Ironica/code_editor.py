@@ -20,7 +20,6 @@ from editor.Ironica.regex import *
 
 from fonts.font_strapper import Fonts
 
-
 logger = logging.getLogger(__name__)
 SCI_SETDEFAULTFOLDDISPLAYTEXT = 2722
 SCI_SETFOLDEXPANDEDTEXT = 2700
@@ -147,7 +146,9 @@ class CodeEditor(QsciScintilla):
         self._paused_line = -1
 
         self.verticalScrollBar().valueChanged.connect(self._update_debug_stack_position)
-        self.horizontalScrollBar().valueChanged.connect(self._update_debug_stack_position)
+        self.horizontalScrollBar().valueChanged.connect(
+            self._update_debug_stack_position
+        )
 
         ###############################################
         # Snippets Management
@@ -164,7 +165,9 @@ class CodeEditor(QsciScintilla):
 
         self.textChanged.connect(self.update_visible_color_indicators)
         self._init_color_debouncer()
-        self.verticalScrollBar().valueChanged.connect(self.update_visible_color_indicators)
+        self.verticalScrollBar().valueChanged.connect(
+            self.update_visible_color_indicators
+        )
 
         # Language state — single source of truth.
         self.current_lang: Optional[str] = None
@@ -278,7 +281,10 @@ class CodeEditor(QsciScintilla):
             self._schedule_fold_recompute()
         if self.current_provider:
             provider_cls = type(self.current_provider)
-            if provider_cls.get_semantic_highlights is not BaseLanguageProvider.get_semantic_highlights:
+            if (
+                provider_cls.get_semantic_highlights
+                is not BaseLanguageProvider.get_semantic_highlights
+            ):
                 self._import_highlight_timer.start()
 
         if self._is_replacing:
@@ -291,7 +297,9 @@ class CodeEditor(QsciScintilla):
             if line_text.endswith(trigger):
                 QTimer.singleShot(
                     0,
-                    lambda t=trigger, c=content, l=line, cl=col: self._expand_snippet(l, cl, t, c),
+                    lambda t=trigger, c=content, l=line, cl=col: self._expand_snippet(
+                        l, cl, t, c
+                    ),
                 )
                 break
 
@@ -354,7 +362,9 @@ class CodeEditor(QsciScintilla):
         formatted_lines = content.split("\n")
         if len(formatted_lines) > 1:
             indented_content = (
-                formatted_lines[0] + "\n" + "\n".join(indentation + l for l in formatted_lines[1:])
+                formatted_lines[0]
+                + "\n"
+                + "\n".join(indentation + l for l in formatted_lines[1:])
             )
         else:
             indented_content = formatted_lines[0]
@@ -469,7 +479,9 @@ class CodeEditor(QsciScintilla):
                 slot = next_slot % _SLOTS
                 colour_to_slot[colour_hex] = slot
                 next_slot += 1
-                self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE, slot, QsciScintilla.INDIC_TEXTFORE)
+                self.SendScintilla(
+                    QsciScintilla.SCI_INDICSETSTYLE, slot, QsciScintilla.INDIC_TEXTFORE
+                )
                 self.SendScintilla(
                     QsciScintilla.SCI_INDICSETFORE,
                     slot,
@@ -530,7 +542,7 @@ class CodeEditor(QsciScintilla):
     ###############################################
 
     def _setup_hover_engine(self) -> None:
-        """Create and attach the DocumentationFlyout + HoverController."""
+        """Create and attach the DocumentationFlyout."""
         if not self.current_provider:
             return
         if not hasattr(self.current_provider, "get_hover_display"):
@@ -540,6 +552,7 @@ class CodeEditor(QsciScintilla):
         self._hover_controller = HoverController(
             editor=self, flyout=self._hover_flyout, provider=self.current_provider
         )
+
         self._hover_flyout.jump_to_source_requested.connect(
             lambda: self.execute_goto_definition(
                 self._hover_controller._target_line,
@@ -606,7 +619,9 @@ class CodeEditor(QsciScintilla):
         border = bg.lighter(150) if bg.lightness() < 128 else bg.darker(130)
         return bg, text, mid, border
 
-    def setup_symbol_margin(self, margin: int, *marker_ids: int, width: int = 18) -> None:
+    def setup_symbol_margin(
+        self, margin: int, *marker_ids: int, width: int = 18
+    ) -> None:
         self.setMarginType(margin, QsciScintilla.MarginType.SymbolMargin)
         self.setMarginSensitivity(margin, True)
         self.setMarginWidth(margin, width)
@@ -654,7 +669,9 @@ class CodeEditor(QsciScintilla):
         )
 
         # Colorwheel Margin
-        color_marker_ids = list(range(self.COLOR_MARKER_START, self.COLOR_MARKER_END + 1))
+        color_marker_ids = list(
+            range(self.COLOR_MARKER_START, self.COLOR_MARKER_END + 1)
+        )
         self.setup_symbol_margin(self.COLOR_MARGIN, *color_marker_ids)
 
         # Left padding offset
@@ -733,7 +750,10 @@ class CodeEditor(QsciScintilla):
         was_expanded = bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
         full_text = f"(... +{import_count} imports)"
         self.SendScintilla(SCI_SETFOLDEXPANDEDTEXT, line, full_text.encode("utf-8"))
-        if bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line)) != was_expanded:
+        if (
+            bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
+            != was_expanded
+        ):
             self.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, line)
         self._fold_display_text_cache[line] = import_count
 
@@ -763,7 +783,11 @@ class CodeEditor(QsciScintilla):
 
     def set_wrap_mode(self, enabled: bool = False) -> None:
         """Enable or disable word wrapping."""
-        self.setWrapMode(QsciScintilla.WrapMode.WrapNone if not enabled else QsciScintilla.WrapMode.WrapWord)
+        self.setWrapMode(
+            QsciScintilla.WrapMode.WrapNone
+            if not enabled
+            else QsciScintilla.WrapMode.WrapWord
+        )
         if not enabled:
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
@@ -805,8 +829,12 @@ class CodeEditor(QsciScintilla):
             self.BRACKET_HL_SLOT,
             self._scintilla_rgb(match),
         )
-        self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_HL_SLOT, match_alpha)
-        self.SendScintilla(QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_HL_SLOT, outline)
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_HL_SLOT, match_alpha
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_HL_SLOT, outline
+        )
         self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_HL_SLOT, 0)
 
         self.SendScintilla(
@@ -819,8 +847,12 @@ class CodeEditor(QsciScintilla):
             self.BRACKET_BAD_SLOT,
             self._scintilla_rgb(bad),
         )
-        self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_BAD_SLOT, bad_alpha)
-        self.SendScintilla(QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_BAD_SLOT, outline)
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_BAD_SLOT, bad_alpha
+        )
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_BAD_SLOT, outline
+        )
         self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_BAD_SLOT, 0)
 
     def _update_brace_highlight(self, *args) -> None:
@@ -857,12 +889,16 @@ class CodeEditor(QsciScintilla):
 
         match = self.SendScintilla(QsciScintilla.SCI_BRACEMATCH, active, 0)
         if match >= 0:
-            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_HL_SLOT)
+            self.SendScintilla(
+                QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_HL_SLOT
+            )
             for p in (active, match):
                 self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, p, 1)
             self._bracket_hl_ranges = [(active, 1), (match, 1)]
         else:
-            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT)
+            self.SendScintilla(
+                QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT
+            )
             self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, active, 1)
             self._bracket_hl_ranges = [(active, 1)]
 
@@ -914,7 +950,9 @@ class CodeEditor(QsciScintilla):
             self.OCCURRENCE_HL_SLOT,
             self._scintilla_rgb(hex_color),
         )
-        self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, self.OCCURRENCE_HL_SLOT, alpha)
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICSETALPHA, self.OCCURRENCE_HL_SLOT, alpha
+        )
         self.SendScintilla(
             QsciScintilla.SCI_INDICSETOUTLINEALPHA,
             self.OCCURRENCE_HL_SLOT,
@@ -933,7 +971,9 @@ class CodeEditor(QsciScintilla):
         ranges = getattr(self, "_occurrence_ranges", None)
         if not ranges:
             return
-        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT)
+        self.SendScintilla(
+            QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT
+        )
         for pos, length in ranges:
             self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, pos, length)
         self._occurrence_ranges = []
@@ -987,11 +1027,15 @@ class CodeEditor(QsciScintilla):
             line_text = self.text(line)
             if sel not in line_text:
                 continue
-            line_start_byte = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
+            line_start_byte = self.SendScintilla(
+                QsciScintilla.SCI_POSITIONFROMLINE, line
+            )
             if line_start_byte == -1:
                 continue
             for match in regex.finditer(line_text):
-                byte_start = line_start_byte + len(line_text[: match.start()].encode("utf-8"))
+                byte_start = line_start_byte + len(
+                    line_text[: match.start()].encode("utf-8")
+                )
                 byte_len = len(match.group(0).encode("utf-8"))
                 if byte_start >= sel_start and byte_start + byte_len <= sel_end:
                     continue
@@ -1003,7 +1047,9 @@ class CodeEditor(QsciScintilla):
 
         if not ranges:
             return
-        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT)
+        self.SendScintilla(
+            QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT
+        )
         for pos, length in ranges:
             self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, pos, length)
         self._occurrence_ranges = ranges
@@ -1065,7 +1111,45 @@ class CodeEditor(QsciScintilla):
         super().hideEvent(event)
 
     def focusOutEvent(self, event) -> None:
-        """Dismiss hover flyout when the editor loses focus."""
+        """Dismiss hover flyout when the editor loses focus.
+
+        If the new focus belongs to the documentation flyout (or any of
+        its children) the flyout is kept alive – otherwise any click
+        inside the docs card would immediately destroy it and block
+        richer interactive designs.
+        """
+        try:
+            flyout = getattr(self, "_hover_flyout", None)
+            if flyout is not None and flyout.isVisible():
+                # Focus moved into the flyout?
+                try:
+                    new_focus = QApplication.focusWidget()
+                    if new_focus is not None and (
+                        new_focus is flyout or flyout.isAncestorOf(new_focus)
+                    ):
+                        super().focusOutEvent(event)
+                        return
+                except Exception:
+                    pass
+                # Mouse still over the flyout (click without focus change)?
+                try:
+                    if flyout.underMouse() or flyout.contains_global_pos(QCursor.pos()):
+                        super().focusOutEvent(event)
+                        return
+                except Exception:
+                    pass
+                # Qt Tool window activation: activeWindow may be flyout's window
+                try:
+                    active = QApplication.activeWindow()
+                    if active is not None and (
+                        active is flyout or flyout.isAncestorOf(active)
+                    ):
+                        super().focusOutEvent(event)
+                        return
+                except Exception:
+                    pass
+        except Exception:
+            pass
         self._dismiss_hover_flyout(force=True)
         super().focusOutEvent(event)
 
@@ -1220,16 +1304,16 @@ class CodeEditor(QsciScintilla):
             self._clear_hover_breakpoint()
 
     def leaveEvent(self, event):
-        """Mouse left the editor — clear margin hover."""
+        """Mouse left the editor."""
         self._clear_hover_breakpoint()
-        # Soft-dismiss hover but keep it if mouse entered the flyout
-        # itself (flyout tracks _is_mouse_inside).
-        self._dismiss_hover_flyout(force=False)
         super().leaveEvent(event)
 
     def mousePressEvent(self, e: QKeyEvent) -> None:
         """Intercept Ctrl+Click for go-to-definition navigation."""
-        if e.button() == Qt.MouseButton.LeftButton and e.modifiers() == Qt.KeyboardModifier.ControlModifier:
+        if (
+            e.button() == Qt.MouseButton.LeftButton
+            and e.modifiers() == Qt.KeyboardModifier.ControlModifier
+        ):
             px = int(e.position().x())
             py = int(e.position().y())
             position = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, px, py)
@@ -1302,7 +1386,9 @@ class CodeEditor(QsciScintilla):
             self.markerDelete(self._hovered_breakpoint_line, self.MARKER_HOVER)
             self._hovered_breakpoint_line = None
 
-    def _on_margin_clicked(self, margin: int, line: int, modifiers: Qt.KeyboardModifier) -> None:
+    def _on_margin_clicked(
+        self, margin: int, line: int, modifiers: Qt.KeyboardModifier
+    ) -> None:
         """Handles click actions for breakpoints and colorpicker margins."""
 
         # BREAKPOINTS
@@ -1326,7 +1412,9 @@ class CodeEditor(QsciScintilla):
             current_color, old_str, start_col, end_col = info
 
             options = QColorDialog.ColorDialogOption.ShowAlphaChannel
-            new_color = QColorDialog.getColor(current_color, self, "Select Color", options)
+            new_color = QColorDialog.getColor(
+                current_color, self, "Select Color", options
+            )
 
             if new_color.isValid() and new_color != current_color:
                 self._apply_color_to_line(line, old_str, new_color, start_col, end_col)
@@ -1372,7 +1460,9 @@ class CodeEditor(QsciScintilla):
         """Remove every execution-line highlight marker from the document."""
         self.markerDeleteAll(self.MARKER_EXEC_LINE)
 
-    def show_debug_stack_frame(self, line: int, info_text: str = "Stack Info Placeholder"):
+    def show_debug_stack_frame(
+        self, line: int, info_text: str = "Stack Info Placeholder"
+    ):
         """Displays a red-bordered frame widget directly below the given
         1-based line number.
         Pushes lower lines down to make space.
@@ -1424,7 +1514,9 @@ class CodeEditor(QsciScintilla):
         line_y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, char_pos)
         line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT, line_idx)
 
-        margin_offset = sum(self.marginWidth(i) for i in range(5) if self.marginWidth(i) > 0)
+        margin_offset = sum(
+            self.marginWidth(i) for i in range(5) if self.marginWidth(i) > 0
+        )
 
         frame_x = margin_offset + 10
         frame_y = line_y + line_height + 2
@@ -1435,7 +1527,9 @@ class CodeEditor(QsciScintilla):
             self._debug_stack_widget.hide()
         else:
             self._debug_stack_widget.show()
-            self._debug_stack_widget.setGeometry(frame_x, frame_y, frame_width, frame_height)
+            self._debug_stack_widget.setGeometry(
+                frame_x, frame_y, frame_width, frame_height
+            )
 
     ###############################################
     # COLOR WHEEL
@@ -1495,7 +1589,9 @@ class CodeEditor(QsciScintilla):
         if color.alpha() < 255:
             painter.fillRect(0, 0, size, size, QColor(220, 220, 220))
             painter.fillRect(0, 0, size // 2, size // 2, QColor(255, 255, 255))
-            painter.fillRect(size // 2, size // 2, size // 2, size // 2, QColor(255, 255, 255))
+            painter.fillRect(
+                size // 2, size // 2, size // 2, size // 2, QColor(255, 255, 255)
+            )
 
         painter.setBrush(QBrush(color))
         painter.setPen(QPen(QColor(120, 120, 120, 200), 1))
@@ -1635,7 +1731,9 @@ class CodeEditor(QsciScintilla):
         try:
             if line is None or col is None:
                 line, col = self.getCursorPosition()
-            target = self.current_provider.get_definition_location(self.text(), line, col)
+            target = self.current_provider.get_definition_location(
+                self.text(), line, col
+            )
 
             if not target:
                 return
@@ -1795,6 +1893,13 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
 
+        hover_flyout = getattr(self, "_hover_flyout", None)
+        if hover_flyout is not None:
+            try:
+                hover_flyout.retheme(self._theme_name)
+            except Exception:
+                pass
+
         parent = self.parent()
         minimap = getattr(parent, "minimap", None)
         if minimap is not None:
@@ -1930,7 +2035,9 @@ class CodeEditor(QsciScintilla):
                     except Exception:
                         pass
         except OSError as exc:
-            logger.warning("Could not check file permissions for %s: %s", file_path, exc)
+            logger.warning(
+                "Could not check file permissions for %s: %s", file_path, exc
+            )
 
     def save(self) -> bool:
         """Save the current buffer to ``current_file_path``.
@@ -2224,7 +2331,9 @@ class CodeEditor(QsciScintilla):
             hdr = getattr(self, "_elf_header", None)
             secs = getattr(self, "_elf_sections", []) or []
             file_name = pathlib.Path(
-                getattr(self, "_elf_file_path", None) or getattr(self, "current_file_path", "") or "binary"
+                getattr(self, "_elf_file_path", None)
+                or getattr(self, "current_file_path", "")
+                or "binary"
             ).name
             version = ""
             try:
@@ -2439,11 +2548,15 @@ class CodeEditor(QsciScintilla):
 
             if formatted_text and formatted_text != raw_text:
                 line, col = self.getCursorPosition()
-                first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+                first_visible = self.SendScintilla(
+                    QsciScintilla.SCI_GETFIRSTVISIBLELINE
+                )
                 # Capture old line for smart cursor preservation
                 try:
                     old_lines = raw_text.split("\n")
-                    old_line_text = old_lines[line] if 0 <= line < len(old_lines) else ""
+                    old_line_text = (
+                        old_lines[line] if 0 <= line < len(old_lines) else ""
+                    )
                     was_at_eol = col >= len(old_line_text)
                 except Exception:
                     old_line_text = ""
@@ -2459,7 +2572,11 @@ class CodeEditor(QsciScintilla):
                 # (black adds spaces, e.g. x=1 -> x = 1, col 3 -> 5)
                 try:
                     new_lines = formatted_text.split("\n")
-                    new_line_text = new_lines[clamped_line] if 0 <= clamped_line < len(new_lines) else ""
+                    new_line_text = (
+                        new_lines[clamped_line]
+                        if 0 <= clamped_line < len(new_lines)
+                        else ""
+                    )
                     if was_at_eol:
                         new_col = len(new_line_text)
                     else:
@@ -2501,7 +2618,9 @@ class CodeEditor(QsciScintilla):
 
             # Configure indicator format parameters (1 = INDIC_SQUIGGLE)
             self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE, slot, 1)
-            self.SendScintilla(QsciScintilla.SCI_INDICSETFORE, slot, self._scintilla_rgb(color_hex))
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETFORE, slot, self._scintilla_rgb(color_hex)
+            )
         else:
             slot = self._diagnostic_indicators[color_hex]
 
@@ -2514,11 +2633,15 @@ class CodeEditor(QsciScintilla):
             match_start_char = start_col + match.start()
             match_end_char = start_col + match.end()
 
-            byte_start = line_start_byte + len(line_text[:match_start_char].encode("utf-8"))
+            byte_start = line_start_byte + len(
+                line_text[:match_start_char].encode("utf-8")
+            )
             byte_len = len(line_text[match_start_char:match_end_char].encode("utf-8"))
 
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
-            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_len)
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_len
+            )
 
     def clear_diagnostic_underlines(self) -> None:
         """
@@ -2547,7 +2670,9 @@ class CodeEditor(QsciScintilla):
             return
 
         style_id = 140
-        self.SendScintilla(QsciScintilla.SCI_STYLESETFORE, style_id, self._scintilla_rgb(color_hex))
+        self.SendScintilla(
+            QsciScintilla.SCI_STYLESETFORE, style_id, self._scintilla_rgb(color_hex)
+        )
 
         if hasattr(self._font, "family"):
             self.SendScintilla(
@@ -2555,7 +2680,9 @@ class CodeEditor(QsciScintilla):
                 style_id,
                 self._font.family().encode("utf-8"),
             )
-        self.SendScintilla(QsciScintilla.SCI_STYLESETSIZE, style_id, self._font.pointSize())
+        self.SendScintilla(
+            QsciScintilla.SCI_STYLESETSIZE, style_id, self._font.pointSize()
+        )
 
         self.SendScintilla(2540, line, text.encode("utf-8"))
         self.SendScintilla(2542, line, style_id)

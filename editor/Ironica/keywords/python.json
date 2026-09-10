@@ -69,5 +69,10 @@
         "operator": [],
         "exception": [],
         "import": []
-    }
+    },
+    "snippets": [
+        "/Class", "/Main", "/Application", "/MetaWidget", "/StandardApp",
+        "/BasicApp", "/REST_API", "/CustomModel", "/Dataset", "/TrainingLoop",
+        "/KerasSequential", "/CustomTrainingStep"
+    ]
 }

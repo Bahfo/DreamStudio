@@ -32,5 +32,8 @@
             "sudo", "su", "tail", "top", "touch", "type", "uname", "uniq",
             "uptime", "wc", "wget"
         ]
-    }
+    },
+    "snippets": [
+        "/Script", "/Loop", "/Function", "/Condition", "/Getopts"
+    ]
 }
