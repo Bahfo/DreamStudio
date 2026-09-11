@@ -288,6 +288,32 @@ class BaseLanguageProvider(ABC):
         """
         return None
 
+    # ------------------------------------------------------------------
+    # Outline support (optional)
+    # ------------------------------------------------------------------
+
+    def has_outline(self) -> bool:
+        """Return ``True`` if this provider supplies file outline data.
+
+        Providers that override ``get_outline`` should return ``True``
+        here so the IDE wires up the outline panel automatically.
+        """
+        return False
+
+    def get_outline(self, source_code: str) -> Optional["OutlineResult"]:
+        """Return an outline tree for *source_code*.
+
+        Called by the IDE when the outline panel is visible and the
+        active editor changes or the source text is modified.
+
+        Args:
+            source_code: The full editor buffer content.
+
+        Returns:
+            An ``OutlineResult`` or ``None`` if outline is unavailable.
+        """
+        return None
+
     def post_fold_setup(self, editor, regions) -> None:
         """Called after fold regions are pushed to FoldManager.
 

@@ -31,6 +31,7 @@ class VerticalMenusAPI(QObject):
         "todo_search": "TODO Search",
         "server_explorer": "Server Explorer",
         "notifications": "Notifications",
+        "ether_ai": "Ether AI",
     }
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
@@ -103,12 +104,14 @@ class VerticalMenusAPI(QObject):
         )
         if splitter is not None:
             sizes = splitter.sizes()
-            if sidx < len(sizes) and sizes[sidx] < 50:
-                delta = max(0, min(default_width - sizes[sidx], sizes[1]))
-                if delta > 0:
-                    sizes[1] -= delta
-                    sizes[sidx] += delta
-                    splitter.setSizes(sizes)
+            if sidx < len(sizes):
+                target = max(default_width, self._widgets[panel_id].minimumWidth())
+                if sizes[sidx] < target:
+                    delta = max(0, min(target - sizes[sidx], sizes[1]))
+                    if delta > 0:
+                        sizes[1] -= delta
+                        sizes[sidx] += delta
+                        splitter.setSizes(sizes)
 
         self.panel_visibility_changed.emit(panel_id, True)
 

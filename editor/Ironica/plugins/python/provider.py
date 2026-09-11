@@ -455,6 +455,28 @@ class PythonLanguageProvider(BaseLanguageProvider):
             editor=editor, file_path=file_path, parent=parent
         )
 
+    # ------------------------------------------------------------------
+    # Outline support
+    # ------------------------------------------------------------------
+
+    def has_outline(self) -> bool:
+        """Return ``True`` — the Python plugin provides file outlines."""
+        return True
+
+    def get_outline(self, source_code: str):
+        """Return an outline tree for Python source code.
+
+        Args:
+            source_code: Full Python source from the editor buffer.
+
+        Returns:
+            An ``OutlineResult`` from the outline backend, or ``None``
+            if parsing fails.
+        """
+        from editor.utils.file_properties.outline import build_outline
+
+        return build_outline(source_code, "python", filename=self._file_path or "")
+
     @property
     def completion_manager(self):
         """Return the ``CompletionManager`` for this provider, or ``None``."""

@@ -231,7 +231,7 @@
         "tooltip":"Ether AI",
         "size":[30, 30],
         "icon_size":[22, 22],
-        "callback": false
+        "callback": "_toggle_ether_ai"
     }, 
     {
         "id":"btn",

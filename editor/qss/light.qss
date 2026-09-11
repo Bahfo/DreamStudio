@@ -376,7 +376,7 @@ DreamStudioIDETabBar {
     qproperty-text_inactive: #616161;
     qproperty-dirty_dot: #D4A017;
     qproperty-readonly_color: #A0A0A0;
-    qproperty-border_buttom: 2px solid #0066B8;
+    qproperty-border_bottom: #0066B8;
 }
 
 /* ==========================================================================

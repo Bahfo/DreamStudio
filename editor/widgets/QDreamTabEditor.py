@@ -24,7 +24,7 @@ class DreamStudioIDETabBar(QTabBar):
         self._border_color = QColor("#1E1E1E")
         self._hover_border_color = QColor("#3E3E42")
         self._inactive_border_color = QColor("#252526")
-        self._border_buttom = QColor("#005190")
+        self._border_bottom = QColor("#005190")
 
         self._text_selected = QColor("#FFFFFF")
         self._text_inactive = QColor("#969696")
@@ -128,6 +128,15 @@ class DreamStudioIDETabBar(QTabBar):
         self.update()
 
     readonly_color = pyqtProperty(QColor, get_readonly_color, set_readonly_color)
+
+    def get_border_bottom(self):
+        return self._border_bottom
+
+    def set_border_bottom(self, color):
+        self._border_bottom = QColor(color)
+        self.update()
+
+    border_bottom = pyqtProperty(QColor, get_border_bottom, set_border_bottom)
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)

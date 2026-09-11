@@ -33,6 +33,7 @@ class PanelShell(QWidget):
 
         self._frame = QFrame(self)
         self._frame.setObjectName(self.FRAME_OBJECT_NAME)
+        self._frame.setFrameShape(QFrame.Shape.NoFrame)
         self._frame.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         self._frame_layout = QVBoxLayout(self._frame)

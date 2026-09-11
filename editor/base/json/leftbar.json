@@ -24,6 +24,14 @@
         "callback": "_toggle_git_source_control"
     },
     {
+        "id":"btn",
+        "icon_path":"assets/system/find.png",
+        "tooltip":"Outline",
+        "size":[40, 40],
+        "icon_size":[30, 30],
+        "callback": "_toggle_outline"
+    },
+    {
         "id":"stretch"
     },
     {

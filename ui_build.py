@@ -81,6 +81,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
         self.tab_editors = self.hero_window._text_editor_center.tabs
         self.tab_editors.currentChanged.connect(self._sync_menu_state)
+        self.tab_editors.currentChanged.connect(self._sync_outline)
 
         self.body_layout.addWidget(self.left_sidebar)
         self.body_layout.addWidget(self.hero_window, stretch=1)
@@ -89,6 +90,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self._wire_sidebar_toggles()
         self._set_initial_workspace()
         self._wire_explorer_double_click()
+        self._wire_outline_panel()
 
     def _wire_sidebar_toggles(self) -> None:
         api = self.hero_window._vertical_menus_api
@@ -114,6 +116,100 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
         tabs = self.hero_window._text_editor_center.tabs
         tabs.open_file_by_path(file_path)
+
+    # ------------------------------------------------------------------
+    # Outline wiring
+    # ------------------------------------------------------------------
+
+    def _wire_outline_panel(self) -> None:
+        """Connect the outline panel's symbol click to editor navigation."""
+        outline = self.hero_window._file_outline
+        outline.symbol_clicked.connect(self._on_outline_symbol_clicked)
+        self._outline_text_connection = None
+
+        # Also refresh outline when the panel becomes visible (e.g. first
+        # activation — currentChanged won't fire for an already-open tab).
+        api = self.hero_window._vertical_menus_api
+        api.panel_visibility_changed.connect(self._on_outline_visibility_changed)
+
+    def _on_outline_visibility_changed(self, panel_id: str, visible: bool) -> None:
+        """Refresh the outline when the outline panel becomes visible."""
+        if panel_id == "file_outline" and visible:
+            QTimer.singleShot(0, self._sync_outline)
+
+    def _on_outline_symbol_clicked(self, line: int) -> None:
+        """Scroll the active editor to the clicked outline symbol."""
+        api = self.hero_window._text_editor_center.current_editor()
+        if api is None:
+            return
+        editor = api.editor
+        editor.setCursorPosition(line, 0)
+        editor.ensureCursorVisible()
+        editor.setFocus(Qt.FocusReason.MouseFocusReason)
+
+    def _sync_outline(self, _index: int = -1) -> None:
+        """Rebuild the outline tree for the currently active editor."""
+        outline = self.hero_window._file_outline
+
+        api = self.hero_window._text_editor_center.current_editor()
+        if api is None:
+            outline.clear_outline()
+            return
+
+        editor = api.editor
+        source = editor.text()
+        lang = getattr(editor, "current_lang", None)
+
+        if not lang or not source:
+            outline.clear_outline()
+            return
+
+        # Disconnect previous editor's textChanged if any
+        if self._outline_text_connection is not None:
+            try:
+                self._outline_text_connection[0].textChanged.disconnect(
+                    self._outline_text_connection[1]
+                )
+            except (TypeError, RuntimeError):
+                pass
+            self._outline_text_connection = None
+
+        # Connect current editor's textChanged for real-time outline updates
+        try:
+            editor.textChanged.connect(self._on_outline_text_changed)
+            self._outline_text_connection = (editor, self._on_outline_text_changed)
+        except (TypeError, RuntimeError):
+            pass
+
+        self._update_outline_for_editor(editor)
+
+    def _on_outline_text_changed(self) -> None:
+        """Debounced outline refresh when the editor text changes."""
+        api = self.hero_window._text_editor_center.current_editor()
+        if api is None:
+            return
+        self._update_outline_for_editor(api.editor)
+
+    def _update_outline_for_editor(self, editor) -> None:
+        """Build and push the outline for a specific editor."""
+        outline = self.hero_window._file_outline
+        source = editor.text()
+        lang = getattr(editor, "current_lang", None)
+
+        if not lang or not source:
+            outline.clear_outline()
+            return
+
+        try:
+            from editor.utils.file_properties.outline import build_outline
+
+            result = build_outline(
+                source, lang,
+                filename=getattr(editor, "current_file_path", "") or "",
+            )
+            outline.update_outline(result)
+        except Exception:
+            outline.clear_outline()
 
     def _build_status_bar(self, main_layout: QVBoxLayout) -> None:
         self.status_bar = StatusBar(self, self.currentDirectory)

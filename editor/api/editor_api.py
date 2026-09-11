@@ -30,6 +30,13 @@ class EditorAPI:
         else:
             api.activate_panel("source_control")
 
+    def _toggle_outline(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("file_outline"):
+            self.hero_window._left_utils_manager.set_current_panel("file_outline")
+        else:
+            api.activate_panel("file_outline")
+
     def _toggle_properties(self) -> None:
         api = self.hero_window._vertical_menus_api
         if api.is_visible("properties"):
@@ -57,6 +64,13 @@ class EditorAPI:
             self.hero_window._right_utils_manager.set_current_panel("notifications")
         else:
             api.activate_panel("notifications")
+
+    def _toggle_ether_ai(self) -> None:
+        api = self.hero_window._vertical_menus_api
+        if api.is_visible("ether_ai"):
+            self.hero_window._right_utils_manager.set_current_panel("ether_ai")
+        else:
+            api.activate_panel("ether_ai")
 
     def _toggle_terminal(self) -> None:
         container = self.hero_window._lower_widget
