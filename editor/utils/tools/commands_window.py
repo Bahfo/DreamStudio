@@ -69,7 +69,10 @@ class CommandWindow(QMenu):
 
     def _load_commands_list(self):
         try:
-            cmd_path = Path(__file__).parent / "json" / "commands_list.json"
+            if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+                cmd_path = Path(sys._MEIPASS) / "editor" / "utils" / "tools" / "json" / "commands_list.json"  # type: ignore[attr-defined]
+            else:
+                cmd_path = Path(__file__).parent / "json" / "commands_list.json"
             with open(cmd_path, "r") as file:
                 commands = json.load(file)
 

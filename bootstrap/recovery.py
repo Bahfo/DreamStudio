@@ -21,10 +21,18 @@ from PyQt6.QtWidgets import (
 
 logger = logging.getLogger(__name__)
 
-_ASSETS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "assets",
-)
+def _get_assets_dir() -> str:
+    import sys
+
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, "assets")  # type: ignore[attr-defined]
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "assets",
+    )
+
+
+_ASSETS_DIR = _get_assets_dir()
 _SVG_PATH = os.path.join(_ASSETS_DIR, "error_crash.svg")
 
 

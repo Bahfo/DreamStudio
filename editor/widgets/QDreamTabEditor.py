@@ -346,33 +346,25 @@ class DreamStudioIDETabBar(QTabBar):
         if not rect.isNull():
             self.update(rect)
 
-    def rebuild_dirty_indices(self) -> None:
-        self._dirty_indices.clear()
+    def _rebuild_indices(self, attr: str, target: set) -> None:
+        target.clear()
         parent = self._parent if self._parent is not None else self.parent()
         if parent is None or not hasattr(parent, "count") or not hasattr(parent, "widget"):
             return
         for i in range(parent.count()):
             w = parent.widget(i)
-            if w is not None and hasattr(w, "is_dirty"):
+            if w is not None and hasattr(w, attr):
                 try:
-                    if w.is_dirty():
-                        self._dirty_indices.add(i)
+                    if getattr(w, attr)():
+                        target.add(i)
                 except RuntimeError:
                     pass
 
+    def rebuild_dirty_indices(self) -> None:
+        self._rebuild_indices("is_dirty", self._dirty_indices)
+
     def rebuild_readonly_indices(self) -> None:
-        self._readonly_indices.clear()
-        parent = self._parent if self._parent is not None else self.parent()
-        if parent is None or not hasattr(parent, "count") or not hasattr(parent, "widget"):
-            return
-        for i in range(parent.count()):
-            w = parent.widget(i)
-            if w is not None and hasattr(w, "isReadOnly"):
-                try:
-                    if w.isReadOnly():
-                        self._readonly_indices.add(i)
-                except RuntimeError:
-                    pass
+        self._rebuild_indices("isReadOnly", self._readonly_indices)
 
 
 class QDreamTabEditor(QTabWidget):

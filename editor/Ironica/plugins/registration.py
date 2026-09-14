@@ -26,11 +26,19 @@ logger = logging.getLogger(__name__)
 # Path helpers
 # ------------------------------------------------------------------
 
-_IRONICA_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..")
-)
+def _get_ironica_dir() -> str:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, "editor", "Ironica")  # type: ignore[attr-defined]
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+_IRONICA_DIR = _get_ironica_dir()
 _KEYWORDS_DIR = os.path.join(_IRONICA_DIR, "keywords")
-_PLUGINS_PKG_DIR = os.path.dirname(__file__)
+_PLUGINS_PKG_DIR = (
+    os.path.join(sys._MEIPASS, "editor", "Ironica", "plugins")  # type: ignore[attr-defined]
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+    else os.path.dirname(__file__)
+)
 
 _DREAMSTUDIO_HOME = Path.home() / ".dreamstudio"
 _PLUGINS_JSON_PATH = _DREAMSTUDIO_HOME / "plugins" / "plugins.json"

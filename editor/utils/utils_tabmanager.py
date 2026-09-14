@@ -45,33 +45,25 @@ class UtilityTabBar(DreamStudioIDETabBar):
         self._text_inactive = QColor(text_inactive)
         self.update()
 
-    def rebuild_dirty_indices(self) -> None:
-        self._dirty_indices.clear()
+    def _rebuild_indices(self, attr: str, target: set) -> None:
+        target.clear()
         if not self._parent or not hasattr(self._parent, "_stack"):
             return
         stack = self._parent._stack
         for i in range(stack.count()):
             w = stack.widget(i)
-            if w is not None and hasattr(w, "is_dirty"):
+            if w is not None and hasattr(w, attr):
                 try:
-                    if w.is_dirty():
-                        self._dirty_indices.add(i)
+                    if getattr(w, attr)():
+                        target.add(i)
                 except RuntimeError:
                     pass
 
+    def rebuild_dirty_indices(self) -> None:
+        self._rebuild_indices("is_dirty", self._dirty_indices)
+
     def rebuild_readonly_indices(self) -> None:
-        self._readonly_indices.clear()
-        if not self._parent or not hasattr(self._parent, "_stack"):
-            return
-        stack = self._parent._stack
-        for i in range(stack.count()):
-            w = stack.widget(i)
-            if w is not None and hasattr(w, "isReadOnly"):
-                try:
-                    if w.isReadOnly():
-                        self._readonly_indices.add(i)
-                except RuntimeError:
-                    pass
+        self._rebuild_indices("isReadOnly", self._readonly_indices)
 
 
 class UtilityTabManager(QWidget):

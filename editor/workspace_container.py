@@ -82,85 +82,27 @@ class WorkspaceContainer(QWidget):
         self._populate_panels()
 
         self._vertical_menus_api = VerticalMenusAPI(self)
-        self._vertical_menus_api.register_panel(
-            "solution_explorer",
-            self._solution_explorer,
-            self._left_utils_manager,
-            "left",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=0,
-            default_width=220,
-        )
-        self._vertical_menus_api.register_panel(
-            "source_control",
-            self._source_control,
-            self._left_utils_manager,
-            "left",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=0,
-            default_width=220,
-        )
-        self._vertical_menus_api.register_panel(
-            "file_outline",
-            self._file_outline,
-            self._left_utils_manager,
-            "left",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=0,
-            default_width=220,
-        )
-        self._vertical_menus_api.register_panel(
-            "properties",
-            self._properties_explorer,
-            self._right_utils_manager,
-            "right",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=2,
-            default_width=220,
-        )
-        self._vertical_menus_api.register_panel(
-            "todo_search",
-            self._todo_search,
-            self._right_utils_manager,
-            "right",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=2,
-            default_width=220,
-        )
-        self._vertical_menus_api.register_panel(
-            "server_explorer",
-            self._server_explorer,
-            self._right_utils_manager,
-            "right",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=2,
-            default_width=220,
-        )
-        self._vertical_menus_api.register_panel(
-            "notifications",
-            self._notifications_panel,
-            self._right_utils_manager,
-            "right",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=2,
-            default_width=220,
-        )
-        self._vertical_menus_api.register_panel(
-            "ether_ai",
-            self._ether_ai,
-            self._right_utils_manager,
-            "right",
-            splitter=self._top_horizontal_splitter,
-            splitter_index=2,
-            default_width=450,
-        )
+        for panel_id, widget, manager, side, idx, width in [
+            ("solution_explorer", self._solution_explorer, self._left_utils_manager, "left", 0, 220),
+            ("source_control", self._source_control, self._left_utils_manager, "left", 0, 220),
+            ("file_outline", self._file_outline, self._left_utils_manager, "left", 0, 220),
+            ("properties", self._properties_explorer, self._right_utils_manager, "right", 2, 220),
+            ("todo_search", self._todo_search, self._right_utils_manager, "right", 2, 220),
+            ("server_explorer", self._server_explorer, self._right_utils_manager, "right", 2, 220),
+            ("notifications", self._notifications_panel, self._right_utils_manager, "right", 2, 220),
+            ("ether_ai", self._ether_ai, self._right_utils_manager, "right", 2, 450),
+        ]:
+            self._vertical_menus_api.register_panel(
+                panel_id, widget, manager, side,
+                splitter=self._top_horizontal_splitter,
+                splitter_index=idx,
+                default_width=width,
+            )
 
-        self._left_utils_manager.panel_close_requested.connect(
-            lambda pid: (self._vertical_menus_api.deactivate_panel(pid))
-        )
-        self._right_utils_manager.panel_close_requested.connect(
-            lambda pid: (self._vertical_menus_api.deactivate_panel(pid))
-        )
+        for mgr in (self._left_utils_manager, self._right_utils_manager):
+            mgr.panel_close_requested.connect(
+                lambda pid, api=self._vertical_menus_api: api.deactivate_panel(pid)
+            )
 
         self._vertical_menus_api.activate_panel("solution_explorer")
         self._vertical_menus_api.activate_panel("properties")

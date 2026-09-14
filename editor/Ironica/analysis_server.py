@@ -50,7 +50,10 @@ def _install_package_stubs() -> None:
     # never touched the ``editor`` package before this script runs.
     if "editor" in sys.modules:
         return
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        root = sys._MEIPASS  # type: ignore[attr-defined]
+    else:
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if root not in sys.path:
         sys.path.insert(0, root)
     ironica_root = os.path.join(root, "editor", "Ironica")

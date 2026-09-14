@@ -68,3 +68,10 @@ local.properties
 
 # Temporary Ignoring
 .github/workflows/docker-publish.yml
+
+# Files
+KNOWN_ISSUES.md
+REFACTOR_BASELINE.md
+REFACTOR_LOG.md
+
+release

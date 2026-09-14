@@ -27,11 +27,20 @@ _SPLASH_WIDTH = 680
 _SPLASH_HEIGHT = 420
 _CORNER_RADIUS = 10.0
 
-_SVG_PATH = os.path.normpath(
-    os.path.join(
-        os.path.dirname(__file__), os.pardir, "icon_src", "welcome_mountains.svg"
+def _get_icon_src_path() -> str:
+    # Frozen compatibility: resources are under sys._MEIPASS
+    import sys
+
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, "icon_src", "welcome_mountains.svg")  # type: ignore[attr-defined]
+    return os.path.normpath(
+        os.path.join(
+            os.path.dirname(__file__), os.pardir, "icon_src", "welcome_mountains.svg"
+        )
     )
-)
+
+
+_SVG_PATH = _get_icon_src_path()
 
 
 def _get_sans_font(

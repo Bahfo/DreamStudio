@@ -13,7 +13,11 @@ import sys
 
 
 # Ensure the project root is on sys.path so bootstrap/ and editor/ are importable.
-_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+# Frozen (PyInstaller) compatibility: sys._MEIPASS is the bundle dir when frozen.
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    _PROJECT_ROOT = sys._MEIPASS  # type: ignore[attr-defined]
+else:
+    _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 

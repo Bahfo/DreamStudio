@@ -1,63 +1,59 @@
 from editor import *
 
 class DreamStudioIconProvider(QFileIconProvider):
+    _EXT_ICON = {
+        "bash": "bash.png",
+        "sh": "bash.png",
+        "bat": "bat.png",
+        "bin": "bin.png",
+        "css": "css.png",
+        "csv": "csv.png",
+        "docker": "docker.png",
+        "docx": "docx.png",
+        "html": "html.png",
+        "ipynb": "ipynb.png",
+        "js": "javascript.png",
+        "json": "json.png",
+        "png": "jpeg.png",
+        "jpeg": "jpeg.png",
+        "apng": "jpeg.png",
+        "avif": "jpeg.png",
+        "gif": "jpeg.png",
+        "webp": "jpeg.png",
+        "md": "md.png",
+        "pdf": "pdf.png",
+        "poly": "poly.png",
+        "pyc": "pyc.png",
+        "pyx": "pyc.png",
+        "pyz": "pyc.png",
+        "py": "python.png",
+        "ps1": "shell.png",
+        "svg": "svg.png",
+        "sql": "data.png",
+        "ts": "typescript.png",
+    }
+
+    _NAME_ICON = {
+        "license": "license.png",
+        "copyright": "license.png",
+        ".gitignore": "git.png",
+        ".gitattributes": "git.png",
+    }
+
     def icon(self, file_info: QFileInfo) -> QIcon:
         if not isinstance(file_info, QFileInfo):
             return super().icon(file_info)
 
-        name = file_info.fileName()  # Maybe needed in future
-        name_lower = name.lower()
-        extension = file_info.suffix().lower()
-
         if file_info.isDir():
             return QIcon("assets/types/folder.png")
 
-        if name_lower in ["license", "copyright"]:
-            return QIcon("assets/types/license.png")
-        elif name_lower in [".gitignore", ".gitattributes"]:
-            return QIcon("assets/types/git.png")
+        name_lower = file_info.fileName().lower()
+        if name_lower in self._NAME_ICON:
+            return QIcon(f"assets/types/{self._NAME_ICON[name_lower]}")
 
-        elif extension == "bash" or extension == "sh":
-            return QIcon("assets/types/bash.png")
-        elif extension == "bat":
-            return QIcon("assets/types/bat.png")
-        elif extension == "bin":
-            return QIcon("assets/types/bin.png")
-        elif extension == "css":
-            return QIcon("assets/types/css.png")
-        elif extension == "csv":
-            return QIcon("assets/types/csv.png")
-        elif extension == "docker":
-            return QIcon("assets/types/docker.png")
-        elif extension == "docx":
-            return QIcon("assets/types/docx.png")
-        elif extension == "html":
-            return QIcon("assets/types/html.png")
-        elif extension == "ipynb":
-            return QIcon("assets/types/ipynb.png")
-        elif extension == "js":
-            return QIcon("assets/types/javascript.png")
-        elif extension == "json":
-            return QIcon("assets/types/json.png")
-        elif extension in ["png", "jpeg", "apng", "avif", "gif", "webp"]:
-            return QIcon("assets/types/jpeg.png")
-        elif extension == "md":
-            return QIcon("assets/types/md.png")
-        elif extension == "pdf":
-            return QIcon("assets/types/pdf.png")
-        elif extension == "poly":
-            return QIcon("assets/types/poly.png")
-        elif extension in ["pyc", "pyx", "pyz"]:
-            return QIcon("assets/types/pyc.png")
-        elif extension == "py":
-            return QIcon("assets/types/python.png")
-        elif extension == "ps1":
-            return QIcon("assets/types/shell.png")
-        elif extension == "svg":
-            return QIcon("assets/types/svg.png")
-        elif extension == "sql":
-            return QIcon("assets/types/data.png")
-        elif extension == "ts":
-            return QIcon("assets/types/typescript.png")
+        ext = file_info.suffix().lower()
+        icon_file = self._EXT_ICON.get(ext)
+        if icon_file:
+            return QIcon(f"assets/types/{icon_file}")
 
         return QIcon("assets/types/file.png")

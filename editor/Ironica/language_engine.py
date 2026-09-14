@@ -352,6 +352,39 @@ class LanguageRegistry:
     # ------------------------------------------------------------------
 
     @classmethod
+    def _store_language(cls, config: dict, provider_instance: Optional[BaseLanguageProvider]) -> bool:
+        """Persist a validated config and provider into the registry.
+
+        Handles duplicate-language warnings, extension-map warnings and
+        provider type checking. Returns False only on provider type mismatch.
+        """
+        lang_name = config["lang"]
+        if lang_name in cls._configs:
+            logger.warning("Language %r already registered — overwriting", lang_name)
+        cls._configs[lang_name] = config
+        for ext in config.get("extensions", []):
+            normalized_ext = f".{ext.lstrip('.')}"
+            existing = cls._extension_map.get(normalized_ext)
+            if existing and existing != lang_name:
+                logger.warning(
+                    "Extension %r already mapped to %r — replacing with %r",
+                    normalized_ext,
+                    existing,
+                    lang_name,
+                )
+            cls._extension_map[normalized_ext] = lang_name
+        if provider_instance is not None:
+            if not isinstance(provider_instance, BaseLanguageProvider):
+                logger.error(
+                    "Provider for %r must be a BaseLanguageProvider instance, got %s",
+                    lang_name,
+                    type(provider_instance).__name__,
+                )
+                return False
+            cls._providers[lang_name] = provider_instance
+        return True
+
+    @classmethod
     def register_language(
         cls, json_path: str, provider_instance: Optional[BaseLanguageProvider] = None
     ) -> bool:
@@ -383,51 +416,16 @@ class LanguageRegistry:
             config = cls._load_json(json_path)
             if config is None:
                 return False
-
             config = cls._normalize_config(config)
             errors = cls._validate_config(config)
             if errors:
                 for err in errors:
                     logger.error("Language config validation error: %s", err)
                 return False
-
-            lang_name = config["lang"]
-
-            # Duplicate registration guard.
-            if lang_name in cls._configs:
-                logger.warning(
-                    "Language %r already registered — overwriting", lang_name
-                )
-
-            cls._configs[lang_name] = config
-
-            extensions = config.get("extensions", [])
-            for ext in extensions:
-                normalized_ext = f".{ext.lstrip('.')}"
-                existing = cls._extension_map.get(normalized_ext)
-                if existing and existing != lang_name:
-                    logger.warning(
-                        "Extension %r already mapped to %r — " "replacing with %r",
-                        normalized_ext,
-                        existing,
-                        lang_name,
-                    )
-                cls._extension_map[normalized_ext] = lang_name
-
-            if provider_instance is not None:
-                if not isinstance(provider_instance, BaseLanguageProvider):
-                    logger.error(
-                        "Provider for %r must be a BaseLanguageProvider "
-                        "instance, got %s",
-                        lang_name,
-                        type(provider_instance).__name__,
-                    )
-                    return False
-                cls._providers[lang_name] = provider_instance
-
-            logger.info("Registered language: %s", lang_name)
+            if not cls._store_language(config, provider_instance):
+                return False
+            logger.info("Registered language: %s", config["lang"])
             return True
-
         except Exception as exc:
             logger.error("Failed to register language from %s: %s", json_path, exc)
             return False
@@ -454,26 +452,10 @@ class LanguageRegistry:
                 for err in errors:
                     logger.error("Language config validation error: %s", err)
                 return False
-
-            lang_name = config["lang"]
-            cls._configs[lang_name] = config
-
-            for ext in config.get("extensions", []):
-                normalized_ext = f".{ext.lstrip('.')}"
-                cls._extension_map[normalized_ext] = lang_name
-
-            if provider_instance is not None:
-                if not isinstance(provider_instance, BaseLanguageProvider):
-                    logger.error(
-                        "Provider must be a BaseLanguageProvider, got %s",
-                        type(provider_instance).__name__,
-                    )
-                    return False
-                cls._providers[lang_name] = provider_instance
-
-            logger.info("Registered language (dict): %s", lang_name)
+            if not cls._store_language(config, provider_instance):
+                return False
+            logger.info("Registered language (dict): %s", config["lang"])
             return True
-
         except Exception as exc:
             logger.error("Failed to register language dict: %s", exc)
             return False

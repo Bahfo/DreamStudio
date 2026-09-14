@@ -36,6 +36,15 @@ def _get_notification_manager():
         return _Dummy()
 
 
+def _notify(kind: str, title: str, message: str, source: str = "Startup") -> None:
+    """Best-effort notification without failing startup."""
+    try:
+        mgr = _get_notification_manager()
+        getattr(mgr, kind)(title, message, source)
+    except Exception:
+        pass
+
+
 class StartupError(Exception):
     """Critical startup failure that prevents the IDE from running."""
 
@@ -174,16 +183,11 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
             file_path = file_info["path"]
             if not file_path.is_file():
                 logger.warning("Config file not found, creating default: %s", file_path)
-                try:
-
-                    _get_notification_manager().add_warning(
-                        "Config Missing",
-                        f"Configuration file not found: {file_path.name}. "
-                        "Created with default values.",
-                        "Startup",
-                    )
-                except Exception:
-                    pass
+                _notify(
+                    "add_warning",
+                    "Config Missing",
+                    f"Configuration file not found: {file_path.name}. Created with default values.",
+                )
                 with open(file_path, "w", encoding="utf-8") as fh:
                     json.dump(file_info["content"], fh, indent=4)
             else:
@@ -197,16 +201,11 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
                     logger.warning(
                         "Config file invalid, recreating: %s (%s)", file_path, exc
                     )
-                    try:
-
-                        _get_notification_manager().add_warning(
-                            "Config Corrupted",
-                            f"Configuration file is corrupted: {file_path.name}. "
-                            "Recreated with default values.",
-                            "Startup",
-                        )
-                    except Exception:
-                        pass
+                    _notify(
+                        "add_warning",
+                        "Config Corrupted",
+                        f"Configuration file is corrupted: {file_path.name}. Recreated with default values.",
+                    )
                     with open(file_path, "w", encoding="utf-8") as fh:
                         json.dump(file_info["content"], fh, indent=4)
 
@@ -215,15 +214,7 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
     except Exception as exc:
         details = traceback.format_exc()
         logger.error("User home directory setup failed: %s\n%s", exc, details)
-        try:
-
-            _get_notification_manager().add_error(
-                "Startup Error",
-                "Failed to set up user directory structure.",
-                "Startup",
-            )
-        except Exception:
-            pass
+        _notify("add_error", "Startup Error", "Failed to set up user directory structure.")
         raise StartupError(
             "user_home_setup",
             "Failed to create ~/.dreamstudio/ directory structure.",
@@ -270,30 +261,14 @@ def phase_resources(ctx: PhaseContext) -> None:
     if not theme_content:
         logger.warning("No theme content loaded, IDE will use Qt defaults")
         ctx.warnings.append("Theme loading produced empty content")
-        try:
-
-            _get_notification_manager().add_warning(
-                "Theme Missing",
-                "Theme could not be loaded. Using default appearance.",
-                "Startup",
-            )
-        except Exception:
-            pass
+        _notify("add_warning", "Theme Missing", "Theme could not be loaded. Using default appearance.")
 
     asset_checks = ctx.resource_manager.verify_assets()
     missing_dirs = [k for k, v in asset_checks.items() if not v]
     if missing_dirs:
         logger.warning("Missing asset directories: %s", missing_dirs)
         ctx.warnings.append(f"Missing asset dirs: {missing_dirs}")
-        try:
-
-            _get_notification_manager().add_warning(
-                "Assets Missing",
-                f"Some UI assets are missing: {', '.join(missing_dirs)}",
-                "Startup",
-            )
-        except Exception:
-            pass
+        _notify("add_warning", "Assets Missing", f"Some UI assets are missing: {', '.join(missing_dirs)}")
 
     # Register bundled fonts so QFont("Space Mono"), QFont("Montserrat"),
     # etc. resolve to the actual font files rather than system fallbacks.
@@ -305,15 +280,7 @@ def phase_resources(ctx: PhaseContext) -> None:
     except Exception as exc:
         logger.warning("Bundled font registration failed: %s", exc)
         ctx.warnings.append(f"Font loading failed: {exc}")
-        try:
-
-            _get_notification_manager().add_warning(
-                "Fonts Error",
-                f"Custom fonts failed to load: {exc}. System fonts will be used.",
-                "Startup",
-            )
-        except Exception:
-            pass
+        _notify("add_warning", "Fonts Error", f"Custom fonts failed to load: {exc}. System fonts will be used.")
 
     ctx.registry.register("theme_content", theme_content)
     logger.info("Phase 5 completed: Resources loaded")
@@ -407,15 +374,7 @@ def phase_finish(ctx: PhaseContext) -> None:
     if app:
         app.processEvents()
 
-    try:
-
-        _get_notification_manager().add_success(
-            "Startup Complete",
-            "DreamStudio is ready.",
-            "Startup",
-        )
-    except Exception:
-        pass
+    _notify("add_success", "Startup Complete", "DreamStudio is ready.")
 
     logger.info("Phase 9 completed: DreamStudio ready")
 

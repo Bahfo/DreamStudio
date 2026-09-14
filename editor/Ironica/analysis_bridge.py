@@ -93,6 +93,31 @@ class AnalysisProcess:
             os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         )
 
+    def _server_cmd(self) -> list[str]:
+        """Return the command to launch the analysis server.
+
+        Development: [sys.executable, analysis_server.py]
+        Frozen: [sibling DreamStudioAnalysisServer executable]
+        """
+        if getattr(sys, "frozen", False):
+            # Preferred: sibling executable next to the main DreamStudio binary
+            # sys.executable is .../dist/DreamStudio/DreamStudio (or _internal? check both)
+            exe_dir = pathlib.Path(sys.executable).resolve().parent
+            candidate = exe_dir / "DreamStudioAnalysisServer"
+            if candidate.is_file():
+                return [str(candidate)]
+            # Fallback: _MEIPASS parent (when _MEIPASS is _internal)
+            try:
+                if hasattr(sys, "_MEIPASS"):
+                    alt = pathlib.Path(sys._MEIPASS).resolve().parent / "DreamStudioAnalysisServer"  # type: ignore[attr-defined]
+                    if alt.is_file():
+                        return [str(alt)]
+            except Exception:
+                pass
+            # Last resort: candidate even if not found — let Popen raise explicit error
+            return [str(candidate)]
+        return [sys.executable, self._server_script()]
+
     def _drain_stderr(self, stream) -> None:
         try:
             for line in stream:
@@ -115,22 +140,42 @@ class AnalysisProcess:
             if self.is_alive():
                 return
 
-            root = self._root_dir()
-            env = dict(os.environ)
-            pythonpath = env.get("PYTHONPATH", "")
-            if root not in pythonpath.split(os.pathsep):
-                env["PYTHONPATH"] = root + (
-                    os.pathsep + pythonpath if pythonpath else ""
-                )
+            # Resolve command: development vs frozen sibling executable
+            cmd = self._server_cmd()
+            # Explicit error if frozen sibling missing
+            if getattr(sys, "frozen", False):
+                exe_path = pathlib.Path(cmd[0])
+                if not exe_path.is_file():
+                    raise FileNotFoundError(
+                        f"DreamStudioAnalysisServer not found at {exe_path}. "
+                        f"Expected sibling executable next to {sys.executable}"
+                    )
 
-            self._proc = subprocess.Popen(
-                [sys.executable, self._server_script()],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=root,
-                env=env,
-            )
+            if getattr(sys, "frozen", False):
+                # Frozen: sibling executable is self-contained, no PYTHONPATH/cwd needed
+                self._proc = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+            else:
+                root = self._root_dir()
+                env = dict(os.environ)
+                pythonpath = env.get("PYTHONPATH", "")
+                if root not in pythonpath.split(os.pathsep):
+                    env["PYTHONPATH"] = root + (
+                        os.pathsep + pythonpath if pythonpath else ""
+                    )
+
+                self._proc = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=root,
+                    env=env,
+                )
             self._stderr_thread = threading.Thread(
                 target=self._drain_stderr,
                 args=(self._proc.stderr,),

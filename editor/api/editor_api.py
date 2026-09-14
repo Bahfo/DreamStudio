@@ -16,91 +16,63 @@ class EditorAPI:
     # Panel toggles
     # ------------------------------------------------------------------
 
-    def _toggle_file_explorer(self) -> None:
+    def _toggle_panel(self, panel_id: str, manager) -> None:
+        """Toggle a side panel: if visible bring to front, else activate."""
         api = self.hero_window._vertical_menus_api
-        if api.is_visible("solution_explorer"):
-            self.hero_window._left_utils_manager.set_current_panel("solution_explorer")
+        if api.is_visible(panel_id):
+            manager.set_current_panel(panel_id)
         else:
-            api.activate_panel("solution_explorer")
+            api.activate_panel(panel_id)
+
+    def _toggle_lower_panel(self, target_attr: str, switch_tab: bool = False) -> None:
+        """Toggle a bottom-panel target inside _lower_widget."""
+        container = self.hero_window._lower_widget
+        splitter = self.hero_window._main_vertical_splitter
+        target = getattr(container, target_attr)
+        if container.isVisible():
+            if container._stack.currentWidget() is target:
+                container.setVisible(False)
+                splitter.setSizes([1, 0])
+            else:
+                container._stack.setCurrentWidget(target)
+                if switch_tab:
+                    target.switch_tab(0)
+        else:
+            container._stack.setCurrentWidget(target)
+            container.setVisible(True)
+            splitter.setSizes([600, 400])
+            if switch_tab:
+                target.switch_tab(0)
+
+    def _toggle_file_explorer(self) -> None:
+        self._toggle_panel("solution_explorer", self.hero_window._left_utils_manager)
 
     def _toggle_git_source_control(self) -> None:
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible("source_control"):
-            self.hero_window._left_utils_manager.set_current_panel("source_control")
-        else:
-            api.activate_panel("source_control")
+        self._toggle_panel("source_control", self.hero_window._left_utils_manager)
 
     def _toggle_outline(self) -> None:
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible("file_outline"):
-            self.hero_window._left_utils_manager.set_current_panel("file_outline")
-        else:
-            api.activate_panel("file_outline")
+        self._toggle_panel("file_outline", self.hero_window._left_utils_manager)
 
     def _toggle_properties(self) -> None:
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible("properties"):
-            self.hero_window._right_utils_manager.set_current_panel("properties")
-        else:
-            api.activate_panel("properties")
+        self._toggle_panel("properties", self.hero_window._right_utils_manager)
 
     def _toggle_todo_search(self) -> None:
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible("todo_search"):
-            self.hero_window._right_utils_manager.set_current_panel("todo_search")
-        else:
-            api.activate_panel("todo_search")
+        self._toggle_panel("todo_search", self.hero_window._right_utils_manager)
 
     def _toggle_server_explorer(self) -> None:
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible("server_explorer"):
-            self.hero_window._right_utils_manager.set_current_panel("server_explorer")
-        else:
-            api.activate_panel("server_explorer")
+        self._toggle_panel("server_explorer", self.hero_window._right_utils_manager)
 
     def _toggle_notifications(self) -> None:
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible("notifications"):
-            self.hero_window._right_utils_manager.set_current_panel("notifications")
-        else:
-            api.activate_panel("notifications")
+        self._toggle_panel("notifications", self.hero_window._right_utils_manager)
 
     def _toggle_ether_ai(self) -> None:
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible("ether_ai"):
-            self.hero_window._right_utils_manager.set_current_panel("ether_ai")
-        else:
-            api.activate_panel("ether_ai")
+        self._toggle_panel("ether_ai", self.hero_window._right_utils_manager)
 
     def _toggle_terminal(self) -> None:
-        container = self.hero_window._lower_widget
-        splitter = self.hero_window._main_vertical_splitter
-        if container.isVisible():
-            if container._stack.currentWidget() is container.terminal_window:
-                container.setVisible(False)
-                splitter.setSizes([1, 0])
-            else:
-                container._stack.setCurrentWidget(container.terminal_window)
-                container.terminal_window.switch_tab(0)
-        else:
-            container._stack.setCurrentWidget(container.terminal_window)
-            container.setVisible(True)
-            splitter.setSizes([600, 400])
-            container.terminal_window.switch_tab(0)
+        self._toggle_lower_panel("terminal_window", switch_tab=True)
 
     def _toggle_problems(self) -> None:
-        container = self.hero_window._lower_widget
-        splitter = self.hero_window._main_vertical_splitter
-        if container.isVisible():
-            if container._stack.currentWidget() is container.problems_window:
-                container.setVisible(False)
-                splitter.setSizes([1, 0])
-            else:
-                container._stack.setCurrentWidget(container.problems_window)
-        else:
-            container._stack.setCurrentWidget(container.problems_window)
-            container.setVisible(True)
-            splitter.setSizes([600, 400])
+        self._toggle_lower_panel("problems_window")
 
     def _toggle_search_widget(self) -> None:
         if (
@@ -182,30 +154,25 @@ class EditorAPI:
     # Clipboard & undo/redo
     # ------------------------------------------------------------------
 
-    def _cut_text(self) -> None:
+    def _with_editor(self, fn) -> None:
         api = self.hero_window._text_editor_center.methods.current_editor()
         if api:
-            api.cut()
+            fn(api)
+
+    def _cut_text(self) -> None:
+        self._with_editor(lambda a: a.cut())
 
     def _copy_text(self) -> None:
-        api = self.hero_window._text_editor_center.methods.current_editor()
-        if api:
-            api.copy()
+        self._with_editor(lambda a: a.copy())
 
     def _paste_text(self) -> None:
-        api = self.hero_window._text_editor_center.methods.current_editor()
-        if api:
-            api.paste()
+        self._with_editor(lambda a: a.paste())
 
     def _undo_action(self) -> None:
-        api = self.hero_window._text_editor_center.methods.current_editor()
-        if api:
-            api.undo()
+        self._with_editor(lambda a: a.undo())
 
     def _redo_action(self) -> None:
-        api = self.hero_window._text_editor_center.methods.current_editor()
-        if api:
-            api.redo()
+        self._with_editor(lambda a: a.redo())
 
     # ------------------------------------------------------------------
     # Theme

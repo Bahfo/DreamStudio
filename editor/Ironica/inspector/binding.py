@@ -68,7 +68,24 @@ def _find_library() -> pathlib.Path:
 
     Searches a small set of predictable locations relative to this file
     and the project root. No absolute hard-coded paths are used.
+    Supports PyInstaller frozen builds via sys._MEIPASS.
     """
+    import sys
+
+    # Frozen handling: sys._MEIPASS is the bundle root
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        meipass = pathlib.Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        frozen_candidates: List[pathlib.Path] = [
+            meipass / "native" / "build" / "lib" / "libinspector.so",
+            meipass / "hex-editor" / "build" / "libinspector.so",
+            meipass / "hex-editor" / "build" / "libbinary_inspector.so",
+            meipass / "editor" / "Ironica" / "inspector" / "libinspector.so",
+            meipass / "libinspector.so",
+        ]
+        for cand in frozen_candidates:
+            if cand.is_file():
+                return cand
+
     this = pathlib.Path(__file__).resolve()
     # project root is three levels up from editor/Ironica/inspector/
     try:

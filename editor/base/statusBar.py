@@ -288,14 +288,27 @@ class StatusBar(QFrame):
         Returns the repo branch currently working on.
         """
         if self.repository:
-            branch = self.repository.active_branch.name
-            return branch
+            try:
+                branch = self.repository.active_branch.name
+                return branch
+            except Exception:
+                return ""
+        return ""
 
     def get_repo_name(self):
         """
         Returns the repository name.
         """
-        return os.path.basename(self.repository.working_tree_dir)
+        if self.repository and getattr(self.repository, "working_tree_dir", None):
+            try:
+                return os.path.basename(self.repository.working_tree_dir)
+            except Exception:
+                pass
+        # Fallback: use current directory name when not a git repo (e.g. /tmp)
+        try:
+            return os.path.basename(os.path.abspath(self.currentDirectory or os.getcwd()))
+        except Exception:
+            return "No Repo"
 
     def show_branches_menu(self):
         """Spawns a QMenu with all available branches."""

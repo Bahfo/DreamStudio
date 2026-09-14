@@ -2,7 +2,15 @@ from editor import *
 
 logger = logging.getLogger(__name__)
 
-FONTS_DIR = Path(__file__).parent
+def _get_fonts_dir() -> Path:
+    import sys
+
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "fonts"  # type: ignore[attr-defined]
+    return Path(__file__).parent
+
+
+FONTS_DIR = _get_fonts_dir()
 
 _FONT_EXTENSIONS = {".ttf", ".otf", ".woff", ".woff2"}
 
