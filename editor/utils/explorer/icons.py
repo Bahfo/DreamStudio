@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 class DreamStudioIconProvider(QFileIconProvider):
     _EXT_ICON = {
@@ -45,15 +46,15 @@ class DreamStudioIconProvider(QFileIconProvider):
             return super().icon(file_info)
 
         if file_info.isDir():
-            return QIcon("assets/types/folder.png")
+            return QIcon(resource_path("assets/types/folder.png"))
 
         name_lower = file_info.fileName().lower()
         if name_lower in self._NAME_ICON:
-            return QIcon(f"assets/types/{self._NAME_ICON[name_lower]}")
+            return QIcon(resource_path(f"assets/types/{self._NAME_ICON[name_lower]}"))
 
         ext = file_info.suffix().lower()
         icon_file = self._EXT_ICON.get(ext)
         if icon_file:
-            return QIcon(f"assets/types/{icon_file}")
+            return QIcon(resource_path(f"assets/types/{icon_file}"))
 
-        return QIcon("assets/types/file.png")
+        return QIcon(resource_path("assets/types/file.png"))

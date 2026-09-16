@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 
 class QuickStartMenu(QWidget):
@@ -17,7 +18,7 @@ class QuickStartMenu(QWidget):
         self._layout.addStretch()
 
         self.dreamstudio_logo = QLabel()
-        self.dreamstudio_logo.setPixmap(QPixmap("assets/ds_gray.png"))
+        self.dreamstudio_logo.setPixmap(QPixmap(resource_path("assets/ds_gray.png")))
         self.dreamstudio_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._layout.addWidget(self.dreamstudio_logo)
 

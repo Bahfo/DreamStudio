@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 from editor.utils.panel_shell import PanelShell
 from editor.widgets.QToolBox import ToolbarButton
@@ -48,7 +49,7 @@ class TODOSearch(PanelShell):
     def _header_right_widgets(self) -> list[QWidget]:
         return [
             ToolbarButton(
-                "editor/utils/explorer/assets/icons/dropdown.png",
+                resource_path("editor/utils/explorer/assets/icons/dropdown.png"),
                 "View more widget options",
                 (20, 20),
                 (15, 15),

@@ -4,6 +4,7 @@ Terminal Emulator Logic for DreamStudio.
 """
 
 from editor import *
+from editor.utils.resource_path import resource_path
 
 from editor.terminal.emulator import ShellEmulator
 from editor.terminal.terminal_display import TerminalDisplay
@@ -30,7 +31,7 @@ class _SessionItem(QWidget):
 
         btn_kill = QPushButton()
         btn_kill.setObjectName("terminalKillBtn")
-        btn_kill.setIcon(QIcon("assets/menus/trash.png"))
+        btn_kill.setIcon(QIcon(resource_path("assets/menus/trash.png")))
         btn_kill.setFixedSize(20, 20)
         btn_kill.setToolTip("Kill this terminal session")
         btn_kill.clicked.connect(self._on_kill)
@@ -81,7 +82,7 @@ class _EmptyTerminalPlaceholder(QWidget):
         self._icon = QLabel()
         self._icon.setObjectName("terminalPlaceholderIcon")
         self._icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        pixmap = QPixmap("assets/system/sleeping.png")
+        pixmap = QPixmap(resource_path("assets/system/sleeping.png"))
         if not pixmap.isNull():
             self._icon.setPixmap(
                 pixmap.scaled(

@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 from editor.widgets.QToolBox import ExplorerToolbar
 
@@ -25,12 +26,12 @@ class DependenciesView(QWidget):
 
         self._toolbar = ExplorerToolbar()
         self._add_btn = self._toolbar.add_button(
-            "assets/menus/add.png", "Add new package"
+            resource_path("assets/menus/add.png"), "Add new package"
         )
         self._del_btn = self._toolbar.add_button(
-            "assets/menus/trash.png", "Delete package"
+            resource_path("assets/menus/trash.png"), "Delete package"
         )
-        self._ref_btn = self._toolbar.add_button("assets/menus/restart.png", "Refresh")
+        self._ref_btn = self._toolbar.add_button(resource_path("assets/menus/restart.png"), "Refresh")
         self._toolbar.addStretch()
         _layout.addLayout(self._toolbar)
 

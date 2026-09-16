@@ -29,6 +29,7 @@ from editor import *
 from editor.widgets.QDreamTabEditor import QDreamTabEditor
 
 logger = logging.getLogger(__name__)
+from editor.utils.resource_path import resource_path
 
 from editor.Ironica.code_editor import CodeEditor
 from editor.Ironica.process_manager import process_manager
@@ -72,10 +73,10 @@ class DreamTabbedEditor(QDreamTabEditor):
             margin-right: 2px;
         }}
         QTabBar::tab:selected {{
-            color: {};
+            color: {selected_color};
         }}
         QTabBar::close-button {{
-            image: url(assets/menus/close_editor.png);
+            image: url({close_icon});
             background: transparent;
         }}"""
         self._apply_tab_style_from_palette()
@@ -114,7 +115,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         # HTML Preview Button
         self._preview_tabs: dict[str, int] = {}
         self._preview_button = QPushButton()
-        self._preview_button.setIcon(QIcon("assets/menus/browser.png"))
+        self._preview_button.setIcon(QIcon(resource_path("assets/menus/browser.png")))
         self._preview_button.setIconSize(QSize(20, 20))
         self._preview_button.setFixedSize(24, 24)
         self._preview_button.setToolTip("Open HTML Preview")
@@ -130,7 +131,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         # Minimap toggle
         self._minimap_visible = True
         self._minimap_toggle = QPushButton()
-        self._minimap_toggle.setIcon(QIcon("assets/editor/minimap.png"))
+        self._minimap_toggle.setIcon(QIcon(resource_path("assets/editor/minimap.png")))
         self._minimap_toggle.setIconSize(QSize(20, 20))
         self._minimap_toggle.setFixedSize(24, 24)
         self._minimap_toggle.setCheckable(True)
@@ -155,7 +156,7 @@ class DreamTabbedEditor(QDreamTabEditor):
     # ------------------------------------------------------------------
 
     def _apply_tab_style(self, selected_color: str) -> None:
-        self.setStyleSheet(self._base_tab_style.format(selected_color))
+        self.setStyleSheet(self._base_tab_style.format(selected_color=selected_color, close_icon=resource_path("assets/menus/close_editor.png")))
 
     def _apply_tab_style_from_palette(self) -> None:
         color = self.palette().color(QPalette.ColorRole.WindowText).name()

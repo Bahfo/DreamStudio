@@ -5,6 +5,7 @@ DreamStudio tabs via Qt WebEngine.
 """
 
 from editor import *
+from editor.utils.resource_path import resource_path
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 _BTN_STYLE = (
@@ -59,7 +60,7 @@ class WebViewer(QWidget):
         top_bar.addWidget(self._forward_btn)
 
         self._refresh_btn = QPushButton()
-        self._refresh_btn.setIcon(QIcon("assets/menus/browser.png"))
+        self._refresh_btn.setIcon(QIcon(resource_path("assets/menus/browser.png")))
         self._refresh_btn.setIconSize(QSize(16, 16))
         self._refresh_btn.setFixedSize(24, 24)
         self._refresh_btn.setToolTip("Refresh Preview")

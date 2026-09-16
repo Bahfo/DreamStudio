@@ -1,5 +1,6 @@
 from editor import *
 from editor.workspace_container import WorkspaceContainer
+from editor.utils.resource_path import resource_path
 from editor.api.editor_api import EditorAPI
 from editor.api.menus_api import MenusAPI
 
@@ -47,7 +48,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
             self._apply_theme_content(theme_content)
         else:
             self._current_theme_name = "dark"
-            self._parse_styleSheet("editor/qss/dark.qss")
+            self._parse_styleSheet(resource_path("editor/qss/dark.qss"))
 
     def setup_layout(self) -> None:
         self.main_layout = self._build_main_layout()
@@ -69,15 +70,15 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _build_title_bar(self, main_layout: QVBoxLayout) -> None:
         self.title_bar = DreamStudioTitleBar(self, self.currentDirectory)
-        self.options_menu = OptionsMenu(self, "editor/base/json/optionbar.json")
+        self.options_menu = OptionsMenu(self, resource_path("editor/base/json/optionbar.json"))
 
         main_layout.insertWidget(0, self.title_bar)
         main_layout.insertWidget(1, self.options_menu)
 
     def _build_hero(self) -> None:
-        self.left_sidebar = VerticalSidebar(self, "editor/base/json/leftbar.json")
+        self.left_sidebar = VerticalSidebar(self, resource_path("editor/base/json/leftbar.json"))
         self.hero_window = WorkspaceContainer(self)
-        self.right_sidebar = VerticalSidebar(self, "editor/base/json/rightbar.json")
+        self.right_sidebar = VerticalSidebar(self, resource_path("editor/base/json/rightbar.json"))
 
         self.tab_editors = self.hero_window._text_editor_center.tabs
         self.tab_editors.currentChanged.connect(self._sync_menu_state)

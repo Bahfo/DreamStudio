@@ -1,5 +1,7 @@
 from editor import *
 
+from editor.utils.resource_path import resource_path
+
 # Local Imports
 from editor.Ironica.utils.debug_frame import DebugControlFrame
 from editor.widgets.QOptionsMenu import ToolbarMenuButton
@@ -155,8 +157,8 @@ class OptionsMenu(QFrame):
                         opt_callback = option.get("callback")
 
                         action = QAction(opt_text, menu_btn.menu)
-                        if opt_icon and os.path.exists(opt_icon):
-                            action.setIcon(QIcon(opt_icon))
+                        if opt_icon and os.path.exists(resource_path(opt_icon)):
+                            action.setIcon(QIcon(resource_path(opt_icon)))
                         if opt_shortcut:
                             action.setShortcut(opt_shortcut)
 

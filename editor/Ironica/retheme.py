@@ -20,9 +20,10 @@ Public entry points:
 """
 
 from editor import *
+from editor.utils.resource_path import resource_path
 
-_THEMES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "themes"))
-_QSS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "qss"))
+_THEMES_DIR = resource_path("editor/Ironica/themes")
+_QSS_DIR = resource_path("editor/qss")
 _DEFAULT_THEME = "dark"
 
 _ACTIVE_THEME = _DEFAULT_THEME

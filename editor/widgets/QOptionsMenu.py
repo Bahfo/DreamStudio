@@ -1,5 +1,7 @@
 from editor import *
 
+from editor.utils.resource_path import resource_path
+
 class ToolbarMenuButton(QPushButton):
     """
     A custom dropdown menu button with a far-right arrow indicator
@@ -25,9 +27,9 @@ class ToolbarMenuButton(QPushButton):
         button_layout.setSpacing(4)
         button_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        if icon_path and os.path.exists(icon_path):
+        if icon_path and os.path.exists(resource_path(icon_path)):
             self.icon_label = QLabel()
-            self.icon_label.setPixmap(QIcon(icon_path).pixmap(QSize(*icon_size)))
+            self.icon_label.setPixmap(QIcon(resource_path(icon_path)).pixmap(QSize(*icon_size)))
             button_layout.addWidget(self.icon_label)
             icon_w = icon_size[0]
         else:

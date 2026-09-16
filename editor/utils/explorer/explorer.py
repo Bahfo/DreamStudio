@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from editor import *
+from editor.utils.resource_path import resource_path
 
 # Local Imports
 from editor.utils.explorer.proxy import (
@@ -32,15 +33,18 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-MENU_JSON = Path(__file__).resolve().with_name("menu.json")
+MENU_JSON = Path(resource_path("editor/utils/explorer/menu.json"))
 
 TOOLBAR_BUTTONS: dict[str, tuple[str, str]] = {
-    "New File": ("_toolbar_new_file", "assets/menus/add.png"),
-    "New Folder": ("_toolbar_new_folder", "assets/menus/folder.png"),
-    "Delete Item": ("_toolbar_delete_item", "assets/menus/trash.png"),
-    "Refresh": ("_toolbar_refresh", "assets/menus/restart.png"),
-    "Collapse All": ("_toolbar_collapse_all", "assets/menus/collapse.png"),
-    "Expand All": ("_toolbar_expand_all", "assets/menus/expand.png"),
+    "New File": ("_toolbar_new_file", resource_path("assets/menus/add.png")),
+    "New Folder": ("_toolbar_new_folder", resource_path("assets/menus/folder.png")),
+    "Delete Item": ("_toolbar_delete_item", resource_path("assets/menus/trash.png")),
+    "Refresh": ("_toolbar_refresh", resource_path("assets/menus/restart.png")),
+    "Collapse All": (
+        "_toolbar_collapse_all",
+        resource_path("assets/menus/collapse.png"),
+    ),
+    "Expand All": ("_toolbar_expand_all", resource_path("assets/menus/expand.png")),
 }
 
 
@@ -232,7 +236,7 @@ class SolutionExplorer(PanelShell):
         """
         return [
             ToolbarButton(
-                "editor/utils/explorer/assets/icons/dropdown.png",
+                resource_path("editor/utils/explorer/assets/icons/dropdown.png"),
                 "View more widget options",
                 (20, 20),
                 (15, 15),
@@ -388,7 +392,11 @@ class SolutionExplorer(PanelShell):
                             w._vcs_dirty_connected = True  # type: ignore
                             # Auto-cleanup on destruction
                             try:
-                                w.destroyed.connect(lambda _=None, ww=w: self._on_editor_destroyed_for_vcs(ww))
+                                w.destroyed.connect(
+                                    lambda _=None, ww=w: self._on_editor_destroyed_for_vcs(
+                                        ww
+                                    )
+                                )
                             except Exception:
                                 pass
                     except RuntimeError:
@@ -643,7 +651,6 @@ class SolutionExplorer(PanelShell):
             if result:
                 self._notify_vcs_activity()
             else:
-                # QFileSystemModel may still emit fileRenamed; ensure scan
                 self._notify_vcs_activity()
 
     def _menu_delete(self) -> None:

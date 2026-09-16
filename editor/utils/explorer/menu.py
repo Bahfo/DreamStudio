@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from editor import *
 
+
 class MenuItem:
     """Describes a single menu entry."""
 
@@ -23,7 +24,7 @@ class MenuItem:
         shortcut: str = "",
         icon: str = "",
         category: str = "",
-        show_for: str = "all", # "all" | "file" | "dir"
+        show_for: str = "all",  # "all" | "file" | "dir"
         enabled: bool | Callable = True,
         checked: bool | Callable = False,
         callback: Callable | None = None,
@@ -118,13 +119,15 @@ class MenuRegistry:
             self.add_separator(category=d.get("category", ""))
         elif typ == "submenu":
             children = [MenuItem.from_dict(c) for c in d.get("items", [])]
-            self.add_submenu(MenuSubmenu(
-                text=d.get("text", ""),
-                items=children,
-                icon=d.get("icon", ""),
-                category=d.get("category", ""),
-                show_for=d.get("show_for", "all"),
-            ))
+            self.add_submenu(
+                MenuSubmenu(
+                    text=d.get("text", ""),
+                    items=children,
+                    icon=d.get("icon", ""),
+                    category=d.get("category", ""),
+                    show_for=d.get("show_for", "all"),
+                )
+            )
         else:
             self.add_action(MenuItem.from_dict(d))
 
@@ -227,6 +230,7 @@ class ExplorerClickMenu(QMenu):
         self.current_path = ""
         self.current_is_dir = False
         self._action_map: dict[str, Callable] = {}
+        self._tree_shortcuts: list[QAction] = []
 
     def register_action(
         self,
@@ -241,25 +245,33 @@ class ExplorerClickMenu(QMenu):
         checked: bool | Callable = False,
     ) -> None:
         self._action_map[action_id] = callback
-        self.registry.add_action(MenuItem(
-            item_id=action_id,
-            text=text or action_id,
-            shortcut=shortcut,
-            icon=icon,
-            category=category,
-            show_for=show_for,
-            callback=callback,
-            checked=checked,
-        ))
+        self.registry.add_action(
+            MenuItem(
+                item_id=action_id,
+                text=text or action_id,
+                shortcut=shortcut,
+                icon=icon,
+                category=category,
+                show_for=show_for,
+                callback=callback,
+                checked=checked,
+            )
+        )
 
     def register_callback(self, action_id: str, callback: Callable) -> None:
         self._action_map[action_id] = callback
 
+    def _resolve_cb(self, item: MenuItem) -> Callable | None:
+        """Resolve an item to its callable, or ``None`` when unregistered."""
+        if callable(item.callback):
+            return item.callback
+        callback = self._action_map.get(item.item_id) or self._action_map.get(item.text)
+        return callback if callable(callback) else None
+
     def show_context_menu(self, position) -> None:
-        # Fix: Convert widget-relative position to viewport-relative coordinates
         viewport_position = self.tree.viewport().mapFrom(self.tree, position)
         proxy_index = self.tree.indexAt(viewport_position)
-        
+
         if not proxy_index.isValid():
             return
 
@@ -273,9 +285,9 @@ class ExplorerClickMenu(QMenu):
         self.current_path = file_path
         self.current_is_dir = is_dir
 
+        self.tree.setCurrentIndex(proxy_index)
         self._build(file_path, is_dir)
-        
-        # Fix: Pop up at the true global absolute window position vector
+
         self.exec(self.tree.mapToGlobal(position))
 
     def _build(self, path: str, is_dir: bool) -> None:
@@ -333,12 +345,7 @@ class ExplorerClickMenu(QMenu):
         if icon_path and os.path.exists(icon_path):
             action.setIcon(QIcon(icon_path))
 
-        cb = (
-            item.callback
-            or self._action_map.get(item.item_id)
-            or self._action_map.get(item.text)
-            or self._fallback_cb(item.item_id)
-        )
+        cb = self._resolve_cb(item) or self._fallback_cb(item.item_id)
 
         if callable(item.checked):
             action.setCheckable(True)

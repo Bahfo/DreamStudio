@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 # Local Imports
 from editor.utils.find_replace.find_replace import FindReplace
@@ -230,7 +231,7 @@ class EditorAPI:
                 return
 
         # Fallback: direct file read (e.g. during testing without registry).
-        self._parse_styleSheet(f"editor/qss/{name}.qss")
+        self._parse_styleSheet(resource_path(f"editor/qss/{name}.qss"))
 
     def _toggle_theme(self) -> None:
         alt = "light" if self.current_theme == "dark" else "dark"

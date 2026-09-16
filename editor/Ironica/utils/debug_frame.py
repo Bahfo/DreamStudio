@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 from editor.widgets.QToolButton import ToolbarButton
 
@@ -45,9 +46,7 @@ class DebugControlFrame(QFrame):
     Each button delegates its action to the attached ``DebugSession``.
     """
 
-    _ASSET_BASE = os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "assets", "system"
-    )
+    _ASSET_BASE = resource_path("assets/system")
 
     def __init__(self, parent=None):
         super().__init__(parent)

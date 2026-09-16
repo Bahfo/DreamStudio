@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 from editor.utils.tools.commands_window import CommandWindow
 
@@ -86,7 +87,7 @@ class DreamStudioTitleBar(QWidget):
             "✕", self._title_parent.close, layout
         )
 
-        self.load_menus_from_json("editor/base/json/menus.json")
+        self.load_menus_from_json(resource_path("editor/base/json/menus.json"))
         self._update_menu_state(False)
 
     def _build_control_button(self, text, callback, layout):
@@ -137,13 +138,13 @@ class DreamStudioTitleBar(QWidget):
 
             if submenu_items:
                 if icon_path:
-                    sub_menu = parent_menu.addMenu(QIcon(icon_path), text)
+                    sub_menu = parent_menu.addMenu(QIcon(resource_path(icon_path)), text)
                 else:
                     sub_menu = parent_menu.addMenu(text)
                 self._build_menu_items(sub_menu, submenu_items)
             else:
                 if icon_path:
-                    action = QAction(QIcon(icon_path), text, self)
+                    action = QAction(QIcon(resource_path(icon_path)), text, self)
                 else:
                     action = QAction(text, self)
 

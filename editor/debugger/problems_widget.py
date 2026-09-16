@@ -13,10 +13,11 @@ analyzers.
 from editor import *
 
 from editor.analysis.types import Problem, ProblemSeverity
+from editor.utils.resource_path import resource_path
 
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_ASSETS_SYSTEM = _PROJECT_ROOT / "assets" / "system"
+_PROJECT_ROOT = Path(resource_path("."))
+_ASSETS_SYSTEM = Path(resource_path("assets/system"))
 
 
 def _severity_icon_name(severity: ProblemSeverity) -> str:

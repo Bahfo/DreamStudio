@@ -19,14 +19,14 @@ from editor.Ironica.right_click import RightClickMenu
 from editor.Ironica.regex import *
 
 from fonts.font_strapper import Fonts
+from editor.utils.resource_path import resource_path
 
 logger = logging.getLogger(__name__)
 SCI_SETDEFAULTFOLDDISPLAYTEXT = 2722
 SCI_SETFOLDEXPANDEDTEXT = 2700
 
-_EDITOR_DIR = pathlib.Path(__file__).parent
-SNIPPETS_PYTHON = str(_EDITOR_DIR / "snippets" / "python.json")
-SNIPPETS_HTML = str(_EDITOR_DIR / "snippets" / "html.json")
+SNIPPETS_PYTHON = resource_path("editor/Ironica/snippets/python.json")
+SNIPPETS_HTML = resource_path("editor/Ironica/snippets/html.json")
 
 _SNIPPET_FILES = {
     "python": SNIPPETS_PYTHON,
@@ -2268,7 +2268,7 @@ class CodeEditor(QsciScintilla):
             btn.setFixedSize(18, 18)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             # Use info icon if available, fallback to text
-            icon_path = "assets/menus/info.png"
+            icon_path = resource_path("assets/menus/info.png")
             if pathlib.Path(icon_path).is_file():
                 btn.setIcon(QIcon(icon_path))
                 btn.setIconSize(QSize(12, 12))

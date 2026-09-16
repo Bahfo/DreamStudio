@@ -49,8 +49,11 @@ class ExplorerAPI:
         if not proxy_index.isValid():
             return None
 
-        source_model = tree_view.model().sourceModel() \
-            if hasattr(tree_view.model(), "sourceModel") else tree_view.model()
+        source_model = (
+            tree_view.model().sourceModel()
+            if hasattr(tree_view.model(), "sourceModel")
+            else tree_view.model()
+        )
 
         source_index = ExplorerAPI.source_index(tree_view, proxy_index)
         return source_model.filePath(source_index)
@@ -73,7 +76,10 @@ class ExplorerAPI:
         absolute path of the created file, or ``None`` on cancellation.
         """
         name, ok = QInputDialog.getText(
-            parent, "New File", "File name:", QLineEdit.EchoMode.Normal,
+            parent,
+            "New File",
+            "File name:",
+            QLineEdit.EchoMode.Normal,
         )
         if not ok or not name.strip():
             return None
@@ -83,9 +89,11 @@ class ExplorerAPI:
 
         if os.path.exists(file_path):
             ConfirmDialog(
-                parent, title="Cannot Create",
+                parent,
+                title="Cannot Create File",
                 message=f"'{name}' already exists.",
-                confirm_text="OK", cancel_text="",
+                confirm_text="OK",
+                cancel_text="",
             ).exec()
             return None
 
@@ -112,7 +120,10 @@ class ExplorerAPI:
         created folder, or ``None`` on cancellation.
         """
         name, ok = QInputDialog.getText(
-            parent, "New Folder", "Folder name:", QLineEdit.EchoMode.Normal,
+            parent,
+            "New Folder",
+            "Folder name:",
+            QLineEdit.EchoMode.Normal,
         )
         if not ok or not name.strip():
             return None
@@ -122,9 +133,11 @@ class ExplorerAPI:
 
         if os.path.exists(folder_path):
             ConfirmDialog(
-                parent, title="Cannot Create",
+                parent,
+                title="Cannot Create",
                 message=f"'{name}' already exists.",
-                confirm_text="OK", cancel_text="",
+                confirm_text="OK",
+                cancel_text="",
             ).exec()
             return None
 
@@ -159,7 +172,9 @@ class ExplorerAPI:
             parent,
             title=f"Delete {kind.title()}",
             message=f"Are you sure you want to permanently delete '{name}'?",
-            confirm_text="DELETE", cancel_text="CANCEL", destructive=True,
+            confirm_text="DELETE",
+            cancel_text="CANCEL",
+            destructive=True,
         )
         if dialog.exec() != ConfirmDialog.DialogCode.Accepted:
             return False
@@ -193,7 +208,9 @@ class ExplorerAPI:
 
         current_name = ExplorerAPI.item_name(path)
         dialog = RenameDialog(
-            parent, title="Rename", message="Enter new name:",
+            parent,
+            title="Rename",
+            message="Enter new name:",
             current_text=current_name,
         )
         new_name = dialog.get_name()
@@ -204,9 +221,11 @@ class ExplorerAPI:
 
         if os.path.exists(new_path):
             ConfirmDialog(
-                parent, title="Cannot Rename",
+                parent,
+                title="Cannot Rename",
                 message=f"'{new_name}' already exists.",
-                confirm_text="OK", cancel_text="",
+                confirm_text="OK",
+                cancel_text="",
             ).exec()
             return None
 

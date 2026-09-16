@@ -6,12 +6,34 @@ because an optional asset is unavailable.
 """
 
 import os
+import sys
+import re
 import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 _FALLBACK_THEME = "dark.qss"
+
+# Frozen builds: cache the _MEIPASS root for QSS url() rewriting.
+_FROZEN_ASSETS_ROOT: Optional[str] = None
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    _FROZEN_ASSETS_ROOT = sys._MEIPASS  # type: ignore[attr-defined]
+
+
+def _rewrite_qss_urls(content: str) -> str:
+    """In frozen builds, rewrite relative ``url(assets/...)`` references
+    to absolute paths under ``sys._MEIPASS`` so Qt resolves them correctly
+    regardless of the current working directory."""
+    if _FROZEN_ASSETS_ROOT is None:
+        return content
+
+    def _abs(m: re.Match) -> str:
+        rel = m.group(1)
+        abs_path = os.path.join(_FROZEN_ASSETS_ROOT, rel)
+        return f"url({abs_path})"
+
+    return re.sub(r"url\((?!/)(assets/[^)]+)\)", _abs, content)
 
 
 class ResourceManager:
@@ -119,7 +141,8 @@ class ResourceManager:
     def _read_file(self, path: str) -> Optional[str]:
         try:
             with open(path, "r", encoding="utf-8") as fh:
-                return fh.read()
+                content = fh.read()
+            return _rewrite_qss_urls(content)
         except (OSError, UnicodeDecodeError) as exc:
             logger.warning("Cannot read %s: %s", path, exc)
             return None

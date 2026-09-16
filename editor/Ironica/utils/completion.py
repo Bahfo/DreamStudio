@@ -6,6 +6,7 @@ The main completion widget for Ironica.
 from __future__ import annotations
 
 from editor import *
+from editor.utils.resource_path import resource_path
 
 COMPLETION_DEBOUNCE_MS: int = 40
 
@@ -36,10 +37,7 @@ class CompletionDelegate(QStyledItemDelegate):
     SIGNATURE_GAP = 18
 
     # Absolute icon directory resolution relative to this file
-    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    _ICON_DIR = os.path.abspath(
-        os.path.join(_BASE_DIR, "..", "..", "..", "assets", "editor")
-    )
+    _ICON_DIR = resource_path("assets/editor")
 
     _KIND_ICON_MAP = {
         "function": "function.png",

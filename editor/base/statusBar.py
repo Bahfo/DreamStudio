@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 from editor.widgets.QToolButton import ToolbarButton
 from editor.widgets.QCircularProgressBar import CircularProgressBar
@@ -61,7 +62,7 @@ class StatusBar(QFrame):
 
         ############## REPOSITORY ACTIONS ##############
         self.repoActions = ToolbarButton(
-            icon_path="assets/system/git.png",
+            icon_path=resource_path("assets/system/git.png"),
             tooltip="",
             icon_size=(17, 17),
             text=f"   {self.get_repo_name()} | {self.get_branch()}",
@@ -75,7 +76,7 @@ class StatusBar(QFrame):
         statusbar_layout.addSpacing(5)
 
         self.warningBtn = ToolbarButton(
-            icon_path="assets/system/warning.png",
+            icon_path=resource_path("assets/system/warning.png"),
             tooltip="Warnings",
             fixed_size=(45, 23),
             icon_size=(17, 17),
@@ -86,7 +87,7 @@ class StatusBar(QFrame):
         statusbar_layout.addWidget(self.warningBtn)
 
         self.errorsBtn = ToolbarButton(
-            icon_path="assets/system/problem.png",
+            icon_path=resource_path("assets/system/problem.png"),
             tooltip="Errors",
             fixed_size=(45, 23),
             icon_size=(17, 17),
@@ -99,7 +100,7 @@ class StatusBar(QFrame):
         statusbar_layout.addSpacing(3)
 
         self.statusBtn = ToolbarButton(
-            icon_path="assets/system/status.png",
+            icon_path=resource_path("assets/system/status.png"),
             tooltip="Status",
             fixed_size=(80, 23),
             icon_size=(17, 17),
@@ -160,7 +161,7 @@ class StatusBar(QFrame):
         statusbar_layout.addWidget(self.EOL)
 
         self.terminalWindow = ToolbarButton(
-            icon_path="assets/system/terminal.png",
+            icon_path=resource_path("assets/system/terminal.png"),
             tooltip="Open Terminal",
             fixed_size=(120, 23),
             icon_size=(17, 17),
@@ -170,7 +171,7 @@ class StatusBar(QFrame):
         statusbar_layout.addWidget(self.terminalWindow)
 
         self.notificationBtn = ToolbarButton(
-            icon_path="assets/system/notificaiton.png",
+            icon_path=resource_path("assets/system/notificaiton.png"),
             tooltip="Notifications",
             fixed_size=(30, 23),
             icon_size=(20, 20),

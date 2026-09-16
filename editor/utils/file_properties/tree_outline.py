@@ -8,6 +8,7 @@ backend and renders them.
 """
 
 from editor import *
+from editor.utils.resource_path import resource_path
 from editor.utils.panel_shell import PanelShell
 from editor.utils.file_properties.outline import (
     OutlineNode,
@@ -15,7 +16,7 @@ from editor.utils.file_properties.outline import (
     SymbolKind,
 )
 
-_ASSETS_DIR = Path(__file__).resolve().parents[3] / "assets" / "editor"
+_ASSETS_DIR = Path(resource_path("assets/editor"))
 
 
 class _OutlineTreeWidget(QTreeWidget):

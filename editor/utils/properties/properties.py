@@ -1,4 +1,5 @@
 from editor import *
+from editor.utils.resource_path import resource_path
 
 from editor.utils.properties.env import *
 from editor.utils.panel_shell import PanelShell
@@ -67,7 +68,7 @@ class PropertiesExplorer(PanelShell):
     def _header_right_widgets(self) -> list[QWidget]:
         return [
             ToolbarButton(
-                "editor/utils/explorer/assets/icons/dropdown.png",
+                resource_path("editor/utils/explorer/assets/icons/dropdown.png"),
                 "View more options",
                 (20, 20),
                 (15, 15),

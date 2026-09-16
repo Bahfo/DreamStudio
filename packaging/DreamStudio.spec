@@ -44,6 +44,9 @@ a = Analysis(
         (str(PROJECT_ROOT / "editor" / "Ironica" / "analysis_server.py"), "editor/Ironica"),
         # Ensure plugins discovery jsons are not stripped
         (str(PROJECT_ROOT / "editor" / "Ironica" / "plugins"), "editor/Ironica/plugins"),
+        # Explorer context menu JSON and its icon assets
+        (str(PROJECT_ROOT / "editor" / "utils" / "explorer" / "menu.json"), "editor/utils/explorer"),
+        (str(PROJECT_ROOT / "editor" / "utils" / "explorer" / "assets"), "editor/utils/explorer/assets"),
     ],
     hiddenimports=[
         "editor.utils.notifications.notification_manager",

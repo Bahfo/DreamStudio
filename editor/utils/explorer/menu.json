@@ -2,6 +2,7 @@
     {
         "id": "toggle_header_visibility",
         "text": "Toggle Header Visibility",
+        "shortcut": "Ctrl+Shift+H",
         "icon": "assets/menu/eye.png",
         "category": "tools",
         "show_for": "all"
@@ -11,18 +12,18 @@
         "category": "organize"
     },
     {
-        "id": "open",
-        "text": "Open",
-        "shortcut": "",
-        "icon": "assets/menu/open.png",
+        "id": "open_explorer",
+        "text": "Open Solution in Explorer",
+        "shortcut": "Ctrl+Shift+O",
+        "icon": "",
         "category": "actions",
         "show_for": "all"
     },
     {
-        "id": "open_with",
-        "text": "Open With...",
-        "shortcut": "",
-        "icon": "",
+        "id": "open",
+        "text": "Open",
+        "shortcut": "Enter",
+        "icon": "assets/menu/open.png",
         "category": "actions",
         "show_for": "all"
     },
@@ -65,7 +66,7 @@
     {
         "id": "copy_path",
         "text": "Copy Path",
-        "shortcut": "",
+        "shortcut": "Ctrl+Shift+C",
         "icon": "",
         "category": "clipboard",
         "show_for": "all"

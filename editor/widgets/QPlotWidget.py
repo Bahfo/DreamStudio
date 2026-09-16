@@ -1,6 +1,7 @@
 import pyqtgraph as PyGr
 
 from editor import *
+from editor.utils.resource_path import resource_path
 
 class PlotWidget(QWidget):
     def __init__(self, parent=None):
@@ -15,10 +16,10 @@ class PlotWidget(QWidget):
         self.options_menu = QVBoxLayout()
         self.options_menu.setAlignment(Qt.AlignmentFlag.AlignTop) 
 
-        self.zoom_to_fit = self.create_btn("assets/menus/open.png")
-        self.zoom_in_out = self.create_btn("assets/menus/find.png")
-        self.preferences = self.create_btn("assets/menus/settings.png")
-        self.save_graph = self.create_btn("assets/menus/save.png")
+        self.zoom_to_fit = self.create_btn(resource_path("assets/menus/open.png"))
+        self.zoom_in_out = self.create_btn(resource_path("assets/menus/find.png"))
+        self.preferences = self.create_btn(resource_path("assets/menus/settings.png"))
+        self.save_graph = self.create_btn(resource_path("assets/menus/save.png"))
 
         # Add buttons to menu
         self.options_menu.addWidget(self.zoom_to_fit)

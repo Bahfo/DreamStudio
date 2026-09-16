@@ -1,5 +1,7 @@
 from editor import *
 
+from editor.utils.resource_path import resource_path
+
 class ToolbarButton(QPushButton):
     """
     A small, flat icon button used to construct DreamStudio menus.
@@ -27,7 +29,7 @@ class ToolbarButton(QPushButton):
         if text:
             self.setText(text)
 
-        self.setIcon(QIcon(icon_path))
+        self.setIcon(QIcon(resource_path(icon_path)))
         self.setIconSize(QSize(*icon_size))
         self.setToolTip(tooltip)
 
