@@ -265,7 +265,6 @@ class CodeEditor(QsciScintilla):
     ###############################################
 
     def _on_text_changed(self) -> None:
-        # Binary inspection mode is strict READ-ONLY — never become dirty.
         if getattr(self, "_binary_mode", False):
             return
         if not self._is_dirty:

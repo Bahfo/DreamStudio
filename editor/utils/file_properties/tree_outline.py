@@ -92,27 +92,38 @@ class TreeOutline(PanelShell):
     def update_outline(self, result: Optional[OutlineResult]) -> None:
         """Populate the tree from an ``OutlineResult``.
 
+        The per-item expand animation is suppressed for the duration of
+        the rebuild: animating hundreds of freshly created items at once
+        stalls the UI thread.  The final tree state is unchanged.
+
         Args:
             result: Parsed outline data, or ``None`` to clear the tree.
         """
         self._current_result = result
-        self.outline_tree.clear()
 
-        if result is None:
-            return
+        tree = self.outline_tree
+        animated = tree.isAnimated()
+        tree.setAnimated(False)
+        try:
+            tree.clear()
 
-        root_item = QTreeWidgetItem(self.outline_tree)
-        root_name = Path(result.root.name or "Outline").stem
-        root_item.setText(0, root_name)
-        root_item.setIcon(0, self._icons.get(SymbolKind.FILE, QIcon()))
-        root_item.setData(0, Qt.ItemDataRole.UserRole + 1, SymbolKind.FILE.value)
-        root_item.setToolTip(0, SymbolKind.FILE.value)
-        root_item.setExpanded(True)
+            if result is None:
+                return
 
-        for child in result.root.children:
-            self._add_node(root_item, child)
+            root_item = QTreeWidgetItem(tree)
+            root_name = Path(result.root.name or "Outline").stem
+            root_item.setText(0, root_name)
+            root_item.setIcon(0, self._icons.get(SymbolKind.FILE, QIcon()))
+            root_item.setData(0, Qt.ItemDataRole.UserRole + 1, SymbolKind.FILE.value)
+            root_item.setToolTip(0, SymbolKind.FILE.value)
+            root_item.setExpanded(True)
 
-        self.outline_tree.expandToDepth(1)
+            for child in result.root.children:
+                self._add_node(root_item, child)
+
+            tree.expandToDepth(1)
+        finally:
+            tree.setAnimated(animated)
 
     def clear_outline(self) -> None:
         """Clear the outline tree."""

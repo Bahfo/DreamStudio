@@ -100,8 +100,6 @@ class AnalysisProcess:
         Frozen: [sibling DreamStudioAnalysisServer executable]
         """
         if getattr(sys, "frozen", False):
-            # Preferred: sibling executable next to the main DreamStudio binary
-            # sys.executable is .../dist/DreamStudio/DreamStudio (or _internal? check both)
             exe_dir = pathlib.Path(sys.executable).resolve().parent
             candidate = exe_dir / "DreamStudioAnalysisServer"
             if candidate.is_file():
@@ -109,7 +107,10 @@ class AnalysisProcess:
             # Fallback: _MEIPASS parent (when _MEIPASS is _internal)
             try:
                 if hasattr(sys, "_MEIPASS"):
-                    alt = pathlib.Path(sys._MEIPASS).resolve().parent / "DreamStudioAnalysisServer"  # type: ignore[attr-defined]
+                    alt = (
+                        pathlib.Path(sys._MEIPASS).resolve().parent
+                        / "DreamStudioAnalysisServer"
+                    )
                     if alt.is_file():
                         return [str(alt)]
             except Exception:

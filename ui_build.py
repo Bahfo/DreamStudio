@@ -10,6 +10,12 @@ from editor.base.optionsBar import OptionsMenu
 from editor.base.verticalBar import VerticalSidebar
 from editor.base.titleBar import DreamStudioTitleBar
 
+# Quiet period after the last keystroke before the file outline is
+# rebuilt.  The outline rebuild parses the whole buffer (ast.parse) and
+# recreates the entire symbol tree, so it must never run synchronously
+# inside ``textChanged``.
+OUTLINE_REFRESH_DEBOUNCE_MS = 600
+
 
 class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
     """Main IDE window.
@@ -128,6 +134,15 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         outline.symbol_clicked.connect(self._on_outline_symbol_clicked)
         self._outline_text_connection = None
 
+        # Debounced outline refresh: every keystroke restarts this timer
+        # and the whole-document rebuild runs once, after typing pauses.
+        self._outline_refresh_timer = QTimer(self)
+        self._outline_refresh_timer.setSingleShot(True)
+        self._outline_refresh_timer.setInterval(OUTLINE_REFRESH_DEBOUNCE_MS)
+        self._outline_refresh_timer.timeout.connect(
+            self._refresh_outline_for_current_editor
+        )
+
         # Also refresh outline when the panel becomes visible (e.g. first
         # activation — currentChanged won't fire for an already-open tab).
         api = self.hero_window._vertical_menus_api
@@ -158,14 +173,9 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
             return
 
         editor = api.editor
-        source = editor.text()
-        lang = getattr(editor, "current_lang", None)
 
-        if not lang or not source:
-            outline.clear_outline()
-            return
-
-        # Disconnect previous editor's textChanged if any
+        # (Re)bind live updates to the active editor before any early
+        # return, so even an empty buffer keeps tracking text changes.
         if self._outline_text_connection is not None:
             try:
                 self._outline_text_connection[0].textChanged.disconnect(
@@ -175,17 +185,48 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
                 pass
             self._outline_text_connection = None
 
-        # Connect current editor's textChanged for real-time outline updates
         try:
             editor.textChanged.connect(self._on_outline_text_changed)
             self._outline_text_connection = (editor, self._on_outline_text_changed)
         except (TypeError, RuntimeError):
             pass
 
+        source = editor.text()
+        lang = getattr(editor, "current_lang", None)
+
+        if not lang or not source:
+            outline.clear_outline()
+            return
+
         self._update_outline_for_editor(editor)
 
     def _on_outline_text_changed(self) -> None:
-        """Debounced outline refresh when the editor text changes."""
+        """Debounced outline refresh when the editor text changes.
+
+        Restarts the single-shot refresh timer instead of rebuilding
+        synchronously: a per-keystroke rebuild parses the entire buffer
+        and recreates the whole symbol tree, which freezes typing on
+        large files.  Rebuilds are also skipped while the outline panel
+        is hidden; the visibility hook rebuilds the tree when the panel
+        is re-opened.
+        """
+        outline = self.hero_window._file_outline
+        if not outline.isVisible():
+            return
+        timer = getattr(self, "_outline_refresh_timer", None)
+        if timer is None:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(OUTLINE_REFRESH_DEBOUNCE_MS)
+            timer.timeout.connect(self._refresh_outline_for_current_editor)
+            self._outline_refresh_timer = timer
+        timer.start()
+
+    def _refresh_outline_for_current_editor(self) -> None:
+        """Run the debounced outline rebuild for the active editor."""
+        outline = self.hero_window._file_outline
+        if not outline.isVisible():
+            return
         api = self.hero_window._text_editor_center.current_editor()
         if api is None:
             return
