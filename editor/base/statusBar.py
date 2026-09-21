@@ -124,6 +124,8 @@ class StatusBar(QFrame):
         progress_container_layout.addWidget(self.bootstrap_progress)
         statusbar_layout.addWidget(self.bootstrap_progress_container)
 
+        statusbar_layout.addStretch()
+
         self.lines_and_cols = QLabel()
         self.lines_and_cols.setObjectName("lineColLabel")
         self.lines_and_cols.setText("Ln 1 : Col 1")
