@@ -25,7 +25,7 @@
     },
     {
         "id":"btn",
-        "icon_path":"assets/system/find.png",
+        "icon_path":"assets/system/branch.png",
         "tooltip":"Outline",
         "size":[40, 40],
         "icon_size":[30, 30],
@@ -33,22 +33,6 @@
     },
     {
         "id":"stretch"
-    },
-    {
-        "id":"btn",
-        "icon_path":"assets/system/gem.png",
-        "tooltip":"Code Quality Insights",
-        "size":[40, 40],
-        "icon_size":[25, 25],
-        "callback":false
-    },
-    {
-        "id":"btn",
-        "icon_path":"assets/system/monitor.png",
-        "tooltip":"System Monitor",
-        "size":[40, 40],
-        "icon_size":[25, 25],
-        "callback":false
     },
     {
         "id":"btn",
