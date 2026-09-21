@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import subprocess
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 
 class ConfigRun:
@@ -99,6 +99,50 @@ class ConfigRun:
 
         return self.options
 
+    def build_command(self, cwd: Optional[str] = None) -> Tuple[List[str], str]:
+        """Resolves the configured executable, target file, and parameters
+        into an argv sequence plus a working directory — without launching
+        any process.
+
+        Args:
+            cwd: Optional working directory override. Defaults to the
+              configured file's parent dir, then `os.getcwd()`.
+
+        Returns:
+            A `(command_arguments, working_directory)` tuple where the
+            arguments keep the interpreter, file path, and parameters as
+            separate list entries (safe for exec-style launching).
+
+        Raises:
+            ValueError: If no file path is configured.
+        """
+        arg = self.options.get("Arg", sys.executable) or sys.executable
+        parameters = self.options.get("Parameters", [])
+        file_to_run = self.file_path or self.options.get("file_path")
+
+        if not file_to_run:
+            raise ValueError("No file path specified in configuration to run.")
+
+        file_to_run = os.path.expanduser(str(file_to_run))
+
+        cmd: List[str] = [str(arg), file_to_run]
+
+        if isinstance(parameters, list):
+            cmd.extend(map(str, parameters))
+        elif isinstance(parameters, str) and parameters.strip():
+            cmd.append(parameters)
+
+        work_dir = (
+            cwd
+            or (
+                os.path.dirname(os.path.abspath(file_to_run))
+                if os.path.exists(file_to_run)
+                else None
+            )
+            or os.getcwd()
+        )
+        return cmd, work_dir
+
     def run(
         self, cwd: Optional[str] = None, async_mode: bool = True
     ) -> Union[subprocess.Popen, subprocess.CompletedProcess]:
@@ -115,31 +159,7 @@ class ConfigRun:
             `subprocess.Popen` process instance if async_mode is True, else
             `subprocess.CompletedProcess`.
         """
-        arg = self.options.get("Arg", sys.executable)
-        parameters = self.options.get("Parameters", [])
-        file_to_run = self.file_path or self.options.get("file_path")
-
-        if not file_to_run:
-            raise ValueError("No file path specified in configuration to run.")
-
-        cmd: List[str] = [arg]
-        if file_to_run:
-            cmd.append(file_to_run)
-
-        if isinstance(parameters, list):
-            cmd.extend(map(str, parameters))
-        elif isinstance(parameters, str) and parameters.strip():
-            cmd.append(parameters)
-
-        work_dir = (
-            cwd
-            or (
-                os.path.dirname(os.path.abspath(file_to_run))
-                if os.path.exists(file_to_run)
-                else None
-            )
-            or os.getcwd()
-        )
+        cmd, work_dir = self.build_command(cwd=cwd)
 
         if async_mode:
             return subprocess.Popen(

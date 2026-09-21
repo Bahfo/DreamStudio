@@ -9,7 +9,29 @@ from editor.utils.resource_path import resource_path
 from editor.terminal.emulator import ShellEmulator
 from editor.terminal.terminal_display import TerminalDisplay
 
+import shlex
+import subprocess
+
 logger = logging.getLogger(__name__)
+
+# Grace period (ms) between spawning the interactive shell and submitting
+# a programmatic command line, so the prompt is initialized first.
+_RUN_COMMAND_DELAY_MS = 250
+
+
+def format_command_line(argv: list[str]) -> str:
+    """Render an argv sequence as a single safely-quoted shell command line.
+
+    Args:
+        argv: The argument sequence (interpreter, file path, parameters).
+
+    Returns:
+        A string safe to paste into an interactive shell — arguments with
+        spaces or shell-sensitive characters remain single arguments.
+    """
+    if sys.platform == "win32":
+        return subprocess.list2cmdline(argv)
+    return shlex.join(argv)
 
 
 class _SessionItem(QWidget):
@@ -382,6 +404,53 @@ class TerminalWorkspace(QWidget):
 
     def active_session_id(self) -> int | None:
         return self._active_id
+
+    def open_command_session(
+        self, argv: list[str], cwd: str | None = None, name: str | None = None
+    ) -> bool:
+        """Create a new interactive terminal session and submit a command
+        line to it.
+
+        The session is created through the exact same path as a
+        user-initiated terminal (``_on_add_session``) — a real PTY-backed
+        interactive shell — and the command is then written to the PTY as
+        if typed at the prompt, so stdout/stderr stream directly into the
+        integrated terminal.
+
+        Args:
+            argv: The argument sequence to execute (must be non-empty).
+            cwd: Working directory for the new session.
+            name: Optional display name override for the session tab.
+
+        Returns:
+            True when the session was created and the command submitted,
+            False when no session could be located afterwards.
+
+        Raises:
+            RuntimeError: If the PTY backend fails to spawn the shell.
+        """
+        if not argv:
+            return False
+
+        self._on_add_session(cwd=cwd)
+        session = self._sessions.get(self._active_id)
+        if session is None:
+            return False
+
+        if name:
+            session["session_widget"]._label.setText(name)
+            session["name"] = name
+
+        emulator = session["emulator"]
+        command_line = format_command_line(argv)
+
+        def _submit() -> None:
+            # Write through the same channel used for user keystrokes
+            # (display.send_data -> emulator.write).
+            emulator.write(command_line + "\n")
+
+        QTimer.singleShot(_RUN_COMMAND_DELAY_MS, _submit)
+        return True
 
     def active_count(self) -> int:
         return len(self._sessions)

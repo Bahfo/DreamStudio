@@ -90,6 +90,12 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self.tab_editors.currentChanged.connect(self._sync_menu_state)
         self.tab_editors.currentChanged.connect(self._sync_outline)
 
+        # Run dropdown: dynamic state + saved run configurations.
+        from editor.debugger.run.run_menu import RunMenuController
+
+        self._run_menu = RunMenuController(self)
+        self.tab_editors.currentChanged.connect(self._run_menu.refresh_state)
+
         self.body_layout.addWidget(self.left_sidebar)
         self.body_layout.addWidget(self.hero_window, stretch=1)
         self.body_layout.addWidget(self.right_sidebar)

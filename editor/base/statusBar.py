@@ -2,7 +2,6 @@ from editor import *
 from editor.utils.resource_path import resource_path
 
 from editor.widgets.QToolButton import ToolbarButton
-from editor.widgets.QCircularProgressBar import CircularProgressBar
 from editor.utils.git_control.git_control import *
 
 
@@ -217,6 +216,17 @@ class StatusBar(QFrame):
 
     def clear_bootstrap_log(self) -> None:
         self._bootstrap_log.clear()
+
+    def set_debug_background(self) -> None:
+        """Paint the entire status bar orange to indicate an active debug session."""
+        self.setStyleSheet(
+            "StatusBar { background-color: #FF9800; }"
+            "StatusBar QLabel { color: white; }"
+        )
+
+    def reset_background(self) -> None:
+        """Restore the status bar to its theme-default appearance."""
+        self.setStyleSheet("")
 
     def get_branch(self):
         """

@@ -452,6 +452,28 @@ class EditorAPI:
     def _get_current_editor(self):
         return self.hero_window._text_editor_center.current_editor()
 
+    # ------------------------------------------------------------------
+    # Run menu (delegates to the RunMenuController)
+    # ------------------------------------------------------------------
+
+    def _run_current_file(self) -> None:
+        """Run the active Python file in a new integrated terminal session."""
+        self._get_run_menu_controller().run_current_file()
+
+    def _config_run_options(self) -> None:
+        """Open the run-configuration editor dialog."""
+        self._get_run_menu_controller().open_config_dialog()
+
+    def _get_run_menu_controller(self):
+        """Return the lazily-created run menu controller for this window."""
+        controller = getattr(self, "_run_menu", None)
+        if controller is None:
+            from editor.debugger.run.run_menu import RunMenuController
+
+            controller = RunMenuController(self)
+            self._run_menu = controller
+        return controller
+
     def update_editor_visibility(self) -> None:
         pass
 

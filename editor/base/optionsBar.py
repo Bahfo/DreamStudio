@@ -33,6 +33,11 @@ class OptionsMenu(QFrame):
         self.setFrameShape(QFrame.Shape.Panel)
         self.setFixedHeight(35)
 
+        # Registry of built dropdowns so other components (e.g. the run
+        # menu controller) can access a menu button and its actions.
+        self._menu_buttons: dict[str, ToolbarMenuButton] = {}
+        self._menu_actions: dict[str, dict[str, QAction]] = {}
+
         self.optionsMenu_layout = QHBoxLayout(self)
         self.optionsMenu_layout.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
@@ -147,6 +152,9 @@ class OptionsMenu(QFrame):
                     icon_size=icon_size,
                 )
 
+                self._menu_buttons[text] = menu_btn
+
+                menu_actions: dict[str, QAction] = {}
                 for option in item.get("options", []):
                     if option.get("type") == "separator":
                         menu_btn.menu.addSeparator()
@@ -166,6 +174,9 @@ class OptionsMenu(QFrame):
                             action.triggered.connect(getattr(self.master, opt_callback))
 
                         menu_btn.menu.addAction(action)
+                        menu_actions[opt_text] = action
+
+                self._menu_actions[text] = menu_actions
 
                 self.optionsMenu_layout.addWidget(menu_btn)
 
