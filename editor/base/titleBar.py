@@ -21,6 +21,8 @@ class DreamStudioTitleBar(QWidget):
         self.offset = None
         self.directory = directory
         self._menu_actions: dict[str, QAction] = {}
+        self._refresh_menus: list[QMenu] = []
+        self._selection_source = None
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 0, 10, 0)
@@ -90,6 +92,12 @@ class DreamStudioTitleBar(QWidget):
         self.load_menus_from_json(resource_path("editor/base/json/menus.json"))
         self._update_menu_state(False)
 
+        # The clipboard availability decides whether Paste can run.
+        try:
+            QApplication.clipboard().dataChanged.connect(self.refresh_action_states)
+        except (TypeError, RuntimeError):
+            pass
+
     def _build_control_button(self, text, callback, layout):
         btn = QPushButton(text)
         btn.setFixedSize(40, 30)
@@ -114,6 +122,14 @@ class DreamStudioTitleBar(QWidget):
             menu.setObjectName("TitleBarMenu")
             self._build_menu_items(menu, items)
 
+        # Safety net: an editor-dependent menu carries the freshest possible
+        # state the moment it opens, even if no other signal fired meanwhile.
+        for menu in self._refresh_menus:
+            try:
+                menu.aboutToShow.connect(self.refresh_action_states)
+            except (TypeError, RuntimeError):
+                pass
+
     _EDITOR_MENU_ACTIONS = frozenset(
         {
             "set_save_current_file",
@@ -123,6 +139,47 @@ class DreamStudioTitleBar(QWidget):
             "set_close_editor",
         }
     )
+
+    # Single title-bar action responsible for the options bar; its label
+    # flips between the two texts below while staying the same QAction.
+    _OPTIONS_BAR_ACTION = "set_toggle_options_bar"
+    _OPTIONS_BAR_HIDE_TEXT = "Hide Options Bar"
+    _OPTIONS_BAR_SHOW_TEXT = "Show Options Bar"
+
+    # Editor-dependent actions declared in ``menus.json`` mapped to the
+    # capability they require from the active editor.  Every entry is
+    # resolved by :meth:`refresh_action_states`.
+    _ACTION_REQUIREMENTS = {
+        # Edit
+        "set_undo": "undo",
+        "set_redo": "redo",
+        "set_cut": "selection",
+        "set_copy": "copy",
+        "set_copy_as_plain_text": "copy",
+        "set_paste": "paste",
+        "set_delete_selection": "selection",
+        "set_select_all": "editor",
+        "set_unselect_all": "editor",
+        "set_indent_selection": "selection",
+        "set_unindent_selection": "selection",
+        # View
+        _OPTIONS_BAR_ACTION: "always",
+        # Code
+        "set_format_code": "editable",
+        "set_comment_current_line": "editable",
+        "set_comment_current_selection": "selection",
+        "set_uncomment_current_line": "editable",
+        "set_uncomment_current_selection": "selection",
+        "set_duplicate_current_line": "editable",
+        "set_duplicate_current_selection": "selection",
+        "set_goto_definition": "provider",
+        "set_goto_declaration": "provider",
+        "set_goto_implementation": "provider",
+        "set_expand_current_fold": "folds",
+        "set_expand_all_folds": "folds",
+        "set_collapse_current_fold": "folds",
+        "set_collapse_all_folds": "folds",
+    }
 
     def _build_menu_items(self, parent_menu, items):
         """Recursively populates submenus, actions, and separators."""
@@ -158,15 +215,175 @@ class DreamStudioTitleBar(QWidget):
                     if target:
                         action.triggered.connect(target)
 
-                if action_str in self._EDITOR_MENU_ACTIONS:
+                if action_str in self._EDITOR_MENU_ACTIONS or (
+                    action_str in self._ACTION_REQUIREMENTS
+                ):
                     self._menu_actions[action_str] = action
+                    if not any(m is parent_menu for m in self._refresh_menus):
+                        self._refresh_menus.append(parent_menu)
 
                 parent_menu.addAction(action)
 
     def _update_menu_state(self, has_tabs: bool) -> None:
-        """Enable or disable editor-dependent menu actions."""
-        for action in self._menu_actions.values():
-            action.setEnabled(has_tabs)
+        """Enable or disable editor-dependent menu actions.
+
+        Kept as the entry point the main window already calls whenever the
+        tab set changes; the per-action states below are always recomputed
+        from the live editor instead of the passed hint.
+        """
+        for action_str in self._EDITOR_MENU_ACTIONS:
+            action = self._menu_actions.get(action_str)
+            if action is not None:
+                action.setEnabled(has_tabs)
+        self.refresh_action_states()
+
+    # ------------------------------------------------------------------
+    # Action state synchronization
+    # ------------------------------------------------------------------
+
+    def refresh_action_states(self) -> None:
+        """Synchronize every editor-dependent menu action with the live state.
+
+        Single entry point for the Edit/Code/View actions: the states are
+        derived from the active editor and its selection, then the selection
+        tracking and the options-bar label are refreshed.  It is called on
+        tab changes, editor open/close, menu opening and clipboard changes.
+        """
+        flags = self._editor_action_flags()
+        for action_str, requirement in self._ACTION_REQUIREMENTS.items():
+            action = self._menu_actions.get(action_str)
+            if action is None:
+                continue
+            action.setEnabled(bool(flags.get(requirement, False)))
+
+        self._bind_selection_tracking()
+        self._sync_options_bar_action()
+
+    def _editor_action_flags(self) -> dict[str, bool]:
+        """Return the live capability flags of the active editor.
+
+        Returns:
+            A requirement-name to availability mapping; every requirement
+            named in ``_ACTION_REQUIREMENTS`` is present, and all of them are
+            ``False`` when no code editor is active.
+        """
+        flags = {
+            "always": True,
+            "editor": False,
+            "editable": False,
+            "selection": False,
+            "copy": False,
+            "paste": False,
+            "undo": False,
+            "redo": False,
+            "provider": False,
+            "folds": False,
+        }
+
+        editor = self._active_code_editor()
+        if editor is None:
+            return flags
+
+        readonly = bool(editor.isReadOnly())
+        has_selection = bool(editor.hasSelectedText())
+
+        flags["editor"] = True
+        flags["editable"] = not readonly
+        flags["selection"] = has_selection and not readonly
+        flags["copy"] = has_selection
+        flags["paste"] = not readonly and bool(self._clipboard_text())
+        flags["undo"] = not readonly and bool(editor.isUndoAvailable())
+        flags["redo"] = not readonly and bool(editor.isRedoAvailable())
+        flags["provider"] = getattr(editor, "current_provider", None) is not None
+        flags["folds"] = getattr(editor, "_fold_manager", None) is not None
+        return flags
+    def _active_code_editor(self):
+        """Return the ``CodeEditor`` of the active tab, or ``None``.
+
+        Uses the tab model's own unwrapping helper so a mini-map host tab
+        resolves to the same editor every other consumer sees.
+        """
+        tabs = getattr(self._title_parent, "tab_editors", None)
+        if tabs is None:
+            return None
+
+        try:
+            widget = tabs.currentWidget()
+        except RuntimeError:
+            return None
+        if widget is None:
+            return None
+
+        unwrap = getattr(tabs, "_unwrap_code_editor", None)
+        if unwrap is None:
+            return None
+        try:
+            return unwrap(widget)
+        except RuntimeError:
+            return None
+
+    def _bind_selection_tracking(self) -> None:
+        """Follow the active editor's selection so states never go stale."""
+        editor = self._active_code_editor()
+        if editor is self._selection_source:
+            return
+
+        if self._selection_source is not None:
+            try:
+                self._selection_source.selectionChanged.disconnect(
+                    self.refresh_action_states
+                )
+            except (TypeError, RuntimeError):
+                pass
+
+        self._selection_source = editor
+        if editor is None:
+            return
+        try:
+            editor.selectionChanged.connect(self.refresh_action_states)
+        except (TypeError, RuntimeError):
+            pass
+
+    @staticmethod
+    def _clipboard_text() -> str:
+        """Return the current clipboard text, or an empty string."""
+        try:
+            return QApplication.clipboard().text()
+        except RuntimeError:
+            return ""
+
+    # ------------------------------------------------------------------
+    # Options bar
+    # ------------------------------------------------------------------
+
+    def set_toggle_options_bar(self) -> None:
+        """Toggle the options bar and keep this action's label in sync."""
+        visible = self._title_parent.toggle_options_bar()
+        self._sync_options_bar_action(visible)
+
+    def _sync_options_bar_action(self, visible: Optional[bool] = None) -> None:
+        """Make the options-bar action label match the real bar visibility.
+
+        Args:
+            visible: Known visibility of the options bar.  When omitted it is
+                read from the widget; when the widget does not exist yet the
+                label is left untouched.
+        """
+        action = self._menu_actions.get(self._OPTIONS_BAR_ACTION)
+        if action is None:
+            return
+
+        if visible is None:
+            bar = getattr(self._title_parent, "options_menu", None)
+            if bar is None:
+                return
+            visible = bool(bar.isVisible())
+
+        action.setText(
+            self._OPTIONS_BAR_HIDE_TEXT if visible else self._OPTIONS_BAR_SHOW_TEXT
+        )
+
+
 
     def toggle_maximize(self):
         win = self.window()

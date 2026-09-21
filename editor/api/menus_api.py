@@ -12,10 +12,13 @@ It is designed to be mixed into the DreamStudio QMainWindow alongside
 from editor import *
 
 from editor.Ironica.utils.minimap import MiniMapHostWidget
+from editor.utils.notifications.notification_manager import get_notification_manager
+
+logger = logging.getLogger(__name__)
 
 
 class MenusAPI:
-    """Mixin that implements all File-menu callbacks.
+    """Mixin that implements the File/Edit/View/Code menu callbacks.
 
     Expected to be mixed into the main ``DreamStudio`` window which
     provides ``self.hero_window`` (the ``WorkspaceContainer``) and
@@ -23,7 +26,9 @@ class MenusAPI:
 
     Lifecycle methods (save, close) consult the tab editor directly
     rather than wrapping ``EditorAPI`` methods, keeping the call
-    chain flat and the intent clear.
+    chain flat and the intent clear.  Editor commands are routed through
+    the active editor's ``EditorAPI`` facade so the menu never manipulates
+    editor internals itself.
     """
 
     # ------------------------------------------------------------------
@@ -180,3 +185,273 @@ class MenusAPI:
 
     def set_open_settings(self) -> None:
         """Placeholder — settings and preferences dialog."""
+    # ------------------------------------------------------------------
+    # Edit
+    # ------------------------------------------------------------------
+
+    def set_undo(self) -> None:
+        """Undo the last edit in the active editor."""
+        self._run_editor_command("Undo", lambda api: api.undo())
+
+    def set_redo(self) -> None:
+        """Redo the last undone edit in the active editor."""
+        self._run_editor_command("Redo", lambda api: api.redo())
+
+    def set_cut(self) -> None:
+        """Cut the active editor's selection to the clipboard."""
+        self._run_editor_command("Cut Selection", lambda api: api.cut())
+
+    def set_copy(self) -> None:
+        """Copy the active editor's selection to the clipboard."""
+        self._run_editor_command("Copy Selection", lambda api: api.copy())
+
+    def set_copy_as_plain_text(self) -> None:
+        """Copy the active selection without syntax formatting."""
+        self._run_editor_command(
+            "Copy Selection as Plain Text", lambda api: api.copy_as_plain_text()
+        )
+
+    def set_paste(self) -> None:
+        """Paste the clipboard into the active editor."""
+        self._run_editor_command("Paste Clipboard", lambda api: api.paste())
+
+    def set_delete_selection(self) -> None:
+        """Delete the active editor's selection."""
+        self._run_editor_command("Delete Selection", lambda api: api.delete())
+
+    def set_select_all(self) -> None:
+        """Select the whole buffer of the active editor."""
+        self._run_editor_command("Select All", lambda api: api.select_all())
+
+    def set_unselect_all(self) -> None:
+        """Clear the active editor's selection."""
+        self._run_editor_command("Unselect All", lambda api: api.select_none())
+
+    def set_indent_selection(self) -> None:
+        """Indent the selected lines of the active editor."""
+        self._run_editor_command("Indent Selection", lambda api: api.indent())
+
+    def set_unindent_selection(self) -> None:
+        """Unindent the selected lines of the active editor."""
+        self._run_editor_command("Unindent Selection", lambda api: api.unindent())
+
+    def set_find_replace_in_files(self) -> None:
+        """Open the solution-wide Find/Replace widget for the workspace.
+
+        Reuses the existing file-level search widget: it searches the
+        working directory and performs the replacements on disk.  Reports
+        through the notification manager when there is no directory to
+        search instead of opening an empty widget.
+        """
+        directory = getattr(self.title_bar, "directory", "") or ""
+        if not directory or not os.path.isdir(directory):
+            self._notify_menu_error(
+                "Find and Replace in Files",
+                f"The workspace directory is not available: {directory or '(empty)'}.",
+            )
+            return
+        self._toggle_search_widget()
+
+    # ------------------------------------------------------------------
+    # View
+    # ------------------------------------------------------------------
+
+    def set_full_screen(self) -> None:
+        """Toggle full screen and return to the previous window state.
+
+        The maximized state active before entering full screen is remembered
+        so leaving it restores exactly what the user had.
+        """
+        if self.isFullScreen():
+            if getattr(self, "_pre_full_screen_maximized", False):
+                self.showMaximized()
+            else:
+                self.showNormal()
+            return
+
+        self._pre_full_screen_maximized = self.isMaximized()
+        self.showFullScreen()
+
+    def toggle_options_bar(self) -> Optional[bool]:
+        """Toggle the options bar visibility.
+
+        Returns:
+            ``True`` when the bar is now visible, ``False`` when it was
+            hidden, or ``None`` when this window has no options bar.
+        """
+        bar = getattr(self, "options_menu", None)
+        if bar is None:
+            self._notify_menu_error(
+                "View", "The options bar is not available in this window."
+            )
+            return None
+
+        visible = not bar.isVisible()
+        bar.setVisible(visible)
+        return visible
+
+    def set_zen_mode(self) -> None:
+        """Toggle the distraction-free Zen presentation."""
+        if getattr(self, "_zen_mode_active", False):
+            self._leave_zen_mode()
+        else:
+            self._enter_zen_mode()
+
+    def _zen_surrounding_widgets(self) -> list:
+        """Return the surrounding chrome widgets Zen Mode hides.
+
+        Returns:
+            The existing widgets of this window, in the order they are
+            hidden; pieces missing from this build are skipped.
+        """
+        hero = getattr(self, "hero_window", None)
+        widgets = []
+        for owner, name in (
+            (self, "options_menu"),
+            (self, "status_bar"),
+            (self, "left_sidebar"),
+            (self, "right_sidebar"),
+            (hero, "_left_utils_manager"),
+            (hero, "_right_utils_manager"),
+            (hero, "_lower_widget"),
+        ):
+            widget = getattr(owner, name, None) if owner is not None else None
+            if widget is not None:
+                widgets.append(widget)
+        return widgets
+
+    def _enter_zen_mode(self) -> None:
+        """Hide the surrounding chrome, remembering its previous visibility."""
+        targets = self._zen_surrounding_widgets()
+        if not targets:
+            self._notify_menu_error("Zen Mode", "No Zen Mode target is available.")
+            return
+
+        self._zen_visibility_snapshot = [(w, w.isVisible()) for w in targets]
+        for widget, _was_visible in self._zen_visibility_snapshot:
+            widget.setVisible(False)
+        self._zen_mode_active = True
+        self._refresh_titlebar_state()
+
+    def _leave_zen_mode(self) -> None:
+        """Restore the exact chrome visibility active before Zen Mode."""
+        for widget, was_visible in getattr(self, "_zen_visibility_snapshot", []):
+            try:
+                widget.setVisible(was_visible)
+            except RuntimeError:
+                continue
+
+        self._zen_visibility_snapshot = []
+        self._zen_mode_active = False
+        self._refresh_titlebar_state()
+
+    def _refresh_titlebar_state(self) -> None:
+        """Ask the title bar to re-evaluate its action states."""
+        title_bar = getattr(self, "title_bar", None)
+        if title_bar is not None:
+            title_bar.refresh_action_states()
+
+
+    # ------------------------------------------------------------------
+    # Code
+    # ------------------------------------------------------------------
+
+    def set_format_code(self) -> None:
+        """Run the active provider's formatter over the current file."""
+        self._run_editor_command("Format Code", lambda api: api.format_code())
+
+    def set_comment_current_line(self) -> None:
+        """Comment out the line under the cursor."""
+        self._run_editor_command(
+            "Comment Current Line", lambda api: api.comment_line()
+        )
+
+    def set_comment_current_selection(self) -> None:
+        """Comment out every line touched by the selection."""
+        self._run_editor_command("Comment Current Selection", lambda api: api.comment())
+
+    def set_uncomment_current_line(self) -> None:
+        """Remove the comment marker from the line under the cursor."""
+        self._run_editor_command(
+            "Uncomment Current Line", lambda api: api.uncomment_line()
+        )
+
+    def set_uncomment_current_selection(self) -> None:
+        """Remove the comment marker from every selected line."""
+        self._run_editor_command(
+            "Uncomment Current Selection", lambda api: api.uncomment()
+        )
+
+    def set_duplicate_current_line(self) -> None:
+        """Duplicate the line under the cursor."""
+        self._run_editor_command(
+            "Duplicate Current Line", lambda api: api.duplicate_line()
+        )
+
+    def set_duplicate_current_selection(self) -> None:
+        """Duplicate the selected text below itself."""
+        self._run_editor_command(
+            "Duplicate Current Selection", lambda api: api.duplicate_selection()
+        )
+
+    def set_goto_definition(self) -> None:
+        """Jump to the definition of the symbol under the cursor."""
+        self._run_editor_command("Go to Definition", lambda api: api.goto_definition())
+
+    def set_goto_declaration(self) -> None:
+        """Jump to the declaration of the symbol under the cursor."""
+        self._run_editor_command(
+            "Go to Declaration", lambda api: api.goto_declaration()
+        )
+
+    def set_goto_implementation(self) -> None:
+        """Jump to the implementation of the symbol under the cursor."""
+        self._run_editor_command(
+            "Go to Implementation", lambda api: api.goto_implementation()
+        )
+
+    def set_expand_current_fold(self) -> None:
+        """Expand the fold region at the cursor."""
+        self._run_editor_command("Expand Current", lambda api: api.expand_current())
+
+    def set_expand_all_folds(self) -> None:
+        """Expand every fold region."""
+        self._run_editor_command("Expand All", lambda api: api.expand_all())
+
+    def set_collapse_current_fold(self) -> None:
+        """Collapse the fold region at the cursor."""
+        self._run_editor_command("Collapse Current", lambda api: api.collapse_current())
+
+    def set_collapse_all_folds(self) -> None:
+        """Collapse every fold region."""
+        self._run_editor_command("Collapse All", lambda api: api.collapse_all())
+
+    # ------------------------------------------------------------------
+    # Shared helpers
+    # ------------------------------------------------------------------
+
+    def _run_editor_command(self, operation: str, command) -> None:
+        """Run an editor command against the active editor.
+
+        Args:
+            operation: Menu label, used when the command cannot run.
+            command: Callable receiving the active ``EditorAPI``.
+        """
+        editor_api = self.hero_window._text_editor_center.current_editor()
+        if editor_api is None:
+            self._notify_menu_error(
+                operation, "No active code editor is available."
+            )
+            return
+        command(editor_api)
+
+    @staticmethod
+    def _notify_menu_error(title: str, message: str) -> None:
+        """Report a menu precondition failure through DreamStudio notifications.
+
+        Args:
+            title: Short notification title.
+            message: Detailed explanation of the failed precondition.
+        """
+        logger.error("%s: %s", title, message)
+        get_notification_manager().add_error(title, message, source="Menu")

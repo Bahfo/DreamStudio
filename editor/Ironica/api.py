@@ -58,6 +58,13 @@ class EditorAPI:
         if self._editor.hasSelectedText():
             self._editor.copy()
 
+
+    def copy_as_plain_text(self) -> None:
+        """Copy the current selection as plain text (no syntax highlighting)."""
+        if self._editor.hasSelectedText():
+            if hasattr(self._editor, "copy_selection_as_plain_text"):
+                self._editor.copy_selection_as_plain_text()
+
     def paste(self) -> None:
         """Paste from the clipboard at the current cursor position."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
@@ -77,15 +84,38 @@ class EditorAPI:
             return
         line, _ = self._editor.getCursorPosition()
         text = self._editor.text(line)
-        self._editor.insertAt(f"\n{text}", line + 1, 0)
+        self._editor.insertAt(f"{text}\n", line + 1, 0)
 
     # ------------------------------------------------------------------
+
+    def duplicate_selection(self) -> None:
+        """Duplicate the current selection on the line below it."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
+        if not self._editor.hasSelectedText():
+            return
+        text = self._editor.selectedText()
+        _, _, line_to, _ = self._editor.getSelection()
+        self._editor.beginUndoAction()
+        self._editor.insertAt(text + "\n", line_to + 1, 0)
+        self._editor.endUndoAction()
+
     # Selection
     # ------------------------------------------------------------------
 
     def select_all(self) -> None:
         """Select all text in the editor."""
         self._editor.selectAll()
+
+
+    def select_none(self) -> None:
+        """Clear the current selection without moving the cursor.
+
+        QScintilla exposes no public ``selectNone``; collapsing the selection
+        to the caret via an empty range clears the highlight in-place.
+        """
+        line, col = self._editor.getCursorPosition()
+        self._editor.setSelection(line, col, line, col)
 
     def select_line(self) -> None:
         """Select the entire line at the cursor."""
@@ -171,6 +201,28 @@ class EditorAPI:
         self._editor.ensureLineVisible(clamped_line)
 
     # ------------------------------------------------------------------
+    # Navigation
+    # ------------------------------------------------------------------
+    #
+    # The bundled language providers expose go-to-definition only.  A
+    # declaration/implementation request therefore resolves through the same
+    # definition lookup rather than going silently unhandled or fabricating.
+
+    def goto_definition(self, line: int = None, col: int = None) -> None:
+        """Resolve the symbol under the cursor and jump to its definition."""
+        if hasattr(self._editor, "execute_goto_definition"):
+            self._editor.execute_goto_definition(line, col)
+
+    def goto_declaration(self, line: int = None, col: int = None) -> None:
+        """Jump to the declaration of the symbol under the cursor."""
+        if hasattr(self._editor, "execute_goto_definition"):
+            self._editor.execute_goto_definition(line, col)
+
+    def goto_implementation(self, line: int = None, col: int = None) -> None:
+        """Jump to the implementation of the symbol under the cursor."""
+        if hasattr(self._editor, "execute_goto_definition"):
+            self._editor.execute_goto_definition(line, col)
+
     # Editing
     # ------------------------------------------------------------------
 
@@ -233,6 +285,36 @@ class EditorAPI:
                 self._editor.setSelection(i, indent, i, indent + 2)
                 self._editor.removeSelectedText()
         self._editor.endUndoAction()
+
+
+    def comment_line(self) -> None:
+        """Comment out the line under the cursor (no selection required)."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
+        line, _ = self._editor.getCursorPosition()
+        line_text = self._editor.text(line)
+        length = len(line_text.rstrip("\n"))
+        self._editor.beginUndoAction()
+        self._editor.setSelection(line, 0, line, length)
+        self._editor.insertAt("# ", line, 0)
+        self._editor.endUndoAction()
+        self._editor.setCursorPosition(line, length + 2)
+
+    def uncomment_line(self) -> None:
+        """Remove a leading ``# `` from the line under the cursor."""
+        if getattr(self._editor, "isReadOnly", lambda: False)():
+            return
+        line, _ = self._editor.getCursorPosition()
+        line_text = self._editor.text(line)
+        stripped = line_text.lstrip()
+        if not stripped.startswith("# "):
+            return
+        indent = len(line_text) - len(stripped)
+        self._editor.beginUndoAction()
+        self._editor.setSelection(line, indent, line, indent + 2)
+        self._editor.removeSelectedText()
+        self._editor.endUndoAction()
+        self._editor.setCursorPosition(line, max(0, len(stripped) - 2))
 
     def uppercase(self) -> None:
         """Convert the selection to upper case."""
@@ -556,3 +638,30 @@ class EditorAPI:
         fm = getattr(self._editor, "_fold_manager", None)
         if fm is not None:
             fm.collapse_kind("function")
+
+    # ------------------------------------------------------------------
+    # Folding (current region)
+    # ------------------------------------------------------------------
+
+    def expand_current(self) -> None:
+        """Expand the fold region at the cursor, or all regions if none."""
+        fm = getattr(self._editor, "_fold_manager", None)
+        if fm is None:
+            return self.expand_all()
+        line, _ = self._editor.getCursorPosition()
+        region = fm.get_region_at_line(line)
+        if region is not None:
+            fm.expand_region(region)
+        else:
+            self.expand_all()
+
+    def collapse_current(self) -> None:
+        """Collapse the fold region at the cursor, if any."""
+        fm = getattr(self._editor, "_fold_manager", None)
+        if fm is None:
+            return
+        line, _ = self._editor.getCursorPosition()
+        region = fm.get_region_at_line(line)
+        if region is not None:
+            fm.collapse_region(region)
+

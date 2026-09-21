@@ -168,12 +168,12 @@
         {
           "text": "Full Screen",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_full_screen"
         },
         {
           "text": "Zen Mode",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_zen_mode"
         },
         null,
         {
@@ -200,7 +200,7 @@
         {
           "text": "Hide Options Bar",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_toggle_options_bar"
         }
       ]
     },
@@ -358,7 +358,7 @@
     {
       "text": "Format Code",
       "icon": "assets/menus/format.png",
-      "action": "generic_callback"
+      "action": "set_format_code"
     },
     {
       "text": "Minify Code in Current File",
@@ -368,33 +368,33 @@
     {
       "text": "Comment Current Line",
       "icon": "assets/menus/comment.png",
-      "action": "generic_callback"
+      "action": "set_comment_current_line"
     },
     null,
     {
       "text": "Comment Current Selection",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_comment_current_selection"
     },
     {
       "text": "Uncomment Current Line",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_uncomment_current_line"
     },
     {
       "text": "Uncomment Current Selection",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_uncomment_current_selection"
     },
     {
       "text": "Duplicate Current Line",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_duplicate_current_line"
     },
     {
       "text": "Duplicate Current Selection",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_duplicate_current_selection"
     },
     {
       "text": "Sort Code",
@@ -405,17 +405,17 @@
     {
       "text": "Go to Definition",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_goto_definition"
     },
     {
       "text": "Go to Declaration",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_goto_declaration"
     },
     {
       "text": "Go to Implementation",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_goto_implementation"
     },
     {
       "text": "Find Usages and References in Current File",
@@ -461,23 +461,23 @@
         {
           "text": "Expand Current",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_expand_current_fold"
         },
         {
           "text": "Expand All",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_expand_all_folds"
         },
         null,
         {
           "text": "Collapse Current",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_collapse_current_fold"
         },
         {
           "text": "Collapse All",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_collapse_all_folds"
         }
       ]
     },

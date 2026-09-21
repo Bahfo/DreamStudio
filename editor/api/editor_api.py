@@ -86,6 +86,10 @@ class EditorAPI:
                 current_directory=self.title_bar.directory,
             )
             self._find_replace_window.setStyleSheet(self.styleSheet())
+        else:
+            # The widget is created once, so keep it pointed at the
+            # workspace directory the title bar currently reports.
+            self._find_replace_window.current_directory = self.title_bar.directory
 
         if self._find_replace_window.isVisible():
             self._find_replace_window.hide()
