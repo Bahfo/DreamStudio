@@ -631,7 +631,7 @@
     {
       "text": "Documentation",
       "icon": "assets/menus/docs.png",
-      "action": "generic_callback"
+      "action": "_toggle_documentation"
     },
     {
       "text": "View License",

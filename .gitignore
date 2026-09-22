@@ -19,6 +19,7 @@ build/
 # Editor / IDE
 .vscode/
 .idea/
+public/
 
 # Misc / temp
 *.log
