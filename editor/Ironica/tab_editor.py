@@ -156,7 +156,12 @@ class DreamTabbedEditor(QDreamTabEditor):
     # ------------------------------------------------------------------
 
     def _apply_tab_style(self, selected_color: str) -> None:
-        self.setStyleSheet(self._base_tab_style.format(selected_color=selected_color, close_icon=resource_path("assets/menus/close_editor.png")))
+        self.setStyleSheet(
+            self._base_tab_style.format(
+                selected_color=selected_color,
+                close_icon=resource_path("assets/menus/close_editor.png"),
+            )
+        )
 
     def _apply_tab_style_from_palette(self) -> None:
         color = self.palette().color(QPalette.ColorRole.WindowText).name()
@@ -229,7 +234,9 @@ class DreamTabbedEditor(QDreamTabEditor):
         else:
             process_manager.set_active(None)
 
-    def _on_editor_dirty_changed_explicit(self, editor: QWidget, is_dirty: bool) -> None:
+    def _on_editor_dirty_changed_explicit(
+        self, editor: QWidget, is_dirty: bool
+    ) -> None:
         for i in range(self.count()):
             if self.widget(i) is editor:
                 self.tabBar().mark_dirty(i, is_dirty)
@@ -413,6 +420,17 @@ class DreamTabbedEditor(QDreamTabEditor):
                 return True
         except Exception:
             return False
+
+    def add_new_tab(self, widget: QWidget, title: str):
+        """
+        Constructs and adds an empty tab for later construction.
+        This API is useful for setting up custom tabs such as settings tabs,
+        consoles and command windows, special configuration tabs, and more.
+        """
+        tab = widget(self)
+        index = self.addTab(tab, title)
+        self.setCurrentIndex(index)
+        self.setFocus()
 
     def add_binary_editor(self, file_name: str, file_path: str):
         """Create a tab for a binary/ELF file in read-only hex mode."""
@@ -604,7 +622,9 @@ class DreamTabbedEditor(QDreamTabEditor):
         if isinstance(new_editor, MiniMapHostWidget):
             # Explicit capture avoids sender() fragility when signal is forwarded
             new_editor.dirty_state_changed.connect(
-                lambda is_dirty, ed=new_editor: self._on_editor_dirty_changed_explicit(ed, is_dirty)
+                lambda is_dirty, ed=new_editor: self._on_editor_dirty_changed_explicit(
+                    ed, is_dirty
+                )
             )
 
         self.tabBar().rebuild_dirty_indices()

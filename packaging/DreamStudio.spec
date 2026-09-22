@@ -92,6 +92,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
+    icon=str(SPEC_DIR / "DreamStudio.ico"),
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,

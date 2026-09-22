@@ -18,7 +18,7 @@ from editor.debugger.run.config_run import ConfigRun
 from editor.debugger.run.run_config_dialog import RunConfigDialog
 from editor.utils.notifications.notification_manager import get_notification_manager
 from editor.utils.resource_path import resource_path
-from editor.terminal.terminal_ui import TAB_SYSTEM_SHELL
+from editor.terminal.Emulator.terminal_ui import TAB_SYSTEM_SHELL
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +106,7 @@ class RunMenuController:
             logger.warning("Run menu controller: options bar not found.")
             return
 
-        self._run_button = getattr(options_menu, "_menu_buttons", {}).get(
-            RUN_MENU_TEXT
-        )
+        self._run_button = getattr(options_menu, "_menu_buttons", {}).get(RUN_MENU_TEXT)
         actions = getattr(options_menu, "_menu_actions", {}).get(RUN_MENU_TEXT, {})
         self._run_action = actions.get(RUN_ACTION_TEXT)
         self._debug_action = actions.get(DEBUG_ACTION_TEXT)
@@ -181,9 +179,7 @@ class RunMenuController:
             except FileNotFoundError:
                 continue
             except (OSError, json.JSONDecodeError) as exc:
-                logger.warning(
-                    "Skipping malformed run configuration %s: %s", path, exc
-                )
+                logger.warning("Skipping malformed run configuration %s: %s", path, exc)
                 continue
             name = options.get("config_name") or entry[:-5]
             configs.append((str(name), path, options))
@@ -297,9 +293,7 @@ class RunMenuController:
         try:
             argv, work_dir = config.build_command()
         except (ValueError, OSError) as exc:
-            self._notify_error(
-                "Run Current File", f"Failed to resolve command: {exc}"
-            )
+            self._notify_error("Run Current File", f"Failed to resolve command: {exc}")
             return
 
         self._execute_in_terminal(argv, work_dir, name=os.path.basename(path))

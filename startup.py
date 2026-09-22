@@ -31,6 +31,11 @@ def main() -> None:
     app.setApplicationName("DreamStudio")
     app.setStyle("Fusion")
 
+    from editor.utils.resource_path import resource_path
+    from PyQt6.QtGui import QIcon
+
+    app.setWindowIcon(QIcon(resource_path("assets/dreamStudio_icon.png")))
+
     from bootstrap.splash import SplashController
     from bootstrap.manager import BootstrapManager
 

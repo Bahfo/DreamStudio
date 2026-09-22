@@ -1530,3 +1530,132 @@ QLabel#NotificationsEmpty {
     padding: 20px;
     background: transparent;
 }
+
+/* ==========================================================================
+   Python Console
+   ========================================================================== */
+
+QWidget#PythonShell {
+    background-color: #FFFFFF;
+}
+
+QWidget#JupyterConsole QTextEdit {
+    background-color: #FFFFFF;
+    color: #000000;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 13px;
+    selection-background-color: #0066CC;
+    border: none;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar:vertical {
+    width: 8px;
+    background: #FFFFFF;
+    border: none;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::handle:vertical {
+    background: rgba(100,100,100,0.5);
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::handle:vertical:hover {
+    background: rgba(100,100,100,0.7);
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::add-line:vertical,
+QWidget#JupyterConsole QTextEdit QScrollBar::sub-line:vertical {
+    height: 0;
+    background: none;
+    border: none;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::add-page:vertical,
+QWidget#JupyterConsole QTextEdit QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar:horizontal {
+    height: 8px;
+    background: #FFFFFF;
+    border: none;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::handle:horizontal {
+    background: rgba(100,100,100,0.5);
+    border-radius: 4px;
+    min-width: 30px;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::handle:horizontal:hover {
+    background: rgba(100,100,100,0.7);
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::add-line:horizontal,
+QWidget#JupyterConsole QTextEdit QScrollBar::sub-line:horizontal {
+    width: 0;
+    background: none;
+    border: none;
+}
+
+QWidget#JupyterConsole QTextEdit QScrollBar::add-page:horizontal,
+QWidget#JupyterConsole QTextEdit QScrollBar::sub-page:horizontal {
+    background: none;
+}
+
+QWidget#JupyterConsole QListWidget {
+    background-color: #F0F0F0;
+    color: #000000;
+    border: 1px solid #000000;
+    border-radius: 4px;
+    outline: none;
+}
+
+QWidget#JupyterConsole QListWidget::item {
+    padding: 4px 8px;
+    border-radius: 2px;
+}
+
+QWidget#JupyterConsole QListWidget::item:selected {
+    background-color: #0066CC;
+    color: #FFFFFF;
+}
+
+QWidget#JupyterConsole QListWidget::item:hover {
+    background-color: #0066CC;
+    color: #FFFFFF;
+}
+
+QWidget#JupyterConsole QMenu {
+    background-color: #F0F0F0;
+    color: #000000;
+    border: 1px solid #000000;
+    border-radius: 4px;
+    padding: 4px 0;
+}
+
+QWidget#JupyterConsole QMenu::item {
+    padding: 6px 20px;
+}
+
+QWidget#JupyterConsole QMenu::item:selected {
+    background-color: #0066CC;
+    color: #FFFFFF;
+}
+
+QWidget#PythonShellToolbar {
+    background-color: #E0E0E0;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+QLabel#PythonShellStatus {
+    color: #333333;
+    font-size: 11px;
+    padding-right: 6px;
+    background: transparent;
+}
+
+QLabel#PythonShellStatus[status="busy"] {
+    color: #CC6600;
+}

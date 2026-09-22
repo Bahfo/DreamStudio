@@ -6,7 +6,10 @@ from editor.utils.panel_shell import PanelShell
 from editor.Ironica.code_editor import CodeEditor
 from editor.utils.properties.env import LanguageAnalyzer
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
-from editor.utils.properties.properties_dialog import FilePropertiesGrid, SolutionPropertiesGrid
+from editor.utils.properties.properties_dialog import (
+    FilePropertiesGrid,
+    SolutionPropertiesGrid,
+)
 from editor.utils.properties.project_data_engine import ProjectDataEngine
 
 
@@ -37,7 +40,10 @@ class PropertiesExplorer(PanelShell):
                 if w is self:
                     focused = True
                     break
-                w = w.parent()
+                try:
+                    w = w.parent()
+                except (TypeError, RuntimeError):
+                    break
         self._frame.setProperty("focused", focused)
         self._frame.style().unpolish(self._frame)
         self._frame.style().polish(self._frame)

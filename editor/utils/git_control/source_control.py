@@ -564,7 +564,10 @@ class GitVersionControl(PanelShell):
                 if w is self:
                     focused = True
                     break
-                w = w.parent()
+                try:
+                    w = w.parent()
+                except (TypeError, RuntimeError):
+                    break
         self._set_frame_focused(focused)
 
     def _set_frame_focused(self, focused: bool) -> None:

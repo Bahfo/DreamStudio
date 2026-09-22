@@ -6,12 +6,12 @@ Terminal Emulator Logic for DreamStudio.
 from editor import *
 
 from editor.promptx import CommandLine, HELP
-from editor.terminal.ports_widget import PortsWidget
-from editor.terminal.output_widget import OutputWidget
+from editor.terminal.ProcessesViewer.ports_widget import PortsWidget
+from editor.terminal.OutputsWidget.output_widget import OutputWidget
 from editor.promptx.highlight import PromptXHighlighter
 from editor.debugger.problems_widget import ProblemsWidget
 from editor.widgets.QDreamTabEditor import DreamStudioIDETabBar
-from editor.terminal.terminal_workspace import TerminalWorkspace
+from editor.terminal.Emulator.terminal_workspace import TerminalWorkspace
 
 logger = logging.getLogger(__name__)
 

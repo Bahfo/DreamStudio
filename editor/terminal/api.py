@@ -3,7 +3,7 @@
 Terminal API for DreamStudio.
 """
 
-from editor.terminal.terminal_ui import (
+from editor.terminal.Emulator.terminal_ui import (
     TAB_SYSTEM_SHELL,
     TAB_PROMPTX,
     TAB_OUTPUT,

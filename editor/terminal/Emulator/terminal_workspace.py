@@ -6,8 +6,8 @@ Terminal Emulator Logic for DreamStudio.
 from editor import *
 from editor.utils.resource_path import resource_path
 
-from editor.terminal.emulator import ShellEmulator
-from editor.terminal.terminal_display import TerminalDisplay
+from editor.terminal.Emulator.emulator import ShellEmulator
+from editor.terminal.Emulator.terminal_display import TerminalDisplay
 
 import shlex
 import subprocess

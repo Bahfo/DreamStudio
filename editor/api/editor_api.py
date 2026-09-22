@@ -2,6 +2,7 @@ from editor import *
 from editor.utils.resource_path import resource_path
 
 # Local Imports
+from editor.terminal.PythonConsole.console import PythonShell
 from editor.utils.find_replace.find_replace import FindReplace
 
 
@@ -71,6 +72,11 @@ class EditorAPI:
 
     def _toggle_terminal(self) -> None:
         self._toggle_lower_panel("terminal_window", switch_tab=True)
+
+    def _toggle_python_console(self) -> QWidget:
+        self.hero_window._text_editor_center._tabs.add_new_tab(
+            PythonShell, "Python Shell"
+        )
 
     def _toggle_problems(self) -> None:
         self._toggle_lower_panel("problems_window")
