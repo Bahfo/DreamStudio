@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DreamStudio - Summary</title>
+    <style>
+        :root {
+            --bg-main: #ffffff;
+            --bg-header: #f8f9fa;
+            --border-color: #dadce0;
+            --text-main: #202124;
+            --text-muted: #5f6368;
+            --link-color: #1a73e8;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            --font-mono: "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-sans); 
+            color: var(--text-main); 
+            background: var(--bg-main); 
+            line-height: 1.5; }
+
+        header {
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header .title { font-size: 18px; font-weight: 500; color: var(--text-main); }
+        header .title a { color: inherit; text-decoration: none; }
+
+        nav {
+            display: flex;
+            gap: 16px;
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: #ffffff;
+        }
+
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding-bottom: 4px;
+        }
+
+        nav a:hover, nav a.active {
+            color: var(--link-color);
+            border-bottom: 2px solid var(--link-color);
+        }
+
+        main { max-width: 1200px; margin: 24px auto; padding: 0 24px; }
+
+        .card {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+            background: #ffffff;
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            background: var(--bg-header);
+            padding: 10px 16px;
+            font-weight: 500;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }
+
+        .card-body { padding: 16px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--border-color); }
+        th { background: var(--bg-header); color: var(--text-muted); font-weight: 500; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #f8f9fa; }
+
+        a { color: var(--link-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        pre, code { font-family: var(--font-mono); font-size: 13px; }
+        pre { background: #f8f9fa; padding: 16px; overflow-x: auto; line-height: 1.45; }
+
+		.markdown-body h1, .markdown-body h2, .markdown-body h3, 
+        .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+            margin-top: 20px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        .markdown-body h1 { font-size: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
+        .markdown-body h2 { font-size: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px; }
+        .markdown-body h3 { font-size: 16px; }
+        .markdown-body h4 { font-size: 14px; }
+        .markdown-body h5 { font-size: 13px; }
+        .markdown-body h6 { font-size: 12px; color: var(--text-muted); }
+
+        .markdown-body p { margin-bottom: 12px; }
+        .markdown-body img { max-width: 100%; height: auto; vertical-align: middle; margin: 2px 0; }
+        .markdown-body hr { border: 0; border-top: 1px solid var(--border-color); margin: 24px 0; }
+
+        /* GitHub Callout / Alert Styling */
+        .callout {
+            border-left: 4px solid var(--link-color);
+            background: #f8f9fa;
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 13px;
+        }
+        .callout-title { font-weight: 600; margin-bottom: 4px; }
+        .callout-tip { border-left-color: #1a73e8; background: #e8f0fe; }
+        .callout-important { border-left-color: #d93025; background: #fce8e6; }
+        .callout-warning { border-left-color: #f2990a; background: #fef7e0; }
+        .callout-note { border-left-color: #5f6368; background: #f1f3f4; }
+
+        .commits-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .commit-item {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+        }
+        .commit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .commit-msg {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        .commit-hash code {
+            background: var(--bg-muted);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        .commit-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .files-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 13px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .files-table th, .files-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .files-table th {
+            background: var(--bg-muted);
+            font-weight: 600;
+        }
+        .files-table tr:last-child td {
+            border-bottom: none;
+        }
+        .file-name {
+            font-weight: 500;
+        }
+        .file-icon {
+            margin-right: 6px;
+        }
+        .file-commit {
+            color: var(--text-muted);
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-size, .file-date {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="title"><a href="index.html">DreamStudio</a></div>
+    </header>
+    <nav>
+        <a href="index.html">Summary</a>
+        <a href="files.html">Files</a>
+        <a href="commits.html">Commits</a>
+        <a href="stats.html">Stats & Graph</a>
+    </nav>
+    <main>
+        <div class="card">
+        <div class="card-header">Repository Overview</div>
+        <div class="card-body">
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div style="color: var(--text-muted); font-size: 12px;">Total Commits</div>
+                    <div class="stat-val">331</div>
+                </div>
+                <div class="stat-box">
+                    <div style="color: var(--text-muted); font-size: 12px;">Files in HEAD</div>
+                    <div class="stat-val">386</div>
+                </div>
+            </div>
+        </div>
+    </div><div class="card">
+        <div class="card-header">Recent Commits</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Commit</th>
+                    <th>Description</th>
+                    <th>Author</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody><tr>
+            <td class="hash">0554a0e</td>
+            <td>Removed test folders</td>
+            <td>Bahfo</td>
+            <td style="color: var(--text-muted);">2026-08-15</td>
+        </tr><tr>
+            <td class="hash">73513de</td>
+            <td>Refactored syntax highlight implementation in API level.</td>
+            <td>Bahfo</td>
+            <td style="color: var(--text-muted);">2026-08-15</td>
+        </tr><tr>
+            <td class="hash">9c4bb9f</td>
+            <td>Refactored syntax highlight implementation in API level.</td>
+            <td>Bahfo</td>
+            <td style="color: var(--text-muted);">2026-08-15</td>
+        </tr><tr>
+            <td class="hash">9f52b87</td>
+            <td>Redesigned the ports widget, and added a circular progress bar widget</td>
+            <td>Bahfo</td>
+            <td style="color: var(--text-muted);">2026-08-13</td>
+        </tr><tr>
+            <td class="hash">ee9224f</td>
+            <td>Added a port number-monitor utility inside the terminal that looks for a port number and checks used resources.</td>
+            <td>Bahfo</td>
+            <td style="color: var(--text-muted);">2026-08-12</td>
+        </tr></tbody></table></div><div class="card">
+                <div class="card-header">README.md</div>
+                <div class="card-body markdown-body"><h6>Current Version: 1.1.0 (Quiet Vally Release)</h6>
+<h1 align="left" style="font-size: 40px;">DreamStudio IDE</h1>
+<p><img src="https://img.shields.io/badge/Company-Excellent_TechStacks-006FCD?style=for-the-badge" alt="Static Badge"></p>
+<p><img src="https://img.shields.io/badge/Author-Bahaa_Nofal-CBA317?style=for-the-badge" alt="Static Badge"></p>
+<p><img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&amp;logo=python&amp;logoColor=white" alt=""></p>
+<p><img src="https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&amp;logo=cplusplus&amp;logoColor=white" alt=""></p>
+<p>DreamStudio is an open-source Integrated Development Environment developed by <em>Excellent TechStacks</em> (known as <em>EX Techs</em>). It is the basis for Excellent TechStacks Integrated Platform Development Environment (IPDE).</p>
+<p>If you are new to the project and would like to get started quickly, please read the documentaiton provided in notebook forms (<code>.ipynb</code> format).</p>
+<p>You can see in the following picture <strong>DreamStudio</strong> in action.</p>
+<hr>
+<h2>Getting the Source Code</h2>
+<p>The repository is available from at <a href="https://github.com/Bahfo/DreamJetPack-Official<em>Repository," target="</em>blank">https://github.com/Bahfo/DreamJetPack-Official_Repository,</a> which can be cloned or downloaded as a zip file. The <em>main</em> (default) branch contains the source code of the repository. </p>
+<p>Alternatively, follow the steps shown below in a terminal:</p>
+<pre><code class="language-bash">git clone https://github.com/Bahfo/DreamStudio
+cd DreamStudio
+</code></pre>
+<div class="callout callout-tip">
+  <div class="callout-title">TIP</div>
+  If the complete repository history is not required, or you want a faster download, you can access the latest-only repository changes by adding to your command <code>--depth 1</code> after the <code>clone</code> command.<br>
+</div>
+<h3>Installing Required Dependencies</h3>
+<p>DreamStudio requires additional configuration to run successfully separate from the main repository. </p>
+<p>Firstly you should build a virtual environment and install required libraries and frameworks inside. To do that, run the following commands one after another: </p>
+<pre><code class="language-bash"># Specific Commands for UNIX Systems
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+</code></pre>
+<pre><code class="language-powershell"># For Windows, see the following
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+</code></pre>
+<p>DreamStudio also relies on backend services that should be available such as the D-Language Compiler. Make sure you have it downloaded. You can type the following on a terminal to check: </p>
+<pre><code class="language-bash">dmd --version # Explicitly the DMD Compiler is Required
+</code></pre>
+<div class="callout callout-important">
+  <div class="callout-title">IMPORTANT</div>
+  Explicitly, we prefer you have the <code>dmd</code> compiler downloaded for D-Language. Other compilers are accepted but are not supported.<br>
+</div>
+<p>The final tool you should have is the C-Language Compiler (<code>GCC</code>). You can check if it is available on your machine or not by running the following command: </p>
+<pre><code class="language-bash">gcc --version # Explicitly the GCC Compiler is Required
+</code></pre>
+<p>Just like with D-Lang, you are free to use any C-Language Compiler, but we support <code>GCC</code> for this operation.</p>
+<hr>
+<h2>Building DreamStudio</h2>
+<p>DreamStudio has a build tool in a script format available too inside the repository, you do not need to type-in commands to build the repository by hand. Just make sure you have the prerequisties from previous steps ready, and that the Python&#39;s Virtual Environment (venv) is available and activated.</p>
+<div class="callout callout-tip">
+  <div class="callout-title">TIP</div>
+  You can also run with specific configurations for building. For example, you can build explicitly without a specific feature you do not want the IDE to have. The notebook&#39;s documentation provides a full article about it.<br>
+</div>
+<hr>
+<h2>A Word to Users</h2>
+<p>Thank you for choosing DreamStudio to build your applications! your support means the world to us. We will continue to ship more features and make the studio a better system for developers of all kinds. Thank you!</p>
+</div>
+            </div>
+    </main>
+</body>
+</html>
