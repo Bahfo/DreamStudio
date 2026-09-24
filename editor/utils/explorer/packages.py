@@ -16,12 +16,16 @@ class DependenciesView(QWidget):
         """
         super().__init__(parent)
 
+        self._directory = os.getcwd()
+
         _layout = QVBoxLayout(self)
         _layout.setContentsMargins(5, 5, 5, 5)
 
         self._label = QLabel("Packages Explorer")
-        self._label.setStyleSheet("""
-            font-size: 12px;""")
+        self._label.setStyleSheet(
+            """
+            font-size: 12px;"""
+        )
         _layout.addWidget(self._label)
 
         self._toolbar = ExplorerToolbar()
@@ -31,7 +35,9 @@ class DependenciesView(QWidget):
         self._del_btn = self._toolbar.add_button(
             resource_path("assets/menus/trash.png"), "Delete package"
         )
-        self._ref_btn = self._toolbar.add_button(resource_path("assets/menus/restart.png"), "Refresh")
+        self._ref_btn = self._toolbar.add_button(
+            resource_path("assets/menus/restart.png"), "Refresh"
+        )
         self._toolbar.addStretch()
         _layout.addLayout(self._toolbar)
 
@@ -116,6 +122,15 @@ class DependenciesView(QWidget):
         """
         self._load_packages()
 
+    def set_workspace(self, path: str) -> None:
+        """Update the directory used for pip operations.
+
+        Args:
+            path: Absolute path of the active solution/folder.
+        """
+        if path:
+            self._directory = os.path.abspath(path)
+
     def _add_package(self):
         """
         Prompts the user for a valid package identity string to supply to pip.
@@ -168,6 +183,7 @@ class DependenciesView(QWidget):
 
         self.setEnabled(False)
         self._process.finished.connect(self._on_pip_finished)
+        self._process.setWorkingDirectory(self._directory)
         self._process.start(python_exe, full_args)
 
     def _on_pip_finished(self, exit_code, exit_status):

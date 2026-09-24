@@ -552,6 +552,12 @@ class SolutionExplorer(PanelShell):
             get_gitignore_service().set_root(self._root_path)
         except Exception:
             pass
+        # Propagate workspace to the Packages tab so pip operations run in the right directory.
+        if hasattr(self, "packages_view") and self.packages_view is not None:
+            try:
+                self.packages_view.set_workspace(self._root_path)
+            except Exception as exc:
+                logger.warning("Packages explorer re-point failed: %s", exc)
 
     def set_root_path(self, root_path: str) -> None:
         """

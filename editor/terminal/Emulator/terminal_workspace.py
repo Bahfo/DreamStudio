@@ -142,6 +142,7 @@ class TerminalWorkspace(QWidget):
         self._theme_bg: str | None = None
         self._theme_fg: str | None = None
         self._theme_sel: str | None = None
+        self._default_cwd: str | None = None
 
         self.setObjectName("terminalWorkspace")
         self.setStyleSheet("border:none;")
@@ -288,7 +289,9 @@ class TerminalWorkspace(QWidget):
             init_cols = max(20, display.width() // max(1, display._cw))
             init_rows = max(5, display.height() // max(1, display._ch))
 
-        emulator.start(cwd=cwd or os.getcwd(), rows=init_rows, cols=init_cols)
+        emulator.start(
+            cwd=cwd or self._default_cwd or os.getcwd(), rows=init_rows, cols=init_cols
+        )
 
         self._stack.addWidget(view)
 
@@ -454,6 +457,19 @@ class TerminalWorkspace(QWidget):
 
     def active_count(self) -> int:
         return len(self._sessions)
+
+    def set_default_cwd(self, cwd: str | None) -> None:
+        """Set the working directory used for newly-created terminal sessions.
+
+        Existing sessions are not re-rooted (a shell cannot migrate its
+        directory mid-run), but every session opened after the workspace
+        switch will start inside *cwd*.
+
+        Args:
+            cwd: Absolute path of the active workspace/folder.
+        """
+        if cwd:
+            self._default_cwd = os.path.abspath(cwd)
 
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self._theme_bg = bg

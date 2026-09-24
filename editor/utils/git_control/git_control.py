@@ -169,11 +169,13 @@ def commit_staged(
     repo: Repo, message: str, files: list[str] | None = None
 ) -> tuple[bool, str]:
     try:
+        repo_root = repo.working_dir or "."
         if files:
             to_add = []
             to_remove = []
             for f in files:
-                if os.path.exists(f):
+                abs_path = os.path.join(repo_root, f)
+                if os.path.exists(abs_path):
                     to_add.append(f)
                 else:
                     to_remove.append(f)
@@ -231,7 +233,8 @@ def get_file_diff(repo: Repo, file_path: str) -> dict:
 
     new_content = ""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        abs_path = os.path.join(repo.working_dir or ".", file_path)
+        with open(abs_path, "r", encoding="utf-8") as f:
             new_content = f.read()
     except Exception:
         pass

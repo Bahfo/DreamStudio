@@ -21,6 +21,22 @@ TAB_OUTPUT = 2
 TAB_PORTS = 3
 
 
+def _inherit_workspace(widget) -> str:
+    """Return the main window's workspace path, falling back to the CWD.
+
+    Args:
+        widget: Any widget inside the DreamStudio window hierarchy.
+    """
+    try:
+        top = widget.window()
+        workspace = getattr(top, "currentDirectory", None)
+        if workspace:
+            return workspace
+    except Exception:
+        pass
+    return os.getcwd()
+
+
 class _TerminalTabBar(DreamStudioIDETabBar):
     def tabSizeHint(self, index):
         return QSize(100, 32)
@@ -260,7 +276,7 @@ class TerminalEdit(QPlainTextEdit):
 class PromptXTerminalWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._engine = CommandLine(os.getcwd())
+        self._engine = CommandLine(_inherit_workspace(self))
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -348,6 +364,24 @@ class PromptXTerminalWidget(QWidget):
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self._terminal.setTextCursor(cursor)
 
+    def set_workspace(self, path: str) -> None:
+        """Re-point the PromptX working directory to the active workspace.
+
+        The engine prompt follows *path* without mutating the IDE's global
+        process CWD.
+
+        Args:
+            path: Absolute path of the active solution/folder.
+        """
+        try:
+            result = self._engine.set_directory(path)
+        except Exception as exc:
+            logger.warning("PromptX re-point failed: %s", exc)
+            return
+        self._terminal.moveCursor(QTextCursor.MoveOperation.End)
+        self._terminal.insertPlainText(str(result) + "\n")
+        self._show_prompt()
+
 
 class TerminalPanel(QWidget):
     close_requested = pyqtSignal()
@@ -423,6 +457,15 @@ class TerminalPanel(QWidget):
         if index < 0 or index >= self.tab_bar.count():
             return
         self.tab_bar.setCurrentIndex(index)
+
+    def set_workspace(self, path: str) -> None:
+        """Re-point all terminal tabs to the active workspace directory.
+
+        Args:
+            path: Absolute path of the active solution/folder.
+        """
+        self.system_shell_tab.set_default_cwd(path)
+        self.promptXShell_tab.set_workspace(path)
 
     def count(self):
         return self.stack.count()

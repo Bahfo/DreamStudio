@@ -21,10 +21,10 @@ class PropertiesExplorer(PanelShell):
     TITLE_TEXT = "Properties"
 
     def __init__(self, parent=None):
+        self.current_project_dir = None
         super().__init__(parent)
         self.setMinimumWidth(235)
 
-        self.current_project_dir = None
         self.data_engine = ProjectDataEngine()
 
         self._setup_focus_tracking()
@@ -182,6 +182,10 @@ class PropertiesExplorer(PanelShell):
             self.config_grid.load_grid_data(project_data)
             self.config_grid.blockSignals(False)
 
+        # Refresh the Languages analysis for the new workspace.
+        self._remove_languages_section()
+        self._add_languages_section()
+
     def _on_config_property_changed(self, item: QTreeWidgetItem, column: int) -> None:
         """Listens directly to the grid inputs to save modified values straight to disk."""
         if column != 1 or not self.data_engine.is_valid_project():
@@ -203,14 +207,38 @@ class PropertiesExplorer(PanelShell):
         return super().eventFilter(source, event)
 
     def analyze_languages(self) -> LanguageAnalyzer:
+        target = self.current_project_dir or os.curdir
         analysis_widget = LanguageAnalyzer()
-        analysis_widget.analyze_directory(os.curdir)
+        analysis_widget.analyze_directory(target)
         return analysis_widget
+
+    def _remove_languages_section(self) -> None:
+        """Remove the existing 'Languages' tree section if present."""
+        if not hasattr(self, "env_tree"):
+            return
+        for i in range(self.env_tree.topLevelItemCount() - 1, -1, -1):
+            item = self.env_tree.topLevelItem(i)
+            if item.text(0) == "Languages":
+                self.env_tree.takeTopLevelItem(i)
+
+    def _add_languages_section(self) -> None:
+        """Add a fresh 'Languages' tree section with current analysis."""
+        if not hasattr(self, "env_tree"):
+            return
+        parent = QTreeWidgetItem(self.env_tree)
+        parent.setText(0, "Languages")
+        parent.setFlags(parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
+        parent.setExpanded(False)
+        widget = self.analyze_languages()
+        child = QTreeWidgetItem(parent)
+        child.setText(0, "")
+        child.setSizeHint(0, QSize(200, 65))
+        child.setFirstColumnSpanned(True)
+        self.env_tree.setItemWidget(child, 0, widget)
 
     def _populate_python_info(self) -> None:
         sections = [
             ("Interpreter", get_interpreter_info()),
-            ("Languages", self.analyze_languages()),
         ]
 
         for section_title, data in sections:
@@ -219,15 +247,7 @@ class PropertiesExplorer(PanelShell):
             parent.setFlags(parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
             parent.setExpanded(False)
 
-            if isinstance(data, QWidget):
-                child = QTreeWidgetItem(parent)
-                child.setText(0, "")
-                child.setSizeHint(0, QSize(200, 65))
-                child.setFirstColumnSpanned(True)
-
-                self.env_tree.setItemWidget(child, 0, data)
-
-            elif isinstance(data, dict):
+            if isinstance(data, dict):
                 for key, value in data.items():
                     child = QTreeWidgetItem(parent)
                     child.setText(0, key)
@@ -253,6 +273,8 @@ class PropertiesExplorer(PanelShell):
                         else:
                             child.setText(1, text)
                             child.setToolTip(1, text)
+
+        self._add_languages_section()
 
     def set_active_editor(self, editor: CodeEditor | None) -> None:
         """

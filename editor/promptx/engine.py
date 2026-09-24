@@ -97,6 +97,26 @@ class CommandLine(cmd.Cmd):
         self._history = []
         self._history_index = None
 
+    def set_directory(self, path):
+        """Point this shell's working directory at *path* (no ``os.chdir``).
+
+        Unlike the ``changedir`` command this never mutates the IDE's
+        process-wide working directory; it only updates the prompt shown
+        to the user and the base directory used by relative commands.
+
+        Args:
+            path: The directory to adopt as the current working directory.
+
+        Returns:
+            A confirmation message string.
+        """
+        try:
+            self.currentDir = os.path.abspath(path)
+            self.prompt = f"{self.currentDir}>>> "
+            return f"Changed directory to {self.currentDir}"
+        except Exception as e:
+            return f"Error 1: {e}"
+
     def parse_args(self, arg):
         """
         Prases arguments passed from `GUIStdout` class by splitting from the

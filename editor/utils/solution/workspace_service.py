@@ -144,6 +144,10 @@ class WorkspaceService(QObject):
         if text_center is not None:
             try:
                 text_center.currentDirectory = path
+                # Sync DreamTabbedEditor snapshot so "Open File" dialog follows the workspace.
+                tabs = getattr(text_center, "tabs", None)
+                if tabs is not None:
+                    tabs.currentDirectory = path
             except Exception:
                 pass
         lower_widget = getattr(hero, "_lower_widget", None)
@@ -152,6 +156,13 @@ class WorkspaceService(QObject):
                 lower_widget.currentDirectory = path
             except Exception:
                 pass
+            # Re-point the integrated terminal (system shell default cwd + PromptX)
+            term = getattr(lower_widget, "terminal_window", None)
+            if term is not None and hasattr(term, "set_workspace"):
+                try:
+                    term.set_workspace(path)
+                except Exception as exc:
+                    logger.warning("Terminal re-point failed: %s", exc)
 
     def _repoint_panels(self, hero, path: str) -> None:
         """Update source control, explorer and TODO-search roots in *hero*."""
@@ -175,6 +186,24 @@ class WorkspaceService(QObject):
                 todo.set_base_dir(path)
             except Exception:
                 pass
+
+        # Properties panel — re-point to analyze the new workspace.
+        properties = getattr(hero, "_properties_explorer", None)
+        if properties is not None and hasattr(
+            properties, "set_active_project_directory"
+        ):
+            try:
+                properties.set_active_project_directory(path)
+            except Exception as exc:
+                logger.warning("Properties explorer re-point failed: %s", exc)
+
+        # Server explorer — keep its base path in sync (placeholder panel).
+        server = getattr(hero, "_server_explorer", None)
+        if server is not None and hasattr(server, "set_workspace"):
+            try:
+                server.set_workspace(path)
+            except Exception as exc:
+                logger.warning("Server explorer re-point failed: %s", exc)
 
     def _defer_problems_analysis(self, window, path: str) -> None:
         """Schedule a workspace syntax analysis for the new root."""

@@ -121,3 +121,12 @@ class ServerExplorer(PanelShell):
     def _header_right_widgets(self) -> list[QWidget]:
         """Provide header widgets for the panel."""
         return []
+
+    def set_workspace(self, root_path: str) -> None:
+        """Update the panel's base directory when the workspace changes.
+
+        Args:
+            root_path: Absolute path of the active solution/folder.
+        """
+        if root_path:
+            self._root_path = os.path.abspath(root_path)
