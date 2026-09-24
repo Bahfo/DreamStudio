@@ -1,8 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Solution marker management: read/write ``.ds/solution.yaml`` so a solution
-folder can be recognized and typed on later launches.
 """
 
 from editor import *
@@ -19,20 +16,10 @@ def _marker_path(path: str) -> str:
 
 
 def is_solution_dir(path: str) -> bool:
-    """Return ``True`` when *path* carries a solution marker file.
-
-    Args:
-        path: Candidate solution folder path.
-    """
     return os.path.isfile(_marker_path(path))
 
 
 def read_solution(path: str) -> dict | None:
-    """Read the solution marker of *path*, or ``None`` when absent.
-
-    Args:
-        path: Solution folder path.
-    """
     marker = _marker_path(path)
     if not os.path.isfile(marker):
         return None
@@ -52,18 +39,6 @@ def write_solution(
     manifest: str = "",
     created_at: str = "",
 ) -> dict:
-    """Write a solution marker into *path* and return the stored data.
-
-    Args:
-        path: Solution folder path (created when missing).
-        name: Display name of the solution.
-        project_type: Machine-readable project type identifier.
-        manifest: Relative manifest path used to scaffold the project.
-        created_at: ISO timestamp; defaults to now when empty.
-
-    Returns:
-        The marker dict that was persisted.
-    """
     if not created_at:
         created_at = str(time.time())
     payload = {

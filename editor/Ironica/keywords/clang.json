@@ -1,0 +1,83 @@
+{
+    "lang": "clang",
+    "extensions": ["c", "h", "cpp", "hpp", "cc", "hh", "cxx"],
+    "styles": {
+        "keyword": "KEYWORD_COLOR",
+        "builtin": "BUILTIN_COLOR",
+        "definition": "DEFINITION_COLOR",
+        "class_def": "CLASS_COLOR",
+        "string": "STRING_COLOR",
+        "number": "NUMBER_COLOR",
+        "comment": "COMMENT_COLOR",
+        "decorator": "PREPROC_COLOR",
+        "additional": "ADDITIONAL_COLOR",
+        "operator": "OPERATOR_COLOR",
+        "bracket": "BRACKET_COLOR",
+        "bracket_2": "BRACKET2_COLOR",
+        "bracket_3": "BRACKET3_COLOR",
+        "exception": "EXCEPTION_COLOR",
+        "import": "IMPORT_COLOR",
+        "variable": "VARIABLE_COLOR"
+    },
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "BUILTIN_COLOR": "#4EC9B0",
+        "DEFINITION_COLOR": "#DCDCAA",
+        "CLASS_COLOR": "#4EC9B0",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "PREPROC_COLOR": "#C586C0",
+        "ADDITIONAL_COLOR": "#569CD6",
+        "OPERATOR_COLOR": "#D4D4D4",
+        "BRACKET_COLOR": "#FFD700",
+        "BRACKET2_COLOR": "#C678DD",
+        "BRACKET3_COLOR": "#61AFEF",
+        "EXCEPTION_COLOR": "#FF6B6B",
+        "IMPORT_COLOR": "#CE9178",
+        "VARIABLE_COLOR": "#9CDCFE"
+    },
+    "keywords": {
+        "keyword": [
+            "auto", "break", "case", "char", "const", "continue", "default",
+            "do", "double", "else", "enum", "extern", "float", "for", "goto",
+            "if", "inline", "int", "long", "register", "restrict", "return",
+            "short", "signed", "sizeof", "static", "struct", "switch", "typedef",
+            "union", "unsigned", "void", "volatile", "while", "alignas",
+            "alignof", "bool", "constexpr", "static_assert", "thread_local",
+            "class", "public", "private", "protected", "virtual", "namespace",
+            "using", "template", "typename", "new", "delete", "override", "final"
+        ],
+        "builtin": [
+            "int8_t", "uint8_t", "int16_t", "uint16_t", "int32_t", "uint32_t",
+            "int64_t", "uint64_t", "intptr_t", "uintptr_t", "size_t", "ssize_t",
+            "ptrdiff_t", "off_t", "uintmax_t", "intmax_t", "bool", "true", "false",
+            "NULL", "nullptr", "std", "memcpy", "memset", "memmove", "malloc",
+            "calloc", "realloc", "free", "printf", "sprintf", "snprintf", "scanf"
+        ],
+        "definition": [],
+        "class_def": [],
+        "string": [],
+        "number": [],
+        "comment": [],
+        "decorator": [
+            "#include", "#define", "#undef", "#if", "#ifdef", "#ifndef",
+            "#else", "#elif", "#endif", "#pragma", "#error", "#warning", "#line"
+        ],
+        "additional": [
+            "__attribute__", "__inline__", "__asm__", "__volatile__",
+            "__attribute__((weak))", "__attribute__((packed))",
+            "__attribute__((aligned))", "__attribute__((section))"
+        ],
+        "operator": [],
+        "exception": [
+            "try", "catch", "throw"
+        ],
+        "import": []
+    },
+    "snippets": [
+        "/Main", "/HeaderGuard", "/StructDef", "/EnumDef", "/ISR_Handler",
+        "/FreeRTOSTask", "/FSM_Switch", "/GPIO_Init", "/UART_Init",
+        "/Printf_Debug", "/REST_API_C"
+    ]
+}

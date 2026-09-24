@@ -144,7 +144,6 @@ class WorkspaceService(QObject):
         if text_center is not None:
             try:
                 text_center.currentDirectory = path
-                # Sync DreamTabbedEditor snapshot so "Open File" dialog follows the workspace.
                 tabs = getattr(text_center, "tabs", None)
                 if tabs is not None:
                     tabs.currentDirectory = path
@@ -156,7 +155,6 @@ class WorkspaceService(QObject):
                 lower_widget.currentDirectory = path
             except Exception:
                 pass
-            # Re-point the integrated terminal (system shell default cwd + PromptX)
             term = getattr(lower_widget, "terminal_window", None)
             if term is not None and hasattr(term, "set_workspace"):
                 try:

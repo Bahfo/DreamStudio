@@ -13,17 +13,7 @@ over the running application.
 import datetime
 import os
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (
-    QDialog,
-    QFileDialog,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QMessageBox,
-    QPushButton,
-    QVBoxLayout,
-)
+from editor import *
 
 from editor.utils.solution.solution_marker import write_solution
 from editor.utils.solution.theme import (
@@ -36,18 +26,6 @@ _DIALOG_MIN_WIDTH = 520
 
 
 def _message_box(parent, icon, title, text, buttons=QMessageBox.StandardButton.Ok):
-    """Build a themed, screen-centered QMessageBox and return it.
-
-    Args:
-        parent: Dialog/window owning the box.
-        icon: One of the ``QMessageBox.Icon`` values.
-        title: Box title.
-        text: Box body text.
-        buttons: Standard buttons to offer.
-
-    Returns:
-        The fully-configured, centered ``QMessageBox`` instance.
-    """
     box = QMessageBox(parent)
     box.setIcon(icon)
     box.setWindowTitle(title)
@@ -59,24 +37,7 @@ def _message_box(parent, icon, title, text, buttons=QMessageBox.StandardButton.O
 
 
 class CreateSolutionDialog(QDialog):
-    """Modal form collecting the parameters of a brand-new solution.
-
-    Emits nothing on its own; the caller reads :attr:`result_data` after the
-    dialog is accepted.
-
-    Attributes:
-        result_data (dict): Populated on accept with ``path``, ``name``,
-            ``project_type`` and ``manifest_path`` keys.
-    """
-
     def __init__(self, parent=None, project_entry=None) -> None:
-        """Build the create dialog.
-
-        Args:
-            parent: Optional parent widget (usually the start window).
-            project_entry: A manifest entry dict returned by
-                ``manifest_scan.scan_project_types()``.
-        """
         super().__init__(parent)
         self._project_entry = project_entry or {}
         self.result_data: dict = {}
@@ -94,10 +55,6 @@ class CreateSolutionDialog(QDialog):
     def showEvent(self, event) -> None:
         """Center the dialog on the screen each time it is shown."""
         center_on_screen_show(self, event)
-
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -158,65 +115,37 @@ class CreateSolutionDialog(QDialog):
         return label
 
     def _apply_style(self) -> None:
-        self.setStyleSheet(
-            """
-            QDialog {
-                background-color: #1e1e2e;
-            }
+        self.setStyleSheet("""
             QLabel#HeadingLabel {
-                color: #cdd6f4;
                 font-size: 18px;
                 font-weight: bold;
             }
-            QLabel#FieldLabel {
-                color: #a6adc8;
-                font-size: 12px;
-            }
+            QLabel#FieldLabel {font-size: 12px;}
             QLabel#ProjectTypeLabel {
-                color: #89b4fa;
                 font-size: 14px;
                 font-weight: bold;
             }
-            QLabel#DescriptionLabel {
-                color: #a6adc8;
-                font-size: 12px;
-            }
+            QLabel#DescriptionLabel {font-size: 12px;}
             QLineEdit {
-                background-color: #313244;
                 border: 1px solid #45475a;
                 border-radius: 6px;
                 color: #cdd6f4;
                 padding: 6px 8px;
                 font-size: 13px;
             }
-            QLineEdit:focus {
-                border: 1px solid #89b4fa;
-            }
+            QLineEdit:focus {border: 1px solid #89b4fa;}
             QPushButton {
-                background-color: #313244;
                 border: 1px solid #45475a;
                 border-radius: 6px;
                 color: #cdd6f4;
                 padding: 7px 14px;
                 font-size: 13px;
             }
-            QPushButton:hover {
-                background-color: #45475a;
-            }
             QPushButton#PrimaryButton {
-                background-color: #89b4fa;
                 color: #11111b;
                 font-weight: bold;
             }
-            QPushButton#PrimaryButton:hover {
-                background-color: #b4befe;
-            }
-            """
-        )
-
-    # ------------------------------------------------------------------
-    # Behaviour
-    # ------------------------------------------------------------------
+            """)
 
     def _choose_location(self) -> None:
         start_dir = self._location_input.text() or os.path.expanduser("~")

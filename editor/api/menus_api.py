@@ -61,7 +61,7 @@ class MenusAPI:
         Args:
             preferred_tab: Which landing tab to preselect (0 create, 1 open).
         """
-        from editor.utils.solution.start_window import (
+        from editor.utils.solution.startup_window import (
             SolutionStartWindow,
             run_start_window_selection,
         )
@@ -83,7 +83,7 @@ class MenusAPI:
                 explorer.set_root_path(path)
 
         if scaffold:
-            from editor.utils.solution.scaffold_controller import ScaffoldController
+            from editor.utils.solution.QScafoldController import ScaffoldController
 
             controller = ScaffoldController(self, scaffold)
             controller.run_blocking()

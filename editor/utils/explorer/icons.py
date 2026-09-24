@@ -1,17 +1,21 @@
 from editor import *
 from editor.utils.resource_path import resource_path
 
+
 class DreamStudioIconProvider(QFileIconProvider):
     _EXT_ICON = {
         "bash": "bash.png",
         "sh": "bash.png",
         "bat": "bat.png",
         "bin": "bin.png",
+        "bsharp": "bsharp.png",
+        "c": "c.png",
         "css": "css.png",
         "csv": "csv.png",
         "docker": "docker.png",
         "docx": "docx.png",
         "html": "html.png",
+        "h": "h.png",
         "ipynb": "ipynb.png",
         "js": "javascript.png",
         "json": "json.png",
@@ -32,6 +36,7 @@ class DreamStudioIconProvider(QFileIconProvider):
         "svg": "svg.png",
         "sql": "data.png",
         "ts": "typescript.png",
+        "yaml": "yaml.png",
     }
 
     _NAME_ICON = {
@@ -39,6 +44,10 @@ class DreamStudioIconProvider(QFileIconProvider):
         "copyright": "license.png",
         ".gitignore": "git.png",
         ".gitattributes": "git.png",
+        "Makefile": "make.png",
+        "CMakelists": "make.png",
+        "Dockerfile": "docker.png",
+        ".dockerignore": "docker.png",
     }
 
     def icon(self, file_info: QFileInfo) -> QIcon:

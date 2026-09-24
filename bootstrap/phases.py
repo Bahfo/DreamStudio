@@ -389,7 +389,9 @@ def phase_solution_prompt(ctx: PhaseContext) -> None:
     try:
         import importlib
 
-        start_window_mod = importlib.import_module("editor.utils.solution.start_window")
+        start_window_mod = importlib.import_module(
+            "editor.utils.solution.startup_window"
+        )
         window = start_window_mod.SolutionStartWindow(registry=ctx.registry)
         selection, scaffold = _run_start_window(window, ctx)
     except SolutionPromptCancelled:

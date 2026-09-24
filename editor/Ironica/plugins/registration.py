@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # Path helpers
 # ------------------------------------------------------------------
 
+
 def _get_ironica_dir() -> str:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         return os.path.join(sys._MEIPASS, "editor", "Ironica")  # type: ignore[attr-defined]
@@ -177,15 +178,15 @@ def load_plugins_config() -> dict[str, Any]:
         logger.warning("plugins.json has invalid structure, regenerating")
         return _ensure_plugins_json()
 
-    # Merge any newly discovered languages not yet in the saved config.
+    # Merge newly discovered languages and refresh changed plugin specs.
     discovered = _auto_discover()
     saved_plugins = raw.setdefault("plugins", {})
     merged = False
     for lang, spec in discovered.get("plugins", {}).items():
-        if lang not in saved_plugins:
+        if lang not in saved_plugins or saved_plugins[lang] != spec:
             saved_plugins[lang] = spec
             merged = True
-            logger.info("Merged newly discovered language %r into plugins.json", lang)
+            logger.info("Updated discovered language %r in plugins.json", lang)
     if merged:
         _persist_plugins_config(raw)
 
@@ -244,9 +245,7 @@ def _register_one(lang: str, spec: dict[str, str]) -> tuple[bool, Optional[str]]
             try:
                 provider = factory()
             except Exception as exc:
-                logger.error(
-                    "Provider factory for %r failed: %s", lang, exc
-                )
+                logger.error("Provider factory for %r failed: %s", lang, exc)
                 return False, f"{lang}: provider factory failed: {exc}"
 
     try:

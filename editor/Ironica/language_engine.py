@@ -50,6 +50,9 @@ class LanguageLexer(QsciLexerCustom):
         self.config = config
         self.styles_map: Dict[str, int] = {}
         self.keywords_map: Dict[str, int] = {}
+        self._lex_state = 0
+        self._lex_quote = 0
+        self._lex_scanned_until = 0
         self._setup_configuration()
 
     def _setup_configuration(self):
@@ -74,101 +77,120 @@ class LanguageLexer(QsciLexerCustom):
         return ""
 
     def styleText(self, start: int, end: int) -> None:
-        """Syntax-highlight the byte range ``[start, end)``.
-
-        QScintilla passes UTF-8 byte offsets, so ``SCI_GETTEXTRANGE`` is
-        used to fetch only the requested slice — never a full-document
-        ``text()`` string copy.  A small integer state machine tracks
-        default text (``0``), string literals (``1``) and block comments
-        (``2``) so keywords are never styled inside strings or comments.
-        """
+        """Syntax-highlight a byte range with persistent C-style states."""
         editor = self.editor()
-        if not editor:
+        if not editor or start < 0 or end <= start:
             return
 
-        # SCI_GETTEXTRANGE writes into a caller-supplied buffer; PyQt6
-        # passes the bytearray through by reference and returns the byte
-        # count written.  Only the requested slice is copied — never the
-        # whole document via editor.text().
-        buffer = bytearray(end - start + 1)
-        written = editor.SendScintilla(editor.SCI_GETTEXTRANGE, start, end, buffer)
-        raw = bytes(buffer[:written])
-        if not raw:
-            return
-
-        string_style = self.styles_map.get("string", 0)
-        comment_style = self.styles_map.get("comment", 0)
+        if start == self._lex_scanned_until:
+            buffer = bytearray(end - start + 1)
+            written = editor.SendScintilla(editor.SCI_GETTEXTRANGE, start, end, buffer)
+            raw = bytes(buffer[:written])
+            base = start
+            state = self._lex_state
+            quote = self._lex_quote
+        else:
+            raw = editor.text().encode("utf-8")
+            end = min(end, len(raw))
+            base = 0
+            state = 0
+            quote = 0
+            if not raw:
+                return
 
         self.startStyling(start)
-
-        state = 0
-        quote = 0
+        string_style = self.styles_map.get("string", 0)
+        char_style = self.styles_map.get("string", 0)
+        comment_style = self.styles_map.get("comment", 0)
         run_start = 0
+        run_style = (
+            comment_style if state in (3, 4) else string_style if state in (1, 2) else 0
+        )
         length = len(raw)
-        i = 0
+        index = 0
 
-        while i < length:
-            ch = raw[i]
+        def flush(stop: int) -> None:
+            nonlocal run_start, run_style
+            overlap_start = max(base + run_start, start)
+            overlap_end = min(base + stop, end)
+            if overlap_end > overlap_start:
+                self.setStyling(overlap_start - start, run_style)
+            run_start = stop
+            run_style = 0
 
-            # String state: consume until the unescaped closing quote.
-            if state == 1:
-                if ch == 0x5C and i + 1 < length:
-                    i += 2
-                else:
-                    i += 1
-                    if ch == quote:
-                        self.setStyling(i - run_start, string_style)
-                        run_start = i
-                        state = 0
-                continue
+        while index < length:
+            byte = raw[index]
 
-            # Block-comment state: consume until the closing ``*/``.
-            if state == 2:
-                if ch == 0x2A and i + 1 < length and raw[i + 1] == 0x2F:
-                    i += 2
-                    self.setStyling(i - run_start, comment_style)
-                    run_start = i
+            if state == 1 or state == 2:
+                if byte == 0x5C and index + 1 < length:
+                    index += 2
+                    continue
+                index += 1
+                if byte == quote:
+                    flush(index)
                     state = 0
-                else:
-                    i += 1
                 continue
 
-            # Enter a string literal (``"`` or ``'``).
-            if ch == 0x22 or ch == 0x27:
-                if i > run_start:
-                    self.setStyling(i - run_start, 0)
-                quote = ch
-                run_start = i
+            if state == 3:
+                if byte == 0x0A:
+                    flush(index + 1)
+                    state = 0
+                    index += 1
+                    continue
+                index += 1
+                continue
+
+            if state == 4:
+                index += 1
+                if byte == 0x2A and index < length and raw[index] == 0x2F:
+                    index += 1
+                    flush(index)
+                    state = 0
+                continue
+
+            if byte == 0x2F and index + 1 < length:
+                marker = raw[index + 1]
+                if marker == 0x2F:
+                    flush(index)
+                    run_style = comment_style
+                    run_start = index
+                    state = 3
+                    index += 2
+                    continue
+                if marker == 0x2A:
+                    flush(index)
+                    run_style = comment_style
+                    run_start = index
+                    state = 4
+                    index += 2
+                    continue
+
+            if byte in (0x22, 0x27):
+                flush(index)
+                quote = byte
+                run_style = string_style if byte == 0x22 else char_style
+                run_start = index
                 state = 1
-                i += 1
+                index += 1
                 continue
 
-            # Enter a block comment (``/*``).
-            if ch == 0x2F and i + 1 < length and raw[i + 1] == 0x2A:
-                if i > run_start:
-                    self.setStyling(i - run_start, 0)
-                run_start = i
-                state = 2
-                i += 2
-                continue
-
-            # Identifier in default state — keyword lookup.
-            match = _RE_WORD.match(raw, i)
+            match = _RE_WORD.match(raw, index)
             if match:
                 word = raw[match.start() : match.end()].decode("ascii")
                 style = self.keywords_map.get(word, 0)
-                if i > run_start:
-                    self.setStyling(i - run_start, 0)
-                self.setStyling(match.end() - i, style)
-                run_start = match.end()
-                i = match.end()
+                if style:
+                    flush(index)
+                    run_style = style
+                    run_start = match.end()
+                index = match.end()
                 continue
 
-            i += 1
+            index += 1
 
-        tail_style = string_style if state == 1 else comment_style if state == 2 else 0
-        if length > run_start:
-            self.setStyling(length - run_start, tail_style)
+        flush(length)
+        self._lex_state = state
+        self._lex_quote = quote
+        self._lex_scanned_until = base + length
 
 
 class BaseLanguageProvider(ABC):
@@ -352,7 +374,9 @@ class LanguageRegistry:
     # ------------------------------------------------------------------
 
     @classmethod
-    def _store_language(cls, config: dict, provider_instance: Optional[BaseLanguageProvider]) -> bool:
+    def _store_language(
+        cls, config: dict, provider_instance: Optional[BaseLanguageProvider]
+    ) -> bool:
         """Persist a validated config and provider into the registry.
 
         Handles duplicate-language warnings, extension-map warnings and

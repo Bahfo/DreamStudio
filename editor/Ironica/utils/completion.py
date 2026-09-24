@@ -58,6 +58,16 @@ class CompletionDelegate(QStyledItemDelegate):
         "path": "path.png",
         "symbol-text": "text.png",
         "snippet": "snippet.png",
+        "type": "class.png",
+        "struct": "class.png",
+        "union": "class.png",
+        "typedef": "class.png",
+        "field": "property.png",
+        "constant": "variable.png",
+        "macro": "keyword.png",
+        "namespace": "module.png",
+        "preprocessor": "keyword.png",
+        "inclusion_directive": "module.png",
     }
 
     def __init__(self, parent: Optional[QObject] = None) -> None:

@@ -893,28 +893,31 @@ class DreamTabbedEditor(QDreamTabEditor):
                 pass
 
     def open_file_at_line(self, file_path: str, line: int) -> None:
-        """Open *file_path* and jump the cursor to *line*.
+        """Open *file_path* and jump its underlying editor to *line*.
 
-        Used by go-to-definition navigation.
+        Args:
+            file_path: Absolute path to the file to open.
+            line: Zero-based destination line for go-to-definition navigation.
         """
         file_name = pathlib.Path(file_path).name
         file_extn = pathlib.Path(file_path).suffix
+        destination_line = max(0, int(line))
 
         try:
-            editor = self.add_new_editor(
+            self.add_new_editor(
                 file_name=file_name,
                 file_path=file_path,
                 language=self.set_language(file_extn),
             )
-            if editor and hasattr(editor, "setCursorPosition"):
-                editor.setCursorPosition(line, 0)
-                editor.ensureLineVisible(line)
-                QTimer.singleShot(
-                    0,
-                    lambda e=editor, l=line: (
-                        e.setFocus() if hasattr(e, "setFocus") else None
-                    ),
-                )
+            editor = self.get_editor_for_path(file_path)
+            if editor is None:
+                return
+            editor.setCursorPosition(destination_line, 0)
+            editor.ensureLineVisible(destination_line)
+            QTimer.singleShot(
+                0,
+                lambda e=editor: e.setFocus() if hasattr(e, "setFocus") else None,
+            )
         except Exception as e:
             logger.error("Open file at line failed: %s", e)
 

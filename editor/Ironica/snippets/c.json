@@ -1,0 +1,122 @@
+{
+    "snippets": "C/C++",
+    "Boilerplate": {
+        "Main": [
+            "#include <stdio.h>",
+            "",
+            "int main(void)",
+            "{",
+            "    return 0;",
+            "}"
+        ],
+        "HeaderGuard": [
+            "#ifndef FILE_NAME_H",
+            "#define FILE_NAME_H",
+            "",
+            "#include <stdint.h>",
+            "",
+            "#endif /* FILE_NAME_H */"
+        ],
+        "StructDef": [
+            "typedef struct",
+            "{",
+            "    uint32_t id;",
+            "    const char *name;",
+            "} Item;"
+        ],
+        "EnumDef": [
+            "typedef enum",
+            "{",
+            "    STATE_IDLE = 0,",
+            "    STATE_RUNNING,",
+            "    STATE_ERROR",
+            "} AppState;"
+        ],
+        "ISR_Handler": [
+            "void IRQHandler(void)",
+            "{",
+            "    /* Clear the interrupt source and service the device. */",
+            "}"
+        ],
+        "FreeRTOSTask": [
+            "static void task(void *argument)",
+            "{",
+            "    (void)argument;",
+            "    for (;;)",
+            "    {",
+            "        vTaskDelay(pdMS_TO_TICKS(10));",
+            "    }",
+            "}",
+            "",
+            "BaseType_t app_start(void)",
+            "{",
+            "    return xTaskCreate(task, \"task\", 256, NULL, 1, NULL);",
+            "}"
+        ],
+        "FSM_Switch": [
+            "switch (state)",
+            "{",
+            "    case STATE_IDLE:",
+            "        break;",
+            "    case STATE_RUNNING:",
+            "        break;",
+            "    case STATE_ERROR:",
+            "        break;",
+            "    default:",
+            "        break;",
+            "}"
+        ],
+        "GPIO_Init": [
+            "void GPIO_Init(void)",
+            "{",
+            "    GPIO_InitTypeDef gpio = {0};",
+            "    gpio.Pin = GPIO_PIN_0;",
+            "    gpio.Mode = GPIO_MODE_OUTPUT_PP;",
+            "    gpio.Pull = GPIO_NOPULL;",
+            "    gpio.Speed = GPIO_SPEED_FREQ_LOW;",
+            "    HAL_GPIO_Init(GPIOA, &gpio);",
+            "}"
+        ],
+        "UART_Init": [
+            "void UART_Init(void)",
+            "{",
+            "    UART_HandleTypeDef uart = {0};",
+            "    uart.Instance = USART2;",
+            "    uart.Init.BaudRate = 115200;",
+            "    uart.Init.WordLength = UART_WORDLENGTH_8B;",
+            "    uart.Init.StopBits = UART_STOPBITS_1;",
+            "    uart.Init.Parity = UART_PARITY_NONE;",
+            "    uart.Init.Mode = UART_MODE_TX_RX;",
+            "    HAL_UART_Init(&uart);",
+            "}"
+        ],
+        "Printf_Debug": [
+            "#include <stdio.h>",
+            "",
+            "#define DEBUG_PRINTF(...) printf(__VA_ARGS__)",
+            "",
+            "DEBUG_PRINTF(\"[debug] %s:%d: \", __FILE__, __LINE__);"
+        ],
+        "REST_API_C": [
+            "#include <stdio.h>",
+            "#include <string.h>",
+            "",
+            "typedef struct",
+            "{",
+            "    const char *method;",
+            "    const char *path;",
+            "    const char *body;",
+            "} ApiRequest;",
+            "",
+            "int api_handle(const ApiRequest *request)",
+            "{",
+            "    if (request == NULL)",
+            "    {",
+            "        return -1;",
+            "    }",
+            "    printf(\"%s %s\\n\", request->method, request->path);",
+            "    return 0;",
+            "}"
+        ]
+    }
+}

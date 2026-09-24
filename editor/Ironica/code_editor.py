@@ -27,10 +27,12 @@ SCI_SETFOLDEXPANDEDTEXT = 2700
 
 SNIPPETS_PYTHON = resource_path("editor/Ironica/snippets/python.json")
 SNIPPETS_HTML = resource_path("editor/Ironica/snippets/html.json")
+SNIPPETS_CLANG = resource_path("editor/Ironica/snippets/c.json")
 
 _SNIPPET_FILES = {
     "python": SNIPPETS_PYTHON,
     "html": SNIPPETS_HTML,
+    "clang": SNIPPETS_CLANG,
 }
 
 
@@ -731,9 +733,11 @@ class CodeEditor(QsciScintilla):
             bg,
         )
 
-    def set_custom_import_fold_text(self, line: int, import_count: int):
+    def set_custom_import_fold_text(
+        self, line: int, import_count: int, label: str = "imports"
+    ):
         """
-        Sets custom text on a specific line whenever an import fold is made.
+        Set custom text on a specific line when a grouped fold is made.
 
         Scintilla message 2700 (``SCI_TOGGLEFOLDSHOWTEXT``) also toggles the
         fold on that line, so the previous fold state is restored afterwards
@@ -747,7 +751,7 @@ class CodeEditor(QsciScintilla):
         if self._fold_display_text_cache.get(line) == import_count:
             return
         was_expanded = bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
-        full_text = f"(... +{import_count} imports)"
+        full_text = f"(... +{import_count} {label})"
         self.SendScintilla(SCI_SETFOLDEXPANDEDTEXT, line, full_text.encode("utf-8"))
         if (
             bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))

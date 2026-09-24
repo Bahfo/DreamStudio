@@ -2,35 +2,15 @@
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
 
 Solution start window shown before the DreamStudio main window boots.
-
-Presents a Visual-Studio-like landing page with a left sidebar offering two
-tabs: *Create a New Solution* (manifest-driven project templates) and *Open
-an Existing Solution* (recent solutions plus manual folder browsing). The
-window runs in its own nested event loop during the ``solution_prompt`` boot
-phase and notifies the bootstrap pipeline via its two signals.
 """
 
 import os
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import (
-    QFileDialog,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QMainWindow,
-    QMessageBox,
-    QPushButton,
-    QStackedWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from editor import *
 
-from editor.utils.solution.create_dialog import CreateSolutionDialog
-from editor.utils.solution.manifest_scan import scan_project_types
-from editor.utils.solution.recent import add_or_update, list_recent
+from editor.utils.solution.QDreamDialog import CreateSolutionDialog
+from editor.utils.solution.manifests_scanner import scan_project_types
+from editor.utils.solution.recent_projects_scanner import add_or_update, list_recent
 from editor.utils.solution.solution_marker import (
     is_solution_dir,
     read_solution,
@@ -38,28 +18,14 @@ from editor.utils.solution.solution_marker import (
 )
 from editor.utils.solution.theme import apply_theme, center_on_screen, inherit_theme
 
-_START_WINDOW_TITLE = "DreamStudio - Start"
+_START_WINDOW_TITLE = "Welcome to DreamStudio"
 
 
 class SolutionStartWindow(QMainWindow):
-    """Landing page for choosing or creating a DreamStudio solution.
-
-    Signals:
-        solution_selected (object): Emitted with a selection dict containing
-            ``path``, ``name``, ``project_type`` and optionally ``_scaffold``.
-        prompt_cancelled (): Emitted when the window is closed without a choice.
-    """
-
     solution_selected = pyqtSignal(object)
     prompt_cancelled = pyqtSignal()
 
     def __init__(self, registry=None) -> None:
-        """Build the start window.
-
-        Args:
-            registry: Optional bootstrap service registry used to read the
-                previously opened solution (``settings.workspace.last_directory``).
-        """
         super().__init__()
         self._registry = registry
         self._choice_made = False
@@ -72,10 +38,6 @@ class SolutionStartWindow(QMainWindow):
         self._load_intro_settings()
         if not apply_theme(self, self._registry):
             self._apply_style()
-
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
         central = QWidget(self)
@@ -187,7 +149,7 @@ class SolutionStartWindow(QMainWindow):
         layout = QVBoxLayout(widget)
         layout.addStretch(1)
         label = QLabel(
-            "No project templates were found.\nPlace manifests in 'manifests/projects'."
+            "No project templates were found.\nManifests may have been deleted."
         )
         label.setObjectName("DescriptionLabel")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -221,10 +183,6 @@ class SolutionStartWindow(QMainWindow):
         self._browse_btn.clicked.connect(self._browse_open)
         layout.addWidget(self._browse_btn, 0, Qt.AlignmentFlag.AlignRight)
         return page
-
-    # ------------------------------------------------------------------
-    # Data population
-    # ------------------------------------------------------------------
 
     def _load_intro_settings(self) -> None:
         last = self._last_directory()
@@ -269,10 +227,6 @@ class SolutionStartWindow(QMainWindow):
         self._nav_list.setCurrentRow(index)
         self._pages.setCurrentIndex(index)
 
-    # ------------------------------------------------------------------
-    # Create flow
-    # ------------------------------------------------------------------
-
     def _refresh_type_description(self, row: int) -> None:
         if 0 <= row < len(self._project_types):
             self._type_description.setText(self._project_types[row]["description"])
@@ -300,10 +254,6 @@ class SolutionStartWindow(QMainWindow):
             }
             self._emit_selection(data, scaffold)
 
-    # ------------------------------------------------------------------
-    # Open flow
-    # ------------------------------------------------------------------
-
     def _open_recent_item(self, item) -> None:
         path = item.data(Qt.ItemDataRole.UserRole)
         if path:
@@ -318,17 +268,7 @@ class SolutionStartWindow(QMainWindow):
     def _message_box(
         self, icon, title, text, buttons=QMessageBox.StandardButton.Ok
     ) -> QMessageBox:
-        """Build a themed, screen-centered message box for this window.
 
-        Args:
-            icon: One of the ``QMessageBox.Icon`` values.
-            title: Box title.
-            text: Box body text.
-            buttons: Standard buttons to offer.
-
-        Returns:
-            The configured ``QMessageBox``; call ``.exec()`` to show it.
-        """
         box = QMessageBox(self)
         box.setIcon(icon)
         box.setWindowTitle(title)
@@ -385,118 +325,14 @@ class SolutionStartWindow(QMainWindow):
         self._selection = selection
         self.solution_selected.emit(selection)
 
-    # ------------------------------------------------------------------
-    # Close handling
-    # ------------------------------------------------------------------
-
     def closeEvent(self, event) -> None:
         """Emit ``prompt_cancelled`` when dismissed without a selection."""
         if not self._choice_made:
             self.prompt_cancelled.emit()
         super().closeEvent(event)
 
-    # ------------------------------------------------------------------
-    # Styling
-    # ------------------------------------------------------------------
-
-    def _apply_style(self) -> None:
-        self.setStyleSheet(
-            """
-            QMainWindow {
-                background-color: #11111b;
-            }
-            QFrame#Sidebar {
-                background-color: #181825;
-                border-right: 1px solid #313244;
-            }
-            QLabel#BrandLabel {
-                color: #89b4fa;
-                font-size: 20px;
-                font-weight: bold;
-            }
-            QListWidget#NavList {
-                background: transparent;
-                border: none;
-                outline: none;
-                color: #a6adc8;
-                font-size: 13px;
-            }
-            QListWidget#NavList::item {
-                padding: 12px 18px;
-            }
-            QListWidget#NavList::item:hover {
-                background-color: #1e1e2e;
-            }
-            QListWidget#NavList::item:selected {
-                background-color: #313244;
-                color: #cdd6f4;
-                border-left: 3px solid #89b4fa;
-            }
-            QLabel#PageTitle {
-                color: #cdd6f4;
-                font-size: 20px;
-                font-weight: bold;
-            }
-            QLabel#PageHint {
-                color: #a6adc8;
-                font-size: 12px;
-            }
-            QLabel#DescriptionLabel {
-                color: #a6adc8;
-                font-size: 12px;
-            }
-            QListWidget#ProjectTypesList, QListWidget#RecentList {
-                background-color: #181825;
-                border: 1px solid #313244;
-                border-radius: 8px;
-                color: #cdd6f4;
-                font-size: 14px;
-                outline: none;
-            }
-            QListWidget#ProjectTypesList::item, QListWidget#RecentList::item {
-                padding: 10px 12px;
-                border-bottom: 1px solid #1e1e2e;
-            }
-            QListWidget#ProjectTypesList::item:hover,
-            QListWidget#RecentList::item:hover {
-                background-color: #1e1e2e;
-            }
-            QListWidget#ProjectTypesList::item:selected,
-            QListWidget#RecentList::item:selected {
-                background-color: #313244;
-                color: #cdd6f4;
-            }
-            QPushButton {
-                background-color: #313244;
-                border: 1px solid #45475a;
-                border-radius: 6px;
-                color: #cdd6f4;
-                padding: 7px 14px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #45475a;
-            }
-            QPushButton#PrimaryButton {
-                background-color: #89b4fa;
-                color: #11111b;
-                font-weight: bold;
-            }
-            QPushButton#PrimaryButton:hover {
-                background-color: #b4befe;
-            }
-            """
-        )
-
 
 def _complete_selection(result: dict, selection: dict, loop) -> None:
-    """Store the active selection and stop the start-window event loop.
-
-    Args:
-        result: Shared dict that collects the selection.
-        selection: The chosen solution metadata dict.
-        loop: The running ``QEventLoop`` to quit.
-    """
     result["selection"] = selection
     result["scaffold"] = (
         selection.get("_scaffold") if isinstance(selection, dict) else None
@@ -505,16 +341,6 @@ def _complete_selection(result: dict, selection: dict, loop) -> None:
 
 
 def run_start_window_selection(window) -> tuple:
-    """Run the start window's nested event loop and return its choice.
-
-    Args:
-        window: A ``SolutionStartWindow`` exposing the ``solution_selected``
-            and ``prompt_cancelled`` signals.
-
-    Returns:
-        Tuple ``(selection, scaffold)``; both are ``None`` when the window
-        was dismissed without a choice.
-    """
     from PyQt6.QtCore import QEventLoop
 
     result: dict = {}

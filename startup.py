@@ -11,7 +11,6 @@ Usage:
 import os
 import sys
 
-
 # Ensure the project root is on sys.path so bootstrap/ and editor/ are importable.
 # Frozen (PyInstaller) compatibility: sys._MEIPASS is the bundle dir when frozen.
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
@@ -47,7 +46,7 @@ def _run_post_reveal_scaffold(window, scaffold: dict) -> None:
         scaffold: Pending-scaffold dict emitted by the solution prompt.
     """
     try:
-        from editor.utils.solution.scaffold_controller import ScaffoldController
+        from editor.utils.solution.QScafoldController import ScaffoldController
 
         controller = ScaffoldController(window, scaffold)
         controller.run_blocking()

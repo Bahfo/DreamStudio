@@ -102,7 +102,7 @@ _RE_IDENTIFIER_B = re.compile(rb"\w+")
 # C-compiled scan that only visits state-relevant bytes (quotes,
 # comment marker, newline, brackets).  Order matters: triple quotes are
 # matched before their single-quote prefix.
-_RE_STATE_SCAN = re.compile(rb"""\"\"\"|\'\'\'|\"|\'|#|\n|[()\[\]{}]""")
+_RE_STATE_SCAN = re.compile(rb"""\"\"\"|\'\'\'|\"|\'|#|/|\*|\n|[()\[\]{}]""")
 
 # Single-character bracket tokens
 _OPEN_PARENS = frozenset("({[")
@@ -127,7 +127,8 @@ _ST_SINGLE = 1  # inside a '...' string
 _ST_DOUBLE = 2  # inside a "..." string
 _ST_TRIPLE_S = 3  # inside a '''...''' string
 _ST_TRIPLE_D = 4  # inside a """...""" string
-_ST_COMMENT = 5  # inside a # comment (until end of line)
+_ST_COMMENT = 5  # inside a # or // comment (until end of line)
+_ST_BLOCK_COMMENT = 6  # inside a /* ... */ comment
 
 
 class IronicaLexer(QsciLexerCustom):
@@ -146,6 +147,11 @@ class IronicaLexer(QsciLexerCustom):
     def __init__(self, parent, config: dict) -> None:
         super().__init__(parent)
         self.config = config
+        self._supports_c_comments = config.get("lang", "").lower() in {
+            "c",
+            "c_cpp",
+            "clang",
+        }
         self._bracket_cache: Optional[list] = None
         self._keyword_map: Dict[str, int] = {}
         self._keyword_style_names: Dict[int, str] = {}
@@ -355,9 +361,8 @@ class IronicaLexer(QsciLexerCustom):
                 return j
             i = j + 1
 
-    @classmethod
     def _scan_state(
-        cls, data: bytes, state: int, depth_stack: List[str], start: int, stop: int
+        self, data: bytes, state: int, depth_stack: List[str], start: int, stop: int
     ) -> int:
         """Advance *depth_stack* + *state* over ``data[start:stop]``.
 
@@ -379,8 +384,14 @@ class IronicaLexer(QsciLexerCustom):
                         state = _ST_TRIPLE_D if ch == 0x22 else _ST_TRIPLE_S
                     else:
                         state = _ST_DOUBLE if ch == 0x22 else _ST_SINGLE
-                elif ch == 0x23:  # '#'
+                elif ch == 0x23 and not self._supports_c_comments:
                     state = _ST_COMMENT
+                elif self._supports_c_comments and ch == 0x2F:
+                    marker = data[at + 1 : at + 2]
+                    if marker == b"/":
+                        state = _ST_COMMENT
+                    elif marker == b"*":
+                        state = _ST_BLOCK_COMMENT
                 elif ch in b"([{":
                     depth_stack.append(chr(ch))
                 elif ch in b")]}":
@@ -389,14 +400,17 @@ class IronicaLexer(QsciLexerCustom):
                         depth_stack.pop()
             elif state in (_ST_SINGLE, _ST_DOUBLE):
                 expected = 0x27 if state == _ST_SINGLE else 0x22
-                if ch == expected and not cls._is_escaped(data, at):
+                if ch == expected and not self._is_escaped(data, at):
                     state = _ST_DEFAULT
             elif state in (_ST_TRIPLE_S, _ST_TRIPLE_D):
                 delim = b"'''" if state == _ST_TRIPLE_S else b'"""'
-                if data[at : at + 3] == delim and not cls._is_escaped(data, at):
+                if data[at : at + 3] == delim and not self._is_escaped(data, at):
                     state = _ST_DEFAULT
             elif state == _ST_COMMENT:
                 if ch == 0x0A:
+                    state = _ST_DEFAULT
+            elif state == _ST_BLOCK_COMMENT:
+                if ch == 0x2A and data[at + 1 : at + 2] == b"/":
                     state = _ST_DEFAULT
 
             pos = at + 1
@@ -486,6 +500,16 @@ class IronicaLexer(QsciLexerCustom):
             self.setStyling(j - i, self._comment_style)
             i = j
             state = _ST_DEFAULT
+        elif state == _ST_BLOCK_COMMENT:
+            j = data.find(b"*/", i)
+            if j == -1:
+                self.setStyling(length - i, self._comment_style)
+                self._bracket_cache = [end, depth_stack, _ST_BLOCK_COMMENT]
+                return
+            span = j + 2 - i
+            self.setStyling(span, self._comment_style)
+            i += span
+            state = _ST_DEFAULT
 
         while i < length:
             ch = data[i]
@@ -527,7 +551,7 @@ class IronicaLexer(QsciLexerCustom):
                 continue
 
             # ── Comments ───────────────────────────────────────────
-            if ch == 0x23:  # '#'
+            if ch == 0x23 and not self._supports_c_comments:
                 eol = data.find(b"\n", i)
                 if eol == -1:
                     span = length - i
@@ -539,6 +563,31 @@ class IronicaLexer(QsciLexerCustom):
                 self.setStyling(span, self._comment_style)
                 i += span
                 continue
+
+            if self._supports_c_comments and ch == 0x2F:
+                marker = data[i + 1 : i + 2]
+                if marker == b"/":
+                    eol = data.find(b"\n", i)
+                    if eol == -1:
+                        span = length - i
+                    else:
+                        span = eol - i
+                    self.setStyling(span, self._comment_style)
+                    i += span
+                    state = _ST_COMMENT
+                    continue
+                if marker == b"*":
+                    end_comment = data.find(b"*/", i + 2)
+                    if end_comment == -1:
+                        span = length - i
+                        self.setStyling(span, self._comment_style)
+                        i += span
+                        state = _ST_BLOCK_COMMENT
+                        continue
+                    span = end_comment + 2 - i
+                    self.setStyling(span, self._comment_style)
+                    i += span
+                    continue
 
             # ── Bracket pair colourization ─────────────────────────
             if ch in b"({[":

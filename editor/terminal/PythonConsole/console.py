@@ -163,7 +163,7 @@ class PythonShell(QWidget):
     # ------------------------------------------------------------------
 
     def restart_kernel(self):
-        self.console.restart_kernel()
+        self.console.restart_kernel("Restarting ...")
 
     def interrupt_kernel(self):
         self.console.interrupt_kernel()
