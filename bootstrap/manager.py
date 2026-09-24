@@ -19,12 +19,14 @@ from bootstrap.phases import (
     PhaseContext,
     StartupError,
     RecoverableError,
+    SolutionPromptCancelled,
     phase_application_startup,
     phase_bootstrap_init,
     phase_user_home_setup,
     phase_configuration,
     phase_resources,
     phase_core_services,
+    phase_solution_prompt,
     phase_main_window,
     phase_language_plugins,
     phase_finish,
@@ -36,12 +38,15 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StartupResult:
     """Outcome of a bootstrap attempt."""
+
     success: bool = False
     window: Any = None
     app: Any = None
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     failed_phase: str = ""
+    cancelled: bool = False
+    scaffold: dict = field(default_factory=dict)
 
 
 class BootstrapManager:
@@ -61,16 +66,23 @@ class BootstrapManager:
         ("configuration", phase_configuration),
         ("resources", phase_resources),
         ("core_services", phase_core_services),
+        ("solution_prompt", phase_solution_prompt),
         ("main_window", phase_main_window),
         ("language_plugins", phase_language_plugins),
         ("finish", phase_finish),
     ]
 
-    def __init__(self, base_dir: str | None = None) -> None:
+    def __init__(
+        self, base_dir: str | None = None, project_dir: str | None = None
+    ) -> None:
         self._base_dir = base_dir or os.path.dirname(os.path.abspath(__file__))
+        self._project_dir = project_dir or ""
         self._phases = list(self._DEFAULT_PHASES)
         self._custom_phases: list[tuple[str, Callable]] = []
         self._ctx = PhaseContext(base_dir=self._base_dir)
+        if self._project_dir and os.path.isdir(self._project_dir):
+            self._ctx.workspace_path = os.path.abspath(self._project_dir)
+            logger.info("Workspace supplied on command line: %s", self._project_dir)
         self._recovery_window = None
         logger.info("BootstrapManager created (base_dir=%s)", self._base_dir)
 
@@ -78,7 +90,9 @@ class BootstrapManager:
     # Phase registration (extensibility)
     # ------------------------------------------------------------------
 
-    def add_phase(self, name: str, phase_fn: Callable, after: str | None = None) -> None:
+    def add_phase(
+        self, name: str, phase_fn: Callable, after: str | None = None
+    ) -> None:
         """Insert a custom phase into the pipeline.
 
         If *after* is given, the phase is placed immediately after the
@@ -123,6 +137,12 @@ class BootstrapManager:
             try:
                 phase_fn(self._ctx)
                 logger.info("Phase %s completed", name)
+            except SolutionPromptCancelled:
+                logger.info("Solution prompt cancelled; shutting down gracefully")
+                result.cancelled = True
+                result.failed_phase = name
+                self._shutdown_splash(splash)
+                return result
             except StartupError as exc:
                 logger.critical("Critical failure in phase '%s': %s", name, exc)
                 result.failed_phase = name
@@ -151,13 +171,29 @@ class BootstrapManager:
         else:
             result.window = None
         result.app = self._ctx.app
+        result.scaffold = dict(self._ctx.pending_scaffold)
         result.warnings.extend(self._ctx.warnings)
-        logger.info("Startup completed successfully (%d warnings)", len(result.warnings))
+        logger.info(
+            "Startup completed successfully (%d warnings)", len(result.warnings)
+        )
         return result
 
     # ------------------------------------------------------------------
     # Recovery
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _shutdown_splash(splash: Any = None) -> None:
+        """Close the boot splash best-effort."""
+        if splash:
+            try:
+                if splash.is_visible:
+                    splash.close()
+            except Exception:
+                try:
+                    splash.close()
+                except Exception:
+                    pass
 
     def _enter_recovery(self, message: str, details: str, splash: Any = None) -> None:
         """Close splash and show RecoveryWindow."""

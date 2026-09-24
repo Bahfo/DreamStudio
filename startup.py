@@ -22,6 +22,41 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 
+def _parse_project_arg(argv: list) -> str | None:
+    """Extract a project/solution path from command-line arguments.
+
+    Supports ``--project <path>``, ``--solution <path>`` and ``-p <path>``.
+    Returns ``None`` when no path was supplied.
+    """
+    for index, arg in enumerate(argv):
+        if arg in ("--project", "--solution", "-p") and index + 1 < len(argv):
+            candidate = argv[index + 1]
+            if candidate and not candidate.startswith("-"):
+                return candidate
+    return None
+
+
+def _run_post_reveal_scaffold(window, scaffold: dict) -> None:
+    """Scaffold a just-created solution over the revealed main window.
+
+    The scaffolding runs with a blocking modal progress dialog so the user
+    cannot interact with the IDE until it finishes or is cancelled.
+
+    Args:
+        window: The revealed DreamStudio main window.
+        scaffold: Pending-scaffold dict emitted by the solution prompt.
+    """
+    try:
+        from editor.utils.solution.scaffold_controller import ScaffoldController
+
+        controller = ScaffoldController(window, scaffold)
+        controller.run_blocking()
+    except Exception:
+        import traceback
+
+        print("Scaffolding failed:\n%s" % traceback.format_exc())
+
+
 def main() -> None:
     from PyQt6.QtCore import Qt, QTimer
     from PyQt6.QtWidgets import QApplication
@@ -42,8 +77,18 @@ def main() -> None:
     splash = SplashController()
     splash.show()
 
-    bootstrap = BootstrapManager(base_dir=_PROJECT_ROOT)
+    project_dir = _parse_project_arg(sys.argv[1:])
+    bootstrap = BootstrapManager(base_dir=_PROJECT_ROOT, project_dir=project_dir)
     result = bootstrap.run(splash=splash)
+
+    if result.cancelled:
+        try:
+            if splash.is_visible:
+                splash.close()
+        except Exception:
+            pass
+        app.quit()
+        sys.exit(0)
 
     if result.success and result.window is not None:
         window = result.window
@@ -65,6 +110,11 @@ def main() -> None:
                 pass
 
         QTimer.singleShot(0, _reveal)
+
+        if result.scaffold:
+            QTimer.singleShot(
+                0, lambda: _run_post_reveal_scaffold(window, result.scaffold)
+            )
     else:
         try:
             if splash.is_visible:

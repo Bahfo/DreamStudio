@@ -59,6 +59,22 @@ class ExplorerSelection:
     name: str
 
 
+def _inherit_workspace(widget) -> str:
+    """Return the main window's workspace path, falling back to the CWD.
+
+    Args:
+        widget: Any widget inside the DreamStudio window hierarchy.
+    """
+    try:
+        top = widget.window()
+        workspace = getattr(top, "currentDirectory", None)
+        if workspace:
+            return workspace
+    except Exception:
+        pass
+    return os.getcwd()
+
+
 class SolutionExplorer(PanelShell):
     """
     IDE sidebar management component managing local project workspaces and
@@ -87,12 +103,13 @@ class SolutionExplorer(PanelShell):
         self.proxy_model: ExplorerFilterProxy | None = None
         self.tree_view: DreamTreeView | None = None
 
-        self._root_path = os.getcwd()
         self._header_visible = False
         self._focus_connected = False
         self._suppress_search_signal = False
 
         super().__init__(parent)
+
+        self._root_path = _inherit_workspace(self)
 
         self._setup_models()
         self._hide_extra_columns()

@@ -51,6 +51,7 @@ class StatusBar(QFrame):
         self.setObjectName("StatusBar")
         self.setFrameShape(QFrame.Shape.Panel)
         self.setFixedHeight(25)
+        self._branch_menu_no_repo_notified = False
         statusbar_layout = QHBoxLayout(self)
         statusbar_layout.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
@@ -228,6 +229,23 @@ class StatusBar(QFrame):
         """Restore the status bar to its theme-default appearance."""
         self.setStyleSheet("")
 
+    def set_workspace(self, directory: str) -> None:
+        """Re-bind the status bar to a new workspace directory.
+
+        Resolves the Git repository for the new directory, refreshes the
+        repository/branch label and toggles the branch-switch button so it
+        never dereferences a stale or missing repository handle.
+
+        Args:
+            directory: Absolute path of the active solution/workspace.
+        """
+        self.currentDirectory = directory
+        self.repository = return_repository(directory)
+        self._branch_menu_no_repo_notified = False
+        self.repoActions.setText(f"   {self.get_repo_name()} | {self.get_branch()}")
+        self.repoActions.adjustSize()
+        self.repoActions.setEnabled(self.repository is not None)
+
     def get_branch(self):
         """
         Returns the repo branch currently working on.
@@ -258,8 +276,37 @@ class StatusBar(QFrame):
             return "No Repo"
 
     def show_branches_menu(self):
-        """Spawns a QMenu with all available branches."""
+        """Spawns a QMenu with all available branches.
+
+        Guards against a missing repository: when the workspace is not a
+        Git repository the menu is replaced by a single informational
+        action instead of dereferencing ``None``.
+        """
         menu = QMenu(self)
+
+        if self.repository is None:
+            if not self._branch_menu_no_repo_notified:
+                self._branch_menu_no_repo_notified = True
+                from editor.utils.notifications.notification_manager import (
+                    get_notification_manager,
+                )
+
+                try:
+                    get_notification_manager().add_warning(
+                        "Not a Git Repository",
+                        "The current solution is not a Git repository, "
+                        "so branch switching is unavailable.",
+                        "Git",
+                    )
+                except Exception:
+                    pass
+            no_repo_action = QAction("Not a Git Repository", self)
+            no_repo_action.setEnabled(False)
+            menu.addAction(no_repo_action)
+            menu_height = menu.sizeHint().height()
+            global_pos = self.repoActions.mapToGlobal(QPoint(0, -menu_height))
+            menu.exec(global_pos)
+            return
 
         all_branches = get_all_branches(self.repository)
         current_branch = self.get_branch()
@@ -289,6 +336,9 @@ class StatusBar(QFrame):
 
     def handle_branch_switch(self, branch_name: str):
         """Switches the branch safely, handling both local and remote references."""
+        if self.repository is None:
+            print("Cannot switch branch: no repository is open")
+            return
         try:
             local_branches = [b.name for b in self.repository.branches]
 

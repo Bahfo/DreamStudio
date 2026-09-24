@@ -41,10 +41,52 @@ class MenusAPI:
         self._defer_menu_sync()
 
     def set_new_project(self) -> None:
-        """Placeholder — not yet implemented."""
+        """Open the solution start window on the Create tab.
+
+        When a new solution is created, the window switches the workspace to
+        it and scaffolds the project behind a blocking progress dialog.
+        """
+        self._invoke_start_window(preferred_tab=0)
 
     def set_new_window(self) -> None:
         """Placeholder — not yet implemented."""
+
+    def set_open_recent_project(self) -> None:
+        """Open the solution start window on the Open/Recent tab."""
+        self._invoke_start_window(preferred_tab=1)
+
+    def _invoke_start_window(self, preferred_tab: int = 0) -> None:
+        """Run the start window over this main window and apply its choice.
+
+        Args:
+            preferred_tab: Which landing tab to preselect (0 create, 1 open).
+        """
+        from editor.utils.solution.start_window import (
+            SolutionStartWindow,
+            run_start_window_selection,
+        )
+
+        window = SolutionStartWindow(registry=self._registry)
+        window.set_tab(preferred_tab)
+        selection, scaffold = run_start_window_selection(window)
+        if not selection or not selection.get("path"):
+            return
+
+        path = selection["path"]
+        workspace = self._registry.get("workspace") if self._registry else None
+        if workspace is not None:
+            workspace.open_workspace(path)
+        else:
+            self.currentDirectory = path
+            explorer = getattr(self.hero_window, "_solution_explorer", None)
+            if explorer is not None and hasattr(explorer, "set_root_path"):
+                explorer.set_root_path(path)
+
+        if scaffold:
+            from editor.utils.solution.scaffold_controller import ScaffoldController
+
+            controller = ScaffoldController(self, scaffold)
+            controller.run_blocking()
 
     # ------------------------------------------------------------------
     # Open
@@ -56,9 +98,6 @@ class MenusAPI:
         if path:
             self.hero_window._text_editor_center.methods.open_file(path)
             self._defer_menu_sync()
-
-    def set_open_recent_project(self) -> None:
-        """Placeholder — not yet implemented."""
 
     # ------------------------------------------------------------------
     # Save
@@ -185,6 +224,7 @@ class MenusAPI:
 
     def set_open_settings(self) -> None:
         """Placeholder — settings and preferences dialog."""
+
     # ------------------------------------------------------------------
     # Edit
     # ------------------------------------------------------------------
@@ -351,7 +391,6 @@ class MenusAPI:
         if title_bar is not None:
             title_bar.refresh_action_states()
 
-
     # ------------------------------------------------------------------
     # Code
     # ------------------------------------------------------------------
@@ -362,9 +401,7 @@ class MenusAPI:
 
     def set_comment_current_line(self) -> None:
         """Comment out the line under the cursor."""
-        self._run_editor_command(
-            "Comment Current Line", lambda api: api.comment_line()
-        )
+        self._run_editor_command("Comment Current Line", lambda api: api.comment_line())
 
     def set_comment_current_selection(self) -> None:
         """Comment out every line touched by the selection."""
@@ -439,9 +476,7 @@ class MenusAPI:
         """
         editor_api = self.hero_window._text_editor_center.current_editor()
         if editor_api is None:
-            self._notify_menu_error(
-                operation, "No active code editor is available."
-            )
+            self._notify_menu_error(operation, "No active code editor is available.")
             return
         command(editor_api)
 

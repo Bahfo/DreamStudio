@@ -19,6 +19,22 @@ from editor.debugger.problems_widget import ProblemsWidget
 logger = logging.getLogger(__name__)
 
 
+def _inherit_workspace(widget) -> str:
+    """Return the main window's workspace path, falling back to the CWD.
+
+    Args:
+        widget: Any widget inside the DreamStudio window hierarchy.
+    """
+    try:
+        top = widget.window()
+        workspace = getattr(top, "currentDirectory", None)
+        if workspace:
+            return workspace
+    except Exception:
+        pass
+    return os.getcwd()
+
+
 class _EditorMethods:
     """Thin adapter that routes toolbar actions to the
     tab editor or to the active editor API."""
@@ -49,7 +65,7 @@ class EditorContainer(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
 
-        self.currentDirectory = os.getcwd()
+        self.currentDirectory = _inherit_workspace(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -124,7 +140,7 @@ class UtilsContainer(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
 
-        self.currentDirectory = os.getcwd()
+        self.currentDirectory = _inherit_workspace(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

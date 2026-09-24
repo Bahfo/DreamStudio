@@ -38,6 +38,8 @@ class QuickStartMenu(QWidget):
 
         for text, key in shortcuts_data:
             item = ShortCutLabel(text, key)
+            if text == "New Project":
+                item.clicked.connect(self._new_project_clicked)
             container_layout.addWidget(item)
 
         self.shortcuts_container.setFixedWidth(320)
@@ -48,11 +50,22 @@ class QuickStartMenu(QWidget):
 
         self._layout.addStretch()
 
+    def _new_project_clicked(self) -> None:
+        """Route the New Project shortcut to the main window's menu action."""
+        win = self.window()
+        if win is None:
+            return
+        handler = getattr(win, "set_new_project", None)
+        if callable(handler):
+            handler()
+
 
 class ShortCutLabel(QWidget):
     """
     Quickly-made shortcut label for showing data with shortcut
     """
+
+    clicked = pyqtSignal()
 
     def __init__(self, text: str = "", shortcut: str = "", parent=None):
         super().__init__(parent)
@@ -72,17 +85,27 @@ class ShortCutLabel(QWidget):
 
         self.shortcut_label = QLabel()
         self.shortcut_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.shortcut_label.setStyleSheet("""
+        self.shortcut_label.setStyleSheet(
+            """
             QLabel {
                 border: 1px solid palette(mid);
                 border-radius: 4px;
                 padding: 2px 6px;
                 font-family: monospace;
             }
-        """)
+        """
+        )
 
         layout.addWidget(self.label)
         layout.addWidget(self.shortcut_label)
+
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mousePressEvent(self, event) -> None:
+        """Emit ``clicked`` when the item is pressed."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
 
     def setText(self, text: str):
         self.label.setText(text)

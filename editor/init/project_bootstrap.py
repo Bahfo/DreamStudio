@@ -2,14 +2,18 @@ from editor import *
 import yaml
 
 
-
 logger = logging.getLogger(__name__)
+
+
+class CancellationRequested(Exception):
+    """Raised inside the worker when the user asks to stop scaffolding."""
 
 
 class ProjectBootstrapWorker(QObject):
     step_changed = pyqtSignal(str, str)
     step_progress = pyqtSignal(str)
     step_failed = pyqtSignal(str, str)
+    cancelled = pyqtSignal()
     finished = pyqtSignal(bool)
 
     def __init__(
@@ -36,6 +40,7 @@ class ProjectBootstrapWorker(QObject):
         self._events_lock = threading.Lock()
         self._poll_timer = QTimer(self)
         self._poll_timer.timeout.connect(self._poll_events)
+        self._cancel_event = threading.Event()
 
     def _poll_events(self):
         while True:
@@ -50,6 +55,8 @@ class ProjectBootstrapWorker(QObject):
                 self.step_progress.emit(*args)
             elif kind == "step_failed":
                 self.step_failed.emit(*args)
+            elif kind == "cancelled":
+                self.cancelled.emit()
             elif kind == "finished":
                 self.finished.emit(*args)
                 self._poll_timer.stop()
@@ -59,9 +66,22 @@ class ProjectBootstrapWorker(QObject):
         with self._events_lock:
             self._events.append((kind, args))
 
+    def request_cancel(self) -> None:
+        """Ask the worker to stop as soon as it reaches the next safe point.
+
+        Cancelling is safe: already-created files and directories are left in
+        place (no rollback) so the IDE opens with the partial project structure.
+        """
+        self._cancel_event.set()
+
+    def _cancellation_requested(self) -> bool:
+        return self._cancel_event.is_set()
+
     def run(self):
         success = False
         try:
+            self._check_cancellation()
+
             self._emit_step("load_manifest", "Loading project manifest")
             self._load_manifest()
 
@@ -78,6 +98,9 @@ class ProjectBootstrapWorker(QObject):
             self._run_post_lifecycle()
 
             success = True
+        except CancellationRequested:
+            logger.info("Bootstrap cancelled by user; partial structure kept")
+            self._emit_event("cancelled", ())
         except Exception:
             error = traceback.format_exc()
             logger.error("Bootstrap failed: %s", error)
@@ -87,15 +110,17 @@ class ProjectBootstrapWorker(QObject):
         finally:
             self._emit_event("finished", (success,))
 
+    def _check_cancellation(self) -> None:
+        if self._cancellation_requested():
+            raise CancellationRequested()
+
     def _emit_step(self, name: str, description: str) -> None:
         self._current_step = name
         self._emit_event("step_changed", (name, description))
 
     def _load_manifest(self) -> None:
         if not os.path.isfile(self._manifest_path):
-            raise FileNotFoundError(
-                f"Manifest file not found: {self._manifest_path}"
-            )
+            raise FileNotFoundError(f"Manifest file not found: {self._manifest_path}")
         with open(self._manifest_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
@@ -114,17 +139,23 @@ class ProjectBootstrapWorker(QObject):
             actual = sys.version_info
             actual_str = f"{actual.major}.{actual.minor}.{actual.micro}"
             if self._python_version and self._python_version != manifest_version:
-                self._emit_event("step_progress", (
-                    f"Requested Python {self._python_version}, "
-                    f"manifest specifies {manifest_version}, "
-                    f"actual runtime is {actual_str}",
-                ))
+                self._emit_event(
+                    "step_progress",
+                    (
+                        f"Requested Python {self._python_version}, "
+                        f"manifest specifies {manifest_version}, "
+                        f"actual runtime is {actual_str}",
+                    ),
+                )
             else:
                 self._emit_event("step_progress", (f"Python runtime: {actual_str}",))
         else:
-            self._emit_event("step_progress", (
-                f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-            ))
+            self._emit_event(
+                "step_progress",
+                (
+                    f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+                ),
+            )
 
         manifest_interp = self._manifest.get("interpreter_location", "")
         if manifest_interp and manifest_interp != "studio_interpreter_defined_location":
@@ -216,6 +247,8 @@ class ProjectBootstrapWorker(QObject):
             desc = step_data.get("desc", "")
             self._emit_event("step_changed", (f"post_{step_name}", desc))
 
+            self._check_cancellation()
+
             cmd = step_data.get("wind") if self._is_windows else step_data.get("unix")
             if not cmd:
                 raise RuntimeError(
@@ -264,7 +297,9 @@ class ProjectBootstrapWorker(QObject):
             try:
                 if os.path.isdir(dir_path):
                     shutil.rmtree(dir_path, ignore_errors=True)
-                    self._emit_event("step_progress", (f"Removed directory: {dir_path}",))
+                    self._emit_event(
+                        "step_progress", (f"Removed directory: {dir_path}",)
+                    )
             except OSError as e:
                 logger.warning(
                     "Rollback: could not remove directory %s: %s", dir_path, e
@@ -314,8 +349,15 @@ class ProjectBootstrap:
         return self._worker.step_failed
 
     @property
+    def cancelled(self):
+        return self._worker.cancelled
+
+    @property
     def finished(self):
         return self._worker.finished
+
+    def request_cancel(self) -> None:
+        self._worker.request_cancel()
 
     def start(self) -> None:
         if not self._thread.is_alive():

@@ -28,13 +28,13 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     ui_ready = pyqtSignal()
 
-    def __init__(self, _parent=None, registry=None):
+    def __init__(self, _parent=None, registry=None, current_workspace=""):
         super().__init__(parent=_parent)
         self._parent = _parent
         self._registry = registry
         self._current_theme_name = None
 
-        self.currentDirectory = QDir.currentPath()
+        self.currentDirectory = current_workspace or QDir.currentPath()
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
 
@@ -76,15 +76,21 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _build_title_bar(self, main_layout: QVBoxLayout) -> None:
         self.title_bar = DreamStudioTitleBar(self, self.currentDirectory)
-        self.options_menu = OptionsMenu(self, resource_path("editor/base/json/optionbar.json"))
+        self.options_menu = OptionsMenu(
+            self, resource_path("editor/base/json/optionbar.json")
+        )
 
         main_layout.insertWidget(0, self.title_bar)
         main_layout.insertWidget(1, self.options_menu)
 
     def _build_hero(self) -> None:
-        self.left_sidebar = VerticalSidebar(self, resource_path("editor/base/json/leftbar.json"))
+        self.left_sidebar = VerticalSidebar(
+            self, resource_path("editor/base/json/leftbar.json")
+        )
         self.hero_window = WorkspaceContainer(self)
-        self.right_sidebar = VerticalSidebar(self, resource_path("editor/base/json/rightbar.json"))
+        self.right_sidebar = VerticalSidebar(
+            self, resource_path("editor/base/json/rightbar.json")
+        )
 
         self.tab_editors = self.hero_window._text_editor_center.tabs
         self.tab_editors.currentChanged.connect(self._sync_menu_state)
@@ -110,7 +116,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         api.panel_visibility_changed.connect(self._on_panel_visibility_changed)
 
     def _set_initial_workspace(self) -> None:
-        root = QDir.currentPath()
+        root = self.currentDirectory
         self.hero_window._source_control.set_workspace(root)
 
     def _wire_explorer_double_click(self) -> None:
@@ -252,7 +258,8 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
             from editor.utils.file_properties.outline import build_outline
 
             result = build_outline(
-                source, lang,
+                source,
+                lang,
                 filename=getattr(editor, "current_file_path", "") or "",
             )
             outline.update_outline(result)
@@ -281,7 +288,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         QTimer.singleShot(0, self._sync_menu_state)
 
     def _on_ui_ready(self):
-        workspace_root = QDir.currentPath()
+        workspace_root = self.currentDirectory
         problems = self.hero_window._lower_widget.problems_window
         problems.run_workspace_analysis(workspace_root)
 
