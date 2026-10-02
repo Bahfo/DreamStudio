@@ -1,0 +1,72 @@
+# Project Type: Empty Project
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+languages: ["python", "clang"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "empty_raspberry_pi_task"
+display_name: "Empty Raspberry Pi Task"
+description: |
+  Create a task that will be mounted on the Raspberry Pi device. This task
+  uses Python as its programming language mainly, with still getting support
+  for other programming languages. Your environment and essential packages
+  will be set up at the start.
+
+initialization: 
+  directories: 
+    - "src"
+    - "tests"
+    - "build"
+  files: 
+    - ".gitignore"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+  templates: 
+    - target: "main.py"
+      contents: |
+        def print_to_screen(user_name : str): 
+          print("Hello ", user_name, " from the Raspberry Pi!")
+
+        if __name__ == "__main__": 
+          name = input("What's your name: ")
+          print_to_screen(name)
+    - target: "requirements.txt"
+      contents: |
+        # Core third-party dependencies go here.
+        pytest>=8.0.0
+        gpiozero
+        pySerial
+        smbus2
+    - target: ".gitignore"
+      contents: |
+        # Byte-compiled / optimized / DLL files
+        __pycache__/
+        *.py[cod]
+        *$py.class
+
+        # C extensions
+        *.so
+
+        # Distribution / packaging
+        build/
+        dist/
+        downloads/
+        lib/
+        lib64/
+        wheels/
+
+        # Virtual Environments
+        venv/
+        .venv/
+        env/
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing structural project base components"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"

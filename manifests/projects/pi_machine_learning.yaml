@@ -1,27 +1,34 @@
-# Project Type: Empty Python Project
+# Project Type: Empty Project
 # COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
-language: "python"
+languages: ["python", "clang"]
 version: "studio_default_version"
 interpreter_location: "studio_interpreter_defined_location"
 
-project_type: "empty_python_project"
-display_name: "Empty Python Project"
-description: "A bare, structured python baseline containing environment setups and testing hooks"
+project_type: "pi_ai_project"
+display_name: "Raspberry Pi Machine Learning Project"
+description: |
+  Develop a machine learning service on the Raspberry Pi using Python packages 
+  such as scikit-learn, NumPy, and Seaborn. 
 
 initialization: 
   directories: 
+    - "iot-devkit"
+    - "include"
     - "src"
     - "tests"
+    - "build"
   files: 
     - ".gitignore"
+    - "config.toml"
     - "README.md"
     - "requirements.txt"
-    - "main.py"
+    - "clang_required.bash"
+    - "src/train.py"
   templates: 
-    - target: "main.py"
+    - target: "src/train.py"
       contents: |
         def main():
-            print("Project runtime environment context initialized successfully.")
+            print("Project initialized successfully.")
 
         if __name__ == "__main__":
             main()
@@ -29,6 +36,14 @@ initialization:
       contents: |
         # Core third-party dependencies go here.
         pytest>=8.0.0
+        paho-mqtt
+        requests
+        numpy
+        scikit-learn
+        matplotlib
+        seaborn
+        pandas
+
     - target: ".gitignore"
       contents: |
         # Byte-compiled / optimized / DLL files

@@ -1,0 +1,196 @@
+# Project Type: Empty Project
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+languages: ["python", "clang"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "pi_edge_project"
+display_name: "Raspberry Pi Edge Device Project"
+description: |
+  Work on a project that turns the Raspberry Pi into an edge device for IoT 
+  (Internet of Things) projects. You get your hands on all essential and 
+  required libraries for C and Python, in addition to IoT dev-kit that comes
+  with DreamStudio.
+
+initialization: 
+  directories: 
+    - "iot-devkit"
+    - "include"
+    - "src"
+    - "tests"
+    - "build"
+  files: 
+    - ".gitignore"
+    - "config.toml"
+    - "README.md"
+    - "requirements.txt"
+    - "clang_required.bash"
+    - "src/main.py"
+    - "src/main.c"
+  templates: 
+    - target: "src/main.py"
+      contents: |
+        def main():
+            print("Project initialized successfully.")
+
+        if __name__ == "__main__":
+            main()
+    - target: "requirements.txt"
+      contents: |
+        # Core third-party dependencies go here.
+        pytest>=8.0.0
+        gpiozero
+        smbus2
+        pySerial
+        paho-mqtt
+        requests
+    - target: "src/main.c"
+      contents: |
+        // main.c
+
+        void main(void) {
+          return;
+        }
+    - target: ".gitignore"
+      contents: |
+        # Byte-compiled / optimized / DLL files
+        __pycache__/
+        *.py[cod]
+        *$py.class
+
+        # C extensions
+        *.so
+
+        # Distribution / packaging
+        .Python
+        build/
+        develop-eggs/
+        dist/
+        downloads/
+        eggs/
+        .eggs/
+        lib/
+        lib64/
+        parts/
+        sdist/
+        var/
+        wheels/
+        *.egg-info/
+
+        # Virtual Environments
+        venv/
+        .venv/
+        env/
+        
+        # IDE Specific Configurations
+        .idea/
+        .vscode/
+        *.studio
+    - target: "clang_required.bash"
+      contents: |
+        # Clang Required Bash Script (Installs all C-Language Needed Dependencies)
+        #!/usr/bin/env bash
+        set -e
+
+        PROJECT_TYPE="${PROJECT_TYPE:-iot}"
+
+        is_raspberry_pi() {
+            [[ -r /proc/device-tree/model ]] &&
+            grep -qi "raspberry pi" /proc/device-tree/model
+        }
+
+        install_packages() {
+            sudo apt-get update
+            sudo apt-get install -y "$@"
+        }
+
+        if is_raspberry_pi; then
+            echo "Environment: Raspberry Pi"
+
+            case "$PROJECT_TYPE" in
+                iot)
+                    install_packages \
+                        build-essential \
+                        cmake \
+                        make \
+                        pkg-config \
+                        libgpiod-dev \
+                        libi2c-dev \
+                        libmosquitto-dev \
+                        libcurl4-openssl-dev \
+                        libssl-dev
+                    ;;
+
+                gui)
+                    install_packages \
+                        build-essential \
+                        cmake \
+                        make \
+                        pkg-config \
+                        qt6-base-dev
+                    ;;
+
+                web)
+                    install_packages \
+                        build-essential \
+                        cmake \
+                        make \
+                        pkg-config \
+                        libcurl4-openssl-dev \
+                        libmicrohttpd-dev \
+                        libsqlite3-dev
+                    ;;
+
+                ai)
+                    install_packages \
+                        build-essential \
+                        cmake \
+                        make \
+                        pkg-config \
+                        libcamera-dev \
+                        libopencv-dev \
+                        libtensorflow-lite-dev
+                    ;;
+
+                *)
+                    echo "Unknown project type: $PROJECT_TYPE"
+                    exit 1
+                    ;;
+            esac
+
+        else
+            echo "Environment: Linux workstation"
+
+            # The workstation is the development machine.
+            # The actual C libraries are installed on the Raspberry Pi,
+            # not into the host system.
+            install_packages \
+                git \
+                openssh-client \
+                rsync
+
+            case "$PROJECT_TYPE" in
+                iot|gui|web|ai)
+                    # Optional local build/emulation tooling.
+                    install_packages \
+                        clang \
+                        cmake \
+                        make \
+                        ninja-build \
+                        gdb-multiarch
+                    ;;
+            esac
+        fi
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Creating isolated virtual environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Installing structural project base components"
+    unix: "./venv/bin/pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\pip.exe install -r requirements.txt"
+  - step: "install_c_packages"
+    desc: "Installing essential C-lang packages based on distribution"
+    unix: "bash clang_required.bash"

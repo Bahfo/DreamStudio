@@ -1,7 +1,6 @@
 from editor import *
 import yaml
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -86,7 +85,7 @@ class ProjectBootstrapWorker(QObject):
             self._load_manifest()
 
             self._emit_step("check_python", "Checking Python environment")
-            self._check_python()
+            self._check_languages()
 
             self._emit_step("check_project_type", "Verifying project type")
             self._check_project_type()
@@ -127,12 +126,11 @@ class ProjectBootstrapWorker(QObject):
             raise ValueError("Manifest is not a valid YAML dictionary")
         self._manifest = data
 
-    def _check_python(self) -> None:
-        lang = self._manifest.get("language", "")
-        if lang != "python":
-            raise ValueError(
-                f"Unsupported language: '{lang}'. Only 'python' is supported."
-            )
+    def _check_languages(self) -> None:
+        langs = self._manifest.get("languages", "")
+        for lang in langs:
+            if lang not in ["python", "clang"]:
+                raise ValueError(f"Unsupported language: '{lang}'.")
 
         manifest_version = self._manifest.get("version", "")
         if manifest_version and manifest_version != "studio_default_version":
