@@ -214,6 +214,12 @@ class PythonLanguageProvider(BaseLanguageProvider):
     #: subprocess so the GIL never stalls the main thread on large files.
     remote_analysis: bool = True
 
+    #: Wire-protocol kind for whole-document Python analysis requests.
+    remote_kind: str = "analysis"
+
+    #: Language identifier used for config/theme resolution.
+    language_id: str = "python"
+
     def __init__(
         self,
         adapter: IJediAdapter,
@@ -278,11 +284,44 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return _format_qt_tooltip(hover_details)
 
     @staticmethod
-    def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
-        lines = text.split("\n")
-        if line < 0 or line >= len(lines):
+    def _line_text_at(text: str, line: int) -> Optional[str]:
+        """Extract one line without splitting the whole buffer.
+
+        Args:
+            text: Full editor buffer content.
+            line: Zero-indexed line number.
+
+        Returns:
+            The requested line or ``None`` when out of range.
+        """
+        if line < 0:
             return None
-        row = lines[line]
+        start = 0
+        current = 0
+        while current < line:
+            nxt = text.find("\n", start)
+            if nxt == -1:
+                return None
+            start = nxt + 1
+            current += 1
+        end = text.find("\n", start)
+        return text[start:] if end == -1 else text[start:end]
+
+    @staticmethod
+    def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
+        """Return the identifier under *col* on *line* without full split.
+
+        Args:
+            text: Full editor buffer content.
+            line: Zero-indexed line number.
+            col: Zero-indexed column.
+
+        Returns:
+            Identifier string or ``None`` when absent/inside a string.
+        """
+        row = PythonLanguageProvider._line_text_at(text, line)
+        if row is None:
+            return None
         if col < 0 or col > len(row):
             return None
 

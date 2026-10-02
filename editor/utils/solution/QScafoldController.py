@@ -68,7 +68,30 @@ class ScaffoldController:
         self.finished_ok = dialog.success and not dialog.cancelled and not dialog.failed
         self.user_cancelled = dialog.cancelled
 
+        if dialog.failed:
+            self._report_failure(dialog)
+
         self._refresh_ide()
+
+    def _report_failure(self, dialog: "QScaffoldProgressDialog") -> None:
+        """Show a persistent error so a rolled-back project is never silent.
+
+        Args:
+            dialog: Finished progress dialog carrying the failure details.
+        """
+        step = dialog.failed_step or "unknown step"
+        detail = dialog.error_text.strip().splitlines()
+        tail = "\n".join(detail[-8:]) if detail else "See the application log."
+        box = QMessageBox(self._window)
+        box.setIcon(QMessageBox.Icon.Critical)
+        box.setWindowTitle("Project Creation Failed")
+        box.setText(
+            f"Scaffolding failed during '{step}' and created files were "
+            "rolled back.\n\n"
+            f"{tail}"
+        )
+        inherit_theme(box)
+        box.exec()
 
     def _collect_packages(self, manifest: dict) -> list[str]:
         """Extract dependency names from the manifest's requirements template.
@@ -149,6 +172,12 @@ class ScaffoldController:
             explorer = hero._solution_explorer
             if hasattr(explorer, "set_root_path"):
                 explorer.set_root_path(target)
+            # NOTE: The explorer was already pointed at this (initially
+            # empty) target before scaffolding ran, so re-pointing at the
+            # same path alone may not rescan. Refresh explicitly so the
+            # newly created template files become visible.
+            if hasattr(explorer, "refresh"):
+                explorer.refresh()
             if hasattr(hero._source_control, "set_workspace"):
                 hero._source_control.set_workspace(target)
         except AttributeError:
@@ -173,6 +202,8 @@ class QScaffoldProgressDialog(QDialog):
         self.success = False
         self.cancelled = False
         self.failed = False
+        self.failed_step = ""
+        self.error_text = ""
 
         self.setWindowTitle(title)
         self.setModal(True)
@@ -211,6 +242,12 @@ class QScaffoldProgressDialog(QDialog):
         if not styled:
             self._apply_style()
 
+    def _apply_style(self) -> None:
+        """Apply a minimal fallback style when theming is unavailable."""
+        self.setStyleSheet(
+            "QDialog { background-color: #1e1e1e; color: #d4d4d4; }"
+        )
+
     def showEvent(self, event) -> None:
         """Center the dialog on the screen each time it is shown."""
         center_on_screen_show(self, event)
@@ -237,6 +274,10 @@ class QScaffoldProgressDialog(QDialog):
 
     def _on_step_failed(self, _step: str, _error: str) -> None:
         self.failed = True
+        self.failed_step = str(_step)
+        # NOTE: Keep only a tail of the traceback for the error dialog;
+        # the full trace stays in the application log.
+        self.error_text = str(_error)[-2000:]
         self._step_label.setText("Scaffolding failed — rolling back changes...")
 
     def _on_cancelled(self) -> None:

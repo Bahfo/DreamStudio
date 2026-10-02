@@ -52,8 +52,17 @@ def _is_block_header(line: str) -> str | None:
 
 
 def compute_fold_regions(text: str) -> List[FoldRegion]:
-    """Parse Python source *text* and return a list of fold regions."""
+    """Parse Python source *text* and return a list of fold regions.
+
+    Args:
+        text: Full editor buffer content.
+
+    Returns:
+        Fold regions sorted by start line; runs in linear time.
+    """
     if not text:
+        return []
+    if "def " not in text and "class " not in text and "import " not in text:
         return []
 
     lines = text.split("\n")
@@ -89,7 +98,30 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
                 if line_code.count("'''") % 2 != 0:
                     in_triple_single = True
 
-    # ── Step 2: Scan through layout and compute regions ──
+    # ── Step 2: Precompute per-line layout for linear-time scans ──
+    indents = [0] * total
+    is_blank = [False] * total
+    is_comment = [False] * total
+    for idx, line in enumerate(lines):
+        if is_inside_string[idx]:
+            continue
+        if _RE_BLANK.match(line):
+            is_blank[idx] = True
+            continue
+        if _RE_COMMENT.match(line):
+            is_comment[idx] = True
+        indents[idx] = _indent_level(line)
+
+    # NOTE: Next significant (non-blank/comment) line per index; string
+    # lines count as significant so bodies spanning docstrings stay open.
+    next_significant = [-1] * total
+    nxt = -1
+    for idx in range(total - 1, -1, -1):
+        next_significant[idx] = nxt
+        if is_inside_string[idx] or (not is_blank[idx] and not is_comment[idx]):
+            nxt = idx
+
+    # ── Step 3: Scan through layout and compute regions ──
     i = 0
     while i < total:
         if is_inside_string[i]:
@@ -183,18 +215,11 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
                     continue
 
                 # Empty whitespace structural evaluation check
-                if _RE_BLANK.match(next_line) or _RE_COMMENT.match(next_line):
-                    has_more_body = False
-                    for k in range(j + 1, total):
-                        if is_inside_string[k]:
-                            has_more_body = True
-                            break
-                        nk_line = lines[k]
-                        if _RE_BLANK.match(nk_line) or _RE_COMMENT.match(nk_line):
-                            continue
-                        if _indent_level(nk_line) > header_indent:
-                            has_more_body = True
-                        break
+                if is_blank[j] or is_comment[j]:
+                    sig = next_significant[j]
+                    has_more_body = sig != -1 and (
+                        is_inside_string[sig] or indents[sig] > header_indent
+                    )
                     if has_more_body:
                         end_line = j
                         j += 1

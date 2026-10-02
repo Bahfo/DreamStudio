@@ -136,6 +136,14 @@ class CDiagnosticManager(QObject):
     @pyqtSlot()
     def _on_text_changed(self) -> None:
         self._request_counter += 1
+        try:
+            from editor.Ironica.debounce import adaptive_delay_for_editor
+
+            self._debounce_timer.setInterval(
+                adaptive_delay_for_editor(DIAGNOSTIC_DEBOUNCE_MS, self._editor)
+            )
+        except Exception:
+            pass
         self._debounce_timer.start()
 
     @pyqtSlot()

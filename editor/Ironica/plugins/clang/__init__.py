@@ -29,6 +29,12 @@ from editor.Ironica.plugins.clang.c_worker import (
     CDiagnosticManager,
     CCompletionManager,
 )
+from editor.Ironica.plugins.clang.compile_db import (
+    args_for_file,
+    clear_cache as clear_compile_db_cache,
+    default_args_for_path,
+    language_for_path,
+)
 
 __all__ = [
     "CLanguageProvider",
@@ -46,4 +52,8 @@ __all__ = [
     "compute_folds_for_editor",
     "CDiagnosticManager",
     "CCompletionManager",
+    "args_for_file",
+    "clear_compile_db_cache",
+    "default_args_for_path",
+    "language_for_path",
 ]

@@ -533,8 +533,21 @@ class SolutionExplorer(PanelShell):
         if not os.path.exists(resolved):
             resolved = os.getcwd()
 
+        same_root = os.path.normpath(resolved) == os.path.normpath(
+            getattr(self, "_root_path", "")
+        )
         self._root_path = resolved
         self.proxy_model.set_root_path(self._root_path)
+        if same_root:
+            # NOTE: QFileSystemModel.setRootPath() with an unchanged path is
+            # a no-op, so files created after the first scan (e.g. project
+            # scaffolding writing templates into the already-pointed root)
+            # never appear. Bouncing through an empty root forces a genuine
+            # re-fetch from disk.
+            try:
+                self.base_model.setRootPath("")
+            except Exception:
+                pass
         self.base_model.setRootPath(self._root_path)
 
         source_index = self.base_model.index(self._root_path)

@@ -60,7 +60,23 @@ _REFERENCE_KINDS = {
 
 
 def _line_offsets(text: str) -> List[int]:
-    """Return UTF-8 byte offsets for every source line."""
+    """Return UTF-8 byte offsets for every source line.
+
+    Args:
+        text: Full source buffer.
+
+    Returns:
+        Offset of every line start plus a final total-length entry.
+    """
+    if text.isascii():
+        offsets = [0]
+        current = 0
+        for line in text.splitlines(keepends=True):
+            current += len(line)
+            offsets.append(current)
+        if len(offsets) == 1 or offsets[-1] < len(text):
+            offsets.append(len(text))
+        return offsets
     offsets = [0]
     current = 0
     for line in text.splitlines(keepends=True):
@@ -87,28 +103,37 @@ def _in_ranges(start: int, end: int, ranges: List[Tuple[int, int]]) -> bool:
 
 
 def _non_code_ranges(text: str) -> List[Tuple[int, int]]:
-    """Return byte ranges occupied by C comments and literals."""
+    """Return byte ranges occupied by C comments and literals in O(n).
+
+    Args:
+        text: Full source buffer.
+
+    Returns:
+        Sorted ``(start, end)`` UTF-8 byte ranges for non-code spans.
+    """
     ranges: List[Tuple[int, int]] = []
+    byte_pos = 0
     index = 0
     length = len(text)
     while index < length:
         if text.startswith("//", index):
+            start_byte = byte_pos
             end = text.find("\n", index + 2)
             end = length if end == -1 else end
-            ranges.append(
-                (len(text[:index].encode("utf-8")), len(text[:end].encode("utf-8")))
-            )
+            byte_pos += len(text[index:end].encode("utf-8"))
+            ranges.append((start_byte, byte_pos))
             index = end
             continue
         if text.startswith("/*", index):
+            start_byte = byte_pos
             end = text.find("*/", index + 2)
             end = length if end == -1 else end + 2
-            ranges.append(
-                (len(text[:index].encode("utf-8")), len(text[:end].encode("utf-8")))
-            )
+            byte_pos += len(text[index:end].encode("utf-8"))
+            ranges.append((start_byte, byte_pos))
             index = end
             continue
         if text[index] in ('"', "'"):
+            start_byte = byte_pos
             quote = text[index]
             cursor = index + 1
             while cursor < length:
@@ -119,11 +144,11 @@ def _non_code_ranges(text: str) -> List[Tuple[int, int]]:
                     cursor += 1
                     break
                 cursor += 1
-            ranges.append(
-                (len(text[:index].encode("utf-8")), len(text[:cursor].encode("utf-8")))
-            )
+            byte_pos += len(text[index:cursor].encode("utf-8"))
+            ranges.append((start_byte, byte_pos))
             index = cursor
             continue
+        byte_pos += len(text[index].encode("utf-8"))
         index += 1
     return ranges
 

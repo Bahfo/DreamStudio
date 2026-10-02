@@ -81,6 +81,11 @@ class CodeEditor(QsciScintilla):
     OCCURRENCE_MIN_LENGTH = 2
     OCCURRENCE_MAX_OCC = 200
 
+    # Deferred semantic-overlay ranges painted per idle callback. Larger
+    # values finish big files faster; smaller values keep each UI slice
+    # shorter. 8000 ranges slice in a few milliseconds.
+    _SEMANTIC_CHUNK_RANGES = 8000
+
     MARGIN_BREAKPOINT = 1
     MARKER_BREAKPOINT = 1
     COLOR_MARGIN = 2
@@ -286,6 +291,14 @@ class CodeEditor(QsciScintilla):
                 provider_cls.get_semantic_highlights
                 is not BaseLanguageProvider.get_semantic_highlights
             ):
+                try:
+                    from editor.Ironica.debounce import adaptive_delay_for_editor
+
+                    self._import_highlight_timer.setInterval(
+                        adaptive_delay_for_editor(300, self)
+                    )
+                except Exception:
+                    pass
                 self._import_highlight_timer.start()
 
         if self._is_replacing:
@@ -389,8 +402,16 @@ class CodeEditor(QsciScintilla):
     ###############################################
 
     def _schedule_fold_recompute(self) -> None:
-        """Debounce fold recomputation on text change."""
+        """Debounce fold recomputation on text change, backing off on size."""
         self._analysis_manager.invalidate()
+        try:
+            from editor.Ironica.debounce import adaptive_delay_for_editor
+
+            self._fold_recompute_timer.setInterval(
+                adaptive_delay_for_editor(500, self)
+            )
+        except Exception:
+            pass
         self._fold_recompute_timer.start()
 
     def _recompute_folds(self) -> None:
@@ -450,9 +471,15 @@ class CodeEditor(QsciScintilla):
         """Paint semantic-highlight overlays from *highlights*.
 
         Always clears the overlay indicator slots first so stale tokens
-        from a previous buffer state are never left behind.  Called on
-        the UI thread with results computed by the analysis worker.
+        from a previous buffer state are never left behind.  Ranges
+        intersecting the viewport paint synchronously; the remainder is
+        painted in idle chunks so a 100k-token result never blocks the UI
+        in one go.  A newer analysis run cancels pending chunks via the
+        paint generation counter.  Called on the UI thread with results
+        computed by the analysis worker.
         """
+        self._semantic_paint_gen = getattr(self, "_semantic_paint_gen", 0) + 1
+        gen = self._semantic_paint_gen
         length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
 
         # ── always clear all indicator slots first ────────────────
@@ -461,25 +488,24 @@ class CodeEditor(QsciScintilla):
             self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
 
         if not highlights:
+            self._semantic_paint_state = None
             return
 
-        # ── group by colour → one indicator slot per colour ──────
+        # ── group by colour → one indicator slot per colour, merged ──
         _SLOTS = 8
         colour_to_slot: dict = {}
-        next_slot = 0
-
+        slot_ranges: dict = {}
         for start, token_len, colour_hex in highlights:
             if start < 0 or token_len <= 0 or start + token_len > length:
                 continue
-
             slot = colour_to_slot.get(colour_hex)
             if slot is None:
                 if len(colour_to_slot) >= _SLOTS:
                     # Exhausted — deterministic skip to avoid overwriting active slot color
                     continue
-                slot = next_slot % _SLOTS
+                slot = len(colour_to_slot)
                 colour_to_slot[colour_hex] = slot
-                next_slot += 1
+                slot_ranges[slot] = []
                 self.SendScintilla(
                     QsciScintilla.SCI_INDICSETSTYLE, slot, QsciScintilla.INDIC_TEXTFORE
                 )
@@ -488,9 +514,78 @@ class CodeEditor(QsciScintilla):
                     slot,
                     self._scintilla_rgb(colour_hex),
                 )
+            merged = slot_ranges[slot]
+            end = start + token_len
+            if merged and start <= merged[-1][1]:
+                if end > merged[-1][1]:
+                    merged[-1][1] = end
+            else:
+                merged.append([start, end])
 
+        try:
+            first_visible = self.SendScintilla(
+                QsciScintilla.SCI_GETFIRSTVISIBLELINE
+            )
+            on_screen = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+            view_start = self.SendScintilla(
+                QsciScintilla.SCI_POSITIONFROMLINE, max(0, first_visible)
+            )
+            view_end = self.SendScintilla(
+                QsciScintilla.SCI_POSITIONFROMLINE,
+                first_visible + on_screen + 1,
+            )
+            if view_end < 0:
+                view_end = length
+        except Exception:
+            view_start, view_end = 0, length
+
+        deferred: list = []
+        for slot, merged in slot_ranges.items():
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
-            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, start, token_len)
+            for start, end in merged:
+                if end <= view_start or start >= view_end:
+                    deferred.append((slot, start, end - start))
+                else:
+                    self.SendScintilla(
+                        QsciScintilla.SCI_INDICATORFILLRANGE, start, end - start
+                    )
+        if deferred:
+            deferred.sort(key=lambda item: item[1])
+            self._semantic_paint_state = [gen, deferred, 0]
+            QTimer.singleShot(0, self._paint_semantic_chunk)
+        else:
+            self._semantic_paint_state = None
+
+    def _paint_semantic_chunk(self) -> None:
+        """Paint one idle chunk of deferred semantic ranges, then reschedule."""
+        state = getattr(self, "_semantic_paint_state", None)
+        if not state:
+            return
+        gen, deferred, pos = state
+        if gen != getattr(self, "_semantic_paint_gen", 0):
+            return  # superseded by a newer analysis run
+        stop = min(len(deferred), pos + self._SEMANTIC_CHUNK_RANGES)
+        current_slot = -1
+        try:
+            while pos < stop:
+                slot, start, token_len = deferred[pos]
+                if slot != current_slot:
+                    self.SendScintilla(
+                        QsciScintilla.SCI_SETINDICATORCURRENT, slot
+                    )
+                    current_slot = slot
+                self.SendScintilla(
+                    QsciScintilla.SCI_INDICATORFILLRANGE, start, token_len
+                )
+                pos += 1
+        except RuntimeError:
+            self._semantic_paint_state = None
+            return  # editor torn down mid-paint
+        if pos < len(deferred):
+            self._semantic_paint_state = [gen, deferred, pos]
+            QTimer.singleShot(0, self._paint_semantic_chunk)
+        else:
+            self._semantic_paint_state = None
 
     def _apply_fold_regions(self, fold_regions) -> None:
         """Push *fold_regions* into the FoldManager.
@@ -1025,28 +1120,34 @@ class CodeEditor(QsciScintilla):
             sel_start, sel_end = sel_end, sel_start
 
         ranges: list = []
-        total_lines = self.lines()
-        for line in range(total_lines):
-            line_text = self.text(line)
-            if sel not in line_text:
-                continue
-            line_start_byte = self.SendScintilla(
-                QsciScintilla.SCI_POSITIONFROMLINE, line
+        try:
+            text = self.text()
+        except Exception:
+            return
+        if sel not in text:
+            return
+        # NOTE: One buffer copy serves the whole scan. Per-line
+        # ``text(line)`` calls would each round-trip through Scintilla
+        # (100k IPC calls on huge files); char→byte mapping uses
+        # precomputed line-start tables instead.
+        char_starts = [0]
+        byte_starts = [0]
+        for line_text in text.split("\n"):
+            char_starts.append(char_starts[-1] + len(line_text) + 1)
+            byte_starts.append(
+                byte_starts[-1] + len(line_text.encode("utf-8")) + 1
             )
-            if line_start_byte == -1:
-                continue
-            for match in regex.finditer(line_text):
-                byte_start = line_start_byte + len(
-                    line_text[: match.start()].encode("utf-8")
-                )
-                byte_len = len(match.group(0).encode("utf-8"))
-                if byte_start >= sel_start and byte_start + byte_len <= sel_end:
-                    continue
-                ranges.append((byte_start, byte_len))
-                if len(ranges) >= self.OCCURRENCE_MAX_OCC:
-                    break
+        for match in regex.finditer(text):
             if len(ranges) >= self.OCCURRENCE_MAX_OCC:
                 break
+            line = bisect.bisect_right(char_starts, match.start()) - 1
+            byte_start = byte_starts[line] + len(
+                text[char_starts[line] : match.start()].encode("utf-8")
+            )
+            byte_len = len(match.group(0).encode("utf-8"))
+            if byte_start >= sel_start and byte_start + byte_len <= sel_end:
+                continue
+            ranges.append((byte_start, byte_len))
 
         if not ranges:
             return

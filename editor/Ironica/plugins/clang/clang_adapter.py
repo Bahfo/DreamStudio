@@ -15,8 +15,17 @@ from clang.cindex import CursorKind, Index, TranslationUnit, Cursor
 # Local Imports
 from editor.Ironica.plugins.clang.clang_domain_models import *
 from editor.Ironica.plugins.clang.c_interfaces import *
+from editor.Ironica.plugins.clang.compile_db import (
+    args_for_file,
+    unsaved_name_for_path,
+)
 
 logger = logging.getLogger("DreamStudio.CSupport.ClangAdapter")
+
+#: Maximum translation units kept warm per adapter (path -> TU). Each TU
+#: pins parsed headers in memory, so this stays small to respect the
+#: large-file memory budget; eviction is oldest-first.
+_TU_CACHE_SIZE = 2
 
 
 def _cursor_value(name: str) -> int:
@@ -54,35 +63,101 @@ _COMPLETION_KIND_MAP = {
 
 
 class ClangAdapter(IClangAdapter):
-    """Stateless adapter interfacing with libclang."""
+    """Stateless adapter interfacing with libclang.
+
+    Attributes:
+        _index: Shared libclang index for all translation units.
+        _tu_cache: Bounded path-keyed cache of warm translation units
+            reused via ``reparse`` instead of full re-parsing.
+    """
 
     def __init__(self, library_path: Optional[str] = None) -> None:
         super().__init__()
         if library_path:
             clang.cindex.Config.set_library_file(library_path)
         self._index = Index.create()
+        self._tu_cache: dict = {}
+        self._tu_order: list = []
 
-    def _parse_translation_unit(self, context: CContext) -> Optional[TranslationUnit]:
-        file_path = context.file_path or "unsaved_buffer.c"
+    def _remember_tu(self, key: str, tu) -> None:
+        """Store *tu* under *key*, evicting the oldest entry when full.
+
+        Args:
+            key: Cache key (buffer path).
+            tu: Parsed translation unit to keep warm.
+        """
+        if key in self._tu_cache:
+            try:
+                self._tu_order.remove(key)
+            except ValueError:
+                pass
+        elif len(self._tu_cache) >= _TU_CACHE_SIZE:
+            oldest = self._tu_order.pop(0)
+            self._tu_cache.pop(oldest, None)
+        self._tu_cache[key] = tu
+        self._tu_order.append(key)
+
+    def clear_tu_cache(self) -> None:
+        """Drop all warm translation units, freeing their parsed headers.
+
+        Called by memory guards and on explicit buffer disposal; the next
+        request re-parses from scratch.
+        """
+        self._tu_cache.clear()
+        self._tu_order.clear()
+
+    def _parse_translation_unit(
+        self, context: CContext
+    ) -> Optional[TranslationUnit]:
+        """Parse or reparse the translation unit for *context*.
+
+        Args:
+            context: Immutable snapshot of the editor state.
+
+        Returns:
+            A translation unit, or ``None`` when parsing failed.
+        """
+        file_path = context.file_path or unsaved_name_for_path(None)
+        args = args_for_file(context.file_path, context.compile_args)
         unsaved_files = [(file_path, context.source_code)]
-        args = ["-x", "c", "-std=c11"] + context.compile_args
+        options = (
+            TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
+            | TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
+            | TranslationUnit.PARSE_INCOMPLETE
+        )
+
+        cached = self._tu_cache.get(file_path)
+        if cached is not None:
+            old_tu, old_source, old_args, old_options = cached
+            if old_args == tuple(args) and old_options == options:
+                if old_source == context.source_code:
+                    return old_tu
+                try:
+                    old_tu.reparse(unsaved_files=unsaved_files)
+                    self._tu_cache[file_path] = (
+                        old_tu,
+                        context.source_code,
+                        tuple(args),
+                        options,
+                    )
+                    return old_tu
+                except Exception as exc:
+                    logger.debug("Clang reparse failed, reparsing: %s", exc)
 
         try:
-            return self._index.parse(
+            tu = self._index.parse(
                 path=file_path,
                 args=args,
                 unsaved_files=unsaved_files,
-                options=(
-                    TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
-                    | TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
-                    | TranslationUnit.PARSE_INCOMPLETE
-                ),
+                options=options,
             )
         except Exception as e:
             logger.error(
                 "Failed to parse Clang TranslationUnit: %s", str(e), exc_info=True
             )
             return None
+        self._remember_tu(file_path, (tu, context.source_code, tuple(args), options))
+        return tu
 
     @staticmethod
     def _resolve_hover_cursor(cursor: Cursor) -> Cursor:

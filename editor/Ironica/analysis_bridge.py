@@ -20,12 +20,24 @@ package stubs, so importing it never pulls in the heavyweight
 
 from __future__ import annotations
 
+import itertools
+import tempfile
+import time
+
 from editor import *
 
 logger = logging.getLogger(__name__)
 
 _FRAME_HEADER = struct.Struct("<Q")
 _PICKLE_PROTOCOL = pickle.HIGHEST_PROTOCOL
+
+#: Sources larger than this (UTF-8 bytes) are spilled to a temp file and
+#: sent by reference, so a 100k-line buffer crosses the wire once instead
+#: of being copied through every pickle/str layer on both processes.
+_SPILL_THRESHOLD_BYTES = 1_000_000
+_SPILL_DIR_NAME = "dreamstudio-analysis"
+_spill_counter = itertools.count()
+_spill_lock = threading.Lock()
 
 
 class AnalysisProcessError(RuntimeError):
@@ -59,6 +71,90 @@ def write_frame(stream, payload) -> None:
     stream.write(_FRAME_HEADER.pack(len(data)))
     stream.write(data)
     stream.flush()
+
+
+def _spill_dir() -> str:
+    """Return the temp directory for spilled sources, creating it."""
+    path = os.path.join(tempfile.gettempdir(), _SPILL_DIR_NAME)
+    try:
+        os.makedirs(path, exist_ok=True)
+    except OSError:
+        pass
+    return path
+
+
+def _cleanup_stale_spills(max_age_s: float = 3600.0) -> None:
+    """Delete spilled sources older than *max_age_s* (best effort)."""
+    try:
+        now = time.time()
+        for name in os.listdir(_spill_dir()):
+            full = os.path.join(_spill_dir(), name)
+            try:
+                if now - os.path.getmtime(full) > max_age_s:
+                    os.unlink(full)
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def spill_large_strings(payload):
+    """Replace oversized top-level strings in *payload* with file refs.
+
+    Args:
+        payload: Wire tuple possibly containing a large source string.
+
+    Returns:
+        ``(packed_payload, spilled_paths)`` where large strings became
+        ``{"__spilled_source__": path}`` dicts.
+    """
+    packed = []
+    spilled: list = []
+    for item in payload:
+        # NOTE: Character count bounds the byte size from below, so this
+        # check never encodes — spilling a little early is harmless.
+        if isinstance(item, str) and len(item) >= _SPILL_THRESHOLD_BYTES // 3:
+            with _spill_lock:
+                number = next(_spill_counter)
+            path = os.path.join(
+                _spill_dir(), f"src-{os.getpid()}-{number}.txt"
+            )
+            try:
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write(item)
+            except OSError as exc:
+                logger.debug("Source spill failed, sending inline: %s", exc)
+                packed.append(item)
+                continue
+            spilled.append(path)
+            packed.append({"__spilled_source__": path})
+        else:
+            packed.append(item)
+    return type(payload)(packed), spilled
+
+
+def resolve_spills(payload):
+    """Restore spilled file refs in *payload* to source strings."""
+    resolved = []
+    for item in payload:
+        if isinstance(item, dict) and "__spilled_source__" in item:
+            try:
+                with open(item["__spilled_source__"], "r", encoding="utf-8") as fh:
+                    resolved.append(fh.read())
+            except OSError as exc:
+                raise AnalysisProcessError(f"missing spilled source: {exc}")
+        else:
+            resolved.append(item)
+    return type(payload)(resolved)
+
+
+def discard_spills(paths) -> None:
+    """Delete spilled temp files listed in *paths* (best effort)."""
+    for path in paths:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
 
 
 class AnalysisProcess:
@@ -185,6 +281,10 @@ class AnalysisProcess:
             )
             self._stderr_thread.start()
             logger.debug("analysis-server started (pid=%s)", self._proc.pid)
+            try:
+                _cleanup_stale_spills()
+            except Exception:
+                pass
 
     def __del__(self) -> None:
         """Kill a still-running child when the client is collected.
@@ -203,7 +303,11 @@ class AnalysisProcess:
             pass
 
     def request(self, payload) -> object:
-        """Send *payload* to the server and block for its reply."""
+        """Send *payload* to the server and block for its reply.
+
+        Sources over ~1MB are spilled to a temp file and sent by
+        reference; the spill is deleted once the reply arrives.
+        """
         with self._pipe_lock:
             if self._shutdown_requested:
                 raise AnalysisProcessError("analysis subprocess is shut down")
@@ -214,8 +318,11 @@ class AnalysisProcess:
             if proc is None:
                 raise AnalysisProcessError("unable to start analysis subprocess")
 
+            packed, spilled = payload, []
             try:
-                write_frame(proc.stdin, payload)
+                if isinstance(payload, tuple):
+                    packed, spilled = spill_large_strings(payload)
+                write_frame(proc.stdin, packed)
                 return read_frame(proc.stdout)
             except (BrokenPipeError, OSError, pickle.PickleError) as exc:
                 logger.warning(
@@ -228,6 +335,9 @@ class AnalysisProcess:
                         pass
                     self._proc = None
                 raise AnalysisProcessError(f"IPC communication failure: {exc}")
+            finally:
+                if spilled:
+                    discard_spills(spilled)
 
     def shutdown(self) -> None:
         """Request a graceful shutdown without blocking the caller.

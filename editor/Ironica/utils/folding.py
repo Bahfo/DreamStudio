@@ -233,41 +233,58 @@ class FoldManager:
         return None
 
     def _apply_fold_levels(self) -> None:
-        """Translate the custom regions into working nested fold levels."""
+        """Translate the custom regions into working nested fold levels.
+
+        Writes every line exactly once (no separate reset pass) and
+        accumulates nesting depth with a difference array, so the whole
+        pass is ``O(lines + regions)`` with ``n`` Scintilla calls for
+        ``n`` lines. Modification notifications are masked during the
+        bulk write to avoid per-line re-layout churn.
+        """
         e = self._editor
         total_lines = e.lines()
         if total_lines == 0:
             return
 
         BASE = QsciScintilla.SC_FOLDLEVELBASE
+        HEADER = QsciScintilla.SC_FOLDLEVELHEADERFLAG
 
-        # Step 1: Initialize all lines back to base depth
-        for ln in range(total_lines):
-            e.SendScintilla(QsciScintilla.SCI_SETFOLDLEVEL, ln, BASE)
-
-        # Step 2: Track line depths exclusively inside block bodies
-        depth = [0] * total_lines
+        depth_diff = [0] * (total_lines + 1)
+        is_header = [False] * total_lines
         for region in self._regions:
             s = max(0, region.start_line)
             end = min(total_lines - 1, region.end_line)
-            if s >= total_lines or end < s:
+            if 0 <= region.start_line < total_lines:
+                is_header[region.start_line] = True
+            if s >= total_lines or end <= s:
                 continue
-            # Body lines are strictly greater than start_line to generate folding offsets
-            for ln in range(s + 1, end + 1):
-                depth[ln] += 1
+            depth_diff[s + 1] += 1
+            if end + 1 < total_lines:
+                depth_diff[end + 1] -= 1
 
-        # Step 3: Map headers
-        header_lines: Dict[int, FoldRegion] = {}
-        for region in self._regions:
-            if region.start_line < total_lines:
-                header_lines[region.start_line] = region
-
-        # Step 4: Write values to Scintilla core
-        for ln in range(total_lines):
-            level = BASE + depth[ln]
-            if ln in header_lines:
-                level |= QsciScintilla.SC_FOLDLEVELHEADERFLAG
-            e.SendScintilla(QsciScintilla.SCI_SETFOLDLEVEL, ln, level)
+        set_mask = getattr(QsciScintilla, "SCI_SETMODEVENTMASK", None)
+        get_mask = getattr(QsciScintilla, "SCI_GETMODEVENTMASK", None)
+        old_mask = None
+        try:
+            if set_mask is not None and get_mask is not None:
+                try:
+                    old_mask = e.SendScintilla(get_mask)
+                    e.SendScintilla(set_mask, 0)
+                except Exception:
+                    old_mask = None
+            running = 0
+            for ln in range(total_lines):
+                running += depth_diff[ln]
+                level = BASE + running
+                if is_header[ln]:
+                    level |= HEADER
+                e.SendScintilla(QsciScintilla.SCI_SETFOLDLEVEL, ln, level)
+        finally:
+            if old_mask is not None:
+                try:
+                    e.SendScintilla(set_mask, old_mask)
+                except Exception:
+                    pass
 
         # Step 5: Restore state memory blocks across buffer updates
         for region in self._regions:

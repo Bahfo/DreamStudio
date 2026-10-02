@@ -76,7 +76,13 @@ class CLanguageProvider(BaseLanguageProvider):
     to the ClangAdapter. Per-editor state is created via manager factories.
     """
 
-    remote_analysis: bool = False
+    remote_analysis: bool = True
+
+    #: Wire-protocol kind for whole-document C analysis requests.
+    remote_kind: str = "c_analysis"
+
+    #: Language identifier used for config/theme resolution.
+    language_id: str = "clang"
 
     def __init__(
         self,
@@ -186,11 +192,44 @@ class CLanguageProvider(BaseLanguageProvider):
         )
 
     @staticmethod
-    def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
-        lines = text.split("\n")
-        if line < 0 or line >= len(lines):
+    def _line_text_at(text: str, line: int) -> Optional[str]:
+        """Extract one line without splitting the whole buffer.
+
+        Args:
+            text: Full editor buffer content.
+            line: Zero-indexed line number.
+
+        Returns:
+            The requested line or ``None`` when out of range.
+        """
+        if line < 0:
             return None
-        row = lines[line]
+        start = 0
+        current = 0
+        while current < line:
+            nxt = text.find("\n", start)
+            if nxt == -1:
+                return None
+            start = nxt + 1
+            current += 1
+        end = text.find("\n", start)
+        return text[start:] if end == -1 else text[start:end]
+
+    @staticmethod
+    def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
+        """Return the identifier under *col* on *line* without full split.
+
+        Args:
+            text: Full editor buffer content.
+            line: Zero-indexed line number.
+            col: Zero-indexed column.
+
+        Returns:
+            Identifier string or ``None`` when absent/inside a string.
+        """
+        row = CLanguageProvider._line_text_at(text, line)
+        if row is None:
+            return None
         if col < 0 or col > len(row):
             return None
 
@@ -298,16 +337,28 @@ class CLanguageProvider(BaseLanguageProvider):
             return []
 
     def format_source(self, source_code: str) -> str:
+        """Format *source_code* with ``clang-format`` when available.
+
+        Args:
+            source_code: Raw C/C++ source from the editor buffer.
+
+        Returns:
+            Formatted source, or the original text when ``clang-format``
+            is missing, slow (>2s), or the code has errors.
+        """
         if not source_code or not source_code.strip():
             return source_code
         try:
+            import shutil
             import subprocess
 
+            if shutil.which("clang-format") is None:
+                return source_code
             result = subprocess.run(
                 ["clang-format", "-style=file"],
                 input=source_code.encode(),
                 capture_output=True,
-                timeout=5,
+                timeout=2,
             )
             if result.returncode == 0:
                 return result.stdout.decode()
@@ -332,13 +383,40 @@ class CLanguageProvider(BaseLanguageProvider):
     def has_diagnostics(self) -> bool:
         return True
 
+    def build_remote_request(
+        self,
+        request_id: int,
+        source: str,
+        config: Optional[dict],
+        theme_name: Optional[str],
+    ) -> tuple:
+        """Build the wire payload for whole-document C analysis.
+
+        Args:
+            request_id: Latest-wins request identifier.
+            source: Full editor buffer content.
+            config: Resolved ``clang`` language config (plain data).
+            theme_name: Active theme name for style resolution.
+
+        Returns:
+            ``c_analysis`` payload tuple for the analysis server.
+        """
+        return (
+            "c_analysis",
+            request_id,
+            source,
+            self._file_path,
+            config,
+            theme_name,
+        )
+
     def create_diagnostic_manager(self, editor, file_path, parent):
         """Create the C diagnostics manager for an editor instance."""
         if file_path:
             self._file_path = file_path
         return CDiagnosticManager(
             editor=editor,
-            adapter=ClangAdapter(),
+            adapter=self._adapter,
             file_path=file_path,
             compile_args=[],
             parent=parent,
@@ -355,7 +433,7 @@ class CLanguageProvider(BaseLanguageProvider):
             self._file_path = file_path
         self._completion_manager = CCompletionManager(
             editor=editor,
-            adapter=ClangAdapter(),
+            adapter=self._adapter,
             file_path=file_path,
             compile_args=[],
             parent=parent,

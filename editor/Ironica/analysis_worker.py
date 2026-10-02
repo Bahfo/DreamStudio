@@ -92,28 +92,39 @@ class _AnalysisWorker(threading.Thread):
     def _remote_analysis(self, request: _AnalysisRequest):
         """Ask the shared analysis subprocess to compute highlights + folds.
 
-        The subprocess resolves the python config and theme itself, so
-        only plain-data (source, config, theme) crosses the wire.
+        Providers exposing ``build_remote_request`` choose their own wire
+        payload (Python ``analysis`` vs C ``c_analysis``); otherwise the
+        legacy Python payload is used. Only plain data crosses the wire.
 
         Returns:
             ``(highlights, fold_regions)`` — or ``None`` if the request
             was dropped because this owner is no longer the focused tab.
         """
-        response = process_manager.request(
-            self._owner.owner_id,
-            (
+        provider = request.provider
+        build = getattr(provider, "build_remote_request", None)
+        if callable(build):
+            payload = build(
+                request.request_id,
+                request.source,
+                request.config,
+                request.theme_name,
+            )
+            expected = getattr(provider, "remote_kind", "analysis")
+        else:
+            payload = (
                 "analysis",
                 request.request_id,
                 request.source,
                 request.config,
                 request.theme_name,
-            ),
-        )
+            )
+            expected = "analysis"
+        response = process_manager.request(self._owner.owner_id, payload)
         if response is None:
             return None
         if not isinstance(response, (tuple, list)) or not response:
             raise AnalysisProcessError(f"malformed server response: {response!r}")
-        if response[0] != "analysis":
+        if response[0] != expected:
             raise AnalysisProcessError(f"server error: {response}")
         return response[2], response[3]
 

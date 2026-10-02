@@ -50,12 +50,29 @@ _FSTRING_TOKEN_TYPES = frozenset(
 
 
 def _build_line_offsets(text: str) -> List[int]:
-    """Build cumulative line-start offsets in UTF-8 bytes."""
+    """Build cumulative line-start offsets in UTF-8 bytes.
+
+    Args:
+        text: Full source buffer.
+
+    Returns:
+        Offset of every line start plus a final total-length entry.
+    """
+    if text.isascii():
+        offsets = [0]
+        current_byte = 0
+        for line in text.splitlines(keepends=True):
+            current_byte += len(line)
+            offsets.append(current_byte)
+        if len(offsets) == 1 or offsets[-1] < len(text):
+            offsets.append(len(text))
+        return offsets
     offsets = [0]
     current_byte = 0
-    # io.StringIO(text).readlines() matches tokenize line boundaries
-    for line in io.StringIO(text).readlines():
+    for line in text.splitlines(keepends=True):
         current_byte += len(line.encode("utf-8"))
+        offsets.append(current_byte)
+    if len(offsets) == 1:
         offsets.append(current_byte)
     return offsets
 
@@ -87,7 +104,46 @@ def _build_line_index(tok_stream) -> Dict[int, List]:
 # ------------------------------------------------------------------
 
 
+def _build_exclusions_from_stream(
+    tok_stream: List, line_offsets: List[int]
+) -> List[Tuple[int, int]]:
+    """Build comment/string exclusion ranges from one tokenize pass.
+
+    Args:
+        tok_stream: Tokens from a single ``generate_tokens`` run.
+        line_offsets: Cumulative UTF-8 byte offsets per line.
+
+    Returns:
+        Sorted ``(start, end)`` byte ranges covering non-code spans.
+    """
+    exclude: List[Tuple[int, int]] = []
+    for tok in tok_stream:
+        if (
+            tok.type in (tokenize.COMMENT, tokenize.STRING)
+            or tok.type in _FSTRING_TOKEN_TYPES
+        ):
+            start_byte = _tokenize_char_to_byte(
+                line_offsets, tok.line, tok.start[0], tok.start[1]
+            )
+            end_byte = _tokenize_char_to_byte(
+                line_offsets, tok.line, tok.end[0], tok.end[1]
+            )
+            if start_byte >= 0 and end_byte >= start_byte:
+                exclude.append((start_byte, end_byte))
+    exclude.sort()
+    return exclude
+
+
 def _build_exclusions(text: str, line_offsets: List[int]) -> List[Tuple[int, int]]:
+    """Build comment/string exclusion ranges by tokenizing *text*.
+
+    Args:
+        text: Full source buffer.
+        line_offsets: Cumulative UTF-8 byte offsets per line.
+
+    Returns:
+        Sorted ``(start, end)`` byte ranges covering non-code spans.
+    """
     exclude: List[Tuple[int, int]] = []
     try:
         for tok in tokenize.generate_tokens(io.StringIO(text).readline):
@@ -168,11 +224,15 @@ class PythonSemanticProvider(ITokenProvider):
         self._styles = {}
 
     def _compute(self, text: str) -> None:
+        """Compute and cache lexical/semantic tokens for *text*.
+
+        Args:
+            text: Full source buffer; recomputed only when changed.
+        """
         if text == self._cache_text:
             return
 
         line_offsets = _build_line_offsets(text)
-        exclude = _build_exclusions(text, line_offsets)
 
         tok_stream = []
         try:
@@ -180,6 +240,8 @@ class PythonSemanticProvider(ITokenProvider):
                 tok_stream.append(tok)
         except Exception:
             pass
+
+        exclude = _build_exclusions_from_stream(tok_stream, line_offsets)
 
         self._cache_text = text
         self._cache_lexical = self._lex(tok_stream, line_offsets)
