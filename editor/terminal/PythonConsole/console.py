@@ -2,8 +2,16 @@ from editor import *
 from editor.utils.notifications.notification_manager import get_notification_manager
 from editor.utils.resource_path import resource_path
 from editor.widgets.QToolButton import ToolbarButton
-from qtconsole.manager import QtKernelManager
-from qtconsole.rich_ipython_widget import RichJupyterWidget
+
+try:
+    from qtconsole.manager import QtKernelManager
+    from qtconsole.rich_ipython_widget import RichJupyterWidget
+
+    _JUPYTER_AVAILABLE = True
+except ImportError:
+    QtKernelManager = None  # type: ignore
+    RichJupyterWidget = None  # type: ignore
+    _JUPYTER_AVAILABLE = False
 
 
 class PythonShell(QWidget):
@@ -21,6 +29,19 @@ class PythonShell(QWidget):
         self.setObjectName("PythonShell")
         self._workspace_dir = ""
         self._restart_attempts = 0
+        self._unavailable = not _JUPYTER_AVAILABLE
+
+        if self._unavailable:
+            layout = QVBoxLayout(self)
+            msg = QLabel(
+                "Python console unavailable: install qtconsole + jupyter to enable."
+            )
+            msg.setWordWrap(True)
+            layout.addWidget(msg)
+            self.kernel_manager = None
+            self.kernel_client = None
+            self.console = None
+            return
 
         resolved_cwd = cwd if isinstance(cwd, str) and cwd else self._detect_workspace()
         if resolved_cwd and os.path.isdir(resolved_cwd):
@@ -85,6 +106,8 @@ class PythonShell(QWidget):
 
     def set_workspace(self, path: str) -> None:
         """Track workspace switches; restart kernel cwd when possible."""
+        if getattr(self, "_unavailable", False):
+            return
         if not path or not os.path.isdir(path):
             return
         self._workspace_dir = os.path.abspath(path)
@@ -95,6 +118,8 @@ class PythonShell(QWidget):
 
     def _shutdown_kernel(self) -> None:
         """Best-effort kernel shutdown for app quit."""
+        if getattr(self, "_unavailable", False):
+            return
         try:
             self.kernel_client.stop_channels()
         except Exception:
@@ -227,6 +252,8 @@ class PythonShell(QWidget):
         return shlex.quote(str(path))
 
     def restart_kernel(self, force: bool = False):
+        if getattr(self, "_unavailable", False):
+            return
         try:
             if not force:
                 try:
@@ -250,12 +277,18 @@ class PythonShell(QWidget):
         self.restart_kernel(force=True)
 
     def interrupt_kernel(self):
+        if getattr(self, "_unavailable", False):
+            return
         self.console.interrupt_kernel()
 
     def clear_console(self):
+        if getattr(self, "_unavailable", False):
+            return
         self.console.clear()
 
     def run_file(self, path: str):
+        if getattr(self, "_unavailable", False):
+            return
         if not path or not os.path.isfile(path):
             try:
                 from editor.utils.notifications.notification_manager import (
@@ -304,6 +337,8 @@ class PythonShell(QWidget):
     # ------------------------------------------------------------------
 
     def _apply_theme(self):
+        if getattr(self, "_unavailable", False) or self.console is None:
+            return
         palette = self.palette()
         bg = palette.color(QPalette.ColorRole.Window).name()
         fg = palette.color(QPalette.ColorRole.WindowText).name()

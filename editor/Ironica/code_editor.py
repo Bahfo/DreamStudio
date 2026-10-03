@@ -407,9 +407,7 @@ class CodeEditor(QsciScintilla):
         try:
             from editor.Ironica.debounce import adaptive_delay_for_editor
 
-            self._fold_recompute_timer.setInterval(
-                adaptive_delay_for_editor(500, self)
-            )
+            self._fold_recompute_timer.setInterval(adaptive_delay_for_editor(500, self))
         except Exception:
             pass
         self._fold_recompute_timer.start()
@@ -523,9 +521,7 @@ class CodeEditor(QsciScintilla):
                 merged.append([start, end])
 
         try:
-            first_visible = self.SendScintilla(
-                QsciScintilla.SCI_GETFIRSTVISIBLELINE
-            )
+            first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
             on_screen = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
             view_start = self.SendScintilla(
                 QsciScintilla.SCI_POSITIONFROMLINE, max(0, first_visible)
@@ -570,9 +566,7 @@ class CodeEditor(QsciScintilla):
             while pos < stop:
                 slot, start, token_len = deferred[pos]
                 if slot != current_slot:
-                    self.SendScintilla(
-                        QsciScintilla.SCI_SETINDICATORCURRENT, slot
-                    )
+                    self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
                     current_slot = slot
                 self.SendScintilla(
                     QsciScintilla.SCI_INDICATORFILLRANGE, start, token_len
@@ -1134,9 +1128,7 @@ class CodeEditor(QsciScintilla):
         byte_starts = [0]
         for line_text in text.split("\n"):
             char_starts.append(char_starts[-1] + len(line_text) + 1)
-            byte_starts.append(
-                byte_starts[-1] + len(line_text.encode("utf-8")) + 1
-            )
+            byte_starts.append(byte_starts[-1] + len(line_text.encode("utf-8")) + 1)
         for match in regex.finditer(text):
             if len(ranges) >= self.OCCURRENCE_MAX_OCC:
                 break
@@ -1866,6 +1858,31 @@ class CodeEditor(QsciScintilla):
     ###############################################
     # LANGUAGE & LEXER
     ###############################################
+
+    def apply_visual_language(self, lang: str) -> None:
+        """Preview *lang* highlighting without touching disk or session state.
+
+        Visual-only: the file is not renamed, no configuration is written,
+        and reopening the file resolves the language from its extension
+        again. Thin routing over :meth:`setLanguage` for panels.
+
+        Unknown or unregistered ids are ignored so the current lexer,
+        theme, and fonts are never destroyed by a preview request.
+        """
+        if not lang or lang == "--":
+            return
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            if not LanguageRegistry.is_registered(lang):
+                return
+        except Exception:
+            pass
+        self.setLanguage(lang)
+        try:
+            self.retheme(getattr(self, "_theme_name", None) or self._active_theme())
+        except Exception:
+            pass
 
     def setLanguage(self, lang: str) -> None:
         """Assign a language to the editor and isolate native folding features."""

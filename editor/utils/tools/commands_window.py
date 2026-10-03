@@ -72,8 +72,6 @@ class CommandWindow(QMenu):
             from editor.utils.resource_path import resource_path as _rp
 
             cmd_path = Path(_rp("editor/utils/tools/json/commands_list.json"))
-            else:
-                cmd_path = Path(__file__).parent / "json" / "commands_list.json"
             with open(cmd_path, "r") as file:
                 commands = json.load(file)
 

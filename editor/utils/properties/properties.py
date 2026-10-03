@@ -26,8 +26,14 @@ class PropertiesExplorer(PanelShell):
         self.setMinimumWidth(235)
 
         self.data_engine = ProjectDataEngine()
+        self._metadata_watcher = None
+        self._tracked_tabs = None
 
         self._setup_focus_tracking()
+        try:
+            QTimer.singleShot(0, self._wire_editor_tracking)
+        except Exception:
+            pass
 
     def _setup_focus_tracking(self) -> None:
         QApplication.instance().focusChanged.connect(self._on_app_focus_changed)
@@ -152,10 +158,12 @@ class PropertiesExplorer(PanelShell):
         splitter.addWidget(top_container)
         self.config_grid = SolutionPropertiesGrid(self)
         self.config_grid.itemChanged.connect(self._on_config_property_changed)
+        self.config_grid.setMinimumHeight(320)
         splitter.addWidget(self.config_grid)
 
         splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
+        splitter.setStretchFactor(1, 3)
+        splitter.setSizes([180, 420])
         tab_layout.addWidget(splitter)
 
     def _initialize_file_tab(self) -> None:
@@ -189,6 +197,107 @@ class PropertiesExplorer(PanelShell):
         # Refresh the Languages analysis for the new workspace.
         self._remove_languages_section()
         self._add_languages_section()
+        self._watch_project_metadata(project_dir)
+
+    def _watch_project_metadata(self, project_dir: str) -> None:
+        """Watch the project root so accompanying docs refresh metadata live."""
+        try:
+            if self._metadata_watcher is not None:
+                try:
+                    self._metadata_watcher.directoryChanged.disconnect(
+                        self._on_metadata_path_changed
+                    )
+                except (TypeError, RuntimeError):
+                    pass
+                try:
+                    watched = self._metadata_watcher.directories()
+                    if watched:
+                        self._metadata_watcher.removePaths(watched)
+                except Exception:
+                    pass
+            else:
+                self._metadata_watcher = QFileSystemWatcher(self)
+                self._metadata_watcher.directoryChanged.connect(
+                    self._on_metadata_path_changed
+                )
+            if project_dir and os.path.isdir(project_dir):
+                self._metadata_watcher.addPath(os.path.abspath(project_dir))
+        except Exception:
+            pass
+
+    def _on_metadata_path_changed(self, _path: str = "") -> None:
+        """Reload project metadata when root docs are added/removed."""
+        if not self.data_engine.is_valid_project():
+            return
+        if not hasattr(self, "config_grid"):
+            return
+        try:
+            self.config_grid.blockSignals(True)
+            project_data = self.data_engine.extract_solution_properties()
+            self.config_grid.load_grid_data(project_data)
+        finally:
+            try:
+                self.config_grid.blockSignals(False)
+            except Exception:
+                pass
+
+    def _wire_editor_tracking(self) -> None:
+        """Track the active editor so the File tab follows tab switches."""
+        try:
+            top = self.window()
+            hero = getattr(top, "hero_window", None)
+            center = getattr(hero, "_text_editor_center", None)
+            tabs = getattr(center, "tabs", None)
+            if tabs is None or tabs is self._tracked_tabs:
+                return
+            try:
+                tabs.currentChanged.disconnect(self._on_tabs_changed)
+            except (TypeError, RuntimeError):
+                pass
+            tabs.currentChanged.connect(self._on_tabs_changed)
+            self._tracked_tabs = tabs
+            self._on_tabs_changed(tabs.currentIndex())
+        except Exception:
+            pass
+
+    def showEvent(self, event) -> None:
+        """Re-wire editor tracking when the panel becomes visible."""
+        try:
+            super().showEvent(event)
+        except Exception:
+            pass
+        try:
+            self._wire_editor_tracking()
+        except Exception:
+            pass
+
+    def _on_tabs_changed(self, _index: int = -1) -> None:
+        """Push the newly active editor into the File tab."""
+        try:
+            tabs = self._tracked_tabs
+            if tabs is None:
+                return
+            widget = tabs.currentWidget()
+            if widget is None:
+                if hasattr(self, "file_grid"):
+                    self.file_grid.set_active_editor(None)
+                return
+            try:
+                from editor.Ironica.utils.minimap import ensure_inner
+            except Exception:
+                ensure_inner = None  # type: ignore
+            editor = None
+            if ensure_inner is not None:
+                try:
+                    editor = ensure_inner(widget) or widget
+                except Exception:
+                    editor = widget
+            else:
+                editor = widget
+            if hasattr(self, "file_grid"):
+                self.file_grid.set_active_editor(editor)
+        except Exception:
+            pass
 
     def _on_config_property_changed(self, item: QTreeWidgetItem, column: int) -> None:
         """Listens directly to the grid inputs to save modified values straight to disk."""

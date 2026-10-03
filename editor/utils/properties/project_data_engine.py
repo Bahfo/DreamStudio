@@ -111,11 +111,15 @@ class ProjectDataEngine:
             except Exception:
                 pass
 
-        data["code_of_conduct"] = self._read_root_doc(
+        data["code_of_conduct"] = self._root_doc_status(
             ["CODE_OF_CONDUCT.md", "CODE-OF-CONDUCT"]
         )
-        data["license"] = self._read_root_doc(["LICENSE.md", "LICENSE", "LICENSE.txt"])
-        data["contributing"] = self._read_root_doc(["CONTRIBUTING.md", "CONTRIBUTING"])
+        data["license"] = self._root_doc_status(
+            ["LICENSE.md", "LICENSE", "LICENSE.txt"]
+        )
+        data["contributing"] = self._root_doc_status(
+            ["CONTRIBUTING.md", "CONTRIBUTING"]
+        )
 
         return data
 
@@ -156,17 +160,6 @@ class ProjectDataEngine:
             json_str = json.dumps(json_data, indent=4)
             self._atomic_write(json_path, json_str)
 
-            self._write_root_doc(
-                ["CODE_OF_CONDUCT.md", "CODE-OF-CONDUCT"],
-                updates.get("code_of_conduct", ""),
-            )
-            self._write_root_doc(
-                ["LICENSE.md", "LICENSE", "LICENSE.txt"], updates.get("license", "")
-            )
-            self._write_root_doc(
-                ["CONTRIBUTING.md", "CONTRIBUTING"], updates.get("contributing", "")
-            )
-
             return True
         except Exception:
             return False
@@ -184,6 +177,18 @@ class ProjectDataEngine:
                 except Exception:
                     pass
         return ""
+
+    def _root_doc_status(self, filenames: list[str]) -> str:
+        """Report whether an accompanying root doc exists, without its content."""
+        if not self.project_dir:
+            return "Not found"
+        for name in filenames:
+            try:
+                if (self.project_dir / name).exists():
+                    return f"Found ({name})"
+            except Exception:
+                pass
+        return "Not found"
 
     def _write_root_doc(self, filenames: list[str], content: str) -> None:
         """
