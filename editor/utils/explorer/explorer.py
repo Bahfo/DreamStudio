@@ -48,6 +48,22 @@ TOOLBAR_BUTTONS: dict[str, tuple[str, str]] = {
     "Expand All": ("_toolbar_expand_all", resource_path("assets/menus/expand.png")),
 }
 
+#: New-file dropdown entries: ``(label, icon, suggested_name)``.
+#: A ``None`` label marks a separator. The suggested name pre-fills the
+#: creation popup so the chosen type defines the file extension.
+NEW_FILE_TEMPLATES: tuple = (
+    ("Python File", "assets/types/python.png", "New.py"),
+    ("C Code File", "assets/types/c.png", "New.c"),
+    ("C Header File", "assets/types/h.png", "New.h"),
+    ("Empty Text File", "assets/types/file.png", "New.txt"),
+    (None, None, None),
+    ("HTML File", "assets/types/html.png", "New.html"),
+    ("CSS File", "assets/types/css.png", "New.css"),
+    ("Docker File", "assets/types/docker.png", "Dockerfile"),
+    (None, None, None),
+    ("Scratch File", "assets/menus/new_file.png", "scratch.txt"),
+)
+
 
 @dataclass(frozen=True)
 class ExplorerSelection:
@@ -712,8 +728,33 @@ class SolutionExplorer(PanelShell):
             self.tree_view.setColumnHidden(col, True)
 
     def _toolbar_new_file(self) -> None:
-        self._run_if_directory(lambda target: ExplorerAPI.new_file(self, target))
-        self._notify_vcs_activity()
+        menu = QMenu(self)
+        try:
+            from editor.utils.icons import get_qicon
+        except Exception:
+            get_qicon = None  # type: ignore
+
+        for label, icon_path, suggested in NEW_FILE_TEMPLATES:
+            if label is None:
+                menu.addSeparator()
+                continue
+            try:
+                icon = get_qicon(icon_path) if get_qicon is not None else QIcon()
+            except Exception:
+                icon = QIcon()
+            action = QAction(icon, label, menu)
+            action.triggered.connect(
+                lambda checked=False, suggested_name=suggested: (
+                    self._run_if_directory(
+                        lambda target, suggested_name=suggested_name: (
+                            ExplorerAPI.new_file(self, target, suggested_name)
+                        )
+                    ),
+                    self._notify_vcs_activity(),
+                )
+            )
+            menu.addAction(action)
+        menu.exec(QCursor.pos())
 
     def _toolbar_new_folder(self) -> None:
         self._run_if_directory(lambda target: ExplorerAPI.new_folder(self, target))

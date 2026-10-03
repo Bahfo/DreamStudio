@@ -81,7 +81,9 @@ class ExplorerAPI:
         return os.path.basename(path)
 
     @staticmethod
-    def new_file(parent: QWidget, directory: str) -> str | None:
+    def new_file(
+        parent: QWidget, directory: str, suggested_name: str = ""
+    ) -> str | None:
         """Create a new empty file inside *directory*.
 
         Prompts the user for a file name via ``QInputDialog``.  Returns the
@@ -92,6 +94,7 @@ class ExplorerAPI:
             "New File",
             "File name:",
             QLineEdit.EchoMode.Normal,
+            suggested_name.strip(),
         )
         if not ok or not name.strip():
             return None
