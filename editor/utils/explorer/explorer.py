@@ -559,6 +559,10 @@ class SolutionExplorer(PanelShell):
                 self.packages_view.set_workspace(self._root_path)
             except Exception as exc:
                 logger.warning("Packages explorer re-point failed: %s", exc)
+        try:
+            ExplorerAPI.clear_clipboard_for_workspace(self._root_path)
+        except Exception:
+            pass
 
     def set_root_path(self, root_path: str) -> None:
         """

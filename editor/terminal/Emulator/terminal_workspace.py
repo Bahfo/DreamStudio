@@ -461,17 +461,27 @@ class TerminalWorkspace(QWidget):
         session_id = self._active_id
         command_line = format_command_line(argv)
 
-        def _submit() -> None:
+        def _submit(attempt: int = 0) -> None:
             if session_id not in self._sessions:
                 return
             try:
                 if not emulator.is_running():
+                    if attempt < 4:
+                        QTimer.singleShot(
+                            _RUN_COMMAND_DELAY_MS, lambda: _submit(attempt + 1)
+                        )
                     return
             except Exception:
                 return
-            emulator.write(command_line + "\n")
+            try:
+                emulator.write(command_line + "\n")
+            except Exception:
+                if attempt < 4:
+                    QTimer.singleShot(
+                        _RUN_COMMAND_DELAY_MS, lambda: _submit(attempt + 1)
+                    )
 
-        QTimer.singleShot(_RUN_COMMAND_DELAY_MS, _submit)
+        QTimer.singleShot(_RUN_COMMAND_DELAY_MS, lambda: _submit(0))
         return True
 
     def active_count(self) -> int:

@@ -556,7 +556,22 @@ class EditorAPI:
         # Edge Case 2: auto-save dirty buffer before debugging.
         if hasattr(widget, "isModified") and widget.isModified():
             if hasattr(widget, "save"):
-                widget.save()
+                try:
+                    saved = widget.save()
+                except Exception:
+                    saved = False
+                if saved is False:
+                    from editor.utils.notifications.notification_manager import (
+                        get_notification_manager as _nm,
+                    )
+
+                    try:
+                        _nm().add_error(
+                            "Debug", "Auto-save failed; debug aborted.", source="Debug"
+                        )
+                    except Exception:
+                        pass
+                    return
 
         # Gather breakpoints from the editor.
         breakpoints = set()

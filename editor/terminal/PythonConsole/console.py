@@ -217,19 +217,37 @@ class PythonShell(QWidget):
     # Kernel lifecycle
     # ------------------------------------------------------------------
 
-    def restart_kernel(self):
+    def _quote(self, path: str) -> str:
+        """Platform-aware shell quoting for Jupyter magics."""
+        import sys as _sys
+
+        if _sys.platform == "win32":
+            escaped = str(path).replace('"', '""')
+            return f'"{escaped}"'
+        return shlex.quote(str(path))
+
+    def restart_kernel(self, force: bool = False):
         try:
-            alive = True
-            try:
-                alive = self.kernel_manager.is_alive()
-            except Exception:
-                alive = True
-            if not alive:
-                return
+            if not force:
+                try:
+                    if not self.kernel_manager.is_alive():
+                        force = True
+                except Exception:
+                    force = True
+            if force:
+                try:
+                    self.kernel_manager.restart_kernel(now=True)
+                except Exception:
+                    pass
             self.console.restart_kernel("Restarting ...")
             self._restart_attempts = 0
         except Exception:
             pass
+
+    def force_restart_kernel(self):
+        """Manual restart that works even when kernel is dead."""
+        self._restart_attempts = 0
+        self.restart_kernel(force=True)
 
     def interrupt_kernel(self):
         self.console.interrupt_kernel()
@@ -238,14 +256,33 @@ class PythonShell(QWidget):
         self.console.clear()
 
     def run_file(self, path: str):
+        if not path or not os.path.isfile(path):
+            try:
+                from editor.utils.notifications.notification_manager import (
+                    get_notification_manager as _nm2,
+                )
+
+                _nm2().add_error(
+                    "Python Console",
+                    f"File does not exist: {path}",
+                    source="PythonConsole",
+                )
+            except Exception:
+                pass
+            return
+        try:
+            if not self.kernel_manager.is_alive():
+                self.restart_kernel(force=True)
+        except Exception:
+            pass
         if path:
             try:
                 parent = os.path.dirname(os.path.abspath(path))
                 if os.path.isdir(parent):
-                    self.console.execute(f"%cd -q {shlex.quote(parent)}")
+                    self.console.execute(f"%cd -q {self._quote(parent)}")
             except Exception:
                 pass
-            self.console.execute(f"%run -i {shlex.quote(path)}")
+            self.console.execute(f"%run -i {self._quote(path)}")
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -59,6 +59,7 @@ class RunConfigDialog(QDialog):
 
         initial = initial or {}
         self._workspace_dir = workspace_dir or resolve_workspace_dir(parent)
+        self._suggested_arg = str(initial.get("Arg", "") or "").strip()
         self._build_ui(initial)
         self._apply_styles()
 
@@ -191,4 +192,7 @@ class RunConfigDialog(QDialog):
             "file_path": file_path,
             "Arg": first_arg,
             "Parameters": parse_parameters(self.params_edit.text()),
+            "interpreter_explicit": bool(
+                first_arg != (self._suggested_arg or first_arg)
+            ),
         }

@@ -14,30 +14,52 @@ logger = logging.getLogger(__name__)
 
 
 def _atomic_write_text(path: str, content: str) -> None:
-    """Write *content* atomically via temp file plus rename."""
+    """Write *content* atomically via unique temp file plus rename."""
+    import tempfile as _tempfile
+
     directory = os.path.dirname(os.path.abspath(path))
     if directory:
         os.makedirs(directory, exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as handle:
-        handle.write(content)
+    fd, tmp = _tempfile.mkstemp(dir=directory or ".", prefix=".tmp-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            try:
+                handle.flush()
+                os.fsync(handle.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, path)
         try:
-            handle.flush()
-            os.fsync(handle.fileno())
+            dir_fd = os.open(directory or ".", os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
         except Exception:
             pass
-    os.replace(tmp, path)
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+        except Exception:
+            pass
 
 
-def backup_corrupt_file(path: str) -> None:
-    """Copy corrupt config aside before regenerating defaults."""
+def backup_corrupt_file(path: str) -> str | None:
+    """Copy corrupt config aside with timestamp; return backup path."""
     try:
         if os.path.isfile(path):
-            backup = path + ".corrupt.bak"
+            import time as _time
+
+            stamp = _time.strftime("%Y%m%d-%H%M%S") + f"-{_time.time_ns() % 1000000000}"
+            backup = f"{path}.corrupt.{stamp}.bak"
             shutil.copyfile(path, backup)
             logger.warning("Corrupt config backed up to %s", backup)
+            return backup
     except Exception as exc:
         logger.warning("Could not back up corrupt config: %s", exc)
+    return None
 
 
 def load_json(

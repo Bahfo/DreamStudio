@@ -159,12 +159,9 @@ class GitStatusService(QObject):
                     return
             except Exception:
                 pass
-            self._snapshot_lock.acquire()
-            try:
+            with self._snapshot_lock:
                 self._repo_root = repo_root
                 self._snapshot = dict(snapshot)
-            finally:
-                self._snapshot_lock.release()
             self.statuses_updated.emit(repo_root, dict(snapshot))
         else:
             with self._snapshot_lock:

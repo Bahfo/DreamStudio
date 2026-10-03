@@ -279,9 +279,13 @@ class FindReplace(QFrame):
             return True
         if dirname.endswith(".egg-info"):
             return True
-        user_excludes_raw = self.exclude_input.text() if hasattr(self, "exclude_input") else ""
+        user_excludes_raw = (
+            self.exclude_input.text() if hasattr(self, "exclude_input") else ""
+        )
         if isinstance(user_excludes_raw, str):
-            user_excludes = [e.strip() for e in user_excludes_raw.split(",") if e.strip()]
+            user_excludes = [
+                e.strip() for e in user_excludes_raw.split(",") if e.strip()
+            ]
         else:
             user_excludes = []
         dir_excludes = set(user_excludes).union(DEFAULT_IGNORED_DIRS)
@@ -353,6 +357,34 @@ class FindReplace(QFrame):
         total_replacements = 0
         modified_files = 0
         errors = 0
+        skipped_dirty = 0
+
+        def _editor_for(path: str):
+            try:
+                parent = self._parent
+                tabs = None
+                if parent is not None:
+                    if hasattr(parent, "tab_editors"):
+                        candidate = parent.tab_editors
+                        if hasattr(candidate, "get_editor_for_path"):
+                            tabs = candidate
+                        elif hasattr(candidate, "tabs") and hasattr(
+                            candidate.tabs, "get_editor_for_path"
+                        ):
+                            tabs = candidate.tabs
+                    elif hasattr(parent, "hero_window"):
+                        hw = parent.hero_window
+                        if hasattr(hw, "_text_editor_center"):
+                            tc = hw._text_editor_center
+                            if hasattr(tc, "tabs") and hasattr(
+                                tc.tabs, "get_editor_for_path"
+                            ):
+                                tabs = tc.tabs
+                if tabs is not None:
+                    return tabs.get_editor_for_path(path)
+            except Exception:
+                pass
+            return None
 
         for root, dirs, files in os.walk(directory):
             dirs[:] = [d for d in dirs if not self._is_dir_excluded(d)]
@@ -360,6 +392,23 @@ class FindReplace(QFrame):
                 if not self._is_file_included(fname):
                     continue
                 filepath = os.path.join(root, fname)
+                try:
+                    if os.path.getsize(filepath) > 5 * 1024 * 1024:
+                        errors += 1
+                        continue
+                except OSError:
+                    errors += 1
+                    continue
+                editor = _editor_for(filepath)
+                try:
+                    if editor is not None and (
+                        (hasattr(editor, "isModified") and editor.isModified())
+                        or getattr(editor, "_is_dirty", False)
+                    ):
+                        skipped_dirty += 1
+                        continue
+                except Exception:
+                    pass
                 try:
                     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                         first_chunk = f.read(1024)
@@ -382,55 +431,39 @@ class FindReplace(QFrame):
                     continue
 
                 try:
-                    with open(filepath, "w", encoding="utf-8") as f:
+                    tmp_path = filepath + ".replace_tmp"
+                    with open(tmp_path, "w", encoding="utf-8") as f:
                         f.write(new_content)
+                    os.replace(tmp_path, filepath)
                     total_replacements += count
                     modified_files += 1
 
                     # If file is open in an editor, refresh its buffer
+                    # only when clean (dirty buffers were skipped above).
                     try:
-                        parent = self._parent
-                        # Try multiple possible tab container paths
-                        tabs = None
-                        if parent is not None:
-                            if hasattr(parent, "tab_editors"):
-                                # Could be tabs directly or via hero_window
-                                candidate = parent.tab_editors
-                                if hasattr(candidate, "get_editor_for_path"):
-                                    tabs = candidate
-                                elif hasattr(candidate, "tabs") and hasattr(
-                                    candidate.tabs, "get_editor_for_path"
-                                ):
-                                    tabs = candidate.tabs
-                            elif hasattr(parent, "hero_window"):
-                                hw = parent.hero_window
-                                if hasattr(hw, "_text_editor_center"):
-                                    tc = hw._text_editor_center
-                                    if hasattr(tc, "tabs") and hasattr(
-                                        tc.tabs, "get_editor_for_path"
-                                    ):
-                                        tabs = tc.tabs
-                        if tabs is not None:
-                            editor = tabs.get_editor_for_path(filepath)
-                            if editor is not None:
-                                # Avoid triggering extra dirty if possible;
-                                # reload buffer to reflect disk state
-                                try:
-                                    editor.load_from_file(filepath)
-                                    editor.clear_dirty()
-                                except Exception:
-                                    pass
+                        if editor is not None:
+                            try:
+                                editor.load_from_file(filepath)
+                                editor.clear_dirty()
+                            except Exception:
+                                pass
                     except Exception:
                         pass
 
                 except (OSError, PermissionError):
                     errors += 1
+                    try:
+                        if os.path.isfile(tmp_path):
+                            os.unlink(tmp_path)
+                    except Exception:
+                        pass
                     continue
 
         if total_replacements > 0:
-            self.tip_label.setText(
-                f"Replaced {total_replacements} occurrence(s) in {modified_files} file(s)."
-            )
+            msg = f"Replaced {total_replacements} occurrence(s) in {modified_files} file(s)."
+            if skipped_dirty:
+                msg += f" Skipped {skipped_dirty} dirty open file(s)."
+            self.tip_label.setText(msg)
             try:
                 from editor.utils.git_control.status_service import get_status_service
 

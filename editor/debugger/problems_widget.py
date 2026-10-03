@@ -180,7 +180,9 @@ class ProblemsWidget(QWidget):
     # Public API — isolated from any provider
     # ------------------------------------------------------------------
 
-    def set_problems(self, problems: Iterable[Union[Problem, dict]]) -> None:
+    def set_problems(
+        self, problems: Iterable[Union[Problem, dict]], skipped: int = 0
+    ) -> None:
         """Replace the current diagnostics with *problems*.
 
         Args:
@@ -188,8 +190,12 @@ class ProblemsWidget(QWidget):
                 ``file_path``, ``severity`` (error/warning/typo),
                 ``message``, ``line``, ``column``. Dicts are coerced via
                 :meth:`Problem.from_dict` so callers may pass raw JSON.
+            skipped: Number of files skipped during scan, shown distinctly
+                from a clean result.
         """
         self._problems = _normalize_problems(problems)
+        self._skipped_files = int(skipped or 0)
+        self._active_filter: set | None = None
         self._rebuild()
 
     def add_problem(self, problem: Union[Problem, dict]) -> None:
@@ -250,26 +256,26 @@ class ProblemsWidget(QWidget):
         """Collapse every file group."""
         self._tree.collapseAll()
 
+    def _visible_problems(self) -> List[Problem]:
+        """Return problems honoring the active severity filter."""
+        active = getattr(self, "_active_filter", None)
+        if not active:
+            return list(self._problems)
+        return [p for p in self._problems if p.severity in active]
+
     def filter_by_severity(self, severities: Iterable[ProblemSeverity]) -> None:
         """Show only diagnostics whose severity is in *severities*.
 
         Args:
             severities: Collection of severities to keep visible. Pass an
-                empty collection to hide all rows (header groups remain
-                but show 0). Rebuilds the tree from the in-memory list.
+                empty collection to hide all rows without mutating the
+                underlying collection.
         """
         allowed = (
             {ProblemSeverity.coerce(s) for s in severities} if severities else set()
         )
-        if not allowed:
-            self._tree.clear()
-            return
-        filtered = [p for p in self._problems if p.severity in allowed]
-        # Temporarily swap, rebuild, then restore full list.
-        full = self._problems
-        self._problems = filtered
+        self._active_filter = allowed
         self._rebuild()
-        self._problems = full
 
     # ------------------------------------------------------------------
     # Legacy bridge — keeps old callers working without importing
@@ -303,7 +309,9 @@ class ProblemsWidget(QWidget):
             # Prefer new isolated API when available.
             collect = getattr(analyzer, "collect", None)
             if callable(collect):
-                self.set_problems(collect())
+                self.set_problems(
+                    collect(), skipped=getattr(analyzer, "skipped_files", 0)
+                )
             else:
                 self._populate_table(analyzer.return_errors())
         except Exception as exc:
@@ -344,14 +352,25 @@ class ProblemsWidget(QWidget):
     def _rebuild(self) -> None:
         """Group problems by file and repopulate the tree."""
         self._tree.clear()
-        if not self._problems:
+        visible = self._visible_problems()
+        if not visible:
             self._update_summary()
+            try:
+                skipped = getattr(self, "_skipped_files", 0) or 0
+                if skipped and not self._problems:
+                    self._empty_label.setText(
+                        f"No problems. Skipped {skipped} file(s)."
+                    )
+                elif not self._problems:
+                    self._empty_label.setText("No problems have been detected.")
+            except Exception:
+                pass
             self._stack.setCurrentIndex(1)
             return
 
         self._stack.setCurrentIndex(0)
         grouped: Dict[str, List[Problem]] = {}
-        for prob in self._problems:
+        for prob in visible:
             key = prob.file_path or "<unknown>"
             grouped.setdefault(key, []).append(prob)
 

@@ -51,9 +51,66 @@ def _run_post_reveal_scaffold(window, scaffold: dict) -> None:
         controller = ScaffoldController(window, scaffold)
         controller.run_blocking()
     except Exception:
+        import logging
         import traceback
 
-        print("Scaffolding failed:\n%s" % traceback.format_exc())
+        logging.getLogger(__name__).error(
+            "Scaffolding failed:\n%s", traceback.format_exc()
+        )
+        try:
+            from editor.utils.notifications.notification_manager import (
+                get_notification_manager,
+            )
+
+            get_notification_manager().add_error(
+                "Scaffold", "Project scaffolding failed; see logs.", source="Startup"
+            )
+        except Exception:
+            pass
+
+
+def _reveal_result(result, splash) -> None:
+    """Reveal a successful bootstrap result (shared by initial and retry)."""
+    from PyQt6.QtCore import QTimer
+
+    if getattr(result, "cancelled", False):
+        try:
+            if splash is not None and splash.is_visible:
+                splash.close()
+        except Exception:
+            pass
+        return
+    if result.success and result.window is not None:
+        window = result.window
+
+        def _reveal():
+            try:
+                if splash is not None and splash.is_visible:
+                    splash.close()
+            except Exception:
+                try:
+                    if splash is not None:
+                        splash.close()
+                except Exception:
+                    pass
+            try:
+                window.setEnabled(True)
+                window.showMaximized()
+            except Exception:
+                pass
+            try:
+                window.ui_ready.emit()
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).warning("ui_ready emit failed")
+
+        QTimer.singleShot(0, _reveal)
+
+        if result.scaffold:
+            QTimer.singleShot(
+                0, lambda: _run_post_reveal_scaffold(window, result.scaffold)
+            )
 
 
 def main() -> None:
@@ -90,30 +147,7 @@ def main() -> None:
         sys.exit(0)
 
     if result.success and result.window is not None:
-        window = result.window
-
-        def _reveal():
-            try:
-                if splash.is_visible:
-                    splash.close()
-            except Exception:
-                try:
-                    splash.close()
-                except Exception:
-                    pass
-            window.setEnabled(True)
-            window.showMaximized()
-            try:
-                window.ui_ready.emit()
-            except Exception:
-                pass
-
-        QTimer.singleShot(0, _reveal)
-
-        if result.scaffold:
-            QTimer.singleShot(
-                0, lambda: _run_post_reveal_scaffold(window, result.scaffold)
-            )
+        _reveal_result(result, splash)
     else:
         try:
             if splash.is_visible:

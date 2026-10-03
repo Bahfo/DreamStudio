@@ -10,9 +10,18 @@ single source of truth for the currently opened solution.
 
 from editor import *
 
-from editor.utils.git_control.status_service import get_status_service
-
 logger = logging.getLogger(__name__)
+
+
+def _get_status_service():
+    """Lazy VCS service import so workspace works without GitPython."""
+    try:
+        from editor.utils.git_control.status_service import get_status_service
+
+        return get_status_service()
+    except Exception as exc:
+        logger.debug("VCS unavailable: %s", exc)
+        return None
 
 
 def _lazy_solution_marker():
@@ -80,7 +89,12 @@ class WorkspaceService(QObject):
 
         Args:
             path: Absolute path to the solution/folder to open.
+
+        Raises:
+            ValueError: When path is not an existing directory.
         """
+        if not path or not os.path.isdir(str(path)):
+            raise ValueError(f"Invalid workspace directory: {path}")
         self.current_path = os.path.abspath(path)
         self._reload_solution_marker()
         self.reset_workspace(self.current_path)
@@ -92,7 +106,12 @@ class WorkspaceService(QObject):
 
         Args:
             path: Absolute path to the solution/folder to activate.
+
+        Raises:
+            ValueError: When path is not an existing directory.
         """
+        if not path or not os.path.isdir(str(path)):
+            raise ValueError(f"Invalid workspace directory: {path}")
         path = os.path.abspath(path)
         self.current_path = path
         self._generation += 1
@@ -120,7 +139,9 @@ class WorkspaceService(QObject):
             self._repoint_panels(hero, path)
 
         try:
-            get_status_service().set_root(path)
+            service = _get_status_service()
+            if service is not None:
+                service.set_root(path)
         except Exception as exc:
             logger.warning("Git status service failed to re-root: %s", exc)
 

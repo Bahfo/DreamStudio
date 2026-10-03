@@ -15,7 +15,10 @@ Developed and Maintained by DreamStudio Team - EXcellent TechStacks. 2026
 
 # Written by Bahaa Nofal - 5/2026
 
-import tkinter as tk
+try:
+    import tkinter as tk
+except ImportError:  # frozen builds exclude Tk; DayDream degrades gracefully
+    tk = None  # type: ignore
 
 from editor import *
 import psutil
@@ -66,6 +69,9 @@ error_1 = """\nBad Command Structure. Please Check:
 
 
 def main_terminal():
+    if tk is None:
+        raise RuntimeError("DayDream UI requires Tkinter, which is not bundled.")
+
     def center_window(window):
         window.update_idletasks()
         w = window.winfo_width()
@@ -105,7 +111,13 @@ def main_terminal():
         terminal_textbox.mark_set("insert", tk.END)
 
     def command_execution(user_input):
-        parts = user_input.strip().split()
+        import shlex as _shlex
+
+        try:
+            parts = _shlex.split(user_input.strip(), posix=(sys.platform != "win32"))
+        except ValueError:
+            terminal_textbox.insert(tk.END, "\nBad quoting")
+            return
         if not parts:
             return
 
@@ -117,17 +129,27 @@ def main_terminal():
                 full_path = os.path.join(path, name)
 
                 if cmd == "copyfile":
-                    if not os.path.exists(full_path):
+                    if not os.path.isfile(full_path):
                         terminal_textbox.insert(tk.END, f"\nNot found {error_1}")
                     else:
-                        shutil.copyfile(full_path, os.path.join(arg, name))
+                        try:
+                            os.makedirs(arg, exist_ok=True)
+                            shutil.copyfile(full_path, os.path.join(arg, name))
+                        except (OSError, ValueError) as exc:
+                            terminal_textbox.insert(tk.END, f"\nError: {exc}")
+                            return
                         terminal_textbox.insert(tk.END, "\nCopied")
 
                 elif cmd == "movefile":
                     if not os.path.exists(full_path):
                         terminal_textbox.insert(tk.END, f"\nNot found {error_1}")
                     else:
-                        shutil.move(full_path, os.path.join(arg, name))
+                        try:
+                            os.makedirs(arg, exist_ok=True)
+                            shutil.move(full_path, os.path.join(arg, name))
+                        except (OSError, ValueError) as exc:
+                            terminal_textbox.insert(tk.END, f"\nError: {exc}")
+                            return
                         terminal_textbox.insert(tk.END, "\nMoved")
 
                 elif cmd == "compile":
@@ -233,9 +255,20 @@ def main_terminal():
         command = terminal_textbox.get(editable_index, "end-1c")
         terminal_textbox.insert(tk.END, "\n")
 
-        threading.Thread(
-            target=lambda: [command_execution(command), insert_prompt()], daemon=True
-        ).start()
+        def _run() -> None:
+            try:
+                output = command_execution(command)
+            except Exception as exc:
+                output = f"\nError: {exc}"
+            try:
+                window.after(
+                    0,
+                    lambda: (terminal_textbox.insert(tk.END, output), insert_prompt()),
+                )
+            except Exception:
+                pass
+
+        threading.Thread(target=_run, daemon=True).start()
 
         return "break"
 
