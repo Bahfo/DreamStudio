@@ -57,25 +57,9 @@ def execute_search(
     """
     compiled_pattern = regex_compile_query(query, is_regex, is_ignore_case)
     target_files = []
-    ignore_dirs = {
-        ".git",  # Git files
-        ".venv",  # Virtual Environment possible name
-        "venv",  # Virtual Environment other possible name
-        ".env",
-        "env",
-        ".ds",  # DreamStudio workspace metadata
-        "__pycache__",  # pycache compiled
-        "node_modules",  # nodeJS modules
-        "build",  # build directory
-        "dist",  # distribution directory
-        ".idea",  # IntelliJ and PyCharm folder
-        ".vscode",  # VSCode folder
-        ".vs",  # Visual Studio folder
-        ".tox",
-        ".pytest_cache",
-        ".hg",
-        ".svn",
-    }
+    from editor.utils.solution.paths import DEFAULT_EXCLUDES
+
+    ignore_dirs = set(DEFAULT_EXCLUDES)
     search_roots = []
     if scope_dirs:
         for sd in scope_dirs:

@@ -4,11 +4,12 @@ logger = logging.getLogger(__name__)
 
 
 def _get_fonts_dir() -> Path:
-    import sys
+    try:
+        from editor.utils.resource_path import resource_path
 
-    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS) / "fonts"  # type: ignore[attr-defined]
-    return Path(__file__).parent
+        return Path(resource_path("fonts"))
+    except Exception:
+        return Path(__file__).parent
 
 
 FONTS_DIR = _get_fonts_dir()

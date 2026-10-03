@@ -5,11 +5,11 @@ Module to configure run options for DreamStudio for any file type.
 """
 
 import os
-import json
 import subprocess
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from editor.debugger.run.python_resolver import find_global_python
+from editor.utils.io import load_json, save_json
 
 
 class ConfigRun:
@@ -66,12 +66,7 @@ class ConfigRun:
         if self.file_path:
             self.options["file_path"] = self.file_path
 
-        directory = os.path.dirname(target_path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-
-        with open(target_path, "w", encoding="utf-8") as config_file:
-            json.dump(self.options, config_file, indent=indent)
+        save_json(target_path, self.options, indent=indent)
 
         self.config_file_path = target_path
         return target_path
@@ -91,8 +86,9 @@ class ConfigRun:
         if not os.path.exists(target_path):
             raise FileNotFoundError(f"Config file not found: {target_path}")
 
-        with open(target_path, "r", encoding="utf-8") as config_file:
-            self.options = json.load(config_file)
+        self.options = load_json(target_path, default=None)
+        if self.options is None:
+            raise ValueError(f"Invalid run configuration: {target_path}")
 
         self.config_name = self.options.get("config_name", self.config_name)
         self.file_path = self.options.get("file_path", self.file_path)
@@ -118,9 +114,17 @@ class ConfigRun:
             ValueError: If no file path is configured or no working
               directory can be determined without using process CWD.
         """
-        arg = self.options.get("Arg") or find_global_python()
-        parameters = self.options.get("Parameters", [])
-        file_to_run = self.file_path or self.options.get("file_path")
+        arg = (
+            self.options.get("Arg")
+            or self.options.get("interpreter")
+            or find_global_python()
+        )
+        parameters = self.options.get("Parameters", self.options.get("args", []))
+        file_to_run = (
+            self.file_path
+            or self.options.get("file_path")
+            or self.options.get("target")
+        )
 
         if not file_to_run:
             raise ValueError("No file path specified in configuration to run.")

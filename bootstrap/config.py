@@ -119,10 +119,9 @@ class ConfigurationService:
         """Persist current configuration to disk."""
         self._ensure_config_dir()
         try:
-            tmp = self._config_path + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as fh:
-                json.dump(self._data, fh, indent=4)
-            os.replace(tmp, self._config_path)
+            from editor.utils.io import save_json as _save_json
+
+            _save_json(self._config_path, self._data)
             logger.info("Configuration saved")
         except OSError as exc:
             logger.error("Failed to save config: %s", exc)

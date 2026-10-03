@@ -725,12 +725,13 @@ class DreamTabbedEditor(QDreamTabEditor):
 
     @staticmethod
     def _unwrap_code_editor(widget):
-        """Unwrap MiniMapHostWidget to get the underlying CodeEditor."""
-        from editor.Ironica.utils.minimap import MiniMapHostWidget
+        """Delegate to shared ensure_inner helper."""
+        try:
+            from editor.Ironica.utils.minimap import ensure_inner
 
-        if isinstance(widget, MiniMapHostWidget):
-            return widget.editor
-        return None
+            return ensure_inner(widget)
+        except Exception:
+            return None
 
     def close_editor(self, index: int) -> None:
         """Close the tab at *index* and clean up all associated state.

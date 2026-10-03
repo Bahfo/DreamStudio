@@ -1,6 +1,7 @@
 from editor import *
 
 from editor.utils.resource_path import resource_path
+from editor.utils.icons import get_qicon
 
 class ToolbarMenuButton(QPushButton):
     """

@@ -22,6 +22,7 @@ from editor.utils.explorer.vcs_colors import build_status_index
 from editor.utils.explorer.packages import DependenciesView
 from editor.utils.explorer.api import ExplorerAPI
 from editor.utils.panel_shell import PanelShell
+from editor.utils.workspace import get_workspace_dir as _inherit_workspace
 
 try:
     import sip  # type: ignore
@@ -57,22 +58,6 @@ class ExplorerSelection:
     path: str
     is_dir: bool
     name: str
-
-
-def _inherit_workspace(widget) -> str:
-    """Return the main window's workspace path, or empty when unset.
-
-    Args:
-        widget: Any widget inside the DreamStudio window hierarchy.
-    """
-    try:
-        top = widget.window()
-        workspace = getattr(top, "currentDirectory", None)
-        if workspace and os.path.isdir(str(workspace)):
-            return os.path.abspath(str(workspace))
-    except Exception:
-        pass
-    return ""
 
 
 class SolutionExplorer(PanelShell):

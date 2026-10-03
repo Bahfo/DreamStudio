@@ -26,6 +26,12 @@ import time
 
 from editor import *
 
+from editor.analysis.wire import (
+    discard_spills as _wire_discard,
+    resolve_spills as _wire_resolve,
+    spill_large_strings as _wire_spill,
+)
+
 logger = logging.getLogger(__name__)
 
 _FRAME_HEADER = struct.Struct("<Q")
@@ -99,62 +105,21 @@ def _cleanup_stale_spills(max_age_s: float = 3600.0) -> None:
 
 
 def spill_large_strings(payload):
-    """Replace oversized top-level strings in *payload* with file refs.
-
-    Args:
-        payload: Wire tuple possibly containing a large source string.
-
-    Returns:
-        ``(packed_payload, spilled_paths)`` where large strings became
-        ``{"__spilled_source__": path}`` dicts.
-    """
-    packed = []
-    spilled: list = []
-    for item in payload:
-        # NOTE: Character count bounds the byte size from below, so this
-        # check never encodes — spilling a little early is harmless.
-        if isinstance(item, str) and len(item) >= _SPILL_THRESHOLD_BYTES // 3:
-            with _spill_lock:
-                number = next(_spill_counter)
-            path = os.path.join(
-                _spill_dir(), f"src-{os.getpid()}-{number}.txt"
-            )
-            try:
-                with open(path, "w", encoding="utf-8") as handle:
-                    handle.write(item)
-            except OSError as exc:
-                logger.debug("Source spill failed, sending inline: %s", exc)
-                packed.append(item)
-                continue
-            spilled.append(path)
-            packed.append({"__spilled_source__": path})
-        else:
-            packed.append(item)
-    return type(payload)(packed), spilled
+    """Delegate to shared wire helper (kept for backward compat)."""
+    return _wire_spill(payload)
 
 
 def resolve_spills(payload):
-    """Restore spilled file refs in *payload* to source strings."""
-    resolved = []
-    for item in payload:
-        if isinstance(item, dict) and "__spilled_source__" in item:
-            try:
-                with open(item["__spilled_source__"], "r", encoding="utf-8") as fh:
-                    resolved.append(fh.read())
-            except OSError as exc:
-                raise AnalysisProcessError(f"missing spilled source: {exc}")
-        else:
-            resolved.append(item)
-    return type(payload)(resolved)
+    """Delegate to shared wire helper, mapping errors compatibly."""
+    try:
+        return _wire_resolve(payload)
+    except Exception as exc:
+        raise AnalysisProcessError(f"missing spilled source: {exc}")
 
 
 def discard_spills(paths) -> None:
-    """Delete spilled temp files listed in *paths* (best effort)."""
-    for path in paths:
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
+    """Delegate to shared wire helper (kept for backward compat)."""
+    return _wire_discard(paths)
 
 
 class AnalysisProcess:

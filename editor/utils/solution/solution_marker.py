@@ -4,15 +4,19 @@
 
 from editor import *
 
+from editor.utils.solution.paths import DS_DIR, SOLUTION_FILE, ds_dir
+
 logger = logging.getLogger(__name__)
 
-SOLUTION_DIR = ".ds"
-SOLUTION_FILE = "solution.yaml"
 SOLUTION_MARKER_VERSION = 1
+
+SOLUTION_DIR = DS_DIR
 
 
 def _marker_path(path: str) -> str:
-    return os.path.join(path, SOLUTION_DIR, SOLUTION_FILE)
+    from editor.utils.solution.paths import marker_path
+
+    return marker_path(path)
 
 
 def is_solution_dir(path: str) -> bool:
@@ -20,20 +24,13 @@ def is_solution_dir(path: str) -> bool:
 
 
 def read_solution(path: str) -> dict | None:
+    from editor.utils.io import load_yaml
+
     marker = _marker_path(path)
     if not os.path.isfile(marker):
         return None
     try:
-        with open(marker, "r", encoding="utf-8") as fh:
-            text = fh.read()
-        try:
-            import yaml as _yaml
-
-            data = _yaml.safe_load(text)
-        except Exception:
-            data = None
-        if data is None:
-            data = json.loads(text)
+        data = load_yaml(marker, default=None)
         return data if isinstance(data, dict) else None
     except Exception as exc:
         logger.warning("Could not read solution marker %s: %s", marker, exc)
@@ -57,12 +54,13 @@ def write_solution(
         "created_at": created_at,
     }
 
-    ds_dir = os.path.join(path, SOLUTION_DIR)
+    from editor.utils.io import save_json
+
+    ds_dir_path = ds_dir(path)
     try:
-        os.makedirs(ds_dir, exist_ok=True)
+        os.makedirs(ds_dir_path, exist_ok=True)
         marker = _marker_path(path)
-        with open(marker, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, indent=4)
+        save_json(marker, payload)
         logger.info("Solution marker written: %s", marker)
     except OSError as exc:
         logger.error("Could not write solution marker in %s: %s", path, exc)
