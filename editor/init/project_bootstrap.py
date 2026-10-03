@@ -33,6 +33,7 @@ class ProjectBootstrapWorker(QObject):
         self._manifest: Optional[dict] = None
         self._created_dirs: list[str] = []
         self._created_files: list[str] = []
+        self._overwritten_backups: dict[str, bytes] = {}
         self._is_windows = platform.system() == "Windows"
 
         self._events: deque = deque()
@@ -207,9 +208,16 @@ class ProjectBootstrapWorker(QObject):
             parent = os.path.dirname(file_path)
             if parent:
                 self._ensure_dir(parent)
+            if os.path.isfile(file_path) and file_path not in self._created_files:
+                try:
+                    with open(file_path, "rb") as existing:
+                        self._overwritten_backups[file_path] = existing.read()
+                except OSError as exc:
+                    logger.warning("Could not back up %s: %s", file_path, exc)
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(contents)
-            self._created_files.append(file_path)
+            if file_path not in self._created_files:
+                self._created_files.append(file_path)
             created_as_template.add(target)
             self._emit_event("step_progress", (f"Created file: {target}",))
 
@@ -266,33 +274,93 @@ class ProjectBootstrapWorker(QObject):
                 self._created_dirs.append(venv_path)
 
             self._emit_event("step_progress", (f"Running: {cmd}",))
-            result = subprocess.run(
-                cmd,
-                cwd=project_path,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=600,
-            )
+            try:
+                stdout, stderr, returncode = self._run_cancellable(
+                    cmd, cwd=project_path, timeout=600
+                )
+            except TimeoutError as exc:
+                raise RuntimeError(f"Step '{step_name}' timed out: {exc}")
+            except CancellationRequested:
+                raise
 
-            if result.returncode != 0:
-                stderr = result.stderr.strip()
-                stdout = result.stdout.strip()
-                detail = stderr or stdout or "no output"
+            if returncode != 0:
+                detail = (stderr or "").strip() or (stdout or "").strip() or "no output"
                 raise RuntimeError(
-                    f"Step '{step_name}' failed (exit {result.returncode}): {detail}"
+                    f"Step '{step_name}' failed (exit {returncode}): {detail}"
                 )
 
-            output = result.stdout.strip()
+            output = (stdout or "").strip()
             if output:
                 self._emit_event("step_progress", (output,))
+
+    def _run_cancellable(
+        self, cmd: str, cwd: str, timeout: float = 600.0
+    ) -> tuple[str, str, int]:
+        """Run shell *cmd* with cancellation and timeout support."""
+        import time as _time
+
+        proc = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            start = _time.monotonic()
+            while True:
+                if self._cancellation_requested():
+                    try:
+                        proc.terminate()
+                    except Exception:
+                        pass
+                    try:
+                        proc.wait(timeout=5)
+                    except Exception:
+                        try:
+                            proc.kill()
+                        except Exception:
+                            pass
+                    raise CancellationRequested()
+                ret = proc.poll()
+                if ret is not None:
+                    try:
+                        out, err = proc.communicate(timeout=5)
+                    except Exception:
+                        out, err = "", ""
+                    return out or "", err or "", ret
+                if _time.monotonic() - start > timeout:
+                    try:
+                        proc.terminate()
+                    except Exception:
+                        pass
+                    try:
+                        proc.wait(timeout=5)
+                    except Exception:
+                        try:
+                            proc.kill()
+                        except Exception:
+                            pass
+                    raise TimeoutError(f"command exceeded {timeout}s: {cmd}")
+                _time.sleep(0.05)
+        finally:
+            if proc.poll() is None:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
 
     def _rollback(self) -> None:
         self._emit_event("step_progress", ("Rolling back created resources...",))
 
         for file_path in reversed(self._created_files):
             try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
+                if file_path in self._overwritten_backups:
+                    with open(file_path, "wb") as restored:
+                        restored.write(self._overwritten_backups[file_path])
+                    self._emit_event("step_progress", (f"Restored file: {file_path}",))
+                elif os.path.isfile(file_path) or os.path.islink(file_path):
                     os.remove(file_path)
                     self._emit_event("step_progress", (f"Removed file: {file_path}",))
             except OSError as e:
@@ -300,11 +368,13 @@ class ProjectBootstrapWorker(QObject):
 
         for dir_path in reversed(self._created_dirs):
             try:
-                if os.path.isdir(dir_path):
-                    shutil.rmtree(dir_path, ignore_errors=True)
+                if os.path.isdir(dir_path) and not os.listdir(dir_path):
+                    os.rmdir(dir_path)
                     self._emit_event(
                         "step_progress", (f"Removed directory: {dir_path}",)
                     )
+                elif os.path.isdir(dir_path):
+                    logger.warning("Rollback: keeping non-empty directory %s", dir_path)
             except OSError as e:
                 logger.warning(
                     "Rollback: could not remove directory %s: %s", dir_path, e
@@ -312,6 +382,7 @@ class ProjectBootstrapWorker(QObject):
 
         self._created_files.clear()
         self._created_dirs.clear()
+        self._overwritten_backups.clear()
         self._emit_event("step_progress", ("Rollback complete",))
 
 
@@ -373,9 +444,19 @@ class ProjectBootstrap:
     def stop(self) -> None:
         self._worker._poll_timer.stop()
 
-    def wait(self, timeout: int = 600000) -> bool:
-        # timeout is in milliseconds (historical API), Thread.join expects seconds
-        if timeout > 1000:  # heuristic: treat >1000 as ms
+    def wait(self, timeout: float = 600.0, unit: str = "s") -> bool:
+        """Join worker thread.
+
+        Args:
+            timeout: Duration in *unit*.
+            unit: ``"s"`` for seconds (default) or ``"ms"`` for legacy
+                millisecond callers.
+        """
+        if unit == "ms":
             timeout = timeout / 1000.0
+        elif timeout > 1000:
+            import warnings
+
+            warnings.warn("wait() timeout assumed seconds; large value given")
         self._thread.join(timeout)
         return not self._thread.is_alive()

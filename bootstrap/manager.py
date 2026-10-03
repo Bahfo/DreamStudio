@@ -210,24 +210,33 @@ class BootstrapManager:
         self._recovery_window.show()
 
     def _retry(self) -> None:
-        """Attempt startup again from scratch."""
+        """Attempt startup again preserving CLI context and splash."""
         from PyQt6.QtWidgets import QApplication
 
-        if self._recovery_window:
+        recovery = self._recovery_window
+        splash = getattr(self._ctx, "splash", None)
+        preserved_workspace = getattr(self._ctx, "workspace_path", "")
+        preserved_scaffold = dict(getattr(self._ctx, "pending_scaffold", {}) or {})
+
+        if recovery is not None:
             try:
-                self._recovery_window.close()
+                recovery.close()
             except Exception:
                 pass
-            self._recovery_window = None
+            try:
+                recovery.deleteLater()
+            except Exception:
+                pass
+        self._recovery_window = None
 
         app = QApplication.instance()
         if app:
             for w in list(app.topLevelWidgets()):
-                if w is self._recovery_window:
+                if w is recovery:
                     continue
                 try:
                     w.close()
-                except RuntimeError:
+                except Exception:
                     pass
             # Avoid re-entrancy: reset phases to defaults without duplicating custom phases
             self._phases = list(self._DEFAULT_PHASES)
@@ -236,8 +245,25 @@ class BootstrapManager:
                 self._phases.insert(len(self._phases) - 1, (name, fn))
 
         self._ctx = PhaseContext(base_dir=self._base_dir)
+        if preserved_workspace:
+            self._ctx.workspace_path = preserved_workspace
+        if preserved_scaffold:
+            self._ctx.pending_scaffold = preserved_scaffold
+        self._ctx.splash = splash
+
+        def _run_retry() -> None:
+            result = self.run(splash=splash)
+            try:
+                from startup import _reveal_result
+            except Exception:
+                return
+            try:
+                _reveal_result(result, splash)
+            except Exception:
+                pass
+
         # Run asynchronously to avoid recursion depth growth inside signal handler
-        QTimer.singleShot(0, lambda: self.run())
+        QTimer.singleShot(0, _run_retry)
 
     # ------------------------------------------------------------------
     # Context access (for testing / introspection)

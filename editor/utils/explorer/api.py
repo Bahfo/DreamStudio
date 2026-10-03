@@ -22,6 +22,18 @@ class ExplorerAPI:
     """
 
     _clipboard: dict[str, str] = {}
+    _clipboard_workspace: str = ""
+
+    @staticmethod
+    def _contained_path(directory: str, name: str) -> str | None:
+        """Join and verify *name* stays inside *directory*; None if escape."""
+        base = os.path.abspath(directory)
+        target = os.path.abspath(os.path.join(base, name.strip()))
+        if target != base and not target.startswith(base + os.sep):
+            return None
+        if os.path.basename(target) in ("", ".", ".."):
+            return None
+        return target
 
     @staticmethod
     def _notify_vcs(reason: str = "explorer:api") -> None:
@@ -85,7 +97,12 @@ class ExplorerAPI:
             return None
 
         name = name.strip()
-        file_path = os.path.join(directory, name)
+        file_path = ExplorerAPI._contained_path(directory, name)
+        if file_path is None:
+            get_notification_manager().add_error(
+                "Invalid Name", f"Name escapes workspace: {name}", "Explorer"
+            )
+            return None
 
         if os.path.exists(file_path):
             ConfirmDialog(
@@ -129,7 +146,12 @@ class ExplorerAPI:
             return None
 
         name = name.strip()
-        folder_path = os.path.join(directory, name)
+        folder_path = ExplorerAPI._contained_path(directory, name)
+        if folder_path is None:
+            get_notification_manager().add_error(
+                "Invalid Name", f"Name escapes workspace: {name}", "Explorer"
+            )
+            return None
 
         if os.path.exists(folder_path):
             ConfirmDialog(
@@ -244,7 +266,7 @@ class ExplorerAPI:
         return new_path
 
     @classmethod
-    def copy_item(cls, path: str) -> None:
+    def copy_item(cls, path: str, workspace: str = "") -> None:
         """Copy *path* to the internal clipboard (does not modify filesystem).
 
         A subsequent call to ``paste_item`` will duplicate the item.
@@ -254,15 +276,30 @@ class ExplorerAPI:
         cls._clipboard.clear()
         cls._clipboard["action"] = "copy"
         cls._clipboard["path"] = path
+        cls._clipboard_workspace = os.path.abspath(workspace) if workspace else ""
 
     @classmethod
-    def cut_item(cls, path: str) -> None:
+    def cut_item(cls, path: str, workspace: str = "") -> None:
         """Mark *path* for moving on the next ``paste_item`` call."""
         if not os.path.exists(path):
             return
         cls._clipboard.clear()
         cls._clipboard["action"] = "cut"
         cls._clipboard["path"] = path
+        cls._clipboard_workspace = os.path.abspath(workspace) if workspace else ""
+
+    @classmethod
+    def clear_clipboard_for_workspace(cls, workspace: str) -> None:
+        """Drop clipboard when switching away from its workspace."""
+        try:
+            if (
+                cls._clipboard_workspace
+                and os.path.abspath(workspace) != cls._clipboard_workspace
+            ):
+                cls._clipboard.clear()
+                cls._clipboard_workspace = ""
+        except Exception:
+            cls._clipboard.clear()
 
     @classmethod
     def paste_item(cls, parent: QWidget, destination_dir: str) -> str | None:
@@ -287,7 +324,9 @@ class ExplorerAPI:
             return None
 
         name = ExplorerAPI.item_name(src_path)
-        dest_path = os.path.join(destination_dir, name)
+        dest_path = ExplorerAPI._contained_path(destination_dir, name)
+        if dest_path is None:
+            return None
 
         if os.path.exists(dest_path):
             base, ext = os.path.splitext(name)
@@ -328,40 +367,49 @@ class ExplorerAPI:
     def open_in_system_explorer(path: str) -> None:
         """Open *path* in the operating system's default file manager."""
         target = path if os.path.isdir(path) else ExplorerAPI.parent_dir(path)
+        if not target or not os.path.exists(target):
+            get_notification_manager().add_error(
+                "Open Failed", f"Path does not exist: {target}", "Explorer"
+            )
+            return
         try:
             if sys.platform == "win32":
                 try:
                     os.startfile(target)
                 except OSError as exc:
                     raise OSError(str(exc)) from exc
-            elif sys.platform == "darwin":
-                proc = subprocess.Popen(
-                    ["open", target],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    close_fds=True,
-                    start_new_session=True,
-                )
-                try:
-                    proc.wait(timeout=5)
-                except Exception:
-                    pass
             else:
-                proc = subprocess.Popen(
-                    ["xdg-open", target],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    close_fds=True,
-                    start_new_session=True,
+                cmd = (
+                    ["open", target]
+                    if sys.platform == "darwin"
+                    else ["xdg-open", target]
                 )
-                try:
-                    proc.wait(timeout=5)
-                except Exception:
-                    pass
+
+                def _launch() -> None:
+                    try:
+                        proc = subprocess.Popen(
+                            cmd,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            stdin=subprocess.DEVNULL,
+                            close_fds=True,
+                            start_new_session=True,
+                        )
+                        try:
+                            proc.wait(timeout=10)
+                        except Exception:
+                            pass
+                    except OSError as exc:
+                        get_notification_manager().add_error(
+                            "Open Failed",
+                            f"Could not open in file manager: {exc}",
+                            "Explorer",
+                        )
+
+                import threading as _threading
+
+                _threading.Thread(target=_launch, daemon=True).start()
         except OSError as exc:
-            print(f"[explorer] open_in_system_explorer error: {exc}")
             get_notification_manager().add_error(
                 "Open Failed",
                 f"Could not open in file manager: {exc}",
@@ -395,18 +443,17 @@ class ExplorerAPI:
         *,
         root_path: str = "",
     ) -> None:
-        """Filter the tree view using *text* as a fixed-string match.
-
-        Validates the query before forwarding it to the proxy model so that
-        special characters and path-traversal sequences cannot cause
-        unexpected behaviour.
-        """
-        query = text.strip()
-
-        if ".." in query:
-            query = ""
-        elif root_path and os.path.isabs(query):
-            if not query.startswith(root_path):
+        """Filter the tree view using *text* as a fixed-string match."""
+        query = (text or "").strip()
+        # Fixed-string filter: traversal sequences are literal text, but
+        # absolute paths outside the root are still rejected.
+        if root_path and os.path.isabs(query):
+            try:
+                if os.path.commonpath(
+                    [os.path.abspath(query), os.path.abspath(root_path)]
+                ) != os.path.abspath(root_path):
+                    query = ""
+            except ValueError:
                 query = ""
 
         # Proxy uses custom _search_text filtering, not filterFixedString

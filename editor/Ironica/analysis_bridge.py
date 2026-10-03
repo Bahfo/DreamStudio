@@ -41,6 +41,8 @@ _PICKLE_PROTOCOL = pickle.HIGHEST_PROTOCOL
 #: sent by reference, so a 100k-line buffer crosses the wire once instead
 #: of being copied through every pickle/str layer on both processes.
 _SPILL_THRESHOLD_BYTES = 1_000_000
+_MAX_FRAME_BYTES = 20_000_000
+_REQUEST_TIMEOUT_S = 15.0
 _SPILL_DIR_NAME = "dreamstudio-analysis"
 _spill_counter = itertools.count()
 _spill_lock = threading.Lock()
@@ -67,6 +69,10 @@ def read_frame(stream) -> object:
     """Read one length-prefixed pickle frame from *stream*."""
     header = _read_exact(stream, _FRAME_HEADER.size)
     (size,) = _FRAME_HEADER.unpack(header)
+    if size > _MAX_FRAME_BYTES:
+        raise AnalysisProcessError(f"analysis frame too large: {size} bytes")
+    if size == 0:
+        raise AnalysisProcessError("empty analysis frame")
     data = _read_exact(stream, size)
     return pickle.loads(data)
 
@@ -259,21 +265,36 @@ class AnalysisProcess:
         the orphaned child from outliving the parent process.
         """
         proc = self._proc
+        self._proc = None
         if proc is None:
             return
         try:
             if proc.poll() is None:
                 proc.kill()
+                try:
+                    proc.wait(timeout=2)
+                except Exception:
+                    pass
         except Exception:
             pass
+        for stream_name in ("stdin", "stdout", "stderr"):
+            try:
+                stream = getattr(proc, stream_name, None)
+                if stream is not None:
+                    stream.close()
+            except Exception:
+                pass
 
-    def request(self, payload) -> object:
+    def request(self, payload, timeout: float = _REQUEST_TIMEOUT_S) -> object:
         """Send *payload* to the server and block for its reply.
 
         Sources over ~1MB are spilled to a temp file and sent by
         reference; the spill is deleted once the reply arrives.
         """
-        with self._pipe_lock:
+        locked = self._pipe_lock.acquire(timeout=timeout)
+        if not locked:
+            raise AnalysisProcessError("analysis subprocess busy (lock timeout)")
+        try:
             if self._shutdown_requested:
                 raise AnalysisProcessError("analysis subprocess is shut down")
             proc = self._proc
@@ -300,9 +321,16 @@ class AnalysisProcess:
                         pass
                     self._proc = None
                 raise AnalysisProcessError(f"IPC communication failure: {exc}")
+            except AnalysisProcessError:
+                raise
             finally:
                 if spilled:
                     discard_spills(spilled)
+        finally:
+            try:
+                self._pipe_lock.release()
+            except Exception:
+                pass
 
     def shutdown(self) -> None:
         """Request a graceful shutdown without blocking the caller.

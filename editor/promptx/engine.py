@@ -119,25 +119,27 @@ class CommandLine(cmd.Cmd):
 
     def parse_args(self, arg):
         """
-        Prases arguments passed from `GUIStdout` class by splitting from the
-        two -must written- characters (-) and (=). It splits each argument
-        from the assign character (=). Then strips any dashes, or quotations
-        found to store all parameters in one list.
+        Parse ``--key=value`` and ``--flag`` arguments with quote awareness.
 
         :param self: self parameter for class.
         :param arg: arguments to be parsed in.
         :return: dictionary of each parameter and its value assigned.
         """
-        parts = arg.split()
+        import shlex as _shlex
+
+        try:
+            parts = _shlex.split(arg or "", posix=(sys.platform != "win32"))
+        except ValueError:
+            parts = (arg or "").split()
         args = {}
         for p in parts:
             if "=" in p:
                 key, value = p.split("=", 1)
                 key = key.lstrip("-")
-                value = value.strip('"')
+                value = value.strip('"').strip("'")
                 args[key] = value
             else:
-                args[p] = True
+                args[p.lstrip("-")] = True
         return args
 
     def onecmd(self, line):
@@ -197,7 +199,7 @@ class CommandLine(cmd.Cmd):
             pass
         return self.currentDir or ""
 
-    def run_command(self, cmd_list):
+    def run_command(self, cmd_list, timeout: float = 30.0):
         """
         Runs a command as a list and returns its output.
         If the command prints to stdout or stderr, it will be captured and returned.
@@ -209,6 +211,7 @@ class CommandLine(cmd.Cmd):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 cwd=self._workspace_default() or None,
+                timeout=timeout,
             )
             output = result.stdout.strip()
             return output if output else "Command executed, no output."
@@ -216,11 +219,18 @@ class CommandLine(cmd.Cmd):
             return f"Execution Error no.300: {e}"
 
     def internet_exists(self):
+        conn = None
         try:
-            socket.create_connection(("pypi.org", 443), timeout=3)
+            conn = socket.create_connection(("pypi.org", 443), timeout=3)
             return True
         except OSError:
             return False
+        finally:
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:
+                pass
 
     # -------------------- Help --------------------
     def do_help(self, arg):
@@ -371,10 +381,10 @@ class CommandLine(cmd.Cmd):
             dest_dir = os.path.dirname(destination)
             if dest_dir and not os.path.exists(dest_dir):
                 return f"Error 4: Destination directory '{dest_dir}' does not exist."
-            with open(source, "rb") as src:
-                data = src.read()
-            with open(destination, "wb") as dst:
-                dst.write(data)
+            import shutil as _shutil
+
+            with open(source, "rb") as src, open(destination, "wb") as dst:
+                _shutil.copyfileobj(src, dst, length=1024 * 1024)
             return f"File cloned from '{source}' to '{destination}'."
         except Exception as e:
             return f"Error 6: {e}"
@@ -400,8 +410,12 @@ class CommandLine(cmd.Cmd):
             clearhistory, help
         """
         args = self.parse_args(arg)
-        source = os.path.abspath(args.get("source"))
-        destination = os.path.abspath(args.get("destination"))
+        raw_source = args.get("source")
+        raw_dest = args.get("destination")
+        if not raw_source or not raw_dest or raw_source is True or raw_dest is True:
+            return "Error 10: You must provide --source=<dir> and --destination=<dir>."
+        source = os.path.abspath(str(raw_source))
+        destination = os.path.abspath(str(raw_dest))
         try:
             shutil.copytree(src=source, dst=destination)
             return (
@@ -1036,11 +1050,18 @@ class CommandLine(cmd.Cmd):
         url = args.get("url")
         if not url:
             return "Error 50: You must provide --url=<url>"
+        if not url.startswith(("http://", "https://")):
+            return "Error 50: Only http(s) URLs are allowed."
         dest = args.get("path", self.currentDir)
         try:
             if os.path.isdir(dest):
                 filename = url.split("/")[-1].split("?")[0]
+                if not filename:
+                    return "Error 50: Cannot derive filename from URL."
                 dest = os.path.join(dest, filename)
+            parent = os.path.dirname(os.path.abspath(dest))
+            if parent:
+                os.makedirs(parent, exist_ok=True)
             urllib.request.urlretrieve(url, dest)
             return f"Downloaded '{url}' to '{dest}'."
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
@@ -1119,6 +1140,16 @@ class CommandLine(cmd.Cmd):
             return "Error 52: You must provide --pid=<process_id>"
         try:
             pid = int(pid)
+            if pid <= 0:
+                return "Error 52: PID must be positive."
+            if pid == os.getpid():
+                return "Error 54: Refusing to kill the IDE itself."
+            try:
+                parent = os.getppid()
+                if pid == parent:
+                    return "Error 54: Refusing to kill the parent process."
+            except Exception:
+                pass
             sig = signal.SIGKILL if "force" in args else signal.SIGTERM
             os.kill(pid, sig)
             return f"Process {pid} terminated."
@@ -1285,8 +1316,16 @@ class CommandLine(cmd.Cmd):
         try:
             if not os.path.exists(destination):
                 os.makedirs(destination, exist_ok=True)
+            dest_root = os.path.abspath(destination)
             with zipfile.ZipFile(source, "r") as z:
-                z.extractall(destination)
+                for member in z.namelist():
+                    target = os.path.abspath(os.path.join(dest_root, member))
+                    if (
+                        not target.startswith(dest_root + os.sep)
+                        and target != dest_root
+                    ):
+                        return f"Error 64: Unsafe zip entry blocked: {member}"
+                z.extractall(dest_root)
             return f"Extracted '{source}' to '{destination}'."
         except zipfile.BadZipFile:
             return f"Error 63: '{source}' is not a valid zip file."

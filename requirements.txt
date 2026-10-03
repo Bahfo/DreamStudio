@@ -9,6 +9,9 @@ pyqtgraph==0.14.0
 pyte==0.8.2
 pytest==9.1.1
 PyYAML==6.0.3
+qtconsole==5.7.0
+jupyter-client==8.6.3
+ipykernel==7.1.0
 
 # Platform-specific terminal backends
 pywinpty==3.0.5; sys_platform == 'win32'

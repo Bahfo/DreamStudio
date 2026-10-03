@@ -167,11 +167,18 @@ class ConfigurationService:
         return raw
 
     def _validate(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Ensure required sections exist, filling defaults where absent.
-        Preserves unknown top-level keys so user additions survive."""
+        """Ensure required sections exist with correct types.
+
+        Preserves unknown top-level keys so user additions survive.
+        Wrong-typed sections are replaced by defaults to prevent later crashes.
+        """
+        if not isinstance(data, dict):
+            return copy.deepcopy(DEFAULT_CONFIG)
         merged = copy.deepcopy(data)
         for key, default_val in DEFAULT_CONFIG.items():
-            if key not in merged:
+            if key not in merged or not isinstance(merged[key], type(default_val)):
+                if key in merged:
+                    logger.warning("Config section %s has wrong type; reset", key)
                 merged[key] = copy.deepcopy(default_val)
             elif isinstance(default_val, dict) and isinstance(merged[key], dict):
                 section = copy.deepcopy(default_val)

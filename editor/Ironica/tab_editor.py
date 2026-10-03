@@ -719,7 +719,24 @@ class DreamTabbedEditor(QDreamTabEditor):
             if choice == UnsavedChangesDialog.RESULT_CANCEL:
                 return
             if choice == UnsavedChangesDialog.RESULT_SAVE:
-                code_editor.save()
+                try:
+                    saved = code_editor.save()
+                except Exception:
+                    saved = False
+                if not saved:
+                    try:
+                        from editor.utils.notifications.notification_manager import (
+                            get_notification_manager,
+                        )
+
+                        get_notification_manager().add_error(
+                            "Close",
+                            f"Save failed for '{tab_name}'; tab left open.",
+                            source="Editor",
+                        )
+                    except Exception:
+                        pass
+                    return
 
         self.close_editor(index)
 
@@ -1006,7 +1023,13 @@ class DreamTabbedEditor(QDreamTabEditor):
         if hasattr(code_editor, "isReadOnly") and code_editor.isReadOnly():
             return
         was_unsaved = not getattr(code_editor, "current_file_path", None)
-        code_editor.save()
+        try:
+            saved = code_editor.save()
+        except Exception:
+            saved = False
+        if not saved:
+            self.tabBar().rebuild_dirty_indices()
+            return
         if was_unsaved and getattr(code_editor, "current_file_path", None):
             self._reopen_saved_tab(code_editor)
             return
@@ -1021,7 +1044,13 @@ class DreamTabbedEditor(QDreamTabEditor):
         if hasattr(code_editor, "isReadOnly") and code_editor.isReadOnly():
             return
         old_path = getattr(code_editor, "current_file_path", None)
-        code_editor.save_as()
+        try:
+            saved = code_editor.save_as()
+        except Exception:
+            saved = False
+        if not saved:
+            self.tabBar().rebuild_dirty_indices()
+            return
         new_path = getattr(code_editor, "current_file_path", None)
         if new_path and new_path != old_path:
             self._reopen_saved_tab(code_editor)
@@ -1053,7 +1082,10 @@ class DreamTabbedEditor(QDreamTabEditor):
                     hasattr(code_editor, "isReadOnly") and code_editor.isReadOnly()
                 )
             ):
-                code_editor.save()
+                try:
+                    code_editor.save()
+                except Exception:
+                    logger.warning("Save-all failed for tab %d", i)
         self.tabBar().rebuild_dirty_indices()
 
     # ------------------------------------------------------------------

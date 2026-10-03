@@ -509,6 +509,11 @@ def phase_main_window(ctx: PhaseContext) -> None:
             workspace.open_workspace(ctx.workspace_path)
     except Exception as exc:
         logger.error("Workspace open failed for %s: %s", ctx.workspace_path, exc)
+        try:
+            window.currentDirectory = ""
+        except Exception:
+            pass
+        ctx.workspace_path = ""
 
     ctx.registry.register("main_window", window)
 

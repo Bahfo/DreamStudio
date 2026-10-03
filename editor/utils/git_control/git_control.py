@@ -4,23 +4,32 @@ Background module to control GIT actions for DreamStudio.
 """
 
 from editor import *
-from git import Repo
+
+try:
+    from git import Repo
+except Exception:  # GitPython optional; VCS degrades gracefully
+    Repo = None  # type: ignore
 
 from editor.utils.notifications.notification_manager import get_notification_manager
 
 logger = logging.getLogger(__name__)
 
 
-def return_repository(path: str) -> Repo | Exception:
+def return_repository(path: str):
+    """Return git repo for *path* or None when unavailable."""
+    if Repo is None:
+        return None
     try:
         repo = Repo(path)
         return repo
-    except Exception as e:
+    except Exception:
         return None
 
 
-def check_last_commits(git_repo: Repo, count: int):
+def check_last_commits(git_repo, count: int):
     prev_commits = list(git_repo.iter_commits(all=True, max_count=count))
+    if not prev_commits:
+        return [], None
     tree = prev_commits[0].tree
     return prev_commits, tree
 

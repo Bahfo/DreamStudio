@@ -31,11 +31,11 @@ def _read_settings() -> dict:
 
 
 def _write_settings(data: dict) -> None:
+    from editor.utils.io import save_json as _save_json
+
     path = user_settings_path()
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=4)
+        _save_json(path, data)
     except OSError as exc:
         logger.error("Could not persist user settings: %s", exc)
 

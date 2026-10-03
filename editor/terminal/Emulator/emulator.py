@@ -438,7 +438,12 @@ class ShellEmulator(QObject):
         """
         if self._running or (self._pty is not None and self._pty.poll() is None):
             try:
-                self.stop()
+                self.kill()
+            except Exception:
+                pass
+            try:
+                if self._reader is not None:
+                    self._reader.wait(timeout=0.5)
             except Exception:
                 pass
         if sys.platform == "win32":
@@ -464,7 +469,13 @@ class ShellEmulator(QObject):
             except Exception:
                 pass
 
-        self._pty.spawn(shell_args, cwd, env, rows=rows, cols=cols)
+        if cwd is not None and not os.path.isdir(cwd):
+            raise RuntimeError(f"Terminal working directory does not exist: {cwd}")
+
+        try:
+            self._pty.spawn(shell_args, cwd, env, rows=rows, cols=cols)
+        except (OSError, RuntimeError) as exc:
+            raise RuntimeError(f"Failed to spawn terminal shell: {exc}") from exc
         self._running = True
         self.process_started.emit()
 

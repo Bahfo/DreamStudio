@@ -334,7 +334,15 @@ class RunMenuController:
         widget = self._window.tab_editors.currentWidget()
         if widget is not None and hasattr(widget, "isModified") and widget.isModified():
             if hasattr(widget, "save"):
-                widget.save()
+                try:
+                    saved = widget.save()
+                except Exception:
+                    saved = False
+                if saved is False:
+                    self._notify_error(
+                        "Run Current File", "Auto-save failed; run aborted."
+                    )
+                    return
 
         try:
             project_python = resolve_project_python(workspace)
@@ -363,17 +371,39 @@ class RunMenuController:
     def _resolve_saved_arg(self, options: dict) -> str:
         """Validate stored interpreter, re-resolving bare/stale entries."""
         raw = str(options.get("Arg", "") or "").strip()
+        explicit = bool(options.get("interpreter_explicit"))
         workspace = self.workspace_dir()
         try:
             project_python = resolve_project_python(workspace) if workspace else ""
         except RuntimeError:
             project_python = ""
+        try:
+            from editor.debugger.run.python_resolver import find_venv_python
+
+            workspace_venv = find_venv_python(workspace) if workspace else None
+        except Exception:
+            workspace_venv = None
         if not raw or raw in ("python", "python3"):
             return project_python or raw
         if os.path.isabs(raw) and not os.path.isfile(raw):
             if project_python:
                 logger.warning("Stale interpreter %s; using %s", raw, project_python)
                 return project_python
+            return raw
+        if workspace_venv and not explicit:
+            try:
+                if os.path.abspath(raw) != os.path.abspath(workspace_venv):
+                    import sys as _sys
+
+                    if os.path.abspath(raw) == os.path.abspath(_sys.executable):
+                        logger.warning(
+                            "IDE interpreter %s stale for workspace; using %s",
+                            raw,
+                            workspace_venv,
+                        )
+                        return workspace_venv
+            except Exception:
+                pass
         return raw
 
     def run_configuration(self, config_path: str) -> None:
