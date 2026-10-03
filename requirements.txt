@@ -13,6 +13,10 @@ qtconsole==5.7.0
 jupyter-client==8.6.3
 ipykernel==7.1.0
 
+# Optional diagnostics provider for the Problems panel. The scanner keeps
+# working with the built-in Python provider when Ruff is not installed.
+ruff==0.16.10
+
 # Platform-specific terminal backends
 pywinpty==3.0.5; sys_platform == 'win32'
 ptyprocess==0.7.0; sys_platform != 'win32'

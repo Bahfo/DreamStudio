@@ -229,6 +229,25 @@ class StatusBar(QFrame):
         """Restore the status bar to its theme-default appearance."""
         self.setStyleSheet("")
 
+    def set_problem_counts(self, errors: int, warnings: int) -> None:
+        """Publish the Problems-panel counts on the error/warning buttons.
+
+        Args:
+            errors: Number of error-severity diagnostics.
+            warnings: Number of warning-severity diagnostics.
+        """
+        try:
+            error_count = max(0, int(errors))
+            warning_count = max(0, int(warnings))
+        except (TypeError, ValueError):
+            return
+        self.errorsBtn.setText(str(error_count))
+        self.errorsBtn.setToolTip(f"{error_count} error(s) — open the Problems panel")
+        self.warningBtn.setText(str(warning_count))
+        self.warningBtn.setToolTip(
+            f"{warning_count} warning(s) — open the Problems panel"
+        )
+
     def set_workspace(self, directory: str) -> None:
         """Re-bind the status bar to a new workspace directory.
 
