@@ -135,36 +135,16 @@ def main_terminal():
                         terminal_textbox.insert(tk.END, f"\nNot found {error_1}")
                         return
 
-                    try:
-                        from editor.debugger.run.python_resolver import (
-                            resolve_project_python,
-                        )
+                    from editor.terminal.DayDream.daydream_commands import (
+                        compile_file as _compile_file,
+                    )
 
-                        workspace = os.path.dirname(full_path)
-                        py_exe = resolve_project_python(workspace)
-                    except Exception:
-                        py_exe = "python3"
-                    compilers = {
-                        "c": ["gcc", full_path, "-o", full_path[:-2]],
-                        "cpp": ["g++", full_path, "-o", full_path[:-4]],
-                        "py": [py_exe, "-m", "py_compile", full_path],
-                        "java": ["javac", full_path],
-                    }
-
-                    if arg not in compilers:
+                    _ok, _out = _compile_file(full_path, arg)
+                    if not _ok and _out == "Unsupported language":
                         terminal_textbox.insert(tk.END, "\nUnsupported language")
                         return
 
-                    result = subprocess.run(
-                        compilers[arg],
-                        capture_output=True,
-                        text=True,
-                        cwd=os.path.dirname(full_path) or None,
-                    )
-
-                    terminal_textbox.insert(
-                        tk.END, "\n" + result.stdout + result.stderr
-                    )
+                    terminal_textbox.insert(tk.END, "\n" + _out)
 
             elif len(parts) == 3:
                 name, path = parts[1], parts[2]

@@ -122,7 +122,6 @@ def resolve_workspace_dir(window=None) -> str:
         Absolute path of the active workspace, or ``""`` when no
         workspace is open. Never falls back to process CWD.
     """
-    candidate = getattr(window, "currentDirectory", "") if window is not None else ""
-    if candidate and os.path.isdir(str(candidate)):
-        return os.path.abspath(str(candidate))
-    return ""
+    from editor.utils.workspace import get_workspace_dir
+
+    return get_workspace_dir(window)

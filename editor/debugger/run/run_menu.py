@@ -62,12 +62,11 @@ def run_configs_dir(base_dir: str | None = None) -> str:
     Raises:
         ValueError: When no workspace directory is supplied.
     """
+    from editor.utils.solution.paths import run_dir
+
     if not base_dir or not os.path.isdir(str(base_dir)):
         raise ValueError("No workspace open; run configurations require a folder.")
-    root = os.path.abspath(str(base_dir))
-    directory = os.path.join(root, ".ds", "run")
-    os.makedirs(directory, exist_ok=True)
-    return directory
+    return run_dir(str(base_dir), ensure=True)
 
 
 def _config_file_stem(config_name: str) -> str:
@@ -220,7 +219,7 @@ class RunMenuController:
                 options = ConfigRun(config_name=entry[:-5]).load_config(path)
             except FileNotFoundError:
                 continue
-            except (OSError, json.JSONDecodeError) as exc:
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
                 logger.warning("Skipping malformed run configuration %s: %s", path, exc)
                 continue
             name = options.get("config_name") or entry[:-5]

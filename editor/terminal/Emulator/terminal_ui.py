@@ -21,20 +21,7 @@ TAB_OUTPUT = 2
 TAB_PORTS = 3
 
 
-def _inherit_workspace(widget) -> str:
-    """Return the main window's workspace path, or empty when unset.
-
-    Args:
-        widget: Any widget inside the DreamStudio window hierarchy.
-    """
-    try:
-        top = widget.window()
-        workspace = getattr(top, "currentDirectory", None)
-        if workspace and os.path.isdir(str(workspace)):
-            return os.path.abspath(str(workspace))
-    except Exception:
-        pass
-    return ""
+from editor.utils.workspace import get_workspace_dir as _inherit_workspace
 
 
 class _TerminalTabBar(DreamStudioIDETabBar):

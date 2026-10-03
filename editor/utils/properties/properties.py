@@ -169,6 +169,10 @@ class PropertiesExplorer(PanelShell):
         self.file_grid = FilePropertiesGrid(self.file_tab)
         layout.addWidget(self.file_grid, 1)
 
+    def set_workspace(self, path: str) -> None:
+        """Uniform WorkspaceAware alias."""
+        self.set_active_project_directory(path)
+
     def set_active_project_directory(self, project_dir: str) -> None:
         """
         Invoked by the main IDE layout infrastructure when switching workspaces.

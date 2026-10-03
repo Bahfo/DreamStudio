@@ -627,3 +627,20 @@ def ensure_minimap(editor_or_host):
     if isinstance(editor_or_host, MiniMapHostWidget):
         return editor_or_host
     return attach_minimap(editor_or_host)
+
+
+def ensure_inner(widget):
+    """Return underlying CodeEditor for host or plain widget."""
+    try:
+        from editor.Ironica.utils.minimap import MiniMapHostWidget
+    except Exception:
+        MiniMapHostWidget=None
+    if MiniMapHostWidget is not None and isinstance(widget, MiniMapHostWidget):
+        return widget.editor
+    for attr in ("editor", "code_editor", "text_edit"):
+        inner=getattr(widget, attr, None)
+        if inner is not None and hasattr(inner, "isModified"):
+            return inner
+    if hasattr(widget, "isModified"):
+        return widget
+    return None

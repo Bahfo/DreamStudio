@@ -18,6 +18,8 @@ class PanelShell(QWidget):
     TREE_VIEW_OBJECT_NAME = "PanelTreeView"
     RENAME_EDITOR_OBJECT_NAME = "PanelRenameEditor"
     TITLE_TEXT = "Panel"
+    CONTENT_MARGINS: tuple[int, int, int, int] = (10, 10, 10, 10)
+    CONTENT_SPACING: int = 8
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -25,6 +27,19 @@ class PanelShell(QWidget):
         self.setObjectName(self.PANEL_OBJECT_NAME)
 
         self._build_shell()
+
+    @classmethod
+    def make_overflow_button(cls, parent=None):
+        """Shared overflow/dropdown button for panel headers."""
+        from editor.widgets.QToolButton import ToolbarButton
+        from editor.utils.resource_path import resource_path
+
+        return ToolbarButton(
+            icon_path=resource_path("assets/menus/dropdown.png"),
+            tooltip="More actions",
+            fixed_size=(24, 24),
+            icon_size=(16, 16),
+        )
 
     def _build_shell(self) -> None:
         self._main_layout = QVBoxLayout(self)
@@ -37,13 +52,19 @@ class PanelShell(QWidget):
         self._frame.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         self._frame_layout = QVBoxLayout(self._frame)
-        self._frame_layout.setContentsMargins(10, 10, 10, 10)
-        self._frame_layout.setSpacing(8)
+        self._frame_layout.setContentsMargins(*self.CONTENT_MARGINS)
+        self._frame_layout.setSpacing(self.CONTENT_SPACING)
 
         self._main_layout.addWidget(self._frame)
 
         self._build_header_row()
+        for row in self._extra_header_rows():
+            self._frame_layout.addLayout(row)
         self._build_body()
+
+    def _extra_header_rows(self) -> list:
+        """Optional extra header rows below the title bar."""
+        return []
 
     def _build_body(self) -> None:
         """Override in subclasses."""

@@ -1,5 +1,12 @@
 from editor import *
 import yaml
+from editor.utils.solution.paths import (
+    DS_DIR,
+    METADATA_FILE,
+    PROJECT_INFO_FILE,
+    PROPERTIES_FILE,
+    SOLUTION_FILE,
+)
 
 
 class ProjectDataEngine:
@@ -11,7 +18,7 @@ class ProjectDataEngine:
     def __init__(self, project_dir: Optional[str] = None):
         self.project_dir: Optional[Path] = Path(project_dir) if project_dir else None
         self.ds_dir: Optional[Path] = (
-            self.project_dir / ".ds" if self.project_dir else None
+            self.project_dir / DS_DIR if self.project_dir else None
         )
 
     def set_project_dir(self, project_dir: str) -> None:
@@ -19,7 +26,7 @@ class ProjectDataEngine:
         Updates the engine target workspace directory path context.
         """
         self.project_dir = Path(project_dir)
-        self.ds_dir = self.project_dir / ".ds"
+        self.ds_dir = self.project_dir / DS_DIR
 
     def is_valid_project(self) -> bool:
         """
@@ -28,7 +35,7 @@ class ProjectDataEngine:
         """
         if not (self.ds_dir and self.ds_dir.is_dir()):
             return False
-        marker = self.ds_dir / "solution.yaml"
+        marker = self.ds_dir / SOLUTION_FILE
         return marker.is_file()
 
     def extract_solution_properties(self) -> Dict[str, Any]:
@@ -51,7 +58,7 @@ class ProjectDataEngine:
         if not self.is_valid_project():
             return data
 
-        solution_path = self.ds_dir / "solution.yaml"
+        solution_path = self.ds_dir / SOLUTION_FILE
         solution: dict = {}
         if solution_path.exists():
             try:
@@ -68,7 +75,7 @@ class ProjectDataEngine:
             except Exception:
                 solution = {}
 
-        yaml_path = self.ds_dir / "project_info.yaml"
+        yaml_path = self.ds_dir / PROJECT_INFO_FILE
         if yaml_path.exists():
             try:
                 with open(yaml_path, "r", encoding="utf-8") as f:
@@ -82,7 +89,7 @@ class ProjectDataEngine:
         if not data["created_at"]:
             data["created_at"] = str(solution.get("created_at", "") or "")
 
-        txt_path = self.ds_dir / "metadata.txt"
+        txt_path = self.ds_dir / METADATA_FILE
         if txt_path.exists():
             try:
                 with open(txt_path, "r", encoding="utf-8") as f:
@@ -94,7 +101,7 @@ class ProjectDataEngine:
             except Exception:
                 pass
 
-        json_path = self.ds_dir / "properties.json"
+        json_path = self.ds_dir / PROPERTIES_FILE
         if json_path.exists():
             try:
                 with open(json_path, "r", encoding="utf-8") as f:
@@ -133,7 +140,7 @@ class ProjectDataEngine:
             return False
 
         try:
-            yaml_path = self.ds_dir / "project_info.yaml"
+            yaml_path = self.ds_dir / PROJECT_INFO_FILE
             yaml_data = {
                 "name": updates.get("name", ""),
                 "authors": updates.get("authors", ""),
@@ -141,7 +148,7 @@ class ProjectDataEngine:
             yaml_str = yaml.safe_dump(yaml_data, default_flow_style=False)
             self._atomic_write(yaml_path, yaml_str)
 
-            json_path = self.ds_dir / "properties.json"
+            json_path = self.ds_dir / PROPERTIES_FILE
             json_data = {
                 "copyright": updates.get("copyright", ""),
                 "details": updates.get("details", ""),

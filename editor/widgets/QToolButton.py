@@ -1,6 +1,7 @@
 from editor import *
 
 from editor.utils.resource_path import resource_path
+from editor.utils.icons import get_qicon
 
 
 class ToolbarButton(QPushButton):
@@ -30,13 +31,7 @@ class ToolbarButton(QPushButton):
         if text:
             self.setText(text)
 
-        resolved = resource_path(icon_path) if icon_path else ""
-        if resolved and os.path.exists(resolved):
-            self.setIcon(QIcon(resolved))
-        else:
-            import logging as _logging
-
-            _logging.getLogger(__name__).warning("Toolbar icon missing: %s", icon_path)
+        self.setIcon(get_qicon(icon_path) if icon_path else QIcon())
         self.setIconSize(QSize(*icon_size))
         self.setToolTip(tooltip)
 

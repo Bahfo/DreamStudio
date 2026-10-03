@@ -117,14 +117,13 @@ class DependenciesView(QWidget):
             python_exe = self._workspace_python()
             if python_exe and os.path.isfile(python_exe):
                 import json as _json
-                import subprocess as _sp
 
-                proc = _sp.run(
+                from editor.utils.process import run_capture as _run_capture
+
+                proc = _run_capture(
                     [python_exe, "-m", "pip", "list", "--format=json"],
-                    capture_output=True,
-                    text=True,
-                    timeout=15,
                     cwd=self._directory if self._directory else None,
+                    timeout=15,
                 )
                 if proc.returncode == 0 and proc.stdout.strip():
                     entries = _json.loads(proc.stdout)

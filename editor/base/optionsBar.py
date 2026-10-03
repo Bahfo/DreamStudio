@@ -1,6 +1,7 @@
 from editor import *
 
 from editor.utils.resource_path import resource_path
+from editor.utils.icons import get_qicon
 
 # Local Imports
 from editor.Ironica.utils.debug_frame import DebugControlFrame

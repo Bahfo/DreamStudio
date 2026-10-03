@@ -25,14 +25,13 @@ class DirtyTracker(QObject):
         self._actual_map: dict[int, QObject] = {}
 
     def _resolve_editor(self, editor: QObject) -> QObject:
-        """Unwrap MiniMapHostWidget to inner CodeEditor if needed."""
+        """Unwrap to inner CodeEditor via shared helper."""
         try:
-            inner = getattr(editor, "editor", None)
-            if inner is not None and hasattr(inner, "textChanged"):
-                return inner
+            from editor.Ironica.utils.minimap import ensure_inner
+
+            return ensure_inner(editor) or editor
         except Exception:
-            pass
-        return editor
+            return editor
 
     def watch(self, editor: QObject) -> None:
         actual = self._resolve_editor(editor)
@@ -125,7 +124,11 @@ class DirtyTracker(QObject):
             try:
                 from editor.utils.git_control.status_service import get_status_service
 
-                reason = "dirty_tracker:dirty_true" if current else "dirty_tracker:dirty_false"
+                reason = (
+                    "dirty_tracker:dirty_true"
+                    if current
+                    else "dirty_tracker:dirty_false"
+                )
                 get_status_service().request_scan(reason)
             except Exception:
                 pass

@@ -1,5 +1,6 @@
 from editor import *
 from editor.utils.resource_path import resource_path
+from editor.utils.theme import extract_qss_color as _shared_qss_color
 
 # Local Imports
 from editor.terminal.PythonConsole.console import PythonShell

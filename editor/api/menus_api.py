@@ -185,15 +185,12 @@ class MenusAPI:
     @staticmethod
     def _unwrap_editor(widget):
         """Unwrap tab container to get the underlying editor."""
-        if isinstance(widget, MiniMapHostWidget):
-            return widget.editor
-        for attr in ("editor", "code_editor", "text_edit"):
-            inner = getattr(widget, attr, None)
-            if inner is not None and hasattr(inner, "isModified"):
-                return inner
-        if hasattr(widget, "isModified"):
-            return widget
-        return None
+        try:
+            from editor.Ironica.utils.minimap import ensure_inner
+
+            return ensure_inner(widget)
+        except Exception:
+            return None
 
     def _close_all_tabs(self, tabs):
         """Close every tab from last to first."""

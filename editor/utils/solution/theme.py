@@ -10,6 +10,7 @@ the IDE is running with, and every popup is centered on the screen.
 """
 
 from PyQt6.QtWidgets import QApplication, QWidget
+from editor.utils.theme import apply_theme as _central_apply  # noqa: F401
 
 
 def apply_theme(widget: QWidget, registry=None) -> bool:

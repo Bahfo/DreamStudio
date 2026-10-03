@@ -127,6 +127,10 @@ class TODOSearch(PanelShell):
         }
     )
 
+    def set_workspace(self, path: str) -> None:
+        """Uniform WorkspaceAware alias."""
+        self.set_base_dir(path)
+
     def set_base_dir(self, path: str) -> None:
         self._base_dir = os.path.normpath(path)
         self.path_input.setText(self._base_dir)

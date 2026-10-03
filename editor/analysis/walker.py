@@ -13,6 +13,7 @@ The walker is a ``ProblemProvider`` plugin: it emits the isolated
 from editor import *
 
 from editor.analysis.types import Problem, ProblemProvider, ProblemSeverity
+from editor.utils.solution.paths import DEFAULT_EXCLUDES
 
 
 class ProblemsAnalyzer(ProblemProvider):
@@ -50,7 +51,7 @@ class ProblemsAnalyzer(ProblemProvider):
             dirs[:] = [
                 directory
                 for directory in dirs
-                if directory not in {"venv", ".venv", ".ds", "__pycache__", ".git"}
+                if directory not in DEFAULT_EXCLUDES
                 and not os.path.islink(os.path.join(root, directory))
             ]
             for file in files:
@@ -83,18 +84,6 @@ class ProblemsAnalyzer(ProblemProvider):
                             source="python",
                         )
                         self._problems.append(problem)
-                        self.dictionary_of_errors["errors"].append(
-                            {
-                                "file_path": file_path,
-                                "error_line": e.lineno,
-                                "error_offset": e.offset,
-                                "error_msg": e.msg,
-                                "severity": ProblemSeverity.ERROR.value,
-                                "message": e.msg,
-                                "line": e.lineno,
-                                "column": e.offset,
-                            }
-                        )
                     except (OSError, UnicodeDecodeError) as e:
                         self.skipped_files += 1
                         logger.warning("Walker skip %s: %s", file_path, e)
@@ -115,13 +104,26 @@ class ProblemsAnalyzer(ProblemProvider):
         """Legacy entry point returning the old dict shape.
 
         Returns:
-            Dict with ``{"errors": [...], "warnings": [...]}``. Each entry
-            contains both legacy keys (``error_msg`` …) and canonical keys
-            (``severity``, ``message``, ``line``, ``column``) so either
-            consumer can read it. New code should use :meth:`collect`.
+            Dict with ``{"errors": [...], "warnings": [...]}`` derived from
+            the last :meth:`collect` for backward compatibility.
         """
-        if not self._problems and not self.dictionary_of_errors["errors"]:
+        if not self._problems:
             self.collect()
+        errors = []
+        for problem in self._problems:
+            errors.append(
+                {
+                    "file_path": problem.file_path,
+                    "error_line": problem.line,
+                    "error_offset": problem.column,
+                    "error_msg": problem.message,
+                    "severity": problem.severity.value,
+                    "message": problem.message,
+                    "line": problem.line,
+                    "column": problem.column,
+                }
+            )
+        self.dictionary_of_errors = {"errors": errors, "warnings": []}
         return self.dictionary_of_errors
 
     def to_problems(self, result: Optional[dict] = None) -> List[Problem]:
@@ -136,11 +138,8 @@ class ProblemsAnalyzer(ProblemProvider):
         """
         if result is None:
             return list(self._problems)
-        problems: List[Problem] = []
-        for err in result.get("errors", []):
-            problems.append(Problem.from_dict(err))
-        for warn in result.get("warnings", []):
-            data = dict(warn)
-            data.setdefault("severity", ProblemSeverity.WARNING.value)
-            problems.append(Problem.from_dict(data))
-        return problems
+        from editor.debugger.problems_widget import _normalize_problems
+
+        return _normalize_problems(
+            result.get("errors", []) + result.get("warnings", [])
+        )

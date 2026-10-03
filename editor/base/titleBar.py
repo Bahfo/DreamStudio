@@ -1,5 +1,6 @@
 from editor import *
 from editor.utils.resource_path import resource_path
+from editor.utils.icons import get_qicon
 
 from editor.utils.tools.commands_window import CommandWindow
 
