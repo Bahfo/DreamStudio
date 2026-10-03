@@ -52,6 +52,7 @@ def launch_monitor(executable_path: str, process_id: int) -> None:
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1,  # Line buffered
+            cwd=os.path.dirname(executable_path) or None,
         )
     except (OSError, FileNotFoundError) as exc:
         show_error_message(
@@ -61,15 +62,34 @@ def launch_monitor(executable_path: str, process_id: int) -> None:
         return
 
     try:
+        import select as _select
+
         depth = 0
         started = False
         in_string = False
         escape_next = False
         # Non-blocking readline with poll timeout to avoid hanging forever
         while True:
-            if process.poll() is not None and not process.stdout:
-                break
-            line = process.stdout.readline()
+            if process.poll() is not None:
+                try:
+                    remaining = process.stdout.read() if process.stdout else ""
+                except Exception:
+                    remaining = ""
+                if remaining:
+                    buffer += remaining
+                    break
+                if not process.stdout:
+                    break
+                try:
+                    fd = process.stdout.fileno()
+                    ready, _, _ = _select.select([fd], [], [], 0.2)
+                    if not ready:
+                        break
+                except Exception:
+                    break
+                line = process.stdout.readline()
+            else:
+                line = process.stdout.readline()
             if line == "":
                 if process.poll() is not None:
                     break

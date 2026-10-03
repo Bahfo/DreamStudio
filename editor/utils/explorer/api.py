@@ -335,7 +335,7 @@ class ExplorerAPI:
                 except OSError as exc:
                     raise OSError(str(exc)) from exc
             elif sys.platform == "darwin":
-                subprocess.Popen(
+                proc = subprocess.Popen(
                     ["open", target],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -343,8 +343,12 @@ class ExplorerAPI:
                     close_fds=True,
                     start_new_session=True,
                 )
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    pass
             else:
-                subprocess.Popen(
+                proc = subprocess.Popen(
                     ["xdg-open", target],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -352,6 +356,10 @@ class ExplorerAPI:
                     close_fds=True,
                     start_new_session=True,
                 )
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    pass
         except OSError as exc:
             print(f"[explorer] open_in_system_explorer error: {exc}")
             get_notification_manager().add_error(

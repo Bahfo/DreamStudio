@@ -2,6 +2,7 @@ from editor import *
 
 logger = logging.getLogger(__name__)
 
+
 def _get_fonts_dir() -> Path:
     import sys
 
@@ -49,8 +50,15 @@ def load_font(path_to_font: Path) -> str | None:
 def _discover_font_files() -> list[Path]:
     """Recursively discover all font files under FONTS_DIR."""
     font_files: list[Path] = []
-    for ext in _FONT_EXTENSIONS:
-        font_files.extend(FONTS_DIR.rglob(f"*{ext}"))
+    try:
+        for entry in FONTS_DIR.rglob("*"):
+            try:
+                if entry.is_file() and entry.suffix.lower() in _FONT_EXTENSIONS:
+                    font_files.append(entry)
+            except OSError:
+                continue
+    except Exception:
+        pass
     return sorted(font_files)
 
 
@@ -70,7 +78,7 @@ class Fonts:
     FONT_INTER: str = "Inter"
     FONT_CASCADIA_CODE: str = "Cascadia Code"
     FONT_FIRA_CODE: str = "Fira Code"
-    FONT_JETBRAINS_MONO: str = "Jetbrains Mono"
+    FONT_JETBRAINS_MONO: str = "JetBrains Mono"
 
     _registered_families: list[str] = []
 
@@ -233,7 +241,7 @@ class Fonts:
 
     @classmethod
     def jetbrains_mono(cls, size: int = 10) -> QFont:
-        font = QFont("Jetbrains Mono", size)
+        font = QFont("JetBrains Mono", size)
         font.setStyleHint(QFont.StyleHint.Monospace)
         return font
 

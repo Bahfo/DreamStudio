@@ -32,13 +32,17 @@ class _ScanWorker(QThread):
         self._dirty = False
         self._running = True
         self._root: Optional[str] = None
+        self._generation = 0
 
     def set_root(self, root_path: Optional[str]) -> None:
         """Update the scanned workspace root and force a fresh scan."""
         with self._state_lock:
             self._root = root_path
             self._dirty = False
+            self._generation += 1
+            gen = self._generation
         self._wake_event.set()
+        self._pending_gen = gen
 
     def request_scan(self, reason: str = "") -> None:
         """Coalesce a scan request; concurrent requests collapse to one."""
@@ -62,12 +66,15 @@ class _ScanWorker(QThread):
                 if not self._running:
                     return
                 root = self._root
+                gen = self._generation
                 self._dirty = False
 
             repo_root, snapshot = self._scan(root)
 
             with self._state_lock:
-                superseded = self._dirty
+                superseded = self._dirty or gen != self._generation
+                if not self._running:
+                    return
             if superseded:
                 continue
             self.statuses_ready.emit(repo_root, snapshot)
@@ -104,6 +111,7 @@ class GitStatusService(QObject):
         self._snapshot_lock = threading.Lock()
         self._snapshot: Dict[str, str] = {}
         self._repo_root = ""
+        self._expected_root = ""
 
         self._worker.statuses_ready.connect(self._on_statuses_ready)
         self._worker.start()
@@ -114,6 +122,8 @@ class GitStatusService(QObject):
 
     def set_root(self, root_path: str) -> None:
         """Point the scanner at a workspace root (triggers initial scan)."""
+        with self._snapshot_lock:
+            self._expected_root = root_path or ""
         self._worker.set_root(root_path)
 
     def request_scan(self, reason: str = "") -> None:
@@ -138,9 +148,29 @@ class GitStatusService(QObject):
     def _on_statuses_ready(self, repo_root: str, snapshot: dict) -> None:
         """Store the fresh snapshot under the lock, then republish it."""
         with self._snapshot_lock:
-            self._repo_root = repo_root
-            self._snapshot = dict(snapshot)
-        self.statuses_updated.emit(repo_root, dict(snapshot))
+            expected = self._expected_root
+        if expected:
+            try:
+                from editor.utils.git_control.git_control import return_repository
+
+                repo = return_repository(expected)
+                expected_root = repo.working_dir if repo else expected
+                if repo_root and expected_root and repo_root != expected_root:
+                    return
+            except Exception:
+                pass
+            self._snapshot_lock.acquire()
+            try:
+                self._repo_root = repo_root
+                self._snapshot = dict(snapshot)
+            finally:
+                self._snapshot_lock.release()
+            self.statuses_updated.emit(repo_root, dict(snapshot))
+        else:
+            with self._snapshot_lock:
+                self._repo_root = repo_root
+                self._snapshot = dict(snapshot)
+            self.statuses_updated.emit(repo_root, dict(snapshot))
 
 
 _service: Optional[GitStatusService] = None

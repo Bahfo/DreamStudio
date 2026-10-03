@@ -25,7 +25,15 @@ def read_solution(path: str) -> dict | None:
         return None
     try:
         with open(marker, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
+            text = fh.read()
+        try:
+            import yaml as _yaml
+
+            data = _yaml.safe_load(text)
+        except Exception:
+            data = None
+        if data is None:
+            data = json.loads(text)
         return data if isinstance(data, dict) else None
     except Exception as exc:
         logger.warning("Could not read solution marker %s: %s", marker, exc)

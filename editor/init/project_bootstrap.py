@@ -164,7 +164,14 @@ class ProjectBootstrapWorker(QObject):
                 )
             self._emit_event("step_progress", (f"Interpreter verified: {check_path}",))
         else:
-            self._emit_event("step_progress", (f"Using interpreter: {sys.executable}",))
+            try:
+                from editor.debugger.run.python_resolver import resolve_project_python
+
+                target = getattr(self, "_project_path", "") or ""
+                reported = resolve_project_python(target) if target else sys.executable
+            except Exception:
+                reported = sys.executable
+            self._emit_event("step_progress", (f"Using interpreter: {reported}",))
 
     def _check_project_type(self) -> None:
         manifest_type = self._manifest.get("project_type")

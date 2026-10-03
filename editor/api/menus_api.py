@@ -134,14 +134,10 @@ class MenusAPI:
         tabs.save_all_files()
 
     def set_save_all_and_close(self) -> None:
-        """Save every open file and close the main window.
-
-        No-op when no editor tabs are open.
-        """
+        """Save every open file and close the main window."""
         tabs = self.hero_window._text_editor_center.tabs
-        if tabs.count() == 0:
-            return
-        tabs.save_all_files()
+        if tabs.count() > 0:
+            tabs.save_all_files()
         self.close()
 
     # ------------------------------------------------------------------
@@ -188,9 +184,15 @@ class MenusAPI:
 
     @staticmethod
     def _unwrap_editor(widget):
-        """Unwrap MiniMapHostWidget to get the underlying CodeEditor."""
+        """Unwrap tab container to get the underlying editor."""
         if isinstance(widget, MiniMapHostWidget):
             return widget.editor
+        for attr in ("editor", "code_editor", "text_edit"):
+            inner = getattr(widget, attr, None)
+            if inner is not None and hasattr(inner, "isModified"):
+                return inner
+        if hasattr(widget, "isModified"):
+            return widget
         return None
 
     def _close_all_tabs(self, tabs):

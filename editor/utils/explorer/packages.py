@@ -6,7 +6,7 @@ from editor.widgets.QToolBox import ExplorerToolbar
 
 class DependenciesView(QWidget):
     """An IDE package manager view that displays, searches, installs,
-    and uninstalls Python packages within the current runtime environment.
+    and uninstalls Python packages within the active workspace venv.
     """
 
     def __init__(self, parent=None):
@@ -16,16 +16,14 @@ class DependenciesView(QWidget):
         """
         super().__init__(parent)
 
-        self._directory = os.getcwd()
+        self._directory = ""
 
         _layout = QVBoxLayout(self)
         _layout.setContentsMargins(5, 5, 5, 5)
 
         self._label = QLabel("Packages Explorer")
-        self._label.setStyleSheet(
-            """
-            font-size: 12px;"""
-        )
+        self._label.setStyleSheet("""
+            font-size: 12px;""")
         _layout.addWidget(self._label)
 
         self._toolbar = ExplorerToolbar()
@@ -76,15 +74,13 @@ class DependenciesView(QWidget):
 
     def _load_packages(self):
         """
-        Disables sorting, fetches environment distributions dynamically, parses
-        metadata, and updates the table structure.
+        Disables sorting, fetches workspace venv distributions dynamically,
+        parses metadata, and updates the table structure.
         """
         self.table.setSortingEnabled(False)
         self.table.clearContents()
 
-        dists = sorted(
-            importlib.metadata.distributions(), key=lambda d: d.metadata["Name"].lower()
-        )
+        dists = self._workspace_distributions()
         self.table.setRowCount(len(dists))
 
         for row, dist in enumerate(dists):
@@ -104,6 +100,54 @@ class DependenciesView(QWidget):
 
         self.table.setSortingEnabled(True)
         self._filter_packages(self._search_bar.text())
+
+    def _workspace_python(self) -> str:
+        """Return workspace venv python, else global python."""
+        try:
+            from editor.debugger.run.python_resolver import resolve_project_python
+
+            base = self._directory if self._directory else None
+            return resolve_project_python(base)
+        except Exception:
+            return sys.executable
+
+    def _workspace_distributions(self) -> list:
+        """List distributions from workspace venv, fallback to IDE env."""
+        try:
+            python_exe = self._workspace_python()
+            if python_exe and os.path.isfile(python_exe):
+                import json as _json
+                import subprocess as _sp
+
+                proc = _sp.run(
+                    [python_exe, "-m", "pip", "list", "--format=json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    cwd=self._directory if self._directory else None,
+                )
+                if proc.returncode == 0 and proc.stdout.strip():
+                    entries = _json.loads(proc.stdout)
+                    fake = []
+                    for entry in entries:
+                        name = entry.get("name", "Unknown")
+                        version = entry.get("version", "Unknown")
+                        meta = {
+                            "Name": name,
+                            "Version": version,
+                            "Summary": "Installed in workspace env.",
+                        }
+                        holder = type("D", (), {})()
+                        holder.metadata = meta
+                        fake.append(holder)
+                    fake.sort(key=lambda d: str(d.metadata["Name"]).lower())
+                    return fake
+        except Exception:
+            pass
+        dists = sorted(
+            importlib.metadata.distributions(), key=lambda d: d.metadata["Name"].lower()
+        )
+        return list(dists)
 
     def _filter_packages(self, text):
         """
@@ -128,8 +172,12 @@ class DependenciesView(QWidget):
         Args:
             path: Absolute path of the active solution/folder.
         """
-        if path:
+        if path and os.path.isdir(path):
             self._directory = os.path.abspath(path)
+            try:
+                self._load_packages()
+            except Exception:
+                pass
 
     def _add_package(self):
         """
@@ -177,8 +225,20 @@ class DependenciesView(QWidget):
             )
             return
 
-        self._process = QProcess()
-        python_exe = sys.executable
+        if not self._directory or not os.path.isdir(self._directory):
+            QMessageBox.warning(
+                self, "No Workspace", "Open a solution folder before managing packages."
+            )
+            return
+
+        old = self._process
+        self._process = QProcess(self)
+        if old is not None:
+            try:
+                old.deleteLater()
+            except Exception:
+                pass
+        python_exe = self._workspace_python()
         full_args = ["-m", "pip"] + arguments
 
         self.setEnabled(False)
@@ -192,16 +252,26 @@ class DependenciesView(QWidget):
         patterns, and surfaces diagnostics upon shell failures.
         """
         self.setEnabled(True)
+        proc = self._process
 
         if exit_code == 0:
             self._load_packages()
         else:
-            error_msg = self._process.readAllStandardError().data().decode().strip()
+            error_msg = ""
+            try:
+                error_msg = proc.readAllStandardError().data().decode().strip()
+            except Exception:
+                pass
             QMessageBox.critical(
                 self,
                 "Process Failed",
-                f"Package operation failed."
-                "\n\nError details:\n{error_msg if error_msg else 'Unknown error.'}",
+                f"Package operation failed.\n\nError details:\n"
+                f"{error_msg if error_msg else 'Unknown error.'}",
             )
 
         self._process = None
+        if proc is not None:
+            try:
+                proc.deleteLater()
+            except Exception:
+                pass

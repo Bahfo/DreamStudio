@@ -26,7 +26,10 @@ class ProjectDataEngine:
         Verifies if the loaded workspace directory contains the required .ds
         footprint.
         """
-        return bool(self.ds_dir and self.ds_dir.is_dir())
+        if not (self.ds_dir and self.ds_dir.is_dir()):
+            return False
+        marker = self.ds_dir / "solution.yaml"
+        return marker.is_file()
 
     def extract_solution_properties(self) -> Dict[str, Any]:
         """
@@ -48,6 +51,23 @@ class ProjectDataEngine:
         if not self.is_valid_project():
             return data
 
+        solution_path = self.ds_dir / "solution.yaml"
+        solution: dict = {}
+        if solution_path.exists():
+            try:
+                with open(solution_path, "r", encoding="utf-8") as f:
+                    solution = yaml.safe_load(f) or {}
+                    if not isinstance(solution, dict):
+                        try:
+                            import json as _json
+
+                            f.seek(0)
+                            solution = _json.load(f) or {}
+                        except Exception:
+                            solution = {}
+            except Exception:
+                solution = {}
+
         yaml_path = self.ds_dir / "project_info.yaml"
         if yaml_path.exists():
             try:
@@ -57,6 +77,10 @@ class ProjectDataEngine:
                     data["authors"] = content.get("authors", "")
             except Exception:
                 pass
+        if not data["name"]:
+            data["name"] = str(solution.get("name", "") or "")
+        if not data["created_at"]:
+            data["created_at"] = str(solution.get("created_at", "") or "")
 
         txt_path = self.ds_dir / "metadata.txt"
         if txt_path.exists():
@@ -81,10 +105,10 @@ class ProjectDataEngine:
                 pass
 
         data["code_of_conduct"] = self._read_root_doc(
-            ["CODE-OF-CONDUCT", "CODE_OF_CONDUCT.md"]
+            ["CODE_OF_CONDUCT.md", "CODE-OF-CONDUCT"]
         )
-        data["license"] = self._read_root_doc(["LICENSE", "LICENSE.txt", "LICENSE.md"])
-        data["contributing"] = self._read_root_doc(["CONTRIBUTING", "CONTRIBUTING.md"])
+        data["license"] = self._read_root_doc(["LICENSE.md", "LICENSE", "LICENSE.txt"])
+        data["contributing"] = self._read_root_doc(["CONTRIBUTING.md", "CONTRIBUTING"])
 
         return data
 
@@ -126,14 +150,14 @@ class ProjectDataEngine:
             self._atomic_write(json_path, json_str)
 
             self._write_root_doc(
-                ["CODE-OF-CONDUCT", "CODE_OF_CONDUCT.md"],
+                ["CODE_OF_CONDUCT.md", "CODE-OF-CONDUCT"],
                 updates.get("code_of_conduct", ""),
             )
             self._write_root_doc(
-                ["LICENSE", "LICENSE.txt", "LICENSE.md"], updates.get("license", "")
+                ["LICENSE.md", "LICENSE", "LICENSE.txt"], updates.get("license", "")
             )
             self._write_root_doc(
-                ["CONTRIBUTING", "CONTRIBUTING.md"], updates.get("contributing", "")
+                ["CONTRIBUTING.md", "CONTRIBUTING"], updates.get("contributing", "")
             )
 
             return True

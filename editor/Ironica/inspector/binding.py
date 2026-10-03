@@ -98,9 +98,15 @@ def _find_library() -> pathlib.Path:
         project_root / "hex-editor" / "build" / "libinspector.so",
         project_root / "hex-editor" / "build" / "libbinary_inspector.so",
         this.parent / "libinspector.so",
-        pathlib.Path.cwd() / "native" / "build" / "lib" / "libinspector.so",
-        pathlib.Path.cwd() / "hex-editor" / "build" / "libinspector.so",
     ]
+    try:
+        import sys as _sys
+
+        meipass = getattr(_sys, "_MEIPASS", "")
+        if meipass:
+            candidates.append(pathlib.Path(meipass) / "libinspector.so")
+    except Exception:
+        pass
     for cand in candidates:
         if cand.is_file():
             return cand

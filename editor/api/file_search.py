@@ -5,6 +5,7 @@ Background module for searching files across the inner repository for DreamStudi
 
 from editor import *
 
+
 def regex_compile_query(query, is_regex=False, is_ignore_case=False):
     """
     Preparses the query ensuring what type of search the user required.
@@ -60,6 +61,9 @@ def execute_search(
         ".git",  # Git files
         ".venv",  # Virtual Environment possible name
         "venv",  # Virtual Environment other possible name
+        ".env",
+        "env",
+        ".ds",  # DreamStudio workspace metadata
         "__pycache__",  # pycache compiled
         "node_modules",  # nodeJS modules
         "build",  # build directory
@@ -67,6 +71,10 @@ def execute_search(
         ".idea",  # IntelliJ and PyCharm folder
         ".vscode",  # VSCode folder
         ".vs",  # Visual Studio folder
+        ".tox",
+        ".pytest_cache",
+        ".hg",
+        ".svn",
     }
     search_roots = []
     if scope_dirs:
@@ -91,13 +99,22 @@ def execute_search(
                 if file.endswith(
                     (
                         ".py",  # Python
+                        ".pyi",
                         ".js",  # JavaScript
                         ".ts",  # TypeScript
+                        ".c",
                         ".cpp",  # C-Plus-Plus
                         ".h",  # C/C++ Headers
                         ".java",  # Java
                         ".go",  # Go
+                        ".rs",
                         ".json",  # JSON files
+                        ".yaml",
+                        ".yml",
+                        ".toml",
+                        ".ini",
+                        ".md",
+                        ".txt",
                         ".html",  # HTML files
                         ".css",  # Cascadia SS files
                     )

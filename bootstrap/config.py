@@ -74,11 +74,24 @@ class ConfigurationService:
                 raw = json.load(fh)
         except (json.JSONDecodeError, OSError) as exc:
             logger.error("Failed to parse config file: %s", exc)
-            self._data = self._repair_from_file(raw=None)
+            self._backup_corrupt_file()
+            try:
+                with open(self._config_path, "r", encoding="utf-8") as fh:
+                    raw_text = fh.read()
+            except Exception:
+                raw_text = ""
+            salvaged = None
+            if raw_text:
+                try:
+                    salvaged = json.loads(raw_text)
+                except Exception:
+                    salvaged = None
+            self._data = self._repair_from_file(raw=salvaged)
             return self._data
 
         if not isinstance(raw, dict):
             logger.warning("Config is not a dict, regenerating defaults")
+            self._backup_corrupt_file()
             self._data = copy.deepcopy(DEFAULT_CONFIG)
             self.save()
             return self._data
@@ -90,12 +103,26 @@ class ConfigurationService:
         )
         return self._data
 
+    def _backup_corrupt_file(self) -> None:
+        """Copy corrupt config aside before regenerating defaults."""
+        try:
+            if os.path.isfile(self._config_path):
+                backup = self._config_path + ".corrupt.bak"
+                import shutil as _shutil
+
+                _shutil.copyfile(self._config_path, backup)
+                logger.warning("Corrupt config backed up to %s", backup)
+        except Exception as exc:
+            logger.warning("Could not back up corrupt config: %s", exc)
+
     def save(self) -> None:
         """Persist current configuration to disk."""
         self._ensure_config_dir()
         try:
-            with open(self._config_path, "w", encoding="utf-8") as fh:
+            tmp = self._config_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump(self._data, fh, indent=4)
+            os.replace(tmp, self._config_path)
             logger.info("Configuration saved")
         except OSError as exc:
             logger.error("Failed to save config: %s", exc)
@@ -151,7 +178,11 @@ class ConfigurationService:
                 section = copy.deepcopy(default_val)
                 section.update(merged[key])
                 merged[key] = section
-        merged["version"] = CONFIG_VERSION
+        try:
+            existing = int(merged.get("version", CONFIG_VERSION))
+        except Exception:
+            existing = CONFIG_VERSION
+        merged["version"] = max(existing, CONFIG_VERSION)
         return merged
 
     def _repair_from_file(self, raw: Any) -> dict[str, Any]:

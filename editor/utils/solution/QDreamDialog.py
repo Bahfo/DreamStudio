@@ -214,6 +214,20 @@ class CreateSolutionDialog(QDialog):
                 project_type=project_type,
                 manifest=project_entry.get("manifest_path", ""),
             )
+            from editor.utils.properties.project_data_engine import ProjectDataEngine
+
+            engine = ProjectDataEngine(target)
+            engine.commit_solution_properties(
+                {
+                    "name": name,
+                    "authors": "",
+                    "copyright": "",
+                    "details": "",
+                    "code_of_conduct": "",
+                    "license": "",
+                    "contributing": "",
+                }
+            )
         except OSError as exc:
             _message_box(
                 self,

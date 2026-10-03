@@ -157,11 +157,18 @@ class ScaffoldController:
 
     def _refresh_ide(self) -> None:
         """Re-point path-dependent panels at the scaffolded solution root."""
-        window = self._window
         target = self._scaffold.get("target", "")
-        if not target:
+        if not target or not os.path.isdir(target):
             return
-        workspace = getattr(window, "currentDirectory", "") or target
+        window = self._window
+        try:
+            registry = getattr(window, "_registry", None)
+            service = registry.get("workspace") if registry else None
+            if service is not None and hasattr(service, "open_workspace"):
+                service.open_workspace(target)
+                return
+        except Exception as exc:
+            logger.warning("Workspace service refresh failed: %s", exc)
         try:
             window.currentDirectory = target
         except AttributeError:
@@ -180,6 +187,14 @@ class ScaffoldController:
                 explorer.refresh()
             if hasattr(hero._source_control, "set_workspace"):
                 hero._source_control.set_workspace(target)
+            term = getattr(
+                getattr(hero, "_lower_widget", None), "terminal_window", None
+            )
+            if term is not None and hasattr(term, "set_workspace"):
+                term.set_workspace(target)
+            status = getattr(window, "status_bar", None)
+            if status is not None and hasattr(status, "set_workspace"):
+                status.set_workspace(target)
         except AttributeError:
             pass
 
@@ -244,9 +259,7 @@ class QScaffoldProgressDialog(QDialog):
 
     def _apply_style(self) -> None:
         """Apply a minimal fallback style when theming is unavailable."""
-        self.setStyleSheet(
-            "QDialog { background-color: #1e1e1e; color: #d4d4d4; }"
-        )
+        self.setStyleSheet("QDialog { background-color: #1e1e1e; color: #d4d4d4; }")
 
     def showEvent(self, event) -> None:
         """Center the dialog on the screen each time it is shown."""

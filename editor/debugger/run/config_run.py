@@ -107,7 +107,7 @@ class ConfigRun:
 
         Args:
             cwd: Optional working directory override. Defaults to the
-              configured file's parent dir, then `os.getcwd()`.
+              configured file's parent dir when the file exists.
 
         Returns:
             A `(command_arguments, working_directory)` tuple where the
@@ -115,7 +115,8 @@ class ConfigRun:
             separate list entries (safe for exec-style launching).
 
         Raises:
-            ValueError: If no file path is configured.
+            ValueError: If no file path is configured or no working
+              directory can be determined without using process CWD.
         """
         arg = self.options.get("Arg") or find_global_python()
         parameters = self.options.get("Parameters", [])
@@ -133,16 +134,9 @@ class ConfigRun:
         elif isinstance(parameters, str) and parameters.strip():
             cmd.append(parameters)
 
-        work_dir = (
-            cwd
-            or (
-                os.path.dirname(os.path.abspath(file_to_run))
-                if os.path.exists(file_to_run)
-                else None
-            )
-            or os.getcwd()
-        )
-        return cmd, work_dir
+        if cwd and os.path.isdir(cwd):
+            return cmd, os.path.abspath(cwd)
+        return cmd, os.path.dirname(os.path.abspath(file_to_run))
 
     def run(
         self, cwd: Optional[str] = None, async_mode: bool = True

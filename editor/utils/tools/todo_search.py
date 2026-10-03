@@ -24,7 +24,7 @@ class TODOSearch(PanelShell):
         self.title.setFont(title_font)
 
         main_window = self.window()
-        self._base_dir = getattr(main_window, "currentDirectory", os.getcwd())
+        self._base_dir = getattr(main_window, "currentDirectory", "") or ""
         self.path_input.setText(self._base_dir)
         self.setMinimumWidth(235)
 

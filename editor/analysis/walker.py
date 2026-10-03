@@ -33,6 +33,7 @@ class ProblemsAnalyzer(ProblemProvider):
         self.required_extensions = [".py", ".pyi"]
         self.dictionary_of_errors: dict = {"errors": [], "warnings": []}
         self._problems: List[Problem] = []
+        self.skipped_files: int = 0
 
     def collect(self) -> List[Problem]:
         """Walk the codebase and return isolated :class:`Problem` items.
@@ -42,13 +43,14 @@ class ProblemsAnalyzer(ProblemProvider):
             idempotent — repeated calls re-scan from scratch.
         """
         self._problems = []
+        self.skipped_files = 0
         self.dictionary_of_errors = {"errors": [], "warnings": []}
         for root, dirs, files in os.walk(self.codebase_path, followlinks=False):
             # Skip symlinked directories to avoid cycles
             dirs[:] = [
                 directory
                 for directory in dirs
-                if directory not in {"venv", ".venv", "__pycache__", ".git"}
+                if directory not in {"venv", ".venv", ".ds", "__pycache__", ".git"}
                 and not os.path.islink(os.path.join(root, directory))
             ]
             for file in files:
@@ -60,8 +62,12 @@ class ProblemsAnalyzer(ProblemProvider):
                     # Skip huge files to avoid OOM
                     try:
                         if os.path.getsize(file_path) > 5 * 1024 * 1024:
+                            self.skipped_files += 1
+                            logger.warning("Walker skip large file %s", file_path)
                             continue
-                    except OSError:
+                    except OSError as exc:
+                        self.skipped_files += 1
+                        logger.warning("Walker skip %s: %s", file_path, exc)
                         continue
                     try:
                         with open(file_path, "r", encoding="utf-8") as f:
@@ -90,9 +96,11 @@ class ProblemsAnalyzer(ProblemProvider):
                             }
                         )
                     except (OSError, UnicodeDecodeError) as e:
-                        logger.debug("Walker skip %s: %s", file_path, e)
+                        self.skipped_files += 1
+                        logger.warning("Walker skip %s: %s", file_path, e)
                     except Exception as e:
-                        logger.debug("Walker parse error %s: %s", file_path, e)
+                        self.skipped_files += 1
+                        logger.warning("Walker parse error %s: %s", file_path, e)
         return list(self._problems)
 
     def return_analysis_result(self) -> None:

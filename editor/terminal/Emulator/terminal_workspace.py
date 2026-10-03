@@ -264,7 +264,18 @@ class TerminalWorkspace(QWidget):
         session_id = self._id_counter
 
         if shell is None:
-            shell = os.environ.get("SHELL", "/bin/bash")
+            try:
+                from editor.terminal.Emulator.emulator import _default_shell
+            except Exception:
+                _default_shell = None  # type: ignore
+            if _default_shell is not None:
+                shell = _default_shell()
+            else:
+                shell = (
+                    os.environ.get("COMSPEC", "powershell.exe")
+                    if sys.platform == "win32"
+                    else os.environ.get("SHELL", "/bin/bash")
+                )
         shell_name = os.path.basename(shell)
         display_name = f"{shell_name}"
 
@@ -290,7 +301,9 @@ class TerminalWorkspace(QWidget):
             init_rows = max(5, display.height() // max(1, display._ch))
 
         emulator.start(
-            cwd=cwd or self._default_cwd or os.getcwd(), rows=init_rows, cols=init_cols
+            cwd=cwd or self._default_cwd or self._fallback_workspace_cwd(),
+            rows=init_rows,
+            cols=init_cols,
         )
 
         self._stack.addWidget(view)
@@ -445,11 +458,17 @@ class TerminalWorkspace(QWidget):
             session["name"] = name
 
         emulator = session["emulator"]
+        session_id = self._active_id
         command_line = format_command_line(argv)
 
         def _submit() -> None:
-            # Write through the same channel used for user keystrokes
-            # (display.send_data -> emulator.write).
+            if session_id not in self._sessions:
+                return
+            try:
+                if not emulator.is_running():
+                    return
+            except Exception:
+                return
             emulator.write(command_line + "\n")
 
         QTimer.singleShot(_RUN_COMMAND_DELAY_MS, _submit)
@@ -457,6 +476,21 @@ class TerminalWorkspace(QWidget):
 
     def active_count(self) -> int:
         return len(self._sessions)
+
+    def _fallback_workspace_cwd(self) -> str | None:
+        """Return workspace CWD without falling back to install dir."""
+        try:
+            top = self.window()
+            while top is not None and top.parentWidget() is not None:
+                top = top.parentWidget()
+            candidate = getattr(top, "currentDirectory", "") if top else ""
+            if candidate and os.path.isdir(str(candidate)):
+                return os.path.abspath(str(candidate))
+        except Exception:
+            pass
+        if self._default_cwd and os.path.isdir(self._default_cwd):
+            return self._default_cwd
+        return None
 
     def set_default_cwd(self, cwd: str | None) -> None:
         """Set the working directory used for newly-created terminal sessions.

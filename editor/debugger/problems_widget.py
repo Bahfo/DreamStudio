@@ -15,7 +15,6 @@ from editor import *
 from editor.analysis.types import Problem, ProblemSeverity
 from editor.utils.resource_path import resource_path
 
-
 _PROJECT_ROOT = Path(resource_path("."))
 _ASSETS_SYSTEM = Path(resource_path("assets/system"))
 
@@ -38,10 +37,6 @@ def _load_icon(filename: str) -> QIcon:
     path = _ASSETS_SYSTEM / filename
     if path.is_file():
         return QIcon(str(path))
-    # Fallback: try CWD-relative resolution (tests / alternate launch dir).
-    alt = Path.cwd() / "assets" / "system" / filename
-    if alt.is_file():
-        return QIcon(str(alt))
     return QIcon()
 
 
@@ -212,8 +207,32 @@ class ProblemsWidget(QWidget):
         """Remove all diagnostics and show the empty state."""
         self._problems = []
         self._tree.clear()
+        try:
+            self._empty_label.setText("No problems have been detected.")
+        except Exception:
+            pass
         self._update_summary()
         self._stack.setCurrentIndex(1)
+
+    def _show_analysis_error(self, detail: str) -> None:
+        """Surface scan failure distinctly from a clean result."""
+        self._problems = []
+        try:
+            self._tree.clear()
+        except Exception:
+            pass
+        try:
+            self._empty_label.setText(f"Analysis failed: {detail or 'unknown error'}")
+        except Exception:
+            pass
+        try:
+            self._stack.setCurrentIndex(1)
+        except Exception:
+            pass
+        try:
+            self._summary_label.setText("Analysis failed")
+        except Exception:
+            pass
 
     def get_problems(self) -> List[Problem]:
         """Return a copy of the current diagnostics."""
@@ -239,7 +258,9 @@ class ProblemsWidget(QWidget):
                 empty collection to hide all rows (header groups remain
                 but show 0). Rebuilds the tree from the in-memory list.
         """
-        allowed = {ProblemSeverity.coerce(s) for s in severities} if severities else set()
+        allowed = (
+            {ProblemSeverity.coerce(s) for s in severities} if severities else set()
+        )
         if not allowed:
             self._tree.clear()
             return
@@ -276,8 +297,8 @@ class ProblemsWidget(QWidget):
             stacklevel=2,
         )
         try:
-            mod = _il.import_module("editor.analysis." + "wal" + "ker")
-            analyzer_cls = getattr(mod, "Problems" + "Analyzer")
+            mod = _il.import_module("editor.analysis.walker")
+            analyzer_cls = getattr(mod, "ProblemsAnalyzer")
             analyzer = analyzer_cls(workspace_root)
             # Prefer new isolated API when available.
             collect = getattr(analyzer, "collect", None)
@@ -285,8 +306,12 @@ class ProblemsWidget(QWidget):
                 self.set_problems(collect())
             else:
                 self._populate_table(analyzer.return_errors())
-        except Exception:
-            self.clear()
+        except Exception as exc:
+            self.set_problems([])
+            try:
+                self._show_analysis_error(str(exc))
+            except Exception:
+                pass
 
     def _populate_table(self, result: dict) -> None:
         """Legacy dict-based population (kept for existing tests).
@@ -399,10 +424,14 @@ class ProblemsWidget(QWidget):
             if prob.code:
                 label = f"[{prob.code}] {label}"
             child.setText(0, label)
-            child.setToolTip(0, f"{prob.message}\n{file_path}:{prob.line}:{prob.column}")
+            child.setToolTip(
+                0, f"{prob.message}\n{file_path}:{prob.line}:{prob.column}"
+            )
             loc = f"[{prob.line}, {prob.column}]" if prob.column else f"[{prob.line}]"
             child.setText(1, loc)
-            child.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            child.setTextAlignment(
+                1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
             child.setToolTip(1, f"{file_path}:{prob.line}:{prob.column}")
             child.setData(0, Qt.ItemDataRole.UserRole, prob)
             child.setData(0, Qt.ItemDataRole.UserRole + 1, "problem-row")

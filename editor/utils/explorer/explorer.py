@@ -60,7 +60,7 @@ class ExplorerSelection:
 
 
 def _inherit_workspace(widget) -> str:
-    """Return the main window's workspace path, falling back to the CWD.
+    """Return the main window's workspace path, or empty when unset.
 
     Args:
         widget: Any widget inside the DreamStudio window hierarchy.
@@ -68,11 +68,11 @@ def _inherit_workspace(widget) -> str:
     try:
         top = widget.window()
         workspace = getattr(top, "currentDirectory", None)
-        if workspace:
-            return workspace
+        if workspace and os.path.isdir(str(workspace)):
+            return os.path.abspath(str(workspace))
     except Exception:
         pass
-    return os.getcwd()
+    return ""
 
 
 class SolutionExplorer(PanelShell):
@@ -529,9 +529,12 @@ class SolutionExplorer(PanelShell):
         Sets, cleans, and updates the local repository system directory
         path context.
         """
+        if not root_path:
+            return
         resolved = os.path.abspath(os.path.expanduser(root_path))
-        if not os.path.exists(resolved):
-            resolved = os.getcwd()
+        if not os.path.isdir(resolved):
+            logger.warning("Refusing to point explorer at missing dir: %s", root_path)
+            return
 
         same_root = os.path.normpath(resolved) == os.path.normpath(
             getattr(self, "_root_path", "")
@@ -751,8 +754,9 @@ class SolutionExplorer(PanelShell):
         """
         Applies input filter guidelines against active layout proxies safely.
         """
-        cleaned = (text or "").strip()
-        self.proxy_model.set_search_text(cleaned)
+        ExplorerAPI.safe_search(
+            self.proxy_model, text or "", root_path=getattr(self, "_root_path", "")
+        )
         self._ensure_root_visible()
         self._update_status_label()
 

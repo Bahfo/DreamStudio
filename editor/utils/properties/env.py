@@ -54,15 +54,26 @@ def get_interpreter_info() -> dict:
     }
 
 
-def get_interpreter_path() -> dict:
+def get_interpreter_path(workspace_dir: str | None = None) -> dict:
     """
     Returns the interpreter path information.
+
+    Distinguishes IDE runtime from workspace venv so callers do not
+    mistake one for the other.
     """
     executable = sys.executable
     prefix = sys.prefix
     stdlib_dir = sysconfig.get_path("stdlib")
     purelib_dir = sysconfig.get_path("purelib")
     sys_path = sys.prefix
+    workspace_python = ""
+    try:
+        if workspace_dir and os.path.isdir(workspace_dir):
+            from editor.debugger.run.python_resolver import find_venv_python
+
+            workspace_python = find_venv_python(workspace_dir) or ""
+    except Exception:
+        workspace_python = ""
 
     return {
         "executable": executable,
@@ -70,6 +81,8 @@ def get_interpreter_path() -> dict:
         "stdlib_dir": stdlib_dir,
         "purelib_dir": purelib_dir,
         "sys_path": sys_path,
+        "workspace_python": workspace_python,
+        "note": "executable/prefix are the IDE runtime; workspace_python is the project venv when present.",
     }
 
 

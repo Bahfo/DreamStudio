@@ -194,15 +194,21 @@ class DreamStudioTitleBar(QWidget):
             submenu_items = item.get("submenu")
 
             if submenu_items:
-                if icon_path:
-                    sub_menu = parent_menu.addMenu(QIcon(resource_path(icon_path)), text)
+                if icon_path and os.path.exists(resource_path(icon_path)):
+                    sub_menu = parent_menu.addMenu(
+                        QIcon(resource_path(icon_path)), text
+                    )
                 else:
+                    if icon_path:
+                        logger.warning("Menu icon missing: %s", icon_path)
                     sub_menu = parent_menu.addMenu(text)
                 self._build_menu_items(sub_menu, submenu_items)
             else:
-                if icon_path:
+                if icon_path and os.path.exists(resource_path(icon_path)):
                     action = QAction(QIcon(resource_path(icon_path)), text, self)
                 else:
+                    if icon_path:
+                        logger.warning("Menu icon missing: %s", icon_path)
                     action = QAction(text, self)
 
                 if action_str:
@@ -297,6 +303,7 @@ class DreamStudioTitleBar(QWidget):
         flags["provider"] = getattr(editor, "current_provider", None) is not None
         flags["folds"] = getattr(editor, "_fold_manager", None) is not None
         return flags
+
     def _active_code_editor(self):
         """Return the ``CodeEditor`` of the active tab, or ``None``.
 
@@ -382,8 +389,6 @@ class DreamStudioTitleBar(QWidget):
         action.setText(
             self._OPTIONS_BAR_HIDE_TEXT if visible else self._OPTIONS_BAR_SHOW_TEXT
         )
-
-
 
     def toggle_maximize(self):
         win = self.window()

@@ -34,7 +34,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self._registry = registry
         self._current_theme_name = None
 
-        self.currentDirectory = current_workspace or QDir.currentPath()
+        self.currentDirectory = current_workspace or ""
         self.setWindowTitle("DreamStudio")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
 
@@ -117,6 +117,8 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _set_initial_workspace(self) -> None:
         root = self.currentDirectory
+        if not root or not os.path.isdir(root):
+            return
         self.hero_window._source_control.set_workspace(root)
 
     def _wire_explorer_double_click(self) -> None:

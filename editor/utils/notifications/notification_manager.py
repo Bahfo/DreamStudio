@@ -12,7 +12,6 @@ Notifications panel.
 from editor import *
 from datetime import datetime
 
-
 # Local I
 
 logger = logging.getLogger(__name__)
@@ -73,6 +72,9 @@ class NotificationManager(QObject):
         self._notifications: list[Notification] = []
         self._next_id: int = 1
         self._max_notifications: int = 100
+        import threading as _threading
+
+        self._lock = _threading.Lock()
         logger.info("NotificationManager initialized")
 
     # ------------------------------------------------------------------
@@ -105,13 +107,14 @@ class NotificationManager(QObject):
             notification_type=notification_type,
             source=source,
         )
-        self._next_id += 1
+        with self._lock:
+            self._next_id += 1
 
-        self._notifications.append(notification)
+            self._notifications.append(notification)
 
-        # Trim old notifications if we exceed the limit
-        if len(self._notifications) > self._max_notifications:
-            self._notifications = self._notifications[-self._max_notifications :]
+            # Trim old notifications if we exceed the limit
+            if len(self._notifications) > self._max_notifications:
+                self._notifications = self._notifications[-self._max_notifications :]
 
         self.notification_added.emit(notification)
         logger.debug(

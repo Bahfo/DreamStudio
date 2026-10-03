@@ -89,6 +89,25 @@ class _AnalysisWorker(threading.Thread):
             return None, None
         return highlights, fold_regions
 
+    @staticmethod
+    def _workspace_paths() -> list:
+        """Collect workspace venv site paths without using install dir."""
+        paths: list = []
+        try:
+            venv = os.environ.get("VIRTUAL_ENV", "")
+            if venv and os.path.isdir(venv):
+                for suffix in (
+                    "lib/python3/site-packages",
+                    "lib/python3.12/site-packages",
+                    "Lib/site-packages",
+                ):
+                    candidate = os.path.join(venv, suffix)
+                    if os.path.isdir(candidate):
+                        paths.append(candidate)
+        except Exception:
+            pass
+        return paths
+
     def _remote_analysis(self, request: _AnalysisRequest):
         """Ask the shared analysis subprocess to compute highlights + folds.
 
@@ -102,6 +121,7 @@ class _AnalysisWorker(threading.Thread):
         """
         provider = request.provider
         build = getattr(provider, "build_remote_request", None)
+        workspace_paths = self._workspace_paths()
         if callable(build):
             payload = build(
                 request.request_id,
@@ -110,6 +130,8 @@ class _AnalysisWorker(threading.Thread):
                 request.theme_name,
             )
             expected = getattr(provider, "remote_kind", "analysis")
+            if expected == "analysis" and workspace_paths:
+                payload = tuple(list(payload) + [workspace_paths])
         else:
             payload = (
                 "analysis",
@@ -117,6 +139,7 @@ class _AnalysisWorker(threading.Thread):
                 request.source,
                 request.config,
                 request.theme_name,
+                workspace_paths,
             )
             expected = "analysis"
         response = process_manager.request(self._owner.owner_id, payload)
@@ -196,9 +219,7 @@ class AnalysisManager(QObject):
 
     _results_ready = pyqtSignal(int, object, object)
 
-    def __init__(
-        self, editor, parent: Optional[QObject] = None
-    ) -> None:
+    def __init__(self, editor, parent: Optional[QObject] = None) -> None:
         """Create the manager, spawning a worker owned by this object.
 
         Args:
@@ -267,9 +288,7 @@ class AnalysisManager(QObject):
         )
 
     @pyqtSlot(int, object, object)
-    def _apply_results(
-        self, request_id: int, highlights, fold_regions
-    ) -> None:
+    def _apply_results(self, request_id: int, highlights, fold_regions) -> None:
         """Render worker results back on the UI thread.
 
         Results for superseded requests are dropped so stale overlays

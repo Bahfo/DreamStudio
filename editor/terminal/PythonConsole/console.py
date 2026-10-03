@@ -19,9 +19,24 @@ class PythonShell(QWidget):
     def __init__(self, parent=None, cwd=None):
         super().__init__(parent)
         self.setObjectName("PythonShell")
+        self._workspace_dir = ""
+        self._restart_attempts = 0
+
+        resolved_cwd = cwd if isinstance(cwd, str) and cwd else self._detect_workspace()
+        if resolved_cwd and os.path.isdir(resolved_cwd):
+            self._workspace_dir = os.path.abspath(resolved_cwd)
 
         self.kernel_manager = QtKernelManager(kernel_name="python3")
-        self.kernel_manager.start_kernel(cwd=cwd)
+        try:
+            self.kernel_manager.start_kernel(cwd=self._workspace_dir or None)
+        except Exception:
+            self.kernel_manager.start_kernel()
+        try:
+            app = QApplication.instance()
+            if app is not None:
+                app.aboutToQuit.connect(self._shutdown_kernel)
+        except Exception:
+            pass
 
         self.kernel_client = self.kernel_manager.client()
         self.kernel_client.start_channels()
@@ -57,9 +72,37 @@ class PythonShell(QWidget):
         layout.addWidget(self._toolbar_container)
         layout.addWidget(self.console)
 
-    # ------------------------------------------------------------------
-    # Toolbar
-    # ------------------------------------------------------------------
+    def _detect_workspace(self) -> str:
+        """Return window workspace without using process CWD."""
+        try:
+            top = self.window()
+            candidate = getattr(top, "currentDirectory", "") if top else ""
+            if candidate and os.path.isdir(str(candidate)):
+                return os.path.abspath(str(candidate))
+        except Exception:
+            pass
+        return ""
+
+    def set_workspace(self, path: str) -> None:
+        """Track workspace switches; restart kernel cwd when possible."""
+        if not path or not os.path.isdir(path):
+            return
+        self._workspace_dir = os.path.abspath(path)
+        try:
+            self.console.execute(f"%cd -q {shlex.quote(self._workspace_dir)}")
+        except Exception:
+            pass
+
+    def _shutdown_kernel(self) -> None:
+        """Best-effort kernel shutdown for app quit."""
+        try:
+            self.kernel_client.stop_channels()
+        except Exception:
+            pass
+        try:
+            self.kernel_manager.shutdown_kernel(now=True)
+        except Exception:
+            pass
 
     def _build_toolbar(self):
         self._toolbar_container = QWidget()
@@ -150,20 +193,43 @@ class PythonShell(QWidget):
     def _on_kernel_died(self, since_last_heartbeat):
         self._status_label.setText("Kernel died")
         self._status_label.setProperty("status", "busy")
+        self._restart_attempts += 1
+        if self._restart_attempts > 3:
+            get_notification_manager().add_error(
+                "Python Kernel",
+                "Kernel died repeatedly; automatic restart stopped. "
+                "Use Restart Kernel manually.",
+                source="PythonConsole",
+            )
+            return
         get_notification_manager().add_error(
             "Python Kernel",
             f"Kernel died (no heartbeat for {since_last_heartbeat:.1f}s). "
             "Restarting...",
             source="PythonConsole",
         )
-        self.restart_kernel()
+        try:
+            self.restart_kernel()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Kernel lifecycle
     # ------------------------------------------------------------------
 
     def restart_kernel(self):
-        self.console.restart_kernel("Restarting ...")
+        try:
+            alive = True
+            try:
+                alive = self.kernel_manager.is_alive()
+            except Exception:
+                alive = True
+            if not alive:
+                return
+            self.console.restart_kernel("Restarting ...")
+            self._restart_attempts = 0
+        except Exception:
+            pass
 
     def interrupt_kernel(self):
         self.console.interrupt_kernel()
@@ -173,17 +239,24 @@ class PythonShell(QWidget):
 
     def run_file(self, path: str):
         if path:
-            self.console.execute(f"%run -i {path}")
+            try:
+                parent = os.path.dirname(os.path.abspath(path))
+                if os.path.isdir(parent):
+                    self.console.execute(f"%cd -q {shlex.quote(parent)}")
+            except Exception:
+                pass
+            self.console.execute(f"%run -i {shlex.quote(path)}")
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
     def _on_run_file(self):
+        start = self._workspace_dir if self._workspace_dir else os.path.expanduser("~")
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Run Python File",
-            "",
+            start,
             "Python Files (*.py *.pyw);;All Files (*)",
         )
         if path:
@@ -235,6 +308,5 @@ class PythonShell(QWidget):
         self._apply_theme()
 
     def closeEvent(self, a0):
-        self.kernel_client.stop_channels()
-        self.kernel_manager.shutdown_kernel()
+        self._shutdown_kernel()
         super().closeEvent(a0)

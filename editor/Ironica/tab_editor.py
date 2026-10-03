@@ -598,12 +598,10 @@ class DreamTabbedEditor(QDreamTabEditor):
                 # Editor-scoped, exactly like _diag_manager: the provider
                 # is a singleton whose slot would otherwise hold the last
                 # opened (or already destroyed) tab's manager.
-                code_editor._completion_manager = (
-                    provider.create_completion_manager(
-                        editor=code_editor,
-                        file_path=file_path,
-                        parent=code_editor,
-                    )
+                code_editor._completion_manager = provider.create_completion_manager(
+                    editor=code_editor,
+                    file_path=file_path,
+                    parent=code_editor,
                 )
 
         if isinstance(new_editor, MiniMapHostWidget):
@@ -974,7 +972,11 @@ class DreamTabbedEditor(QDreamTabEditor):
 
     def open_new_workspace(self, path: str) -> None:
         """Update the current working directory for the file chooser."""
-        self._parent.currentDirectory = path
+        self.currentDirectory = path
+        try:
+            self._parent.currentDirectory = path
+        except Exception:
+            pass
 
     @staticmethod
     def resolve_key(file_path):

@@ -21,7 +21,7 @@ class PanelShell(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._root_path = QDir.currentPath()
+        self._root_path = ""
         self.setObjectName(self.PANEL_OBJECT_NAME)
 
         self._build_shell()

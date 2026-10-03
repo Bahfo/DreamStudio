@@ -354,11 +354,21 @@ class CLanguageProvider(BaseLanguageProvider):
 
             if shutil.which("clang-format") is None:
                 return source_code
+            workdir = None
+            try:
+                candidate = getattr(self, "_file_path", "") or ""
+                if candidate:
+                    parent = os.path.dirname(os.path.abspath(candidate))
+                    if os.path.isdir(parent):
+                        workdir = parent
+            except Exception:
+                workdir = None
             result = subprocess.run(
                 ["clang-format", "-style=file"],
                 input=source_code.encode(),
                 capture_output=True,
                 timeout=2,
+                cwd=workdir,
             )
             if result.returncode == 0:
                 return result.stdout.decode()

@@ -414,14 +414,18 @@ def phase_solution_prompt(ctx: PhaseContext) -> None:
         try:
             import importlib
 
-            recent_mod = importlib.import_module("editor.utils.solution.recent")
-            recent_mod.add_or_update(
-                ctx.workspace_path,
-                name=selection.get("name", ""),
-                project_type=selection.get("project_type", ""),
+            recent_mod = importlib.import_module(
+                "editor.utils.solution.recent_projects_scanner"
             )
-        except Exception:
-            pass
+            add_fn = getattr(recent_mod, "add_or_update", None)
+            if add_fn is not None:
+                add_fn(
+                    ctx.workspace_path,
+                    name=selection.get("name", ""),
+                    project_type=selection.get("project_type", ""),
+                )
+        except Exception as exc:
+            logger.warning("Recent workspace update failed: %s", exc)
 
     logger.info("Solution selected: %s", ctx.workspace_path or "(none)")
 
@@ -503,8 +507,8 @@ def phase_main_window(ctx: PhaseContext) -> None:
         workspace.attach_window(window)
         if ctx.workspace_path:
             workspace.open_workspace(ctx.workspace_path)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.error("Workspace open failed for %s: %s", ctx.workspace_path, exc)
 
     ctx.registry.register("main_window", window)
 

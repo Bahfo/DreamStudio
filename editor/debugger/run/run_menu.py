@@ -53,13 +53,18 @@ def run_configs_dir(base_dir: str | None = None) -> str:
     touched.
 
     Args:
-        base_dir: Workspace root to scope the configs to. Defaults to the
-            current process working directory.
+        base_dir: Workspace root to scope the configs to. Must be a valid
+            directory; process CWD is never used as a fallback.
 
     Returns:
         Absolute path to the run-configurations directory.
+
+    Raises:
+        ValueError: When no workspace directory is supplied.
     """
-    root = os.path.abspath(base_dir) if base_dir else os.path.abspath(os.getcwd())
+    if not base_dir or not os.path.isdir(str(base_dir)):
+        raise ValueError("No workspace open; run configurations require a folder.")
+    root = os.path.abspath(str(base_dir))
     directory = os.path.join(root, ".ds", "run")
     os.makedirs(directory, exist_ok=True)
     return directory
@@ -156,12 +161,16 @@ class RunMenuController:
 
         Returns:
             Absolute path to the per-workspace run-configurations folder.
+
+        Raises:
+            ValueError: When no workspace is open.
         """
         workspace = self.workspace_dir()
         try:
             return run_configs_dir(workspace)
         except TypeError:
-            return run_configs_dir()
+            # Back-compat with monkeypatched zero-arg stubs in tests.
+            return run_configs_dir()  # type: ignore
 
     def refresh_state(self, _index: int = -1) -> None:
         """Re-evaluate action states and rebuild the config entries.
@@ -193,7 +202,10 @@ class RunMenuController:
             malformed files are skipped with a logged warning.
         """
         configs: list[tuple[str, str, dict]] = []
-        configs_dir = self._configs_dir()
+        try:
+            configs_dir = self._configs_dir()
+        except ValueError:
+            return configs
         try:
             entries = sorted(os.listdir(configs_dir))
         except OSError as exc:
@@ -269,9 +281,16 @@ class RunMenuController:
 
     def open_config_dialog(self) -> None:
         """Open the run-configuration editor and save on acceptance."""
-        current_path = self.current_file_path() or ""
         workspace = self.workspace_dir()
-        project_python = resolve_project_python(workspace)
+        if not workspace:
+            self._notify_error("Configure Run Options", "Open a solution folder first.")
+            return
+        current_path = self.current_file_path() or ""
+        try:
+            project_python = resolve_project_python(workspace)
+        except RuntimeError as exc:
+            self._notify_error("Configure Run Options", str(exc))
+            return
         dialog = RunConfigDialog(
             parent=self._window,
             initial={"file_path": current_path, "Arg": project_python},
@@ -308,12 +327,21 @@ class RunMenuController:
             )
             return
 
+        workspace = self.workspace_dir()
+        if not workspace:
+            self._notify_error("Run Current File", "Open a solution folder first.")
+            return
+
         widget = self._window.tab_editors.currentWidget()
         if widget is not None and hasattr(widget, "isModified") and widget.isModified():
             if hasattr(widget, "save"):
                 widget.save()
 
-        project_python = resolve_project_python(self.workspace_dir())
+        try:
+            project_python = resolve_project_python(workspace)
+        except RuntimeError as exc:
+            self._notify_error("Run Current File", str(exc))
+            return
         config = ConfigRun(
             file_path=path,
             config_name="run_current_file",
@@ -326,12 +354,28 @@ class RunMenuController:
         )
 
         try:
-            argv, work_dir = config.build_command()
-        except (ValueError, OSError) as exc:
+            argv, work_dir = config.build_command(cwd=workspace)
+        except (ValueError, OSError, RuntimeError) as exc:
             self._notify_error("Run Current File", f"Failed to resolve command: {exc}")
             return
 
         self._execute_in_terminal(argv, work_dir, name=os.path.basename(path))
+
+    def _resolve_saved_arg(self, options: dict) -> str:
+        """Validate stored interpreter, re-resolving bare/stale entries."""
+        raw = str(options.get("Arg", "") or "").strip()
+        workspace = self.workspace_dir()
+        try:
+            project_python = resolve_project_python(workspace) if workspace else ""
+        except RuntimeError:
+            project_python = ""
+        if not raw or raw in ("python", "python3"):
+            return project_python or raw
+        if os.path.isabs(raw) and not os.path.isfile(raw):
+            if project_python:
+                logger.warning("Stale interpreter %s; using %s", raw, project_python)
+                return project_python
+        return raw
 
     def run_configuration(self, config_path: str) -> None:
         """Execute a saved run configuration inside a new terminal.
@@ -351,6 +395,11 @@ class RunMenuController:
             )
             return
 
+        options["Arg"] = self._resolve_saved_arg(options)
+        if not options.get("Arg"):
+            self._notify_error("Run", "No Python interpreter available.")
+            return
+
         target = os.path.expanduser(str(options.get("file_path") or ""))
         if not target or not os.path.isfile(target):
             self._notify_error(
@@ -360,8 +409,8 @@ class RunMenuController:
 
         config = ConfigRun(options=options)
         try:
-            argv, work_dir = config.build_command()
-        except (ValueError, OSError) as exc:
+            argv, work_dir = config.build_command(cwd=self.workspace_dir() or None)
+        except (ValueError, OSError, RuntimeError) as exc:
             self._notify_error("Run", f"Failed to resolve command: {exc}")
             return
 

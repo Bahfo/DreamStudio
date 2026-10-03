@@ -105,7 +105,7 @@ class VerticalSidebar(QFrame):
                 )
                 if callback_func:
                     btn.setCheckable(True)
-                    btn.setChecked(True)
+                    btn.setChecked(False)
                 self.sidebar_layout.addWidget(btn)
 
             elif widget_id == "stretch":

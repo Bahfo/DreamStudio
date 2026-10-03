@@ -188,6 +188,15 @@ class CommandLine(cmd.Cmd):
         self._history_index = len(self._history)
         return ""
 
+    def _workspace_default(self) -> str:
+        """Return tracked workspace dir, never process CWD."""
+        try:
+            if self.currentDir and os.path.isdir(self.currentDir):
+                return os.path.abspath(self.currentDir)
+        except Exception:
+            pass
+        return self.currentDir or ""
+
     def run_command(self, cmd_list):
         """
         Runs a command as a list and returns its output.
@@ -195,7 +204,11 @@ class CommandLine(cmd.Cmd):
         """
         try:
             result = subprocess.run(
-                cmd_list, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+                cmd_list,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=self._workspace_default() or None,
             )
             output = result.stdout.strip()
             return output if output else "Command executed, no output."
@@ -298,8 +311,10 @@ class CommandLine(cmd.Cmd):
         if not path:
             return "Error 2: You must provide a path."
         try:
-            os.chdir(path)
-            self.currentDir = os.getcwd()
+            abs_path = os.path.abspath(path)
+            if not os.path.isdir(abs_path):
+                return f"Error 1: Directory does not exist: {abs_path}"
+            self.currentDir = abs_path
             self.prompt = f"{self.currentDir}>>> "
             return f"Changed directory to {self.currentDir}"
         except Exception as e:
@@ -452,7 +467,9 @@ class CommandLine(cmd.Cmd):
             erase, help
         """
         if not arg:
-            path = os.getcwd()
+            return (
+                "Error 42: You must provide an explicit --path; refusing to delete cwd."
+            )
         else:
             path = arg
         try:
@@ -480,7 +497,7 @@ class CommandLine(cmd.Cmd):
         """
         try:
             args = self.parse_args(arg) if arg else {}
-            path = args.get("path", os.getcwd())
+            path = args.get("path", self.currentDir)
             if not os.path.exists(path):
                 return f"Error 43: Path does not exist: {path}"
             usage = shutil.disk_usage(path)
@@ -593,7 +610,7 @@ class CommandLine(cmd.Cmd):
             clearhistory, help
         """
         args = self.parse_args(arg)
-        file_path = args.get("file", os.getcwd())
+        file_path = args.get("file", self.currentDir)
         if not file_path:
             return "Error: You must provide --file=<file_path>"
         if not os.path.isfile(file_path):
@@ -661,7 +678,7 @@ class CommandLine(cmd.Cmd):
         Hot-topic commands:
             clearhistory, help
         """
-        return f"\ncurrent working directory: {os.getcwd()}"
+        return f"\ncurrent working directory: {self.currentDir}"
 
     # -------------------- Makedir -----------------
     def do_makedir(self, arg):
@@ -685,7 +702,7 @@ class CommandLine(cmd.Cmd):
             peek, head, tail, deletedir, help
         """
         args = self.parse_args(arg)
-        path = args.get("path", os.getcwd())
+        path = args.get("path", self.currentDir)
         name = args.get("name", "untitled")
         target = os.path.join(path, name)
         try:
@@ -770,7 +787,7 @@ class CommandLine(cmd.Cmd):
         if "name" not in args:
             return "Error 21: You must provide --name=<file_name>"
         file_name = args["name"]
-        file_path = args.get("path", os.getcwd())
+        file_path = args.get("path", self.currentDir)
         extension = args.get("ext", ".txt")
         content = args.get("content", "")
         try:
@@ -815,7 +832,7 @@ class CommandLine(cmd.Cmd):
             custom_path = number
             number = None
         try:
-            path_to_use = custom_path if custom_path else os.getcwd()
+            path_to_use = custom_path if custom_path else self.currentDir
             if number in (None, "", "--all"):
                 items = []
                 with os.scandir(path_to_use) as it:
@@ -1019,7 +1036,7 @@ class CommandLine(cmd.Cmd):
         url = args.get("url")
         if not url:
             return "Error 50: You must provide --url=<url>"
-        dest = args.get("path", os.getcwd())
+        dest = args.get("path", self.currentDir)
         try:
             if os.path.isdir(dest):
                 filename = url.split("/")[-1].split("?")[0]
@@ -1144,6 +1161,7 @@ class CommandLine(cmd.Cmd):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 timeout=30,
+                cwd=self._workspace_default() or None,
             )
             output = result.stdout.strip()
             return output if output else f"Ping to '{host}' completed."
@@ -1263,7 +1281,7 @@ class CommandLine(cmd.Cmd):
             return "Error 61: You must provide --source=<zipfile>"
         if not os.path.isfile(source):
             return f"Error 62: File '{source}' does not exist."
-        destination = args.get("destination", os.getcwd())
+        destination = args.get("destination", self.currentDir)
         try:
             if not os.path.exists(destination):
                 os.makedirs(destination, exist_ok=True)

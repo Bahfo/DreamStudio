@@ -151,7 +151,7 @@ class RunConfigDialog(QDialog):
         elif self._workspace_dir and os.path.isdir(self._workspace_dir):
             start_dir = self._workspace_dir
         else:
-            start_dir = os.getcwd()
+            start_dir = os.path.expanduser("~")
         chosen, _ = QFileDialog.getOpenFileName(self, "Select Target File", start_dir)
         if chosen:
             self.path_edit.setText(chosen)

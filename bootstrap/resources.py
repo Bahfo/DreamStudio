@@ -21,16 +21,24 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     _FROZEN_ASSETS_ROOT = sys._MEIPASS  # type: ignore[attr-defined]
 
 
-def _rewrite_qss_urls(content: str) -> str:
-    """In frozen builds, rewrite relative ``url(assets/...)`` references
-    to absolute paths under ``sys._MEIPASS`` so Qt resolves them correctly
-    regardless of the current working directory."""
-    if _FROZEN_ASSETS_ROOT is None:
-        return content
+def _rewrite_qss_urls(content: str, base_dir: str | None = None) -> str:
+    """Rewrite relative ``url(assets/...)`` to absolute paths.
+
+    In frozen builds uses ``sys._MEIPASS``; in dev uses the project root
+    so Qt resolves them regardless of process CWD.
+    """
+    root = _FROZEN_ASSETS_ROOT
+    if root is None and base_dir:
+        root = base_dir
+    if root is None:
+        try:
+            root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        except Exception:
+            return content
 
     def _abs(m: re.Match) -> str:
         rel = m.group(1)
-        abs_path = os.path.join(_FROZEN_ASSETS_ROOT, rel)
+        abs_path = os.path.join(root, rel)
         return f"url({abs_path})"
 
     return re.sub(r"url\((?!/)(assets/[^)]+)\)", _abs, content)
@@ -66,7 +74,11 @@ class ResourceManager:
 
         content = self._read_file(qss_path)
         if content is None:
-            logger.warning("Theme '%s' not found, falling back to '%s'", theme_name, _FALLBACK_THEME)
+            logger.warning(
+                "Theme '%s' not found, falling back to '%s'",
+                theme_name,
+                _FALLBACK_THEME,
+            )
             fallback_path = os.path.join(self._qss_dir, _FALLBACK_THEME)
             content = self._read_file(fallback_path)
             if content is None:
@@ -142,7 +154,7 @@ class ResourceManager:
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 content = fh.read()
-            return _rewrite_qss_urls(content)
+            return _rewrite_qss_urls(content, base_dir=self._base_dir)
         except (OSError, UnicodeDecodeError) as exc:
             logger.warning("Cannot read %s: %s", path, exc)
             return None

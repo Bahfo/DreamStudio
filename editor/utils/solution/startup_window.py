@@ -669,6 +669,16 @@ class SolutionStartWindow(QMainWindow):
                     project_type=project_type,
                     manifest="",
                 )
+                try:
+                    from editor.utils.properties.project_data_engine import (
+                        ProjectDataEngine,
+                    )
+
+                    ProjectDataEngine(absolute).commit_solution_properties(
+                        {"name": name}
+                    )
+                except Exception:
+                    pass
             except OSError:
                 pass
 

@@ -240,11 +240,11 @@ class StatusBar(QFrame):
             directory: Absolute path of the active solution/workspace.
         """
         self.currentDirectory = directory
-        self.repository = return_repository(directory)
+        self.repository = return_repository(directory) if directory else None
         self._branch_menu_no_repo_notified = False
         self.repoActions.setText(f"   {self.get_repo_name()} | {self.get_branch()}")
         self.repoActions.adjustSize()
-        self.repoActions.setEnabled(self.repository is not None)
+        self.repoActions.setEnabled(True)
 
     def get_branch(self):
         """
@@ -252,10 +252,16 @@ class StatusBar(QFrame):
         """
         if self.repository:
             try:
-                branch = self.repository.active_branch.name
-                return branch
-            except Exception:
-                return ""
+                return self.repository.active_branch.name
+            except Exception as exc:
+                try:
+                    head = getattr(self.repository, "head", None)
+                    if head is not None and getattr(head, "is_detached", False):
+                        return "DETACHED"
+                except Exception:
+                    pass
+                logger.debug("Branch lookup failed: %s", exc)
+                return "UNKNOWN"
         return ""
 
     def get_repo_name(self):
@@ -268,10 +274,10 @@ class StatusBar(QFrame):
             except Exception:
                 pass
         # Fallback: use current directory name when not a git repo (e.g. /tmp)
+        if not self.currentDirectory:
+            return "No Repo"
         try:
-            return os.path.basename(
-                os.path.abspath(self.currentDirectory or os.getcwd())
-            )
+            return os.path.basename(os.path.abspath(self.currentDirectory))
         except Exception:
             return "No Repo"
 
@@ -336,8 +342,19 @@ class StatusBar(QFrame):
 
     def handle_branch_switch(self, branch_name: str):
         """Switches the branch safely, handling both local and remote references."""
+        try:
+            from editor.utils.notifications.notification_manager import (
+                get_notification_manager,
+            )
+        except Exception:
+            get_notification_manager = None  # type: ignore
         if self.repository is None:
-            print("Cannot switch branch: no repository is open")
+            if get_notification_manager is not None:
+                get_notification_manager().add_error(
+                    "Branch Switch",
+                    "Cannot switch branch: no repository is open.",
+                    source="StatusBar",
+                )
             return
         try:
             local_branches = [b.name for b in self.repository.branches]
@@ -358,7 +375,17 @@ class StatusBar(QFrame):
             self.repoActions.setText(f"   {self.get_repo_name()} | {self.get_branch()}")
             self.repoActions.adjustSize()
 
-            print(f"Successfully switched to {branch_name}")
+            if get_notification_manager is not None:
+                get_notification_manager().add_success(
+                    "Branch Switch",
+                    f"Successfully switched to {branch_name}.",
+                    source="StatusBar",
+                )
 
         except Exception as e:
-            print(f"Failed to switch branch: {e}")
+            if get_notification_manager is not None:
+                get_notification_manager().add_error(
+                    "Branch Switch",
+                    f"Failed to switch branch: {e}",
+                    source="StatusBar",
+                )

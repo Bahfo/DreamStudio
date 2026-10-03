@@ -53,7 +53,9 @@ def _install_package_stubs() -> None:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         root = sys._MEIPASS  # type: ignore[attr-defined]
     else:
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
     if root not in sys.path:
         sys.path.insert(0, root)
     ironica_root = os.path.join(root, "editor", "Ironica")
@@ -157,8 +159,14 @@ def _ensure_environment(config: dict, theme_name: str, lang: str = "python") -> 
 
     if changed:
         for module_name, func_name in (
-            ("editor.Ironica.plugins.python.semantic_highlights", "invalidate_semantic_cache"),
-            ("editor.Ironica.plugins.clang.c_semantic_highlights", "invalidate_semantic_cache"),
+            (
+                "editor.Ironica.plugins.python.semantic_highlights",
+                "invalidate_semantic_cache",
+            ),
+            (
+                "editor.Ironica.plugins.clang.c_semantic_highlights",
+                "invalidate_semantic_cache",
+            ),
         ):
             try:
                 module = __import__(module_name, fromlist=[func_name])
@@ -228,8 +236,14 @@ def _check_rss_budget() -> None:
     _JEDI_LAST_PATH = None
     _JEDI_LAST_SCRIPT = None
     for module_name, func_name in (
-        ("editor.Ironica.plugins.python.semantic_highlights", "invalidate_semantic_cache"),
-        ("editor.Ironica.plugins.clang.c_semantic_highlights", "invalidate_semantic_cache"),
+        (
+            "editor.Ironica.plugins.python.semantic_highlights",
+            "invalidate_semantic_cache",
+        ),
+        (
+            "editor.Ironica.plugins.clang.c_semantic_highlights",
+            "invalidate_semantic_cache",
+        ),
     ):
         try:
             module = __import__(module_name, fromlist=[func_name])
@@ -243,15 +257,44 @@ def _check_rss_budget() -> None:
 # ----------------------------------------------------------------------
 
 
-def _handle_analysis(request_id: int, source: str, config: dict, theme_name: str):
-    _ensure_environment(config, theme_name, "python")
-    from editor.Ironica.plugins.python.semantic_highlights import (
-        get_semantic_highlights,
-    )
-    from editor.Ironica.plugins.python.folding import compute_fold_regions
+def _apply_workspace_paths(paths) -> list[str]:
+    """Temporarily prepend workspace venv paths; returns added entries."""
+    added: list[str] = []
+    try:
+        for entry in paths or []:
+            if entry and entry not in sys.path and os.path.isdir(str(entry)):
+                sys.path.insert(0, str(entry))
+                added.append(str(entry))
+    except Exception:
+        pass
+    return added
 
-    highlights = get_semantic_highlights(source)
-    fold_regions = compute_fold_regions(source)
+
+def _remove_workspace_paths(added) -> None:
+    """Remove previously added workspace paths."""
+    try:
+        for entry in added or []:
+            while entry in sys.path:
+                sys.path.remove(entry)
+    except Exception:
+        pass
+
+
+def _handle_analysis(
+    request_id: int, source: str, config: dict, theme_name: str, workspace_paths=None
+):
+    _ensure_environment(config, theme_name, "python")
+    added = _apply_workspace_paths(workspace_paths)
+    try:
+        from editor.Ironica.plugins.python.semantic_highlights import (
+            get_semantic_highlights,
+        )
+        from editor.Ironica.plugins.python.folding import compute_fold_regions
+
+        highlights = get_semantic_highlights(source)
+        fold_regions = compute_fold_regions(source)
+    finally:
+        _remove_workspace_paths(added)
     _check_rss_budget()
     return ("analysis", request_id, highlights, fold_regions)
 
@@ -376,13 +419,15 @@ def handle_request(payload) -> object:
         payload = _resolve_spills(payload)
         kind = payload[0]
         if kind == "analysis":
-            _, request_id, source, config, theme_name = payload
-            return _handle_analysis(request_id, source, config, theme_name)
+            if len(payload) == 6:
+                _, request_id, source, config, theme_name, ws_paths = payload
+            else:
+                _, request_id, source, config, theme_name = payload
+                ws_paths = None
+            return _handle_analysis(request_id, source, config, theme_name, ws_paths)
         if kind == "c_analysis":
             _, request_id, source, file_path, config, theme_name = payload
-            return _handle_c_analysis(
-                request_id, source, file_path, config, theme_name
-            )
+            return _handle_c_analysis(request_id, source, file_path, config, theme_name)
         if kind == "diagnostics":
             _, request_id, source, file_path = payload
             return _handle_diagnostics(request_id, source, file_path)

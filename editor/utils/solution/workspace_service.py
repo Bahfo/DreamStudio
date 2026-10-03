@@ -38,6 +38,7 @@ class WorkspaceService(QObject):
         self._window = None
         self.current_path = ""
         self.current_solution: dict = {}
+        self._generation = 0
 
     # ------------------------------------------------------------------
     # Window attachment
@@ -50,6 +51,11 @@ class WorkspaceService(QObject):
             window: The DreamStudio QMainWindow instance.
         """
         self._window = window
+        if self.current_path and os.path.isdir(self.current_path):
+            try:
+                self.reset_workspace(self.current_path)
+            except Exception:
+                pass
 
     @property
     def window(self):
@@ -89,6 +95,7 @@ class WorkspaceService(QObject):
         """
         path = os.path.abspath(path)
         self.current_path = path
+        self._generation += 1
         window = self._window
         if window is None:
             return
@@ -205,15 +212,20 @@ class WorkspaceService(QObject):
 
     def _defer_problems_analysis(self, window, path: str) -> None:
         """Schedule a workspace syntax analysis for the new root."""
+        gen = self._generation
         hero = getattr(window, "hero_window", None)
         lower = getattr(hero, "_lower_widget", None) if hero is not None else None
         problems = getattr(lower, "problems_window", None)
         if problems is None or not hasattr(problems, "run_workspace_analysis"):
             return
-        QTimer.singleShot(0, lambda: self._safe_analysis(problems, path))
+        QTimer.singleShot(0, lambda: self._safe_analysis(problems, path, gen))
 
-    def _safe_analysis(self, problems, path: str) -> None:
+    def _safe_analysis(self, problems, path: str, gen: int | None = None) -> None:
         """Best-effort problems analysis that never raises into the GUI."""
+        if gen is not None and gen != self._generation:
+            return
+        if path != self.current_path:
+            return
         try:
             problems.run_workspace_analysis(path)
         except Exception as exc:

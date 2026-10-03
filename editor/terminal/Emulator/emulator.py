@@ -13,12 +13,44 @@ except ImportError:
     _HAVE_PTY = False
 
 
+def _default_shell() -> str:
+    """Return platform-correct default shell without hardcoding POSIX."""
+    if sys.platform == "win32":
+        for candidate in (
+            os.environ.get("COMSPEC"),
+            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+            "powershell.exe",
+        ):
+            if candidate and (
+                os.path.isfile(candidate) or candidate == "powershell.exe"
+            ):
+                return candidate
+        return "powershell.exe"
+    return os.environ.get("SHELL", "/bin/bash")
+
+
+def _default_shell_args(shell: str) -> list[str]:
+    """Return spawn args matching the shell family."""
+    base = os.path.basename(shell).lower()
+    if base in ("powershell.exe", "powershell", "pwsh.exe", "pwsh", "cmd.exe", "cmd"):
+        return [shell]
+    if "zsh" in base:
+        return [shell, "-i", "+Z", "+zle"]
+    return [shell, "-i"]
+
+
 class BasePty(ABC):
     """Abstract pseudo-terminal backend. Implementations: UnixPty, WinPty."""
 
     @abstractmethod
-    def spawn(self, argv: list[str], cwd: str | None, env: dict,
-              rows: int = 24, cols: int = 80) -> int:
+    def spawn(
+        self,
+        argv: list[str],
+        cwd: str | None,
+        env: dict,
+        rows: int = 24,
+        cols: int = 80,
+    ) -> int:
         """Spawn a child process connected to the PTY. Returns pid.
         Accepts optional initial rows/cols so the PTY is born at the correct
         size, preventing a flash of incorrectly-wrapped text on startup."""
@@ -63,8 +95,14 @@ class UnixPty(BasePty):
         self._master_fd = -1
         self._process: subprocess.Popen | None = None
 
-    def spawn(self, argv: list[str], cwd: str | None, env: dict,
-              rows: int = 24, cols: int = 80) -> int:
+    def spawn(
+        self,
+        argv: list[str],
+        cwd: str | None,
+        env: dict,
+        rows: int = 24,
+        cols: int = 80,
+    ) -> int:
         try:
             master_fd, slave_fd = pty.openpty()
         except OSError as exc:
@@ -153,6 +191,10 @@ class UnixPty(BasePty):
                 os.kill(self._process.pid, sig)
             except (ProcessLookupError, OSError):
                 pass
+        try:
+            self._process.wait(timeout=2.0)
+        except Exception:
+            pass
 
     def poll(self) -> int | None:
         return self._process.poll() if self._process else None
@@ -174,8 +216,14 @@ class WinPty(BasePty):
     def __init__(self):
         self._proc = None
 
-    def spawn(self, argv: list[str], cwd: str | None, env: dict,
-              rows: int = 24, cols: int = 80) -> int:
+    def spawn(
+        self,
+        argv: list[str],
+        cwd: str | None,
+        env: dict,
+        rows: int = 24,
+        cols: int = 80,
+    ) -> int:
         """Spawn the child under Windows pywinpty.
 
         *rows* and *cols* are forwarded to PtyProcess.spawn so the PTY is
@@ -192,7 +240,7 @@ class WinPty(BasePty):
             ) from exc
 
         self._proc = PtyProcess.spawn(
-            argv[0],
+            [argv[0]] + list(argv[1:]),
             cwd=cwd,
             env=env,
             cols=cols,
@@ -227,6 +275,15 @@ class WinPty(BasePty):
                 pass
 
     def poll(self) -> int | None:
+        if self._proc is None:
+            return None
+        try:
+            if hasattr(self._proc, "isalive") and not self._proc.isalive():
+                return getattr(self._proc, "exitstatus", -1)
+            if hasattr(self._proc, "poll"):
+                return self._proc.poll()
+        except Exception:
+            pass
         return None
 
     @property
@@ -379,21 +436,33 @@ class ShellEmulator(QObject):
         hard-coded 80x24 default that caused mismatched scaling on
         high-DPI or ultrawide displays.
         """
+        if self._running or (self._pty is not None and self._pty.poll() is None):
+            try:
+                self.stop()
+            except Exception:
+                pass
         if sys.platform == "win32":
             self._pty = WinPty()
         else:
             self._pty = UnixPty()
 
-        shell = os.environ.get("SHELL", "/bin/bash")
-        if "zsh" in shell:
-            shell_args = [shell, "-i", "+Z", "+zle"]
-        else:
-            shell_args = [shell, "-i"]
+        shell = _default_shell()
+        shell_args = _default_shell_args(shell)
 
         env = os.environ.copy()
         env.setdefault("TERM", "xterm-256color")
         if cwd:
             env["PWD"] = cwd
+            try:
+                from editor.debugger.run.python_resolver import find_venv_python
+
+                venv_py = find_venv_python(cwd)
+                if venv_py:
+                    bindir = os.path.dirname(venv_py)
+                    env["PATH"] = bindir + os.pathsep + env.get("PATH", "")
+                    env["VIRTUAL_ENV"] = os.path.dirname(bindir)
+            except Exception:
+                pass
 
         self._pty.spawn(shell_args, cwd, env, rows=rows, cols=cols)
         self._running = True
