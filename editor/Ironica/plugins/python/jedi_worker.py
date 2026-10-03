@@ -162,7 +162,10 @@ class DiagnosticManager(QObject):
         """Gate submission while this editor is not the focused tab."""
         self._enabled = active
         if not active:
-            self._debounce_timer.stop()
+            try:
+                self._debounce_timer.stop()
+            except RuntimeError:
+                pass  # timer already deleted with the editor
             self._request_counter += 1  # invalidate any pending evaluation
 
     def invalidate(self) -> None:
@@ -177,9 +180,14 @@ class DiagnosticManager(QObject):
             self._debounce_timer.setInterval(
                 adaptive_delay_for_editor(DEBOUNCE_MS, self._editor)
             )
+            self._debounce_timer.start()
+        except RuntimeError:
+            pass  # timer deleted with the editor — nothing left to debounce
         except Exception:
-            pass
-        self._debounce_timer.start()
+            try:
+                self._debounce_timer.start()
+            except RuntimeError:
+                pass
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
@@ -220,7 +228,10 @@ class DiagnosticManager(QObject):
         except (TypeError, RuntimeError):
             pass
 
-        self._debounce_timer.stop()
+        try:
+            self._debounce_timer.stop()
+        except RuntimeError:
+            pass  # timer already deleted with the editor
         self._worker.shutdown()
         process_manager.release(self._owner_id)
 
@@ -401,6 +412,7 @@ class CompletionManager(QObject):
         self._file_path = file_path
         self._owner_id = id(editor)
         self._enabled = True
+        self._dead = False
         self._request_counter: int = 0
         self._pending_source: str = ""
         self._pending_line: int = 0
@@ -415,28 +427,69 @@ class CompletionManager(QObject):
 
         self._worker = _CompletionWorker(self)
 
+        destroyed = getattr(editor, "destroyed", None)
+        if destroyed is not None:
+            destroyed.connect(self._on_editor_destroyed)
+
     @property
     def owner_id(self) -> int:
         return self._owner_id
 
+    @pyqtSlot()
+    def _on_editor_destroyed(self) -> None:
+        """Mark this manager dead once its editor's Qt object is gone.
+
+        Runs during ``QObject`` teardown, *before* the editor deletes its
+        children, so the debounce timer is still valid here — stop it
+        first, then flag dead so later ``request()`` calls no-op.
+        """
+        self._stop_timer()
+        self._dead = True
+        self.shutdown()
+
     def set_enabled(self, active: bool) -> None:
         self._enabled = active
         if not active:
-            self._debounce_timer.stop()
+            self._stop_timer()
             self._request_counter += 1
 
     def set_file_path(self, path: Optional[str]) -> None:
         self._file_path = path
 
+    def _stop_timer(self) -> None:
+        """Stop the debounce timer, tolerating an already-deleted C++ side."""
+        if self._dead:
+            return
+        try:
+            self._debounce_timer.stop()
+        except RuntimeError:
+            self._dead = True
+
     def request(
         self, source: str, line: int, col: int, file_path: Optional[str]
-    ) -> None:
-        """Debounce and submit a completion request to the background worker."""
+    ) -> bool:
+        """Debounce and submit a completion request to the background worker.
+
+        Silently drops the request when the manager or its timer has been
+        torn down with the editor — a stale provider singleton must never
+        crash the IDE from a live tab.
+
+        Returns:
+            ``True`` when the request was accepted, ``False`` when the
+            manager is dead and the caller should fall back.
+        """
+        if self._dead:
+            return False
         self._request_counter += 1
         self._pending_source = source
         self._pending_line = line
         self._pending_col = col
-        self._debounce_timer.start()
+        try:
+            self._debounce_timer.start()
+        except RuntimeError:
+            self._dead = True
+            return False
+        return True
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
@@ -454,7 +507,8 @@ class CompletionManager(QObject):
             logger.debug("Failed to submit completion request: %s", exc)
 
     def shutdown(self) -> None:
-        self._debounce_timer.stop()
+        self._enabled = False
+        self._stop_timer()
         self._worker.shutdown()
         try:
             self._process.shutdown()

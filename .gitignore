@@ -1,77 +1,19 @@
-# Python caches
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 /.ruff_cache
-
-# Virtual environments
 venv/
-ENV/
-env/
-/venv/
-
-# Package and dependency files
-*.egg-info/
 dist/
 build/
-
-# Editor / IDE
 .vscode/
 .idea/
 
-# Misc / temp
-*.log
-*.tmp
-*.bak
-tools.txt
-.fake
-redundant
-
-# Build Directories
 editor/analysis/build
-
-# Config files
 config.json
-
-# Compiled Python
-*.cpython-*.pyc
-*.cpython-*.pyo
-
-# Test directories
 /tests/
 .pytest_cache/
 
 /additional/consoles_emulators/
 
-.briefcase/
-src/*/__pycache__/
-src/*/*.egg-info/
-
-# Android Build Artifacts & SDK Outputs
-*.apk
-*.aab
-*.dex
-*.class
-
-# Local
-local.properties
-.android/
-*.keystore
-*.jks
-
-# Tests
 **/tests/
-
-# Plans
-/plans
-
-# Temporary Ignoring
-.github/workflows/docker-publish.yml
-
-# Files
-KNOWN_ISSUES.md
-REFACTOR_BASELINE.md
-REFACTOR_LOG.md
-
-release

@@ -142,9 +142,14 @@ class CDiagnosticManager(QObject):
             self._debounce_timer.setInterval(
                 adaptive_delay_for_editor(DIAGNOSTIC_DEBOUNCE_MS, self._editor)
             )
+            self._debounce_timer.start()
+        except RuntimeError:
+            pass  # timer deleted with the editor — nothing left to debounce
         except Exception:
-            pass
-        self._debounce_timer.start()
+            try:
+                self._debounce_timer.start()
+            except RuntimeError:
+                pass
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
@@ -186,7 +191,10 @@ class CDiagnosticManager(QObject):
         except (TypeError, RuntimeError):
             pass
 
-        self._debounce_timer.stop()
+        try:
+            self._debounce_timer.stop()
+        except RuntimeError:
+            pass  # timer already deleted with the editor
         self._worker.shutdown()
 
 
@@ -277,6 +285,7 @@ class CCompletionManager(QObject):
         self._file_path = file_path
         self._compile_args = compile_args or []
         self._enabled = True
+        self._dead = False
         self._request_counter: int = 0
         self._pending_context: Optional[CContext] = None
 
@@ -287,9 +296,42 @@ class CCompletionManager(QObject):
 
         self._worker = _CCompletionWorker(self, self._adapter)
 
+        destroyed = getattr(editor, "destroyed", None)
+        if destroyed is not None:
+            destroyed.connect(self._on_editor_destroyed)
+
+    @pyqtSlot()
+    def _on_editor_destroyed(self) -> None:
+        """Mark this manager dead once its editor's Qt object is gone.
+
+        Runs during ``QObject`` teardown, *before* the editor deletes its
+        children, so the debounce timer is still valid here — stop it
+        first, then flag dead so later ``request()`` calls no-op.
+        """
+        self._stop_timer()
+        self._dead = True
+        self.shutdown()
+
+    def _stop_timer(self) -> None:
+        """Stop the debounce timer, tolerating an already-deleted C++ side."""
+        if self._dead:
+            return
+        try:
+            self._debounce_timer.stop()
+        except RuntimeError:
+            self._dead = True
+
     def request(
         self, source: str, line: int, col: int, file_path: Optional[str] = None
-    ) -> None:
+    ) -> bool:
+        """Debounce a completion request, dropping it if torn down.
+
+        Returns:
+            ``True`` when the request was accepted, ``False`` when the
+            manager is dead and the caller should fall back.
+        """
+        if self._dead:
+            return False
         self._request_counter += 1
 
         self._pending_context = CContext(
@@ -299,7 +341,12 @@ class CCompletionManager(QObject):
             file_path=file_path or self._file_path,
             compile_args=self._compile_args,
         )
-        self._debounce_timer.start()
+        try:
+            self._debounce_timer.start()
+        except RuntimeError:
+            self._dead = True
+            return False
+        return True
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
@@ -311,5 +358,6 @@ class CCompletionManager(QObject):
             logger.debug("Failed to submit C completion request: %s", exc)
 
     def shutdown(self) -> None:
-        self._debounce_timer.stop()
+        self._enabled = False
+        self._stop_timer()
         self._worker.shutdown()

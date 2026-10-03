@@ -595,10 +595,15 @@ class DreamTabbedEditor(QDreamTabEditor):
                 )
 
             if provider and hasattr(provider, "create_completion_manager"):
-                provider.create_completion_manager(
-                    editor=code_editor,
-                    file_path=file_path,
-                    parent=code_editor,
+                # Editor-scoped, exactly like _diag_manager: the provider
+                # is a singleton whose slot would otherwise hold the last
+                # opened (or already destroyed) tab's manager.
+                code_editor._completion_manager = (
+                    provider.create_completion_manager(
+                        editor=code_editor,
+                        file_path=file_path,
+                        parent=code_editor,
+                    )
                 )
 
         if isinstance(new_editor, MiniMapHostWidget):
@@ -774,6 +779,13 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         if hasattr(code_editor, "_diag_manager"):
             code_editor._diag_manager.shutdown()
+
+        completion_manager = getattr(code_editor, "_completion_manager", None)
+        if completion_manager is not None:
+            try:
+                completion_manager.shutdown()
+            except Exception:
+                pass
 
         if code_editor is not None:
             if hasattr(code_editor, "_analysis_manager"):

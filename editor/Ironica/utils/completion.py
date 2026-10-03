@@ -8,6 +8,8 @@ from __future__ import annotations
 from editor import *
 from editor.utils.resource_path import resource_path
 
+logger = logging.getLogger("DreamStudio.Completion")
+
 COMPLETION_DEBOUNCE_MS: int = 40
 
 
@@ -1039,15 +1041,27 @@ class CompletionController(QObject):
                 self._close()
             return
 
-        completion_manager = getattr(provider, "completion_manager", None)
+        # Prefer the editor-scoped manager (like _diag_manager); the
+        # provider singleton's slot may still hold another tab's — or an
+        # already destroyed — manager.
+        completion_manager = getattr(self.editor, "_completion_manager", None)
+        if completion_manager is None:
+            completion_manager = getattr(provider, "completion_manager", None)
         if completion_manager is not None:
             self._connect_to_manager(completion_manager)
-            completion_manager.request(
-                self.editor.text(),
-                *self.editor.getCursorPosition(),
-                getattr(provider, "file_path", None),
-            )
-            return
+            try:
+                accepted = completion_manager.request(
+                    self.editor.text(),
+                    *self.editor.getCursorPosition(),
+                    getattr(provider, "file_path", None),
+                )
+            except RuntimeError:
+                # Manager's Qt object was deleted with its editor — fall
+                # through to the synchronous provider path instead.
+                accepted = False
+            if accepted is not False:
+                return
+            logger.debug("completion manager is dead; using sync path")
 
         if hasattr(provider, "get_completions"):
             try:
