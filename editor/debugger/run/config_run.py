@@ -5,10 +5,11 @@ Module to configure run options for DreamStudio for any file type.
 """
 
 import os
-import sys
 import json
 import subprocess
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+from editor.debugger.run.python_resolver import find_global_python
 
 
 class ConfigRun:
@@ -116,7 +117,7 @@ class ConfigRun:
         Raises:
             ValueError: If no file path is configured.
         """
-        arg = self.options.get("Arg", sys.executable) or sys.executable
+        arg = self.options.get("Arg") or find_global_python()
         parameters = self.options.get("Parameters", [])
         file_to_run = self.file_path or self.options.get("file_path")
 

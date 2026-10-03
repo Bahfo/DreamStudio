@@ -11,6 +11,11 @@ import sys
 
 from editor import *
 
+from editor.debugger.run.python_resolver import (
+    resolve_project_python,
+    resolve_workspace_dir,
+)
+
 
 def parse_parameters(text: str) -> list[str]:
     """Split a raw parameters string into separate command-line arguments.
@@ -41,15 +46,19 @@ class RunConfigDialog(QDialog):
     ``config_name``, ``file_path``, ``Arg``, ``Parameters``.
     """
 
-    def __init__(self, parent=None, initial: dict | None = None):
+    def __init__(
+        self,
+        parent=None,
+        initial: dict | None = None,
+        workspace_dir: str | None = None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Configure Run Options")
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog
-        )
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
         self.setFixedWidth(460)
 
         initial = initial or {}
+        self._workspace_dir = workspace_dir or resolve_workspace_dir(parent)
         self._build_ui(initial)
         self._apply_styles()
 
@@ -76,15 +85,18 @@ class RunConfigDialog(QDialog):
         path_row = QHBoxLayout()
         path_row.setSpacing(6)
         self.path_edit = QLineEdit(str(initial.get("file_path", "") or ""))
-        self.path_edit.setPlaceholderText("/full/path/to/target_file")
+        self.path_edit.setPlaceholderText("/home/user/my-project/main.py")
         browse_btn = QPushButton("Browse...")
         browse_btn.clicked.connect(self._browse_file)
         path_row.addWidget(self.path_edit, 1)
         path_row.addWidget(browse_btn)
         form.addRow("File Path (Full)", path_row)
 
-        self.arg_edit = QLineEdit(str(initial.get("Arg", "") or sys.executable))
-        self.arg_edit.setPlaceholderText("python3, node, gcc, custom-executable")
+        default_arg = str(initial.get("Arg", "") or "").strip() or (
+            resolve_project_python(self._workspace_dir)
+        )
+        self.arg_edit = QLineEdit(default_arg)
+        self.arg_edit.setPlaceholderText("python3")
         form.addRow("First Argument", self.arg_edit)
 
         self.params_edit = QLineEdit(" ".join(initial.get("Parameters", []) or []))
@@ -113,8 +125,7 @@ class RunConfigDialog(QDialog):
         layout.addLayout(buttons_row)
 
     def _apply_styles(self) -> None:
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
             QDialog { background-color: #2B2B2B; border: 1px solid #444444; }
             QLabel { color: #BBBBBB; }
             #runConfigTitle { font-weight: bold; font-size: 15px; }
@@ -126,8 +137,7 @@ class RunConfigDialog(QDialog):
                           border: 1px solid #555555; border-radius: 4px;
                           padding: 6px 14px; }
             QPushButton:hover { background-color: #555555; }
-            """
-        )
+            """)
 
     # ------------------------------------------------------------------
     # Actions
@@ -135,10 +145,14 @@ class RunConfigDialog(QDialog):
 
     def _browse_file(self) -> None:
         """Open a native file picker and fill the File Path (Full) field."""
-        start_dir = os.path.dirname(self.path_edit.text()) or os.getcwd()
-        chosen, _ = QFileDialog.getOpenFileName(
-            self, "Select Target File", start_dir
-        )
+        typed = (self.path_edit.text() or "").strip()
+        if typed and os.path.isdir(os.path.dirname(os.path.abspath(typed))):
+            start_dir = os.path.dirname(os.path.abspath(typed))
+        elif self._workspace_dir and os.path.isdir(self._workspace_dir):
+            start_dir = self._workspace_dir
+        else:
+            start_dir = os.getcwd()
+        chosen, _ = QFileDialog.getOpenFileName(self, "Select Target File", start_dir)
         if chosen:
             self.path_edit.setText(chosen)
 

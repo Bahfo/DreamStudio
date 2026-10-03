@@ -10,14 +10,16 @@ import json
 import logging
 import os
 import re
-import sys
 
 from editor import *
 
 from editor.debugger.run.config_run import ConfigRun
+from editor.debugger.run.python_resolver import (
+    resolve_project_python,
+    resolve_workspace_dir,
+)
 from editor.debugger.run.run_config_dialog import RunConfigDialog
 from editor.utils.notifications.notification_manager import get_notification_manager
-from editor.utils.resource_path import resource_path
 from editor.terminal.Emulator.terminal_ui import TAB_SYSTEM_SHELL
 
 logger = logging.getLogger(__name__)
@@ -43,16 +45,22 @@ def is_runnable_python_file(path: str | None) -> bool:
     return bool(path) and path.endswith(PYTHON_SUFFIX) and os.path.isfile(path)
 
 
-def run_configs_dir() -> str:
+def run_configs_dir(base_dir: str | None = None) -> str:
     """Return (and create) the directory holding saved run configurations.
 
-    Uses the existing project ``.configs`` persistence location so run
-    configurations survive restarts like every other setting.
+    Configurations live inside the active workspace ``.ds/run`` folder so
+    each project/cwd keeps its own set and the IDE directory is never
+    touched.
+
+    Args:
+        base_dir: Workspace root to scope the configs to. Defaults to the
+            current process working directory.
 
     Returns:
         Absolute path to the run-configurations directory.
     """
-    directory = resource_path(os.path.join(".configs", "run"))
+    root = os.path.abspath(base_dir) if base_dir else os.path.abspath(os.getcwd())
+    directory = os.path.join(root, ".ds", "run")
     os.makedirs(directory, exist_ok=True)
     return directory
 
@@ -134,6 +142,27 @@ class RunMenuController:
             return None
         return getattr(widget, "current_file_path", None) or None
 
+    def workspace_dir(self) -> str:
+        """Return the active project/cwd root for venv and config lookup.
+
+        Returns:
+            Absolute path of the active workspace without touching the
+            IDE installation directory.
+        """
+        return resolve_workspace_dir(self._window)
+
+    def _configs_dir(self) -> str:
+        """Return the workspace ``.ds/run`` directory (test-compatible).
+
+        Returns:
+            Absolute path to the per-workspace run-configurations folder.
+        """
+        workspace = self.workspace_dir()
+        try:
+            return run_configs_dir(workspace)
+        except TypeError:
+            return run_configs_dir()
+
     def refresh_state(self, _index: int = -1) -> None:
         """Re-evaluate action states and rebuild the config entries.
 
@@ -164,8 +193,9 @@ class RunMenuController:
             malformed files are skipped with a logged warning.
         """
         configs: list[tuple[str, str, dict]] = []
+        configs_dir = self._configs_dir()
         try:
-            entries = sorted(os.listdir(run_configs_dir()))
+            entries = sorted(os.listdir(configs_dir))
         except OSError as exc:
             logger.error("Cannot read run configuration directory: %s", exc)
             return configs
@@ -173,7 +203,7 @@ class RunMenuController:
         for entry in entries:
             if not entry.endswith(".json"):
                 continue
-            path = os.path.join(run_configs_dir(), entry)
+            path = os.path.join(configs_dir, entry)
             try:
                 options = ConfigRun(config_name=entry[:-5]).load_config(path)
             except FileNotFoundError:
@@ -196,7 +226,7 @@ class RunMenuController:
             The path of the saved JSON file.
         """
         name = str(options.get("config_name", "dsconfig") or "dsconfig")
-        target = os.path.join(run_configs_dir(), f"{_config_file_stem(name)}.json")
+        target = os.path.join(self._configs_dir(), f"{_config_file_stem(name)}.json")
         ConfigRun(
             file_path=options.get("file_path"),
             config_name=name,
@@ -240,8 +270,12 @@ class RunMenuController:
     def open_config_dialog(self) -> None:
         """Open the run-configuration editor and save on acceptance."""
         current_path = self.current_file_path() or ""
+        workspace = self.workspace_dir()
+        project_python = resolve_project_python(workspace)
         dialog = RunConfigDialog(
-            parent=self._window, initial={"file_path": current_path}
+            parent=self._window,
+            initial={"file_path": current_path, "Arg": project_python},
+            workspace_dir=workspace,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -279,13 +313,14 @@ class RunMenuController:
             if hasattr(widget, "save"):
                 widget.save()
 
+        project_python = resolve_project_python(self.workspace_dir())
         config = ConfigRun(
             file_path=path,
             config_name="run_current_file",
             options={
                 "config_name": "run_current_file",
                 "file_path": path,
-                "Arg": sys.executable,
+                "Arg": project_python,
                 "Parameters": [],
             },
         )
