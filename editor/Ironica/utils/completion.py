@@ -724,7 +724,10 @@ class CompletionController(QObject):
         self._requested_context = ("", "")
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        if obj is self.editor:
+        # ``editor`` is assigned right after ``super().__init__``; a filter can
+        # still fire while a controller is being torn down or rebuilt, so the
+        # attribute is read defensively here.
+        if obj is getattr(self, "editor", None):
             return self._filter_editor_event(event)
 
         if obj is QApplication.instance():
@@ -850,7 +853,11 @@ class CompletionController(QObject):
             self._current_prefix = prefix
             self._current_ident = ident
 
-            if self.popup.isVisible() and self._cached_items and ident == self._cache_ident:
+            if (
+                self.popup.isVisible()
+                and self._cached_items
+                and ident == self._cache_ident
+            ):
                 self._refresh_from_cache()
             else:
                 # Show snippets instantly for "/" prefix even before debounce fires
@@ -1329,18 +1336,14 @@ class CompletionController(QObject):
                 start_col = match.start() if match else col
 
             # Handle multi-line snippet bodies with indentation preservation
-            is_snippet_body = (
-                item.icon_name == "snippet" and "\n" in insert_text
-            )
+            is_snippet_body = item.icon_name == "snippet" and "\n" in insert_text
             if is_snippet_body:
                 line_text = self.editor.text(line)
                 indentation = line_text[: len(line_text) - len(line_text.lstrip())]
                 lines = insert_text.split("\n")
                 if len(lines) > 1:
                     insert_text = (
-                        lines[0]
-                        + "\n"
-                        + "\n".join(indentation + l for l in lines[1:])
+                        lines[0] + "\n" + "\n".join(indentation + l for l in lines[1:])
                     )
 
                 self.editor.beginUndoAction()
@@ -1352,9 +1355,7 @@ class CompletionController(QObject):
                         end_col = len(indentation) + len(lines[-1])
                         self.editor.setCursorPosition(end_line, end_col)
                     else:
-                        self.editor.setCursorPosition(
-                            line, start_col + len(lines[0])
-                        )
+                        self.editor.setCursorPosition(line, start_col + len(lines[0]))
                 finally:
                     self.editor.endUndoAction()
                 return

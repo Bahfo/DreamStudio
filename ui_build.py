@@ -1,8 +1,12 @@
 from editor import *
+import logging
+
 from editor.workspace_container import WorkspaceContainer
 from editor.utils.resource_path import resource_path
 from editor.api.editor_api import EditorAPI
 from editor.api.menus_api import MenusAPI
+
+logger = logging.getLogger(__name__)
 
 # Local Imports
 from editor.base.statusBar import StatusBar
@@ -76,21 +80,15 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _build_title_bar(self, main_layout: QVBoxLayout) -> None:
         self.title_bar = DreamStudioTitleBar(self, self.currentDirectory)
-        self.options_menu = OptionsMenu(
-            self, resource_path("editor/base/json/optionbar.json")
-        )
+        self.options_menu = OptionsMenu(self, resource_path("editor/base/json/optionbar.json"))
 
         main_layout.insertWidget(0, self.title_bar)
         main_layout.insertWidget(1, self.options_menu)
 
     def _build_hero(self) -> None:
-        self.left_sidebar = VerticalSidebar(
-            self, resource_path("editor/base/json/leftbar.json")
-        )
+        self.left_sidebar = VerticalSidebar(self, resource_path("editor/base/json/leftbar.json"))
         self.hero_window = WorkspaceContainer(self)
-        self.right_sidebar = VerticalSidebar(
-            self, resource_path("editor/base/json/rightbar.json")
-        )
+        self.right_sidebar = VerticalSidebar(self, resource_path("editor/base/json/rightbar.json"))
 
         self.tab_editors = self.hero_window._text_editor_center.tabs
         self.tab_editors.currentChanged.connect(self._sync_menu_state)
@@ -138,9 +136,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         except Exception:
             pass
         try:
-            if getattr(self, "status_bar", None) is not None and hasattr(
-                self.status_bar, "set_workspace"
-            ):
+            if getattr(self, "status_bar", None) is not None and hasattr(self.status_bar, "set_workspace"):
                 self.status_bar.set_workspace(root)
         except Exception:
             pass
@@ -195,9 +191,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self._outline_refresh_timer = QTimer(self)
         self._outline_refresh_timer.setSingleShot(True)
         self._outline_refresh_timer.setInterval(OUTLINE_REFRESH_DEBOUNCE_MS)
-        self._outline_refresh_timer.timeout.connect(
-            self._refresh_outline_for_current_editor
-        )
+        self._outline_refresh_timer.timeout.connect(self._refresh_outline_for_current_editor)
 
         # Also refresh outline when the panel becomes visible (e.g. first
         # activation — currentChanged won't fire for an already-open tab).
@@ -234,9 +228,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         # return, so even an empty buffer keeps tracking text changes.
         if self._outline_text_connection is not None:
             try:
-                self._outline_text_connection[0].textChanged.disconnect(
-                    self._outline_text_connection[1]
-                )
+                self._outline_text_connection[0].textChanged.disconnect(self._outline_text_connection[1])
             except (TypeError, RuntimeError):
                 pass
             self._outline_text_connection = None
@@ -314,7 +306,25 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self.status_bar = StatusBar(self, self.currentDirectory)
         self.status_bar.notificationBtn.clicked.connect(self._toggle_notifications)
         self.status_bar.errorsBtn.clicked.connect(self._toggle_problems)
+        self.status_bar.warningBtn.clicked.connect(self._toggle_problems)
+        self._bind_problem_counts()
         main_layout.addWidget(self.status_bar)
+
+    def _bind_problem_counts(self) -> None:
+        """Mirror Problems-panel error/warning counts on the status bar."""
+        try:
+            problems = self.hero_window._lower_widget.problems_window
+            problems.countsChanged.connect(self._on_problem_counts_changed)
+            self.status_bar.set_problem_counts(*problems.problem_counts())
+        except Exception as exc:
+            logger.debug("Problem counts not bound: %s", exc)
+
+    def _on_problem_counts_changed(self, errors: int, warnings: int) -> None:
+        """Update the status-bar error/warning buttons from the scanner."""
+        try:
+            self.status_bar.set_problem_counts(errors, warnings)
+        except Exception as exc:
+            logger.debug("Problem counts update failed: %s", exc)
 
     def _sync_menu_state(self, _idx: int = -1) -> None:
         """Update File menu enabled/disabled state from current tab count."""

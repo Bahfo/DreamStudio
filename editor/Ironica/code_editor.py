@@ -124,9 +124,12 @@ class CodeEditor(QsciScintilla):
         self.current_file_path = None
         self._font_size = 10
         self._is_dirty = False
-        self._diagnostic_indicators = {}
-        self._next_diag_slot = 8  # Slots 8-15 allocated for diagnostics to avoid
-        # semantic overlaps
+        # Slots 8-15 are reserved for diagnostic squiggles so they never
+        # collide with lexer/folding indicators.
+        self._diagnostic_ranges: list = []
+        self._diagnostic_labels: list = []
+        self._deemphasized_ranges: list = []
+        self._configured_diagnostic_slots: dict = {}
 
         ###############################################
         # Right-click menu
@@ -1422,24 +1425,6 @@ class CodeEditor(QsciScintilla):
 
         super().mousePressEvent(e)
 
-    def dragEnterEvent(self, event) -> None:
-        if getattr(self, "_binary_mode", False):
-            event.ignore()
-            return
-        super().dragEnterEvent(event)
-
-    def dragMoveEvent(self, event) -> None:
-        if getattr(self, "_binary_mode", False):
-            event.ignore()
-            return
-        super().dragMoveEvent(event)
-
-    def dropEvent(self, event) -> None:
-        if getattr(self, "_binary_mode", False):
-            event.ignore()
-            return
-        super().dropEvent(event)
-
     ###############################################
     # DEBUGGER & BREAKPOINTS
     ###############################################
@@ -2713,67 +2698,374 @@ class CodeEditor(QsciScintilla):
     # DIAGNOSTICS
     ###############################################
 
+    # ------------------------------------------------------------------
+    # Diagnostic indicators
+    #
+    # One indicator slot per severity so diagnostics of different
+    # severities coexist on the same characters, every slot drawn as a
+    # wavy "squiggle" underline in the IDE theme accent colour.
+    # ------------------------------------------------------------------
+
+    #: Indicator styles resolved from QsciScintilla so the numeric values always
+    #: match the bundled Scintilla build. Guessing them makes an indicator draw
+    #: an invisible/black block instead of a squiggle.
+    _INDIC_SQUIGGLE = getattr(QsciScintilla, "INDIC_SQUIGGLE", 1)
+    _INDIC_SQUIGGLE_LOW = 2
+
+    #: Severity colour -> indicator slot. Slots 8-15 are reserved for
+    #: diagnostics so they never collide with folding/parser indicators.
+    _SEVERITY_SLOTS = {
+        "#F14C4C": 8,  # error  — red
+        "#FCC700": 9,  # warning — amber
+        "#3794FF": 10,  # typo   — blue
+        "#4EC9B0": 11,  # info   — teal
+    }
+
+    def _diagnostic_slot(self, color_hex: str) -> int:
+        """Return the indicator slot for *color_hex*, configured as a squiggle.
+
+        The slot is (re)configured the first time it is used in this editor, and
+        again whenever the requested colour changed, so an indicator can never
+        keep Scintilla's default style (a black block that looks like nothing).
+
+        Args:
+            color_hex: ``#RRGGBB`` colour of the diagnostic severity.
+
+        Returns:
+            Scintilla indicator slot number reserved for diagnostics.
+        """
+        slot = self._SEVERITY_SLOTS.get(color_hex)
+        if slot is None:
+            used = set(self._SEVERITY_SLOTS.values())
+            slot = next(
+                (candidate for candidate in range(8, 16) if candidate not in used), 15
+            )
+            self._SEVERITY_SLOTS[color_hex] = slot
+        if self._configured_diagnostic_slots.get(slot) != color_hex:
+            self._configure_diagnostic_slot(slot, color_hex)
+        return slot
+
+    def _configure_diagnostic_slot(self, slot: int, color_hex: str) -> None:
+        """Configure *slot* as a wavy, theme-coloured diagnostic indicator.
+
+        Args:
+            slot: Indicator slot number.
+            color_hex: ``#RRGGBB`` stroke colour.
+        """
+        colour = self._scintilla_rgb(color_hex)
+        try:
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETSTYLE, slot, self._INDIC_SQUIGGLE
+            )
+            self.SendScintilla(QsciScintilla.SCI_INDICSETFORE, slot, colour)
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETHOVERSTYLE, slot, self._INDIC_SQUIGGLE
+            )
+            self.SendScintilla(QsciScintilla.SCI_INDICSETHOVERFORE, slot, colour)
+            self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, slot, 255)
+            self.SendScintilla(QsciScintilla.SCI_INDICSETOUTLINEALPHA, slot, 255)
+            self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, slot, 1)
+        except Exception as exc:
+            logger.debug("Indicator configuration failed for slot %s: %s", slot, exc)
+        self._configured_diagnostic_slots[slot] = color_hex
+
     def add_diagnostic_underline(
-        self, line: int, start_col: int, end_col: int, color_hex: str = "#FF0000"
+        self, line: int, start_col: int, end_col: int, color_hex: str = "#F14C4C"
     ) -> None:
-        """
-        Applies a precise squiggly error underline to the selected text block bounds.
-        Splits coordinates to strictly target valid non-whitespace text strings,
-        avoiding spaces. Calculates character indices to UTF-8 byte mapping to avoid offset
-        drift with special characters.
-        """
-        if line < 0 or line >= self.lines():
-            return
+        """Underline the exact range on *line* with a diagnostic squiggle.
 
+        Args:
+            line: 0-based line index.
+            start_col: 0-based start column.
+            end_col: 0-based end column (exclusive).
+            color_hex: Severity colour.
+        """
+        self.add_diagnostic_range(line, start_col, line, end_col, color_hex)
+
+    def add_diagnostic_range(
+        self,
+        start_line: int,
+        start_col: int,
+        end_line: int,
+        end_col: int,
+        color_hex: str = "#F14C4C",
+    ) -> None:
+        """Underline an exact (possibly multi-line) range with a squiggle.
+
+        Args:
+            start_line: 0-based first line.
+            start_col: 0-based first column.
+            end_line: 0-based last line.
+            end_col: 0-based last column.
+            color_hex: Severity colour.
+        """
+        if start_line < 0 or start_line >= self.lines():
+            return
+        end_line = max(start_line, min(end_line, self.lines() - 1))
+        if end_line == start_line:
+            start_col = max(0, min(start_col, len(self.text(start_line))))
+            end_col = max(start_col + 1, min(end_col, len(self.text(start_line))))
+            if end_col <= start_col:
+                end_col = min(len(self.text(start_line)), start_col + 1)
+        if end_col < 0:
+            end_col = 1
+        slot = self._diagnostic_slot(color_hex)
+        byte_start = self._byte_offset(start_line, start_col)
+        byte_end = self._byte_offset(end_line, end_col)
+        if byte_start < 0 or byte_end <= byte_start:
+            return
+        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+        self.SendScintilla(
+            QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_end - byte_start
+        )
+
+    def _byte_offset(self, line: int, column: int) -> int:
+        """Return the UTF-8 byte offset of *column* on *line*.
+
+        Args:
+            line: 0-based line index.
+            column: 0-based column in characters.
+
+        Returns:
+            Document byte offset, or ``-1`` when the position is invalid.
+        """
+        line_start = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
+        if line_start == -1:
+            return -1
         line_text = self.text(line)
-        start_col = max(0, min(start_col, len(line_text)))
-        end_col = max(start_col, min(end_col, len(line_text)))
+        prefix = line_text[: max(0, min(column, len(line_text)))]
+        return line_start + len(prefix.encode("utf-8"))
 
-        # Dynamic indicator registration for colors
-        if color_hex not in self._diagnostic_indicators:
-            slot = self._next_diag_slot
-            self._diagnostic_indicators[color_hex] = slot
+    def set_diagnostic_ranges(self, ranges) -> None:
+        """Replace every diagnostic indicator with *ranges*.
 
-            # Rotate slot keys within the 8-15 allocation block
-            self._next_diag_slot = 8 + ((self._next_diag_slot - 7) % 8)
+        The call is idempotent: when the incoming ranges are identical to the
+        ones already painted, the editor is left untouched so a repeated
+        analysis never produces clear/redraw flicker. Colors are grouped so a
+        severity is configured once and every indicator of that severity is
+        filled in a single batched pass.
 
-            # Configure indicator format parameters (1 = INDIC_SQUIGGLE)
-            self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE, slot, 1)
-            self.SendScintilla(
-                QsciScintilla.SCI_INDICSETFORE, slot, self._scintilla_rgb(color_hex)
-            )
-        else:
-            slot = self._diagnostic_indicators[color_hex]
-
-        target_substring = line_text[start_col:end_col]
-        line_start_byte = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
-        if line_start_byte == -1:
-            return
-
-        for match in re.finditer(r"[^\s]+", target_substring):
-            match_start_char = start_col + match.start()
-            match_end_char = start_col + match.end()
-
-            byte_start = line_start_byte + len(
-                line_text[:match_start_char].encode("utf-8")
-            )
-            byte_len = len(line_text[match_start_char:match_end_char].encode("utf-8"))
-
-            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
-            self.SendScintilla(
-                QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_len
-            )
-
-    def clear_diagnostic_underlines(self) -> None:
+        Args:
+            ranges: Iterable of
+                ``(start_line0, start_col0, end_line0, end_col0, color_hex)``
+                tuples with 0-based coordinates.
         """
-        Instantly wipe out all diagnostic squiggle decorations across the
-        entire buffer.
+        try:
+            normalized = []
+            for item in ranges or []:
+                start_line, start_col, end_line, end_col, color_hex = item
+                normalized.append(
+                    (
+                        int(start_line),
+                        int(start_col),
+                        int(end_line),
+                        int(end_col),
+                        str(color_hex),
+                    )
+                )
+            normalized.sort(key=lambda entry: (entry[0], entry[1], entry[3], entry[4]))
+            if normalized == self._diagnostic_ranges:
+                return
+            self.clear_diagnostic_underlines()
+            self._diagnostic_ranges = normalized
+            grouped: dict = {}
+            for start_line, start_col, end_line, end_col, color_hex in normalized:
+                grouped.setdefault(color_hex, []).append(
+                    (start_line, start_col, end_line, end_col)
+                )
+            for color_hex, entries in grouped.items():
+                slot = self._diagnostic_slot(color_hex)
+                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+                for start_line, start_col, end_line, end_col in entries:
+                    byte_start = self._byte_offset(start_line, start_col)
+                    byte_end = self._byte_offset(end_line, end_col)
+                    if byte_start < 0 or byte_end <= byte_start:
+                        continue
+                    self.SendScintilla(
+                        QsciScintilla.SCI_INDICATORFILLRANGE,
+                        byte_start,
+                        byte_end - byte_start,
+                    )
+            self._diagnostic_labels = [
+                {
+                    "start_line": start_line,
+                    "start_col": start_col,
+                    "end_line": end_line,
+                    "end_col": end_col,
+                    "color": color_hex,
+                }
+                for start_line, start_col, end_line, end_col, color_hex in normalized
+            ]
+        except Exception as exc:
+            logger.debug("Painting diagnostic ranges failed: %s", exc)
+
+    def set_diagnostics(self, marks) -> None:
+        """Paint squiggle indicators for single-line *marks*.
+
+        Args:
+            marks: Iterable of ``(line0, start_col0, end_col0, color_hex)``
+                tuples with 0-based coordinates.
         """
+        ranges = []
+        for mark in marks or []:
+            try:
+                line0, start_col, end_col, color_hex = mark
+                ranges.append(
+                    (
+                        int(line0),
+                        int(start_col),
+                        int(line0),
+                        int(end_col),
+                        str(color_hex),
+                    )
+                )
+            except Exception:
+                continue
+        self.set_diagnostic_ranges(ranges)
+
+    def diagnostic_ranges(self) -> list:
+        """Return the diagnostic ranges currently painted.
+
+        Returns:
+            Copy of the last range list handed to :meth:`set_diagnostic_ranges`.
+        """
+        return [tuple(entry[:4]) for entry in self._diagnostic_ranges]
+
+    def set_diagnostic_labels(self, labels) -> None:
+        """Attach hover metadata (code/source/message) to painted ranges.
+
+        Args:
+            labels: Iterable of dicts with ``start_line``, ``start_col``,
+                ``end_line``, ``end_col`` and an optional ``text`` key.
+        """
+        self._diagnostic_labels = list(labels or [])
+
+    def diagnostic_label_at(self, line: int, column: int) -> str:
+        """Return hover text for diagnostics covering *line*/*column*.
+
+        Args:
+            line: 0-based line index.
+            column: 0-based column.
+
+        Returns:
+            Concatenated diagnostic descriptions, or an empty string.
+        """
+        messages = []
+        for label in self._diagnostic_labels:
+            start_line = int(label.get("start_line", 0))
+            start_col = int(label.get("start_col", 0))
+            end_line = int(label.get("end_line", start_line))
+            end_col = int(label.get("end_col", start_col))
+            after_start = (line, column) >= (start_line, start_col)
+            before_end = (line, column) <= (end_line, end_col)
+            if after_start and before_end:
+                text = str(label.get("text") or "").strip()
+                if text:
+                    messages.append(text)
+        return "\n\n".join(messages)
+
+    #: Indicator style that recolours the text itself (no underline drawn).
+    _INDIC_TEXTFORE = getattr(QsciScintilla, "INDIC_TEXTFORE", 17)
+
+    #: Reserved slot for de-emphasised (unused) code, above the diagnostics.
+    _DEEMPHASIS_SLOT = 12
+
+    #: Muted grey used for unused code, following the IDE theme.
+    _DEEMPHASIS_COLOR = "#8A8A8A"
+
+    def set_deemphasized_ranges(self, ranges) -> None:
+        """Render *ranges* in a muted colour instead of flagging them.
+
+        Used for diagnostics that are informational rather than wrong (unused
+        imports/variables): the words themselves are dimmed, so no squiggle is
+        drawn for them and the important diagnostics stay visually dominant.
+
+        The call is idempotent: identical input leaves the editor untouched.
+
+        Args:
+            ranges: Iterable of ``(start_line0, start_col0, end_line0,
+                end_col0)`` tuples with 0-based coordinates.
+        """
+        try:
+            normalized = []
+            for item in ranges or []:
+                start_line, start_col, end_line, end_col = item[:4]
+                normalized.append(
+                    (int(start_line), int(start_col), int(end_line), int(end_col))
+                )
+            normalized.sort()
+            if normalized == self._deemphasized_ranges:
+                return
+            self._clear_deemphasis()
+            self._deemphasized_ranges = normalized
+            if not normalized:
+                return
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETSTYLE,
+                self._DEEMPHASIS_SLOT,
+                self._INDIC_TEXTFORE,
+            )
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETFORE,
+                self._DEEMPHASIS_SLOT,
+                self._scintilla_rgb(self._DEEMPHASIS_COLOR),
+            )
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETALPHA, self._DEEMPHASIS_SLOT, 255
+            )
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETUNDER, self._DEEMPHASIS_SLOT, 0
+            )
+            self.SendScintilla(
+                QsciScintilla.SCI_SETINDICATORCURRENT, self._DEEMPHASIS_SLOT
+            )
+            for start_line, start_col, end_line, end_col in normalized:
+                byte_start = self._byte_offset(start_line, start_col)
+                byte_end = self._byte_offset(end_line, end_col)
+                if byte_start < 0 or byte_end <= byte_start:
+                    continue
+                self.SendScintilla(
+                    QsciScintilla.SCI_INDICATORFILLRANGE,
+                    byte_start,
+                    byte_end - byte_start,
+                )
+        except Exception as exc:
+            logger.debug("Painting de-emphasized ranges failed: %s", exc)
+
+    def deemphasized_ranges(self) -> list:
+        """Return the currently de-emphasized ranges.
+
+        Returns:
+            Copy of the last list handed to :meth:`set_deemphasized_ranges`.
+        """
+        return [tuple(entry) for entry in self._deemphasized_ranges]
+
+    def _clear_deemphasis(self) -> None:
+        """Remove every de-emphasized range from the buffer."""
+        self._deemphasized_ranges = []
         doc_length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
         if doc_length <= 0:
             return
+        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self._DEEMPHASIS_SLOT)
+        self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, doc_length)
 
-        for slot in range(8, 16):
+    def clear_diagnostics(self) -> None:
+        """Remove all painted diagnostic squiggles from this editor."""
+        try:
+            self.clear_diagnostic_underlines()
+            self._clear_deemphasis()
+            self._diagnostic_ranges = []
+            self._diagnostic_labels = []
+        except Exception:
+            pass
+
+    def clear_diagnostic_underlines(self) -> None:
+        """Wipe every diagnostic indicator from the whole buffer."""
+        doc_length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+        self._diagnostic_ranges = []
+        if doc_length <= 0:
+            return
+        for slot in set(self._SEVERITY_SLOTS.values()):
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
             self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, doc_length)
 

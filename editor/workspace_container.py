@@ -83,17 +83,69 @@ class WorkspaceContainer(QWidget):
 
         self._vertical_menus_api = VerticalMenusAPI(self)
         for panel_id, widget, manager, side, idx, width in [
-            ("solution_explorer", self._solution_explorer, self._left_utils_manager, "left", 0, 220),
-            ("source_control", self._source_control, self._left_utils_manager, "left", 0, 220),
-            ("file_outline", self._file_outline, self._left_utils_manager, "left", 0, 220),
-            ("properties", self._properties_explorer, self._right_utils_manager, "right", 2, 220),
-            ("todo_search", self._todo_search, self._right_utils_manager, "right", 2, 220),
-            ("server_explorer", self._server_explorer, self._right_utils_manager, "right", 2, 220),
-            ("notifications", self._notifications_panel, self._right_utils_manager, "right", 2, 220),
+            (
+                "solution_explorer",
+                self._solution_explorer,
+                self._left_utils_manager,
+                "left",
+                0,
+                220,
+            ),
+            (
+                "source_control",
+                self._source_control,
+                self._left_utils_manager,
+                "left",
+                0,
+                220,
+            ),
+            (
+                "file_outline",
+                self._file_outline,
+                self._left_utils_manager,
+                "left",
+                0,
+                220,
+            ),
+            (
+                "properties",
+                self._properties_explorer,
+                self._right_utils_manager,
+                "right",
+                2,
+                220,
+            ),
+            (
+                "todo_search",
+                self._todo_search,
+                self._right_utils_manager,
+                "right",
+                2,
+                220,
+            ),
+            (
+                "server_explorer",
+                self._server_explorer,
+                self._right_utils_manager,
+                "right",
+                2,
+                220,
+            ),
+            (
+                "notifications",
+                self._notifications_panel,
+                self._right_utils_manager,
+                "right",
+                2,
+                220,
+            ),
             ("ether_ai", self._ether_ai, self._right_utils_manager, "right", 2, 450),
         ]:
             self._vertical_menus_api.register_panel(
-                panel_id, widget, manager, side,
+                panel_id,
+                widget,
+                manager,
+                side,
                 splitter=self._top_horizontal_splitter,
                 splitter_index=idx,
                 default_width=width,
@@ -104,8 +156,38 @@ class WorkspaceContainer(QWidget):
                 lambda pid, api=self._vertical_menus_api: api.deactivate_panel(pid)
             )
 
+        try:
+            problems = self._lower_widget.problems_window
+            problems.track_tabs(self._text_editor_center.tabs)
+            problems.problemActivated.connect(self._goto_problem)
+        except Exception:
+            pass
+
         self._vertical_menus_api.activate_panel("solution_explorer")
         self._vertical_menus_api.activate_panel("properties")
+
+    def _goto_problem(self, problem) -> None:
+        """Jump to a diagnostic's file position (go-to-definition)."""
+        try:
+            path = getattr(problem, "file_path", "") or ""
+            if not path or not os.path.isfile(path):
+                return
+            tabs = self._text_editor_center.tabs
+            line = max(0, int(getattr(problem, "line", 1) or 1) - 1)
+            column = max(0, int(getattr(problem, "column", 1) or 1) - 1)
+            tabs.open_file_at_line(path, line)
+            editor = tabs.get_editor_for_path(path)
+            if editor is not None:
+                try:
+                    editor.setCursorPosition(line, column)
+                except Exception:
+                    pass
+                try:
+                    editor.ensureLineVisible(line)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def _on_splitter_moved(self, pos: int, index: int) -> None:
         """Cache widths ONLY when the user manually intervenes."""
