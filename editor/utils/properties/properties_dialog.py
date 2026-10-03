@@ -15,7 +15,7 @@ class PropertyGridDelegate(QStyledItemDelegate):
             return None
 
         item = index.model().data(index, Qt.ItemDataRole.UserRole)
-        is_multiline = item in ("details", "code_of_conduct", "license", "contributing")
+        is_multiline = item in ("details",)
 
         if is_multiline:
             editor = QTextEdit(parent)
@@ -104,10 +104,11 @@ class SolutionPropertiesGrid(QTreeWidget):
         self.item_copyright = self._add_prop(
             self.cat_legal, "Copyright Issue", "copyright"
         )
-        self.item_conduct = self._add_prop(
+        self.item_conduct = self._add_status(
             self.cat_legal, "Code of Conduct", "code_of_conduct"
         )
-        self.item_contrib = self._add_prop(
+        self.item_license = self._add_status(self.cat_legal, "License", "license")
+        self.item_contrib = self._add_status(
             self.cat_legal, "Contributors Info", "contributing"
         )
 
@@ -131,6 +132,20 @@ class SolutionPropertiesGrid(QTreeWidget):
         )
         return child
 
+    def _add_status(
+        self, parent: QTreeWidgetItem, label: str, internal_key: str
+    ) -> QTreeWidgetItem:
+        """Read-only presence row (Found / Not found), never edited/saved."""
+        child = QTreeWidgetItem(parent)
+        child.setText(0, label)
+        child.setText(1, "Not found")
+        child.setData(0, Qt.ItemDataRole.UserRole, internal_key)
+        child.setData(1, Qt.ItemDataRole.UserRole, internal_key)
+        child.setFlags(
+            (child.flags() & ~Qt.ItemFlag.ItemIsEditable) | Qt.ItemFlag.ItemIsSelectable
+        )
+        return child
+
     def load_grid_data(self, data: dict) -> None:
         """
         Populates the grid fields using incoming file property
@@ -140,8 +155,9 @@ class SolutionPropertiesGrid(QTreeWidget):
         self.item_authors.setText(1, data.get("authors", ""))
         self.item_details.setText(1, data.get("details", ""))
         self.item_copyright.setText(1, data.get("copyright", ""))
-        self.item_conduct.setText(1, data.get("code_of_conduct", ""))
-        self.item_contrib.setText(1, data.get("contributing", ""))
+        self.item_conduct.setText(1, data.get("code_of_conduct", "Not found"))
+        self.item_license.setText(1, data.get("license", "Not found"))
+        self.item_contrib.setText(1, data.get("contributing", "Not found"))
 
         # Force tooltips to easily preview long values
         for item in (
@@ -150,6 +166,7 @@ class SolutionPropertiesGrid(QTreeWidget):
             self.item_details,
             self.item_copyright,
             self.item_conduct,
+            self.item_license,
             self.item_contrib,
         ):
             val = item.text(1)
@@ -165,8 +182,6 @@ class SolutionPropertiesGrid(QTreeWidget):
             "authors": self.item_authors.text(1),
             "details": self.item_details.text(1),
             "copyright": self.item_copyright.text(1),
-            "code_of_conduct": self.item_conduct.text(1),
-            "contributing": self.item_contrib.text(1),
         }
 
 
@@ -221,7 +236,6 @@ class FilePropertiesGrid(QTreeWidget):
 
         self.item_lines = self._add_prop(self.cat_metrics, "Total Lines")
         self.item_cursor = self._add_prop(self.cat_metrics, "Cursor Position")
-        self.item_symbol = self._add_prop(self.cat_metrics, "Active Token")
 
         for cat in (self.cat_file, self.cat_config, self.cat_metrics):
             cat.setFlags(cat.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -239,6 +253,16 @@ class FilePropertiesGrid(QTreeWidget):
         child.setFlags(child.flags() & ~Qt.ItemFlag.ItemIsEditable)
         return child
 
+    #: Display name -> language-registry id for the Language preview combo.
+    DISPLAY_TO_LANG = {
+        "Bash": "bash",
+        "C": "clang",
+        "C++": "clang",
+        "D": "d",
+        "Python": "python",
+        "PowerShell": "powershell",
+    }
+
     def _create_interactive_widgets(self) -> None:
         """Instantiates and links VS-styled inline editor widgets into column 1."""
         combo_style = (
@@ -250,13 +274,18 @@ class FilePropertiesGrid(QTreeWidget):
         )
 
         self.combo_lang = QComboBox()
-        self.combo_lang.addItems(["Bash", "C", "C++", "D", "Python", "PowerShell"])
+        self.combo_lang.addItems(
+            ["--", "Bash", "C", "C++", "D", "Python", "PowerShell"]
+        )
         self.combo_lang.setStyleSheet(combo_style)
         self.setItemWidget(self.item_lang, 1, self.combo_lang)
+        self._last_valid_lang = self.combo_lang.currentText()
+        self.combo_lang.currentTextChanged.connect(self._on_language_selected)
 
         self.combo_ext = QComboBox()
         self.combo_ext.addItems(
             [
+                "--",
                 ".bash",
                 ".sh",
                 ".c",
@@ -272,12 +301,14 @@ class FilePropertiesGrid(QTreeWidget):
         )
         self.combo_ext.setStyleSheet(combo_style)
         self.setItemWidget(self.item_ext, 1, self.combo_ext)
+        self.combo_ext.currentTextChanged.connect(self._on_extension_selected)
 
         # 3. Editable Policy Switcher
         self.combo_editable = QComboBox()
         self.combo_editable.addItems(["True", "False"])
         self.combo_editable.setStyleSheet(combo_style)
         self.setItemWidget(self.item_editable, 1, self.combo_editable)
+        self.combo_editable.currentTextChanged.connect(self._on_editable_selected)
 
     def set_active_editor(self, editor: CodeEditor | None) -> None:
         """
@@ -285,21 +316,24 @@ class FilePropertiesGrid(QTreeWidget):
         instance.
         """
         if self._active_editor:
-            try:
-                self._active_editor.cursorPositionChanged.disconnect(
-                    self.refresh_editor_metrics
-                )
-                self._active_editor.textChanged.disconnect(self.refresh_editor_metrics)
-            except Exception:
-                pass
+            for signal_name in ("cursorPositionChanged", "textChanged"):
+                try:
+                    signal = getattr(self._active_editor, signal_name, None)
+                    if signal is not None and hasattr(signal, "disconnect"):
+                        signal.disconnect(self.refresh_editor_metrics)
+                except Exception:
+                    pass
 
         self._active_editor = editor
 
         if self._active_editor:
-            self._active_editor.cursorPositionChanged.connect(
-                self.refresh_editor_metrics
-            )
-            self._active_editor.textChanged.connect(self.refresh_editor_metrics)
+            for signal_name in ("cursorPositionChanged", "textChanged"):
+                try:
+                    signal = getattr(self._active_editor, signal_name, None)
+                    if signal is not None and hasattr(signal, "connect"):
+                        signal.connect(self.refresh_editor_metrics)
+                except Exception:
+                    pass
             self.refresh_static_file_info()
             self.refresh_editor_metrics()
         else:
@@ -320,6 +354,15 @@ class FilePropertiesGrid(QTreeWidget):
             self.item_size.setText(1, "0 KB")
             self.item_created.setText(1, "--")
             self.item_timestamp.setText(1, "--")
+            for combo in (self.combo_lang, self.combo_ext):
+                try:
+                    combo.blockSignals(True)
+                    combo.setCurrentIndex(0)
+                finally:
+                    try:
+                        combo.blockSignals(False)
+                    except Exception:
+                        pass
             return
 
         info = QFileInfo(file_path)
@@ -337,10 +380,16 @@ class FilePropertiesGrid(QTreeWidget):
         self.item_created.setText(1, birth.toString(fmt))
         self.item_timestamp.setText(1, info.lastModified().toString(fmt))
 
-        ext = f".{info.suffix().lower()}"
-        idx_ext = self.combo_ext.findText(ext)
-        if idx_ext != -1:
-            self.combo_ext.setCurrentIndex(idx_ext)
+        try:
+            self.combo_ext.blockSignals(True)
+            ext = f".{info.suffix().lower()}"
+            idx_ext = self.combo_ext.findText(ext)
+            self.combo_ext.setCurrentIndex(idx_ext if idx_ext != -1 else 0)
+        finally:
+            try:
+                self.combo_ext.blockSignals(False)
+            except Exception:
+                pass
 
         lang_map = {
             ".py": "Python",
@@ -354,10 +403,32 @@ class FilePropertiesGrid(QTreeWidget):
             ".d": "D",
             ".ps1": "PowerShell",
         }
-        target_lang = lang_map.get(ext, "")
-        idx_lang = self.combo_lang.findText(target_lang)
-        if idx_lang != -1:
-            self.combo_lang.setCurrentIndex(idx_lang)
+        try:
+            self.combo_lang.blockSignals(True)
+            target_lang = lang_map.get(ext, "")
+            idx_lang = self.combo_lang.findText(target_lang) if target_lang else -1
+            self.combo_lang.setCurrentIndex(idx_lang if idx_lang != -1 else 0)
+            self._last_valid_lang = self.combo_lang.currentText()
+        finally:
+            try:
+                self.combo_lang.blockSignals(False)
+            except Exception:
+                pass
+
+        try:
+            self.combo_editable.blockSignals(True)
+            editable = True
+            try:
+                if hasattr(self._active_editor, "isReadOnly"):
+                    editable = not bool(self._active_editor.isReadOnly())
+            except Exception:
+                editable = True
+            self.combo_editable.setCurrentIndex(0 if editable else 1)
+        finally:
+            try:
+                self.combo_editable.blockSignals(False)
+            except Exception:
+                pass
 
         for item in (
             self.item_name,
@@ -368,7 +439,7 @@ class FilePropertiesGrid(QTreeWidget):
             item.setToolTip(1, item.text(1))
 
     def refresh_editor_metrics(self, *args) -> None:
-        """Evaluates cursor offsets and token strings under operational views."""
+        """Show live line count and cursor position for the active editor."""
         if not self._active_editor:
             return
 
@@ -383,10 +454,198 @@ class FilePropertiesGrid(QTreeWidget):
             line, col = self._active_editor.getCursorPosition()
         self.item_cursor.setText(1, f"Ln {line + 1}, Col {col + 1}")
 
-        token = ""
-        if hasattr(self._active_editor, "wordAtLineAndColumn"):
-            token = self._active_editor.wordAtLineAndColumn(line, col) or ""
-        self.item_symbol.setText(1, f"'{token}'" if token else "None")
+    def _on_language_selected(self, language: str) -> None:
+        """Preview highlighting temporarily; reopening restores the default.
+
+        Display names are mapped to registry ids; unregistered languages
+        leave the current lexer untouched so highlighting never breaks.
+        """
+        if not language or language == "--":
+            return
+        editor = self._active_editor
+        if editor is None:
+            return
+        lang_id = self.DISPLAY_TO_LANG.get(language, "")
+        if not lang_id:
+            return
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            if not LanguageRegistry.is_registered(lang_id):
+                self._revert_language_combo()
+                return
+        except Exception:
+            pass
+        try:
+            if hasattr(editor, "apply_visual_language"):
+                editor.apply_visual_language(lang_id)
+            elif hasattr(editor, "setLanguage"):
+                editor.setLanguage(lang_id)
+            self._last_valid_lang = language
+        except Exception:
+            pass
+
+    def _revert_language_combo(self) -> None:
+        """Restore the combo to the last working language selection."""
+        try:
+            self.combo_lang.blockSignals(True)
+            previous = getattr(self, "_last_valid_lang", "--")
+            idx = self.combo_lang.findText(previous)
+            self.combo_lang.setCurrentIndex(idx if idx != -1 else 0)
+        finally:
+            try:
+                self.combo_lang.blockSignals(False)
+            except Exception:
+                pass
+
+    def _on_extension_selected(self, extension: str) -> None:
+        """Rename the file on disk and refresh its configs/highlighting."""
+        if not extension or extension == "--":
+            return
+        editor = self._active_editor
+        if editor is None:
+            return
+        current = getattr(editor, "current_file_path", None) or ""
+        if not current or not os.path.isfile(current):
+            return
+        root, _old_ext = os.path.splitext(current)
+        target = root + extension
+        if os.path.abspath(target) == os.path.abspath(current):
+            return
+        if os.path.exists(target):
+            try:
+                self.combo_ext.blockSignals(True)
+                current_ext = f".{QFileInfo(current).suffix().lower()}"
+                idx = self.combo_ext.findText(current_ext)
+                if idx != -1:
+                    self.combo_ext.setCurrentIndex(idx)
+            finally:
+                try:
+                    self.combo_ext.blockSignals(False)
+                except Exception:
+                    pass
+            return
+        try:
+            os.rename(current, target)
+        except OSError:
+            return
+        try:
+            editor.current_file_path = target
+        except Exception:
+            pass
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            new_lang = LanguageRegistry.get_language_by_extension(extension)
+        except Exception:
+            new_lang = None
+        try:
+            if hasattr(editor, "setLanguage"):
+                editor.setLanguage(new_lang or "")
+            try:
+                editor.retheme(
+                    getattr(editor, "_theme_name", None) or editor._active_theme()
+                )
+            except Exception:
+                pass
+        except Exception:
+            pass
+        try:
+            self._sync_renamed_tab(current, target)
+        except Exception:
+            pass
+        try:
+            self.refresh_static_file_info()
+            self.refresh_editor_metrics()
+        except Exception:
+            pass
+
+    def _sync_renamed_tab(self, old_path: str, new_path: str) -> None:
+        """Point the open tab at the renamed file (title, key, index)."""
+        try:
+            top = self.window()
+            hero = getattr(top, "hero_window", None)
+            center = getattr(hero, "_text_editor_center", None)
+            tabs = getattr(center, "tabs", None)
+            if tabs is None:
+                return
+            try:
+                from editor.Ironica.tab_editor import DreamTabbedEditor
+            except Exception:
+                DreamTabbedEditor = None  # type: ignore
+            old_key = None
+            new_key = None
+            if DreamTabbedEditor is not None and hasattr(
+                DreamTabbedEditor, "resolve_key"
+            ):
+                try:
+                    old_key = DreamTabbedEditor.resolve_key(old_path)
+                    new_key = DreamTabbedEditor.resolve_key(new_path)
+                except Exception:
+                    pass
+            for index in range(tabs.count()):
+                try:
+                    widget = tabs.widget(index)
+                except Exception:
+                    continue
+                try:
+                    from editor.Ironica.utils.minimap import ensure_inner
+
+                    inner = ensure_inner(widget) or widget
+                except Exception:
+                    inner = widget
+                if inner is not self._active_editor:
+                    continue
+                try:
+                    if old_key and new_key and hasattr(tabs, "opened_files"):
+                        mapping = getattr(tabs, "opened_files", None)
+                        if isinstance(mapping, dict):
+                            mapping.pop(old_key, None)
+                            mapping[new_key] = index
+                    try:
+                        widget.file_key = new_key or getattr(widget, "file_key", None)
+                    except Exception:
+                        pass
+                    tabs.setTabText(index, os.path.basename(new_path))
+                except Exception:
+                    pass
+                return
+        except Exception:
+            pass
+
+    def _on_editable_selected(self, value: str) -> None:
+        """Toggle read-only via the existing options-bar editor API."""
+        editor = self._active_editor
+        if editor is None:
+            return
+        try:
+            currently_editable = True
+            if hasattr(editor, "isReadOnly"):
+                currently_editable = not bool(editor.isReadOnly())
+        except Exception:
+            currently_editable = True
+        want_editable = str(value) == "True"
+        if want_editable == currently_editable:
+            return
+        try:
+            top = self.window()
+            tabs = None
+            try:
+                hero = getattr(top, "hero_window", None)
+                center = getattr(hero, "_text_editor_center", None)
+                tabs = getattr(center, "tabs", None)
+            except Exception:
+                tabs = None
+            if tabs is not None and hasattr(tabs, "_make_file_readonly"):
+                tabs._make_file_readonly()
+            elif hasattr(editor, "make_file_readonly"):
+                editor.make_file_readonly()
+        except Exception:
+            pass
+        try:
+            self.refresh_static_file_info()
+        except Exception:
+            pass
 
     def clear_grid(self) -> None:
         """
@@ -400,7 +659,6 @@ class FilePropertiesGrid(QTreeWidget):
             self.item_timestamp,
             self.item_lines,
             self.item_cursor,
-            self.item_symbol,
         ):
             item.setText(1, "--")
             item.setToolTip(1, "")

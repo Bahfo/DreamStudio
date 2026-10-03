@@ -259,7 +259,7 @@ class ProblemsWidget(QWidget):
     def _visible_problems(self) -> List[Problem]:
         """Return problems honoring the active severity filter."""
         active = getattr(self, "_active_filter", None)
-        if not active:
+        if active is None:
             return list(self._problems)
         return [p for p in self._problems if p.severity in active]
 

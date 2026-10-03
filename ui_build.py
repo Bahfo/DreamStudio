@@ -119,7 +119,49 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         root = self.currentDirectory
         if not root or not os.path.isdir(root):
             return
-        self.hero_window._source_control.set_workspace(root)
+        try:
+            self.hero_window._source_control.set_workspace(root)
+        except Exception:
+            pass
+        try:
+            self.hero_window._solution_explorer.set_workspace(root)
+        except Exception:
+            pass
+        try:
+            term = getattr(
+                getattr(self.hero_window, "_lower_widget", None),
+                "terminal_window",
+                None,
+            )
+            if term is not None and hasattr(term, "set_workspace"):
+                term.set_workspace(root)
+        except Exception:
+            pass
+        try:
+            if getattr(self, "status_bar", None) is not None and hasattr(
+                self.status_bar, "set_workspace"
+            ):
+                self.status_bar.set_workspace(root)
+        except Exception:
+            pass
+        try:
+            if getattr(self, "title_bar", None) is not None:
+                self.title_bar.directory = root
+        except Exception:
+            pass
+        try:
+            hero = self.hero_window
+            text_center = getattr(hero, "_text_editor_center", None)
+            if text_center is not None:
+                text_center.currentDirectory = root
+                tabs = getattr(text_center, "tabs", None)
+                if tabs is not None:
+                    tabs.currentDirectory = root
+            todo = getattr(hero, "_todo_search", None)
+            if todo is not None and hasattr(todo, "set_base_dir"):
+                todo.set_base_dir(root)
+        except Exception:
+            pass
 
     def _wire_explorer_double_click(self) -> None:
         explorer = self.hero_window._solution_explorer
