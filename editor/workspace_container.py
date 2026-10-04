@@ -167,7 +167,12 @@ class WorkspaceContainer(QWidget):
         self._vertical_menus_api.activate_panel("properties")
 
     def _goto_problem(self, problem) -> None:
-        """Jump to a diagnostic's file position (go-to-definition)."""
+        """Jump to a diagnostic's file position (go-to-definition).
+
+        Once the editor is on the diagnostic's line the message bubble is
+        shown under the underlined token, mirroring the Problems view row the
+        user just clicked.
+        """
         try:
             path = getattr(problem, "file_path", "") or ""
             if not path or not os.path.isfile(path):
@@ -177,15 +182,60 @@ class WorkspaceContainer(QWidget):
             column = max(0, int(getattr(problem, "column", 1) or 1) - 1)
             tabs.open_file_at_line(path, line)
             editor = tabs.get_editor_for_path(path)
-            if editor is not None:
-                try:
-                    editor.setCursorPosition(line, column)
-                except Exception:
-                    pass
-                try:
-                    editor.ensureLineVisible(line)
-                except Exception:
-                    pass
+            if editor is None:
+                return
+            try:
+                editor.setCursorPosition(line, column)
+            except Exception:
+                pass
+            try:
+                editor.ensureLineVisible(line)
+            except Exception:
+                pass
+            self._show_problem_message(editor, problem)
+        except Exception:
+            pass
+
+    def _show_problem_message(self, editor, problem) -> None:
+        """Pop the diagnostic's message under its token inside *editor*."""
+        try:
+            show = getattr(editor, "show_error_message", None)
+            if show is None:
+                return
+            range_0based = getattr(problem, "range_0based", None)
+            if range_0based:
+                start_line, start_col, end_line, end_col = range_0based
+            else:
+                start_line = max(0, int(getattr(problem, "line", 1) or 1) - 1)
+                start_col = max(0, int(getattr(problem, "column", 1) or 1) - 1)
+                end_line = start_line
+                end_col = start_col + 1
+
+            severity = getattr(problem, "severity", None)
+            severity = getattr(severity, "value", severity) or "error"
+            code = getattr(problem, "code", None)
+            source = getattr(problem, "source", "")
+            message = getattr(problem, "message", "") or ""
+
+            parts = []
+            if code:
+                parts.append(str(code))
+            parts.append(message)
+            if source:
+                parts.append(f"Source: {source}")
+            text = " | ".join(part for part in parts if part)
+
+            show(
+                start_line,
+                start_col,
+                end_line,
+                end_col,
+                f"{text}",
+            )
+            # Colour the bubble like the severity in the Problems view.
+            popup = getattr(editor, "_error_message", None)
+            if popup is not None:
+                popup.set_severity(severity)
         except Exception:
             pass
 

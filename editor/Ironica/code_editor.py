@@ -679,8 +679,9 @@ class CodeEditor(QsciScintilla):
             self._hover_flyout.dismiss(force=force)
 
     def _dismiss_all_popups(self, force: bool = False) -> None:
-        """Dismiss every open sub-menu (hover flyout + ELF popup)."""
+        """Dismiss every open sub-menu (hover flyout + ELF + error popup)."""
         self._dismiss_hover_flyout(force=force)
+        self.hide_error_message()
         try:
             pop = getattr(self, "_elf_popup", None)
             if pop is not None and pop.isVisible():
@@ -1162,6 +1163,9 @@ class CodeEditor(QsciScintilla):
         self.position_changed.emit(line, col)
 
     def resizeEvent(self, event) -> None:
+        # The error-message bubble is anchored to token pixels, so a resize
+        # invalidates its position.
+        self.hide_error_message()
         super().resizeEvent(event)
         self._update_debug_stack_position()
         try:
@@ -1301,6 +1305,8 @@ class CodeEditor(QsciScintilla):
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         """Intercept key events for goto definition and enhanced enter/return behaviour."""
+        # The error-message bubble is tooltip-like: any keystroke dismisses it.
+        self.hide_error_message()
         # Strict binary read-only guard — block all mutating keys
         if getattr(self, "_binary_mode", False):
             # Allow navigation and copy/select, block everything else
@@ -1409,6 +1415,8 @@ class CodeEditor(QsciScintilla):
 
     def mousePressEvent(self, e: QKeyEvent) -> None:
         """Intercept Ctrl+Click for go-to-definition navigation."""
+        # Clicking inside the editor dismisses the error-message bubble.
+        self.hide_error_message()
         if (
             e.button() == Qt.MouseButton.LeftButton
             and e.modifiers() == Qt.KeyboardModifier.ControlModifier
@@ -3052,12 +3060,179 @@ class CodeEditor(QsciScintilla):
     def clear_diagnostics(self) -> None:
         """Remove all painted diagnostic squiggles from this editor."""
         try:
+            self.hide_error_message()
             self.clear_diagnostic_underlines()
             self._clear_deemphasis()
             self._diagnostic_ranges = []
             self._diagnostic_labels = []
         except Exception:
             pass
+
+    # ------------------------------------------------------------------
+    # Error message popup (attached to the editor, anchored to a token)
+    # ------------------------------------------------------------------
+
+    def show_error_message(
+        self,
+        line: int,
+        column: int,
+        end_line: int = None,
+        end_column: int = None,
+        text: str = None,
+    ) -> bool:
+        """Show a :class:`QErrorMessage` bubble under the given token.
+
+        The bubble is a child of this editor and is positioned from the
+        diagnostic range itself, so it never follows the mouse. It behaves
+        like a tooltip otherwise: no focus is taken, and typing, clicking,
+        scrolling or switching tabs dismisses it.
+
+        Args:
+            line: 0-based line of the diagnostic.
+            column: 0-based column where the diagnostic starts.
+            end_line: 0-based last line of the range (defaults to *line*).
+            end_column: 0-based last column of the range (defaults to
+                *column* + 1).
+            text: Message to display. Defaults to the hover metadata painted
+                for this range by :meth:`set_diagnostic_labels`.
+
+        Returns:
+            ``True`` when the bubble was shown, ``False`` otherwise.
+        """
+        try:
+            self.hide_error_message()
+            line = max(0, int(line))
+            column = max(0, int(column))
+            end_line = line if end_line is None else max(line, int(end_line))
+            end_column = (
+                column + 1 if end_column is None else max(column + 1, int(end_column))
+            )
+            message = str(text) if text else self.diagnostic_label_at(line, column)
+            if not message.strip():
+                return False
+            if line >= self.lines():
+                return False
+
+            popup = self._error_popup_widget()
+            popup.set_message(message)
+            popup.adjustSize()
+
+            line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT) or (
+                self.fontMetrics().lineSpacing()
+            )
+            first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+            start_y = (line - first_visible) * line_height
+            end_y = (end_line - first_visible) * line_height
+            start_x = self._token_pixel_x(
+                self.positionFromLineIndex(line, column), start_y
+            )
+
+            margin = 4
+            available_width = max(240, self.width() - 2 * margin)
+            available_height = max(80, self.height() - 2 * margin)
+            # Relax the authored minimums only when the editor is too small
+            # for them, so the bubble always fits inside its parent.
+            if available_width < popup.minimumWidth():
+                popup.setMinimumWidth(available_width)
+            if available_height < popup.minimumHeight():
+                popup.setMinimumHeight(available_height)
+            width = min(
+                max(int(popup.sizeHint().width()), int(popup.minimumWidth())),
+                available_width,
+            )
+            height = min(
+                max(int(popup.sizeHint().height()), int(popup.minimumHeight())),
+                available_height,
+            )
+
+            # The bubble is anchored to the token, so refuse to draw it when
+            # the token is scrolled out of the viewport. A partially visible
+            # last line still qualifies: the bubble simply flips upwards.
+            if start_y < 0 or start_y >= self.height():
+                return False
+
+            # Keep the bubble inside the editor and pin its arrow to the
+            # token, so the bubble never drifts with the mouse.
+            arrow_inset = int(popup.BORDER_RADIUS) + 6
+            left = min(
+                max(margin, start_x - arrow_inset),
+                max(margin, self.width() - width - margin),
+            )
+            gap = 2
+            top = end_y + line_height + gap
+            arrow_up = top + height > self.height() - margin
+            if arrow_up:
+                # No room underneath (e.g. the last line of the file): open
+                # above the token and point the arrow up.
+                top = start_y - height - gap
+            top = min(max(top, margin), max(margin, self.height() - height - margin))
+
+            popup.set_arrow_up(arrow_up)
+            popup.set_arrow_x_position(start_x - left)
+            popup.setGeometry(left, top, width, height)
+            popup._anchor = (line, column, end_line, end_column)
+            popup.show()
+            popup.raise_()
+            return True
+        except Exception:
+            return False
+
+    def _token_pixel_x(self, position: int, y: int) -> int:
+        """Return the left pixel of *position* on the screen line at *y*.
+
+        ``SCI_POINTXFROMPOSITION`` is unusable in this QScintilla binding (it
+        always reports the caret column), so the exact edge is resolved with a
+        binary search over ``SCI_POSITIONFROMPOINT``, which honours the left
+        margin, indentation and tabs.
+        """
+        low, high = 0, max(1, self.width())
+        while low < high:
+            middle = (low + high) // 2
+            probed = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, middle, y)
+            if probed != -1 and probed >= position:
+                high = middle
+            else:
+                low = middle + 1
+        return low
+
+    def hide_error_message(self) -> None:
+        """Hide the error-message bubble if one is open."""
+        try:
+            popup = getattr(self, "_error_message", None)
+            if popup is not None and popup.isVisible():
+                popup.hide()
+        except Exception:
+            pass
+
+    def error_message_visible(self) -> bool:
+        """Return ``True`` while the error-message bubble is on screen."""
+        try:
+            popup = getattr(self, "_error_message", None)
+            return bool(popup is not None and popup.isVisible())
+        except Exception:
+            return False
+
+    def error_message_text(self) -> str:
+        """Return the text currently shown in the error-message bubble."""
+        popup = getattr(self, "_error_message", None)
+        return getattr(popup, "message", "") if popup is not None else ""
+
+    def _error_popup_widget(self):
+        """Return (creating on first use) the editor's error-message bubble."""
+        popup = getattr(self, "_error_message", None)
+        if popup is not None:
+            return popup
+        from editor.widgets.QErrorMessage import QErrorMessage
+
+        popup = QErrorMessage("", self)
+        # Tooltip behaviour: never take focus, never enter the editor's
+        # focus chain, and never steal the input method.
+        popup.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        popup.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        popup.setToolTip("")
+        popup.hide()
+        self._error_message = popup
+        return popup
 
     def clear_diagnostic_underlines(self) -> None:
         """Wipe every diagnostic indicator from the whole buffer."""
