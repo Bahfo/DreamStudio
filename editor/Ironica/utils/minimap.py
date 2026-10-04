@@ -33,6 +33,7 @@ preventing editor crashes on massive files.
 from __future__ import annotations
 
 from editor import *
+from editor.Ironica.utils.diagnostics_ruler import DiagnosticsRuler
 
 logger = logging.getLogger(__name__)
 
@@ -467,6 +468,7 @@ class MiniMapHostWidget(QWidget):
 
     - ``editor`` — the underlying ``CodeEditor`` instance.
     - ``minimap`` — the ``VirtualMinimap`` instance.
+    - ``ruler`` — the ``DiagnosticsRuler`` overview ruler instance.
     - ``set_minimap_visible(visible)`` — toggle minimap visibility.
     - ``toggle_minimap()`` — flip minimap visibility.
     """
@@ -497,6 +499,11 @@ class MiniMapHostWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._editor, 1)
+
+        # Diagnostic overview ruler (VS Code style). It lives outside the
+        # minimap panel so it stays visible while the minimap is collapsed.
+        self._ruler = DiagnosticsRuler(self._editor, self)
+        layout.addWidget(self._ruler, 0)
 
         # ── Minimap container (vertical: up btn + minimap + down btn) ──
         self._minimap_container = QWidget(self)
@@ -553,12 +560,39 @@ class MiniMapHostWidget(QWidget):
         self._editor.textChanged.connect(self._minimap._on_source_text_changed)
         self._editor.cursorPositionChanged.connect(self._minimap._on_source_scroll)
 
+        # Diagnostic ticks and hover reporting between editor and ruler.
+        ticks_signal = getattr(self._editor, "diagnostic_ticks_changed", None)
+        if ticks_signal is not None:
+            ticks_signal.connect(self._ruler.set_ticks)
+        self._ruler.line_hovered.connect(self._on_ruler_line_hovered)
+
         self._minimap.update()
+
+    def _on_ruler_line_hovered(self, line: int) -> None:
+        """Forward a ruler hover to the editor as a highlight or a clear.
+
+        Args:
+            line: 0-based hovered line, or ``-1`` when the pointer left.
+        """
+        setter = getattr(self._editor, "set_hover_line", None)
+        if setter is None:
+            return
+        if line < 0:
+            clearer = getattr(self._editor, "clear_hover_line", None)
+            if clearer is not None:
+                clearer()
+            return
+        setter(line)
 
     @property
     def editor(self):
         """Return the underlying ``CodeEditor``."""
         return self._editor
+
+    @property
+    def ruler(self) -> DiagnosticsRuler:
+        """Return the ``DiagnosticsRuler`` instance."""
+        return self._ruler
 
     @property
     def minimap(self) -> VirtualMinimap:
@@ -634,11 +668,11 @@ def ensure_inner(widget):
     try:
         from editor.Ironica.utils.minimap import MiniMapHostWidget
     except Exception:
-        MiniMapHostWidget=None
+        MiniMapHostWidget = None
     if MiniMapHostWidget is not None and isinstance(widget, MiniMapHostWidget):
         return widget.editor
     for attr in ("editor", "code_editor", "text_edit"):
-        inner=getattr(widget, attr, None)
+        inner = getattr(widget, attr, None)
         if inner is not None and hasattr(inner, "isModified"):
             return inner
     if hasattr(widget, "isModified"):

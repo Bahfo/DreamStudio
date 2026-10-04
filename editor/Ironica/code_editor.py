@@ -68,6 +68,7 @@ class CodeEditor(QsciScintilla):
     dirty_state_changed = pyqtSignal(bool)
     analysis_started = pyqtSignal()
     analysis_finished = pyqtSignal()
+    diagnostic_ticks_changed = pyqtSignal(list)
 
     _INDENTATION_SPACING = 4
 
@@ -130,6 +131,14 @@ class CodeEditor(QsciScintilla):
         self._diagnostic_labels: list = []
         self._deemphasized_ranges: list = []
         self._configured_diagnostic_slots: dict = {}
+        # Per-editor copy: an unknown severity colour allocates its slot here
+        # instead of mutating the class-level mapping shared by every editor.
+        self._severity_slots: dict = dict(self._SEVERITY_SLOTS)
+
+        # Overview-ruler ticks
+        self._diagnostic_ticks: list = []
+        self._hover_band = None
+        self._hover_line: int = -1
 
         ###############################################
         # Right-click menu
@@ -2721,13 +2730,20 @@ class CodeEditor(QsciScintilla):
     _INDIC_SQUIGGLE_LOW = 2
 
     #: Severity colour -> indicator slot. Slots 8-15 are reserved for
-    #: diagnostics so they never collide with folding/parser indicators.
+    #: diagnostics so they never collide with folding/parser indicators, and
+    #: every severity colour is listed so none has to be allocated on the fly
+    #: into a slot another indicator may already own.
     _SEVERITY_SLOTS = {
         "#F14C4C": 8,  # error  — red
         "#FCC700": 9,  # warning — amber
-        "#3794FF": 10,  # typo   — blue
-        "#4EC9B0": 11,  # info   — teal
+        "#C586C0": 10,  # check  — violet
+        "#3794FF": 11,  # typo   — blue
+        "#4EC9B0": 12,  # info   — teal
     }
+
+    #: Slots inside the diagnostic range that stay out of severity colours:
+    #: one holds the de-emphasis dimming, the rest absorb future colours.
+    _DIAGNOSTIC_SLOT_RANGE = range(8, 16)
 
     def _diagnostic_slot(self, color_hex: str) -> int:
         """Return the indicator slot for *color_hex*, configured as a squiggle.
@@ -2742,13 +2758,13 @@ class CodeEditor(QsciScintilla):
         Returns:
             Scintilla indicator slot number reserved for diagnostics.
         """
-        slot = self._SEVERITY_SLOTS.get(color_hex)
+        slots = self._severity_slots
+        slot = slots.get(color_hex)
         if slot is None:
-            used = set(self._SEVERITY_SLOTS.values())
-            slot = next(
-                (candidate for candidate in range(8, 16) if candidate not in used), 15
-            )
-            self._SEVERITY_SLOTS[color_hex] = slot
+            used = set(slots.values()) | set(self._RESERVED_INDIC_SLOTS)
+            free = [c for c in self._DIAGNOSTIC_SLOT_RANGE if c not in used]
+            slot = free[0] if free else self._DIAGNOSTIC_SLOT_RANGE[-1]
+            slots[color_hex] = slot
         if self._configured_diagnostic_slots.get(slot) != color_hex:
             self._configure_diagnostic_slot(slot, color_hex)
         return slot
@@ -2778,7 +2794,12 @@ class CodeEditor(QsciScintilla):
         self._configured_diagnostic_slots[slot] = color_hex
 
     def add_diagnostic_underline(
-        self, line: int, start_col: int, end_col: int, color_hex: str = "#F14C4C"
+        self,
+        line: int,
+        start_col: int,
+        end_col: int,
+        color_hex: str = "#F14C4C",
+        severity=None,
     ) -> None:
         """Underline the exact range on *line* with a diagnostic squiggle.
 
@@ -2787,8 +2808,9 @@ class CodeEditor(QsciScintilla):
             start_col: 0-based start column.
             end_col: 0-based end column (exclusive).
             color_hex: Severity colour.
+            severity: Optional ``ProblemSeverity`` for the overview ruler.
         """
-        self.add_diagnostic_range(line, start_col, line, end_col, color_hex)
+        self.add_diagnostic_range(line, start_col, line, end_col, color_hex, severity)
 
     def add_diagnostic_range(
         self,
@@ -2797,6 +2819,7 @@ class CodeEditor(QsciScintilla):
         end_line: int,
         end_col: int,
         color_hex: str = "#F14C4C",
+        severity=None,
     ) -> None:
         """Underline an exact (possibly multi-line) range with a squiggle.
 
@@ -2806,6 +2829,7 @@ class CodeEditor(QsciScintilla):
             end_line: 0-based last line.
             end_col: 0-based last column.
             color_hex: Severity colour.
+            severity: Optional ``ProblemSeverity`` for the overview ruler.
         """
         if start_line < 0 or start_line >= self.lines():
             return
@@ -2825,6 +2849,13 @@ class CodeEditor(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
         self.SendScintilla(
             QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_end - byte_start
+        )
+        # One-off ranges never touch ``_diagnostic_ranges``, so the tick has to
+        # be appended here for the overview ruler to see it. A new list is
+        # passed on purpose: mutating the stored one would make the
+        # change-detection inside ``_set_diagnostic_ticks`` compare equal.
+        self._set_diagnostic_ticks(
+            list(self._diagnostic_ticks) + [(int(start_line), str(color_hex), severity)]
         )
 
     def _byte_offset(self, line: int, column: int) -> int:
@@ -2856,12 +2887,15 @@ class CodeEditor(QsciScintilla):
         Args:
             ranges: Iterable of
                 ``(start_line0, start_col0, end_line0, end_col0, color_hex)``
-                tuples with 0-based coordinates.
+                tuples with 0-based coordinates. An optional sixth element
+                carries the ``ProblemSeverity`` so the overview ruler can
+                merge ticks per pixel row without re-deriving severity.
         """
         try:
             normalized = []
             for item in ranges or []:
-                start_line, start_col, end_line, end_col, color_hex = item
+                start_line, start_col, end_line, end_col, color_hex = item[:5]
+                severity = item[5] if len(item) > 5 else None
                 normalized.append(
                     (
                         int(start_line),
@@ -2869,6 +2903,7 @@ class CodeEditor(QsciScintilla):
                         int(end_line),
                         int(end_col),
                         str(color_hex),
+                        severity,
                     )
                 )
             normalized.sort(key=lambda entry: (entry[0], entry[1], entry[3], entry[4]))
@@ -2877,7 +2912,14 @@ class CodeEditor(QsciScintilla):
             self.clear_diagnostic_underlines()
             self._diagnostic_ranges = normalized
             grouped: dict = {}
-            for start_line, start_col, end_line, end_col, color_hex in normalized:
+            for (
+                start_line,
+                start_col,
+                end_line,
+                end_col,
+                color_hex,
+                _severity,
+            ) in normalized:
                 grouped.setdefault(color_hex, []).append(
                     (start_line, start_col, end_line, end_col)
                 )
@@ -2902,8 +2944,14 @@ class CodeEditor(QsciScintilla):
                     "end_col": end_col,
                     "color": color_hex,
                 }
-                for start_line, start_col, end_line, end_col, color_hex in normalized
+                for start_line, start_col, end_line, end_col, color_hex, _severity in normalized
             ]
+            self._set_diagnostic_ticks(
+                [
+                    (start_line, color_hex, severity)
+                    for start_line, _start_col, _end_line, _end_col, color_hex, severity in normalized
+                ]
+            )
         except Exception as exc:
             logger.debug("Painting diagnostic ranges failed: %s", exc)
 
@@ -2912,19 +2960,22 @@ class CodeEditor(QsciScintilla):
 
         Args:
             marks: Iterable of ``(line0, start_col0, end_col0, color_hex)``
-                tuples with 0-based coordinates.
+                tuples with 0-based coordinates. An optional fifth element
+                carries the ``ProblemSeverity`` for the overview ruler.
         """
         ranges = []
         for mark in marks or []:
             try:
-                line0, start_col, end_col, color_hex = mark
+                line0, start_col0, end_col0, color_hex = mark[:4]
+                severity = mark[4] if len(mark) > 4 else None
                 ranges.append(
                     (
                         int(line0),
-                        int(start_col),
+                        int(start_col0),
                         int(line0),
-                        int(end_col),
+                        int(end_col0),
                         str(color_hex),
+                        severity,
                     )
                 )
             except Exception:
@@ -2975,8 +3026,14 @@ class CodeEditor(QsciScintilla):
     #: Indicator style that recolours the text itself (no underline drawn).
     _INDIC_TEXTFORE = getattr(QsciScintilla, "INDIC_TEXTFORE", 17)
 
-    #: Reserved slot for de-emphasised (unused) code, above the diagnostics.
-    _DEEMPHASIS_SLOT = 12
+    #: Slot for de-emphasised (unused) code. It lives inside the diagnostic
+    #: range but is never handed out by :meth:`_diagnostic_slot`: sharing a
+    #: slot would let the two indicators overwrite each other's style and
+    #: clear each other's ranges.
+    _DEEMPHASIS_SLOT = 13
+
+    #: Diagnostic-range slots that no severity colour may take.
+    _RESERVED_INDIC_SLOTS = (_DEEMPHASIS_SLOT,)
 
     #: Muted grey used for unused code, following the IDE theme.
     _DEEMPHASIS_COLOR = "#8A8A8A"
@@ -3065,6 +3122,7 @@ class CodeEditor(QsciScintilla):
             self._clear_deemphasis()
             self._diagnostic_ranges = []
             self._diagnostic_labels = []
+            self._set_diagnostic_ticks([])
         except Exception:
             pass
 
@@ -3241,11 +3299,95 @@ class CodeEditor(QsciScintilla):
         """Wipe every diagnostic indicator from the whole buffer."""
         doc_length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
         self._diagnostic_ranges = []
+        self._set_diagnostic_ticks([])
         if doc_length <= 0:
             return
-        for slot in set(self._SEVERITY_SLOTS.values()):
+        reserved = set(self._RESERVED_INDIC_SLOTS)
+        for slot in set(self._severity_slots.values()) - reserved:
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
             self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, doc_length)
+
+    def _hover_band_widget(self):
+        """
+        Return (creating on first use) the hover-line highlight band.
+        """
+        band = getattr(self, "_hover_band", None)
+        if band is not None:
+            return band
+        band = QWidget(self)
+        band.setObjectName("DiagnosticHoverBand")
+        band.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        band.setAutoFillBackground(True)
+        band.hide()
+        self._hover_band = band
+        scrollbar = self.verticalScrollBar()
+        if scrollbar is not None:
+            scrollbar.valueChanged.connect(self._reposition_hover_band)
+        return band
+
+    def set_hover_line(self, line: int) -> None:
+        """
+        Highlight *line* (0-based) without moving the caret.
+        Used by the diagnostic overview ruler while the pointer is over it.
+
+        Args:
+            line: 0-based line to highlight. Anything negative clears it.
+        """
+        try:
+            line = int(line)
+            if line < 0 or line >= self.lines():
+                self.clear_hover_line()
+                return
+            self._hover_line = line
+            self._hover_band_widget()
+            self._reposition_hover_band()
+        except Exception:
+            self.clear_hover_line()
+
+    def clear_hover_line(self) -> None:
+        """
+        Remove the hover-line highlight.
+        """
+        try:
+            self._hover_line = -1
+            band = getattr(self, "_hover_band", None)
+            if band is not None:
+                band.hide()
+        except Exception:
+            pass
+
+    def _reposition_hover_band(self) -> None:
+        """
+        Move the hover band onto the hovered line's current screen row.
+        """
+        try:
+            line = getattr(self, "_hover_line", -1)
+            band = getattr(self, "_hover_band", None)
+            if band is None or line is None or line < 0:
+                return
+            line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT) or (
+                self.fontMetrics().lineSpacing()
+            )
+            first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+            lines_on_screen = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN) or 1
+            y = (line - first_visible) * line_height
+            if y < 0 or y > lines_on_screen * line_height:
+                band.hide()
+                return
+            left = max(0, self.positionFromLineIndex(line, 0))
+            scrollbar = self.verticalScrollBar()
+            reserved = scrollbar.width() if scrollbar is not None else 0
+            width = max(0, self.width() - left - reserved - 2)
+            palette = QPalette(self.palette())
+            color = self.palette().color(QPalette.ColorRole.Highlight)
+            color.setAlpha(40)
+            palette.setColor(QPalette.ColorRole.Window, color)
+            band.setPalette(palette)
+            band.setGeometry(left, int(y), width, max(1, int(line_height)))
+            band.show()
+            band.raise_()
+        except Exception:
+            pass
 
     ###############################################
     # GHOST TEXT
@@ -3320,3 +3462,38 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
         super().deleteLater()
+
+    ###############################################
+    # Diagnostics
+    ###############################################
+
+    def _set_diagnostic_ticks(self, ticks) -> None:
+        """
+        Replace the overview-ruler ticks and notify listeners.
+
+        Args:
+            ticks: Iterable of `(line0, color_hex, severity)` tuples.
+        """
+
+        payload = []
+        for item in ticks or ():
+            try:
+                payload.append(
+                    (int(item[0]), str(item[1]), item[2] if len(item) > 2 else None)
+                )
+            except Exception:
+                continue
+        if payload == self._diagnostic_ticks:
+            return
+        self._diagnostic_ticks = payload
+        try:
+            self.diagnostic_ticks_changed.emit(list(payload))
+        except Exception:
+            pass
+
+    def diagnostic_ticks(self) -> list:
+        """
+        Returns a copy of the current overview-ruler ticks.
+        """
+
+        return list(self._diagnostic_ticks)

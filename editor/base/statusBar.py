@@ -4,14 +4,21 @@ from editor.utils.resource_path import resource_path
 from editor.widgets.QToolButton import ToolbarButton
 from editor.utils.git_control.git_control import *
 
-#: Severity groups the diagnostic buttons control, in display order. The label
-#: is what the right-click menu shows; the group name is what the Problems
-#: panel understands.
+#: Severity groups that own a diagnostic status-bar button, in display order.
+#: The label is what the right-click menu shows; the group name is what the
+#: Problems panel understands.
 DIAGNOSTIC_GROUPS = (
     ("errors", "Problems"),
     ("warnings", "Warnings"),
     ("checks", "Checks"),
 )
+
+#: Labels for the groups the panel knows but that own no button. They are
+#: listed in the same menu, after the button-backed groups, so a diagnostic of
+#: such a group can still be switched off.
+UNBUTTONED_GROUP_LABELS = {
+    "typos": "Typos & Notes",
+}
 
 
 class BootstrapDetailMenu(QFrame):
@@ -288,12 +295,42 @@ class StatusBar(QFrame):
         menu = self.build_diagnostics_menu(button)
         menu.exec(button.mapToGlobal(position))
 
+    def _menu_groups(self, clicked_group: str) -> list:
+        """Return the ``(group, label)`` pairs the display menu lists.
+
+        The button-backed groups come first — the right-clicked one ahead of
+        the others — followed by every remaining group the Problems panel
+        knows. A group owning no button must still be listed: otherwise its
+        diagnostics would stay underlined in the editor with no switch able to
+        turn them off.
+
+        Args:
+            clicked_group: Group of the right-clicked button, if any.
+
+        Returns:
+            Ordered ``(group, label)`` tuples, one per severity group.
+        """
+        ordered = sorted(DIAGNOSTIC_GROUPS, key=lambda item: item[0] != clicked_group)
+        known = {group for group, _label in ordered}
+        panel = self._problems_panel
+        groups = getattr(panel, "severity_groups", None)
+        if callable(groups):
+            groups = groups()
+        for group in groups or ():
+            if group in known:
+                continue
+            known.add(group)
+            ordered.append((group, UNBUTTONED_GROUP_LABELS.get(group, group.title())))
+        return ordered
+
     def build_diagnostics_menu(self, button=None) -> QMenu:
         """Build the display-options menu of the diagnostic buttons.
 
         Each group owns two independent switches: whether its rows are listed
         in the Problems panel, and whether it is underlined in the code
-        editor. The group of the right-clicked *button* comes first.
+        editor. The group of the right-clicked *button* comes first, and every
+        group the Problems panel knows is listed — not only the button-backed
+        ones — so each diagnostic type can be switched off.
 
         Args:
             button: The button that was clicked, used to order the groups.
@@ -304,7 +341,7 @@ class StatusBar(QFrame):
         panel = self._problems_panel
         menu = QMenu(self)
         clicked_group = self._group_of_button(button)
-        ordered = sorted(DIAGNOSTIC_GROUPS, key=lambda item: item[0] != clicked_group)
+        ordered = self._menu_groups(clicked_group)
 
         for group, label in ordered:
             submenu = menu.addMenu(label)
