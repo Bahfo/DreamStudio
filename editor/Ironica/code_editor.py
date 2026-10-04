@@ -3114,6 +3114,8 @@ class CodeEditor(QsciScintilla):
                 return False
 
             popup = self._error_popup_widget()
+            # Keep the bubble on-theme with the current editor background.
+            popup.set_theme_color(self.palette().color(QPalette.ColorRole.Base))
             popup.set_message(message)
             popup.adjustSize()
 
@@ -3160,10 +3162,11 @@ class CodeEditor(QsciScintilla):
             )
             gap = 2
             top = end_y + line_height + gap
-            arrow_up = top + height > self.height() - margin
-            if arrow_up:
-                # No room underneath (e.g. the last line of the file): open
-                # above the token and point the arrow up.
+            # The bubble sits below the token, so its arrow must point *up* at
+            # the token. When there is no room underneath (e.g. the last line
+            # of the file) the bubble moves above the token and points down.
+            arrow_up = top + height <= self.height() - margin
+            if not arrow_up:
                 top = start_y - height - gap
             top = min(max(top, margin), max(margin, self.height() - height - margin))
 
