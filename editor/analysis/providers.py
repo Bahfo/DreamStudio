@@ -483,6 +483,7 @@ def scan_workspace(root: str, use_ruff: bool = True) -> AnalysisOutcome:
 #: Diagnostic categories used for presentation (icons, de-emphasis). They are
 #: derived from provider codes, so the UI never needs provider knowledge.
 CATEGORY_SYNTAX = "syntax"
+CATEGORY_CHECK = "check"
 CATEGORY_UNUSED = "unused"
 CATEGORY_NAME = "name"
 CATEGORY_TYPE = "type"
@@ -526,6 +527,8 @@ def diagnostic_category(problem: Problem) -> str:
 
     if ruff_provider.is_syntax_problem(problem):
         return CATEGORY_SYNTAX
+    if problem.severity == ProblemSeverity.CHECK:
+        return CATEGORY_CHECK
     if "marker found" in message:
         return CATEGORY_MARKER
     if upper in _UNUSED_CODES or any(rule in code for rule in _UNUSED_RULES):

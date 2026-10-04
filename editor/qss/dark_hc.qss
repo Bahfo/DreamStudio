@@ -1397,6 +1397,7 @@ QDialog#RenameDialog {
 
 QPushButton#warningButton,
 QPushButton#errorsButton,
+QPushButton#checksButton,
 QPushButton#statusButton,
 QPushButton#terminalButton,
 QPushButton#notificationButton {
@@ -1409,6 +1410,7 @@ QPushButton#notificationButton {
 
 QPushButton#warningButton:hover,
 QPushButton#errorsButton:hover,
+QPushButton#checksButton:hover,
 QPushButton#statusButton:hover,
 QPushButton#terminalButton:hover,
 QPushButton#notificationButton:hover {

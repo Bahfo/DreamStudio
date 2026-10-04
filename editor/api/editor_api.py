@@ -86,7 +86,24 @@ class EditorAPI:
         )
 
     def _toggle_problems(self) -> None:
+        """Open/close the Problems panel, unfiltered."""
+        try:
+            self.hero_window._lower_widget.problems_window.show_all_groups()
+        except Exception:
+            pass
         self._toggle_lower_panel("problems_window")
+
+    def _show_problem_checks(self) -> None:
+        """Open the Problems panel narrowed to non-fatal checks."""
+        try:
+            container = self.hero_window._lower_widget
+            problems = container.problems_window
+            problems.show_group("checks")
+            container._stack.setCurrentWidget(problems)
+            container.setVisible(True)
+            self.hero_window._main_vertical_splitter.setSizes([600, 400])
+        except Exception:
+            self._toggle_lower_panel("problems_window")
 
     def _toggle_search_widget(self) -> None:
         if (

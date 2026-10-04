@@ -307,22 +307,27 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self.status_bar.notificationBtn.clicked.connect(self._toggle_notifications)
         self.status_bar.errorsBtn.clicked.connect(self._toggle_problems)
         self.status_bar.warningBtn.clicked.connect(self._toggle_problems)
+        self.status_bar.checksBtn.clicked.connect(self._show_problem_checks)
         self._bind_problem_counts()
         main_layout.addWidget(self.status_bar)
 
     def _bind_problem_counts(self) -> None:
-        """Mirror Problems-panel error/warning counts on the status bar."""
+        """Mirror Problems-panel counts on the status bar."""
         try:
             problems = self.hero_window._lower_widget.problems_window
             problems.countsChanged.connect(self._on_problem_counts_changed)
             self.status_bar.set_problem_counts(*problems.problem_counts())
+            # Right-clicking a diagnostic button edits this panel's options.
+            self.status_bar.attach_problems_panel(problems)
         except Exception as exc:
             logger.debug("Problem counts not bound: %s", exc)
 
-    def _on_problem_counts_changed(self, errors: int, warnings: int) -> None:
-        """Update the status-bar error/warning buttons from the scanner."""
+    def _on_problem_counts_changed(
+        self, errors: int, warnings: int, checks: int = 0
+    ) -> None:
+        """Update the status-bar diagnostic buttons from the scanner."""
         try:
-            self.status_bar.set_problem_counts(errors, warnings)
+            self.status_bar.set_problem_counts(errors, warnings, checks)
         except Exception as exc:
             logger.debug("Problem counts update failed: %s", exc)
 

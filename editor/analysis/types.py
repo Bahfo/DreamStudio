@@ -18,12 +18,17 @@ class ProblemSeverity(str, Enum):
     Attributes:
         ERROR: Blocking problem (red) — ``assets/system/problem.png``.
         WARNING: Non-blocking warning (yellow) — ``assets/system/warning.png``.
+        CHECK: Failed correctness check that is neither fatal nor a plain
+            warning (violet) — ``assets/system/bug.png``. Bare ``except``
+            blocks and similar robustness smells live here so they can be
+            counted apart from problems and warnings.
         TYPO: Spelling / style hint (blue) — ``assets/system/spell_check.png``.
         INFO: Informational note (teal) — ``assets/system/info.png``.
     """
 
     ERROR = "error"
     WARNING = "warning"
+    CHECK = "check"
     TYPO = "typo"
     INFO = "info"
 
@@ -45,6 +50,8 @@ class ProblemSeverity(str, Enum):
                 return cls.ERROR
             if normalized in {"warn", "w"}:
                 return cls.WARNING
+            if normalized in {"checked", "check_failure", "audit", "robustness"}:
+                return cls.CHECK
             if normalized in {"information", "informational", "note"}:
                 return cls.INFO
             if normalized in {"spell", "spelling", "hint", "typo", "style"}:
@@ -131,6 +138,11 @@ class Problem:
     def is_warning(self) -> bool:
         """Return ``True`` when this is a warning-level diagnostic."""
         return self.severity == ProblemSeverity.WARNING
+
+    @property
+    def is_check(self) -> bool:
+        """Return ``True`` when this is a failed non-fatal check."""
+        return self.severity == ProblemSeverity.CHECK
 
     @property
     def is_typo(self) -> bool:
