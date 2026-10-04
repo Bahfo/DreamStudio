@@ -26,9 +26,6 @@ SEVERITY_COLORS = {
 }
 
 
-#: Named severity groups the status bar can count and filter on. The problems
-#: and warning buttons show everything; the check button narrows the panel to
-#: non-fatal checks (bare ``except`` and friends).
 def _count_severities(problems: Iterable[Problem]) -> tuple:
     """Return ``(errors, warnings, checks, typos)`` for *problems*."""
     counts = {
@@ -71,6 +68,10 @@ _FILTER_ITEMS = (
     ("Custom", "custom"),
 )
 
+#: Named severity groups, each owning one independent display switch. Every
+#: severity belongs to exactly one group, so any diagnostic can be turned off.
+#: Only the first three own a status-bar button; the status-bar menu still
+#: lists the rest.
 SEVERITY_GROUPS: Dict[str, frozenset] = {
     "errors": frozenset({ProblemSeverity.ERROR}),
     "warnings": frozenset({ProblemSeverity.WARNING}),
@@ -805,6 +806,15 @@ class ProblemsWidget(QWidget):
         if len(enabled) == 1:
             return next(iter(enabled))
         return ""
+
+    @staticmethod
+    def severity_groups() -> tuple:
+        """Return every severity group the panel knows, in display order.
+
+        Lets callers (the status-bar menu) enumerate all of them instead of
+        hardcoding a subset that could drift from this mapping.
+        """
+        return tuple(SEVERITY_GROUPS)
 
     @staticmethod
     def _group_name(group: object) -> str:
@@ -1586,6 +1596,7 @@ class ProblemsWidget(QWidget):
                         end_line,
                         end_col,
                         SEVERITY_COLORS.get(problem.severity, "#F14C4C"),
+                        problem.severity,
                     )
                 )
             setter(ranges)
