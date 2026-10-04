@@ -6,31 +6,18 @@ from editor.widgets.QSegmentedProgressBar import (
     FlowLayout,
 )
 
-GITHUB_COLORS = {
-    "Python": "#3572A5",
-    "C++": "#f34b7d",
-    "C": "#555555",
-    "D": "#ba595e",
-    "JavaScript": "#f1e05a",
-    "HTML": "#e34c26",
-    "CSS": "#563d7c",
-    "Shell": "#89e051",
-    "Other": "#ededed",
-}
 
-EXTENSION_MAP = {
-    ".py": "Python",
-    ".cpp": "C++",
-    ".hpp": "C++",
-    ".c": "C",
-    ".h": "C",
-    ".d": "D",
-    ".js": "JavaScript",
-    ".html": "HTML",
-    ".css": "CSS",
-    ".sh": "Shell",
-    ".bat": "Shell",
-}
+def _badge_color(value: object) -> str:
+    """Return a valid badge color, falling back to neutral white."""
+    if isinstance(value, str):
+        candidate = value.strip()
+        if len(candidate) == 7 and candidate.startswith("#"):
+            try:
+                int(candidate[1:], 16)
+                return candidate
+            except ValueError:
+                pass
+    return "#ffffff"
 
 
 def get_interpreter_info() -> dict:
@@ -168,6 +155,22 @@ class LanguageAnalyzer(QWidget):
         stats = {}
         total_bytes = 0
         ignore_patterns = self._get_ignore_patterns(target_dir)
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+        except Exception:
+            LanguageRegistry = None
+        extensions = LanguageRegistry.get_all_extensions() if LanguageRegistry else {}
+        language_details = {}
+        if LanguageRegistry is not None:
+            for extension, lang_id in extensions.items():
+                try:
+                    config = LanguageRegistry.get_config(lang_id) or {}
+                    language_details[extension] = (
+                        LanguageRegistry.get_display_name(lang_id),
+                        _badge_color(config.get("badge_color")),
+                    )
+                except Exception:
+                    language_details[extension] = (lang_id, _badge_color(None))
 
         for root, dirs, files in os.walk(target_dir):
             dirs[:] = [
@@ -181,14 +184,15 @@ class LanguageAnalyzer(QWidget):
                     continue
 
                 ext = Path(f).suffix.lower()
-
-                if ext not in EXTENSION_MAP:
+                detail = language_details.get(ext)
+                if detail is None:
                     continue
-
-                lang = EXTENSION_MAP[ext]
+                display_name, color_hex = detail
                 try:
                     size = os.path.getsize(os.path.join(root, f))
-                    stats[lang] = stats.get(lang, 0) + size
+                    key = (extensions.get(ext, ""), display_name)
+                    count, _old_color = stats.get(key, (0, color_hex))
+                    stats[key] = (count + size, color_hex)
                     total_bytes += size
                 except OSError:
                     pass
@@ -196,7 +200,7 @@ class LanguageAnalyzer(QWidget):
         if total_bytes == 0:
             return
 
-        sorted_stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
+        sorted_stats = sorted(stats.items(), key=lambda item: item[1][0], reverse=True)
 
         bar_data = []
         while self.legend_layout.count():
@@ -204,15 +208,14 @@ class LanguageAnalyzer(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
-        for lang, byte_count in sorted_stats:
+        for (_lang_id, display_name), (byte_count, color_hex) in sorted_stats:
             percentage = (byte_count / total_bytes) * 100
             if percentage < 0.1:
                 continue
 
-            color_hex = GITHUB_COLORS.get(lang, "#ffffff")
             bar_data.append((percentage, QColor(color_hex)))
 
-            badge = LanguageBadge(lang, percentage, color_hex)
+            badge = LanguageBadge(display_name, percentage, color_hex)
             self.legend_layout.addWidget(badge)
 
         self.bar.set_data(bar_data)

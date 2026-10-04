@@ -25,16 +25,6 @@ logger = logging.getLogger(__name__)
 SCI_SETDEFAULTFOLDDISPLAYTEXT = 2722
 SCI_SETFOLDEXPANDEDTEXT = 2700
 
-SNIPPETS_PYTHON = resource_path("editor/Ironica/snippets/python.json")
-SNIPPETS_HTML = resource_path("editor/Ironica/snippets/html.json")
-SNIPPETS_CLANG = resource_path("editor/Ironica/snippets/c.json")
-
-_SNIPPET_FILES = {
-    "python": SNIPPETS_PYTHON,
-    "html": SNIPPETS_HTML,
-    "clang": SNIPPETS_CLANG,
-}
-
 
 class CodeEditor(QsciScintilla):
     """
@@ -1902,11 +1892,13 @@ class CodeEditor(QsciScintilla):
         self.current_provider = LanguageRegistry.get_provider(lang)
         config = LanguageRegistry.get_config(lang)
 
-        snippet_file = _SNIPPET_FILES.get(lang.lower())
-        if snippet_file:
-            self.load_snippets(snippet_file)
-        else:
-            self.snippet_map.clear()
+        self.snippet_map.clear()
+        try:
+            snippet_path = LanguageRegistry.get_snippet_path(lang)
+        except Exception:
+            snippet_path = None
+        if snippet_path:
+            self.load_snippets(snippet_path)
 
         if config:
             self._lexer = self._create_lexer(lang, self._resolve_config(config))

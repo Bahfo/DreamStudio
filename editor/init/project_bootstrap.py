@@ -128,10 +128,27 @@ class ProjectBootstrapWorker(QObject):
         self._manifest = data
 
     def _check_languages(self) -> None:
+        """Accept only languages supplied by an installed plugin.
+
+        Raises:
+            ValueError: If the manifest names an unregistered language.
+        """
         langs = self._manifest.get("languages", "")
+        if isinstance(langs, str):
+            langs = [langs] if langs else []
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            supported = set(LanguageRegistry.list_languages())
+        except Exception:
+            supported = set()
+        installed = ", ".join(sorted(supported)) or "none"
         for lang in langs:
-            if lang not in ["python", "clang"]:
-                raise ValueError(f"Unsupported language: '{lang}'.")
+            if lang not in supported:
+                raise ValueError(
+                    f"Unsupported language: '{lang}'. "
+                    f"Installed languages: {installed}."
+                )
 
         manifest_version = self._manifest.get("version", "")
         if manifest_version and manifest_version != "studio_default_version":

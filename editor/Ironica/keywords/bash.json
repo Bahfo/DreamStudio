@@ -1,5 +1,7 @@
 {
     "lang": "bash",
+    "display_name": "Bash",
+    "badge_color": "#89e051",
     "extensions": ["bash", "sh"],
     "styles": {
         "keyword": "KEYWORD_COLOR",

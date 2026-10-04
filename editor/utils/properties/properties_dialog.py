@@ -208,6 +208,7 @@ class FilePropertiesGrid(QTreeWidget):
         self.setColumnWidth(0, 130)
 
         self._active_editor = None
+        self._display_to_lang: dict[str, str] = {}
         self._create_categories()
         self._create_interactive_widgets()
 
@@ -253,15 +254,62 @@ class FilePropertiesGrid(QTreeWidget):
         child.setFlags(child.flags() & ~Qt.ItemFlag.ItemIsEditable)
         return child
 
-    #: Display name -> language-registry id for the Language preview combo.
-    DISPLAY_TO_LANG = {
-        "Bash": "bash",
-        "C": "clang",
-        "C++": "clang",
-        "D": "d",
-        "Python": "python",
-        "PowerShell": "powershell",
-    }
+    @staticmethod
+    def _language_choices() -> list[tuple[str, str]]:
+        """Return display-name and registry-id pairs for installed languages."""
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            choices: list[tuple[str, str]] = []
+            used: set[str] = set()
+            for lang_id in LanguageRegistry.list_languages():
+                display_name = LanguageRegistry.get_display_name(lang_id)
+                if display_name in used:
+                    display_name = f"{display_name} ({lang_id})"
+                used.add(display_name)
+                choices.append((display_name, lang_id))
+            return sorted(choices)
+        except Exception:
+            return []
+
+    @staticmethod
+    def _extension_choices() -> list[str]:
+        """Return every file extension claimed by an installed language."""
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            return sorted(LanguageRegistry.get_all_extensions())
+        except Exception:
+            return []
+
+    def _refresh_language_choices(self) -> None:
+        """Rebuild the language combo from the current language registry."""
+        current = self.combo_lang.currentText()
+        self.combo_lang.blockSignals(True)
+        try:
+            self.combo_lang.clear()
+            self.combo_lang.addItem("--")
+            self._display_to_lang = {}
+            for display_name, lang_id in self._language_choices():
+                self.combo_lang.addItem(display_name)
+                self._display_to_lang[display_name] = lang_id
+            index = self.combo_lang.findText(current)
+            self.combo_lang.setCurrentIndex(index if index != -1 else 0)
+        finally:
+            self.combo_lang.blockSignals(False)
+
+    def _refresh_extension_choices(self) -> None:
+        """Rebuild the extension combo from the current language registry."""
+        current = self.combo_ext.currentText()
+        self.combo_ext.blockSignals(True)
+        try:
+            self.combo_ext.clear()
+            self.combo_ext.addItem("--")
+            self.combo_ext.addItems(self._extension_choices())
+            index = self.combo_ext.findText(current)
+            self.combo_ext.setCurrentIndex(index if index != -1 else 0)
+        finally:
+            self.combo_ext.blockSignals(False)
 
     def _create_interactive_widgets(self) -> None:
         """Instantiates and links VS-styled inline editor widgets into column 1."""
@@ -274,33 +322,18 @@ class FilePropertiesGrid(QTreeWidget):
         )
 
         self.combo_lang = QComboBox()
-        self.combo_lang.addItems(
-            ["--", "Bash", "C", "C++", "D", "Python", "PowerShell"]
-        )
+        self.combo_lang.addItem("--")
         self.combo_lang.setStyleSheet(combo_style)
         self.setItemWidget(self.item_lang, 1, self.combo_lang)
+        self._refresh_language_choices()
         self._last_valid_lang = self.combo_lang.currentText()
         self.combo_lang.currentTextChanged.connect(self._on_language_selected)
 
         self.combo_ext = QComboBox()
-        self.combo_ext.addItems(
-            [
-                "--",
-                ".bash",
-                ".sh",
-                ".c",
-                ".h",
-                ".m",
-                ".hpp",
-                ".cpp",
-                ".d",
-                ".py",
-                ".pyi",
-                ".ps1",
-            ]
-        )
+        self.combo_ext.addItem("--")
         self.combo_ext.setStyleSheet(combo_style)
         self.setItemWidget(self.item_ext, 1, self.combo_ext)
+        self._refresh_extension_choices()
         self.combo_ext.currentTextChanged.connect(self._on_extension_selected)
 
         # 3. Editable Policy Switcher
@@ -347,6 +380,8 @@ class FilePropertiesGrid(QTreeWidget):
         if not self._active_editor:
             return
 
+        self._refresh_language_choices()
+        self._refresh_extension_choices()
         file_path = getattr(self._active_editor, "current_file_path", None) or ""
         if not file_path or not os.path.exists(file_path):
             self.item_name.setText(1, "Unsaved Document")
@@ -391,18 +426,15 @@ class FilePropertiesGrid(QTreeWidget):
             except Exception:
                 pass
 
-        lang_map = {
-            ".py": "Python",
-            ".pyi": "Python",
-            ".cpp": "C++",
-            ".hpp": "C++",
-            ".c": "C",
-            ".h": "C",
-            ".sh": "Bash",
-            ".bash": "Bash",
-            ".d": "D",
-            ".ps1": "PowerShell",
-        }
+        lang_map = {}
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            lang_id = LanguageRegistry.get_language_by_extension(ext)
+            if lang_id:
+                lang_map = {ext: LanguageRegistry.get_display_name(lang_id)}
+        except Exception:
+            lang_map = {}
         try:
             self.combo_lang.blockSignals(True)
             target_lang = lang_map.get(ext, "")
@@ -465,7 +497,7 @@ class FilePropertiesGrid(QTreeWidget):
         editor = self._active_editor
         if editor is None:
             return
-        lang_id = self.DISPLAY_TO_LANG.get(language, "")
+        lang_id = self._display_to_lang.get(language, "")
         if not lang_id:
             return
         try:

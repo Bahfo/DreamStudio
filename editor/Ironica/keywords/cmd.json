@@ -1,5 +1,7 @@
 {
     "lang": "batch",
+    "display_name": "Batch",
+    "badge_color": "#89e051",
     "extensions": ["bat", "cmd"],
     "styles": {
         "keyword": "KEYWORD_COLOR",

@@ -147,11 +147,8 @@ class IronicaLexer(QsciLexerCustom):
     def __init__(self, parent, config: dict) -> None:
         super().__init__(parent)
         self.config = config
-        self._supports_c_comments = config.get("lang", "").lower() in {
-            "c",
-            "c_cpp",
-            "clang",
-        }
+        comment_style = str(config.get("comment_style", "hash")).lower()
+        self._supports_c_comments = comment_style == "c"
         self._bracket_cache: Optional[list] = None
         self._keyword_map: Dict[str, int] = {}
         self._keyword_style_names: Dict[int, str] = {}

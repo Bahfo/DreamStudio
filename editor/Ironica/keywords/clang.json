@@ -1,5 +1,8 @@
 {
     "lang": "clang",
+    "display_name": "C/C++",
+    "badge_color": "#f34b7d",
+    "comment_style": "c",
     "extensions": ["c", "h", "cpp", "hpp", "cc", "hh", "cxx"],
     "styles": {
         "keyword": "KEYWORD_COLOR",

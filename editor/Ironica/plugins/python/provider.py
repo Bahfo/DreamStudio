@@ -377,9 +377,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
     # Completion Support
     # ------------------------------------------------------------------
 
-    def get_completions(
-        self, text: str, cursor_position: tuple, prefix: str
-    ) -> list:
+    def get_completions(self, text: str, cursor_position: tuple, prefix: str) -> list:
         """Return code-completion suggestions for the editor.
 
         The signature matches the duck-typed contract expected by
@@ -490,9 +488,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         """
         from .jedi_worker import DiagnosticManager
 
-        return DiagnosticManager(
-            editor=editor, file_path=file_path, parent=parent
-        )
+        return DiagnosticManager(editor=editor, file_path=file_path, parent=parent)
 
     # ------------------------------------------------------------------
     # Outline support
@@ -509,12 +505,15 @@ class PythonLanguageProvider(BaseLanguageProvider):
             source_code: Full Python source from the editor buffer.
 
         Returns:
-            An ``OutlineResult`` from the outline backend, or ``None``
+            An ``OutlineResult`` from the plugin's outline parser, or ``None``
             if parsing fails.
         """
-        from editor.utils.file_properties.outline import build_outline
+        from .outline_parser import parse_python_outline
 
-        return build_outline(source_code, "python", filename=self._file_path or "")
+        result = parse_python_outline(source_code)
+        if result.root.name == "" and self._file_path:
+            result.root.name = self._file_path
+        return result
 
     @property
     def completion_manager(self):
