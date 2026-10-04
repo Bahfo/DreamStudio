@@ -1,5 +1,8 @@
 {
     "lang": "python",
+    "display_name": "Python",
+    "badge_color": "#3572A5",
+    "comment_style": "hash",
     "extensions": ["py", "pyw", "pyi"],
     "styles": {
         "keyword": "KEYWORD_COLOR",

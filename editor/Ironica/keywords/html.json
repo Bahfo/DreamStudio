@@ -1,5 +1,7 @@
 {
     "lang": "html",
+    "display_name": "HTML",
+    "badge_color": "#e34c26",
     "extensions": ["html", "htm", "xhtml"],
     "styles": {
         "keyword": "KEYWORD_COLOR",

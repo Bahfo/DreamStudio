@@ -368,6 +368,7 @@ class LanguageRegistry:
     _configs: Dict[str, dict] = {}
     _providers: Dict[str, BaseLanguageProvider] = {}
     _extension_map: Dict[str, str] = {}
+    _snippet_paths: Dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Registration
@@ -499,6 +500,7 @@ class LanguageRegistry:
 
         del cls._configs[lang_name]
         cls._providers.pop(lang_name, None)
+        cls._snippet_paths.pop(lang_name, None)
 
         # Remove extensions that point to this language.
         to_remove = [
@@ -545,6 +547,52 @@ class LanguageRegistry:
         return list(config.get("snippets", []))
 
     @classmethod
+    def register_snippet_path(cls, lang: str, snippets_path: str) -> bool:
+        """Remember where a language's snippet bodies live.
+
+        Args:
+            lang: Registered language identifier.
+            snippets_path: Path to a JSON file with snippet bodies.
+
+        Returns:
+            ``True`` when the language is registered and the file exists.
+        """
+        if lang not in cls._configs:
+            logger.warning("Cannot attach snippets to unregistered language %r", lang)
+            return False
+        if not snippets_path or not os.path.isfile(snippets_path):
+            logger.warning("Snippet file not found for %r: %s", lang, snippets_path)
+            return False
+        cls._snippet_paths[lang] = os.path.abspath(snippets_path)
+        return True
+
+    @classmethod
+    def get_snippet_path(cls, lang: str) -> Optional[str]:
+        """Return the snippet-body file for *lang*, or ``None``.
+
+        Args:
+            lang: Registered language identifier.
+        """
+        return cls._snippet_paths.get(lang)
+
+    @classmethod
+    def get_display_name(cls, lang: str) -> str:
+        """Return the human-readable name for a language identifier.
+
+        Args:
+            lang: Language identifier from the registry.
+
+        Returns:
+            The ``display_name`` from the language config when present,
+            otherwise a title generated from the identifier.
+        """
+        config = cls._configs.get(lang) or {}
+        display_name = config.get("display_name")
+        if isinstance(display_name, str) and display_name.strip():
+            return display_name.strip()
+        return lang.replace("_", " ").replace("-", " ").title()
+
+    @classmethod
     def get_provider(cls, lang: str) -> Optional[BaseLanguageProvider]:
         """Return the intelligence provider for *lang*, or `None`."""
         return cls._providers.get(lang)
@@ -574,6 +622,7 @@ class LanguageRegistry:
         cls._configs.clear()
         cls._providers.clear()
         cls._extension_map.clear()
+        cls._snippet_paths.clear()
 
     # ------------------------------------------------------------------
     # Internal helpers

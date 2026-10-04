@@ -97,7 +97,30 @@ _LAZY_BATCH_GAP_MS = 40
 #: How often the workspace is re-indexed for on-disk changes.
 _LAZY_WATCH_INTERVAL_MS = 4000
 
-_EDITOR_SUFFIXES = (".py", ".pyi")
+
+def _python_suffixes() -> tuple[str, ...]:
+    """Return file suffixes handled by the installed Python plugin.
+
+    This workspace scanner implements Python diagnostics, so it follows the
+    Python plugin's registered extensions instead of carrying its own list.
+    """
+    try:
+        from editor.Ironica.language_engine import LanguageRegistry
+
+        config = LanguageRegistry.get_config("python") or {}
+        extensions = config.get("extensions", [])
+        return tuple(
+            sorted(
+                {
+                    f".{str(extension).lstrip('.').lower()}"
+                    for extension in extensions
+                    if str(extension)
+                }
+            )
+        )
+    except Exception:
+        return ()
+
 
 _PROJECT_ROOT = Path(resource_path("."))
 _ASSETS_SYSTEM = Path(resource_path("assets/system"))
@@ -683,7 +706,7 @@ class ProblemsWidget(QWidget):
         Args:
             path: Absolute path of the file to analyze.
         """
-        if not path or not path.endswith(_EDITOR_SUFFIXES):
+        if not path or not path.endswith(_python_suffixes()):
             return
         if not os.path.isfile(path):
             return
@@ -1254,7 +1277,7 @@ class ProblemsWidget(QWidget):
             path = getattr(editor, "current_file_path", "") or ""
             self._paint_editor(editor, self.problems_for(path))
             self._sync_dirty_state(editor)
-            if path.endswith(_EDITOR_SUFFIXES) and not self._store.has_results(path):
+            if path.endswith(_python_suffixes()) and not self._store.has_results(path):
                 self.request_file(path)
         except Exception:
             pass
@@ -1381,7 +1404,7 @@ class ProblemsWidget(QWidget):
         ):
             self._store.note_buffer_change(path)
             self._schedule_live_reparse()
-        if path.endswith(_EDITOR_SUFFIXES):
+        if path.endswith(_python_suffixes()):
             self.request_file(path)
         self._repaint_paths({path: self._store.problems_for(path)})
 
@@ -1409,7 +1432,7 @@ class ProblemsWidget(QWidget):
             if editor is None:
                 return
             path = getattr(editor, "current_file_path", "") or ""
-            if not path or not path.endswith(_EDITOR_SUFFIXES):
+            if not path or not path.endswith(_python_suffixes()):
                 return
             if self._live_busy:
                 self._schedule_live_reparse()

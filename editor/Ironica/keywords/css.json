@@ -1,5 +1,7 @@
 {
     "lang": "css",
+    "display_name": "CSS",
+    "badge_color": "#563d7c",
     "extensions": ["css", "scss", "less"],
     "styles": {
         "keyword": "KEYWORD_COLOR",
