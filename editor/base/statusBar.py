@@ -4,6 +4,15 @@ from editor.utils.resource_path import resource_path
 from editor.widgets.QToolButton import ToolbarButton
 from editor.utils.git_control.git_control import *
 
+#: Severity groups the diagnostic buttons control, in display order. The label
+#: is what the right-click menu shows; the group name is what the Problems
+#: panel understands.
+DIAGNOSTIC_GROUPS = (
+    ("errors", "Problems"),
+    ("warnings", "Warnings"),
+    ("checks", "Checks"),
+)
+
 
 class BootstrapDetailMenu(QFrame):
     def __init__(self, messages, parent=None):
@@ -96,6 +105,31 @@ class StatusBar(QFrame):
         self.errorsBtn.setObjectName("errorsButton")
         self.errorsBtn.setText("0")
         statusbar_layout.addWidget(self.errorsBtn)
+
+        self.checksBtn = ToolbarButton(
+            icon_path=resource_path("assets/system/bug.png"),
+            tooltip="Checks",
+            fixed_size=(45, 23),
+            icon_size=(17, 17),
+        )
+        self.checksBtn.setStyleSheet("border-radius: 0px;")
+        self.checksBtn.setObjectName("checksButton")
+        self.checksBtn.setText("0")
+        statusbar_layout.addWidget(self.checksBtn)
+
+        # Right-clicking any diagnostic button opens the display options for
+        # the three groups (list them in the tree / underline them).
+        self._problems_panel = None
+        self._group_buttons = {
+            "errors": self.errorsBtn,
+            "warnings": self.warningBtn,
+            "checks": self.checksBtn,
+        }
+        for button in self._group_buttons.values():
+            button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            button.customContextMenuRequested.connect(
+                lambda pos, btn=button: self._show_diagnostics_menu(btn, pos)
+            )
 
         statusbar_layout.addSpacing(3)
 
@@ -229,16 +263,135 @@ class StatusBar(QFrame):
         """Restore the status bar to its theme-default appearance."""
         self.setStyleSheet("")
 
-    def set_problem_counts(self, errors: int, warnings: int) -> None:
-        """Publish the Problems-panel counts on the error/warning buttons.
+    def attach_problems_panel(self, panel) -> None:
+        """Bind the Problems panel whose display options these buttons drive.
+
+        Args:
+            panel: The ``ProblemsWidget`` the menu reads and updates. When it
+                is ``None`` the menu reports that the panel is unavailable.
+        """
+        self._problems_panel = panel
+
+    def problems_panel(self):
+        """Return the attached Problems panel, or ``None``."""
+        return self._problems_panel
+
+    def _group_of_button(self, button) -> str:
+        """Return the severity group *button* stands for (``""`` if unknown)."""
+        for group, candidate in self._group_buttons.items():
+            if candidate is button:
+                return group
+        return ""
+
+    def _show_diagnostics_menu(self, button, position) -> None:
+        """Open the diagnostic display options for the right-clicked *button*."""
+        menu = self.build_diagnostics_menu(button)
+        menu.exec(button.mapToGlobal(position))
+
+    def build_diagnostics_menu(self, button=None) -> QMenu:
+        """Build the display-options menu of the diagnostic buttons.
+
+        Each group owns two independent switches: whether its rows are listed
+        in the Problems panel, and whether it is underlined in the code
+        editor. The group of the right-clicked *button* comes first.
+
+        Args:
+            button: The button that was clicked, used to order the groups.
+
+        Returns:
+            A ready-to-exec :class:`QMenu`; the caller owns it.
+        """
+        panel = self._problems_panel
+        menu = QMenu(self)
+        clicked_group = self._group_of_button(button)
+        ordered = sorted(DIAGNOSTIC_GROUPS, key=lambda item: item[0] != clicked_group)
+
+        for group, label in ordered:
+            submenu = menu.addMenu(label)
+            shown = None if panel is None else panel.is_group_enabled(group)
+            underlined = None if panel is None else panel.is_group_underlined(group)
+            panel_action = submenu.addAction("Show in Problems panel")
+            panel_action.setCheckable(True)
+            panel_action.setChecked(bool(shown))
+            panel_action.setEnabled(panel is not None)
+            panel_action.toggled.connect(
+                lambda enabled, g=group: self._set_group_shown(g, enabled)
+            )
+            underline_action = submenu.addAction("Underline in editor")
+            underline_action.setCheckable(True)
+            underline_action.setChecked(bool(underlined))
+            underline_action.setEnabled(panel is not None)
+            underline_action.toggled.connect(
+                lambda enabled, g=group: self._set_group_underlined(g, enabled)
+            )
+
+        menu.addSeparator()
+        show_all = menu.addAction("Show all groups in panel")
+        show_all.setEnabled(panel is not None)
+        show_all.triggered.connect(lambda: self._set_all_groups(True))
+        underline_all = menu.addAction("Underline all groups in editor")
+        underline_all.setEnabled(panel is not None)
+        underline_all.triggered.connect(lambda: self._set_all_underlined(True))
+        reset = menu.addAction("Reset display options")
+        reset.setEnabled(panel is not None)
+        reset.triggered.connect(self._reset_display_options)
+
+        if panel is None:
+            placeholder = menu.addAction("Problems panel unavailable")
+            placeholder.setEnabled(False)
+        return menu
+
+    def _set_group_shown(self, group: str, enabled: bool) -> None:
+        """Show or hide *group* rows in the Problems panel."""
+        if self._problems_panel is not None:
+            self._problems_panel.set_group_enabled(group, enabled)
+
+    def _set_group_underlined(self, group: str, enabled: bool) -> None:
+        """Turn editor underlining on or off for *group*."""
+        if self._problems_panel is not None:
+            self._problems_panel.set_group_underlined(group, enabled)
+
+    def _set_all_groups(self, enabled: bool) -> None:
+        """Show or hide every severity group in the Problems panel.
+
+        "All" covers every group the panel knows, including the ones without a
+        status-bar button, so the panel decides what that means.
+        """
+        panel = self._problems_panel
+        if panel is None:
+            return
+        if enabled:
+            panel.show_all_groups()
+        else:
+            panel.set_enabled_groups(())
+
+    def _set_all_underlined(self, enabled: bool) -> None:
+        """Turn editor underlining on or off for every severity group."""
+        panel = self._problems_panel
+        if panel is None:
+            return
+        if enabled:
+            panel.underline_all_groups()
+        else:
+            panel.set_underlined_groups(())
+
+    def _reset_display_options(self) -> None:
+        """Restore the default display options of the Problems panel."""
+        if self._problems_panel is not None:
+            self._problems_panel.reset_display_options()
+
+    def set_problem_counts(self, errors: int, warnings: int, checks: int = 0) -> None:
+        """Publish the Problems-panel counts on the diagnostic buttons.
 
         Args:
             errors: Number of error-severity diagnostics.
             warnings: Number of warning-severity diagnostics.
+            checks: Number of failed non-fatal checks (bare ``except``, …).
         """
         try:
             error_count = max(0, int(errors))
             warning_count = max(0, int(warnings))
+            check_count = max(0, int(checks))
         except (TypeError, ValueError):
             return
         self.errorsBtn.setText(str(error_count))
@@ -246,6 +399,10 @@ class StatusBar(QFrame):
         self.warningBtn.setText(str(warning_count))
         self.warningBtn.setToolTip(
             f"{warning_count} warning(s) — open the Problems panel"
+        )
+        self.checksBtn.setText(str(check_count))
+        self.checksBtn.setToolTip(
+            f"{check_count} check(s) — open the Problems panel on checks only"
         )
 
     def set_workspace(self, directory: str) -> None:

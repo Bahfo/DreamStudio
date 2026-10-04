@@ -52,6 +52,32 @@ _ERROR_PREFIXES = ("E9", "F")
 #: Rule-code prefixes mapped to WARNING problems.
 _WARNING_PREFIXES = ("E", "W")
 
+#: Rule codes mapped to CHECK problems. These are correctness checks the IDE
+#: runs on every file: they are neither fatal problems nor plain warnings, so
+#: the UI counts them separately (bare ``except``, blind handlers, …).
+_CHECK_CODES = frozenset(
+    {
+        "E722",  # do not use bare except
+        "E731",  # do not assign a lambda
+        "E741",  # ambiguous variable name
+        "BLE001",  # blind except
+        "S110",  # try-except-pass
+        "S112",  # try-except-continue
+        "TRY002",  # raise vanilla Exception
+        "TRY300",  # consider moving return to else block
+        "TRY301",  # abstract raise to an inner function
+        "TRY400",  # use logging.exception instead of logging.error
+    }
+)
+
+#: Message fragments used when a provider reports a check without a code.
+_CHECK_MESSAGE_MARKERS = (
+    "bare `except`",
+    "bare except",
+    "blind except",
+    "blind `except`",
+)
+
 #: Rule codes that describe a physical line-length violation.
 _LINE_LENGTH_CODES = ("E501",)
 
@@ -180,23 +206,31 @@ def map_severity(code: Optional[str], message: str) -> ProblemSeverity:
 
     Returns:
         ``ERROR`` for parse errors and pyflakes errors, ``WARNING`` for
-        pycodestyle ``E``/``W`` rules and ``TYPO`` for every remaining
-        style/quality rule.
+        pycodestyle ``E``/``W`` rules, ``CHECK`` for robustness checks such as
+        a bare ``except``, and ``TYPO`` for every remaining style/quality
+        rule.
     """
     normalized = (code or "").strip().upper()
-    if not normalized:
-        return ProblemSeverity.ERROR
+    lowered = (message or "").lower()
+    says_check = any(marker in lowered for marker in _CHECK_MESSAGE_MARKERS)
     if normalized in _SYNTAX_CODES:
         return ProblemSeverity.ERROR
+    if normalized in _CHECK_CODES:
+        return ProblemSeverity.CHECK
+    if not normalized:
+        # Without a code the message is the only signal: a check phrasing
+        # still yields CHECK, anything else stays a parse-level ERROR.
+        return ProblemSeverity.CHECK if says_check else ProblemSeverity.ERROR
     if any(normalized.startswith(prefix) for prefix in _ERROR_PREFIXES):
         return ProblemSeverity.ERROR
     if any(normalized.startswith(prefix) for prefix in _WARNING_PREFIXES):
         return ProblemSeverity.WARNING
-    lowered = (message or "").lower()
     if "syntaxerror" in lowered or any(
         marker in lowered for marker in _SYNTAX_MESSAGE_MARKERS
     ):
         return ProblemSeverity.ERROR
+    if says_check:
+        return ProblemSeverity.CHECK
     return ProblemSeverity.TYPO
 
 

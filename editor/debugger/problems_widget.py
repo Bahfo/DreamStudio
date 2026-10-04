@@ -2,24 +2,6 @@
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
 
 Isolated Problems view for DreamStudio.
-
-The widget knows nothing about analysis backends. It is a pure presentation
-layer on top of :class:`~editor.analysis.diagnostic_store.DiagnosticStore`,
-which owns all diagnostic state, scope decisions (active buffer vs workspace)
-and staleness checks. Any provider (Ruff, spell checkers, language servers …)
-feeds the store without touching this file, mirroring how Visual Studio
-decouples its Error List from its analyzers.
-
-Scanning policy is decided by *event type*, never by a user setting:
-
-* **active buffer scope** — a debounced, off-thread re-analysis of the current
-  editor text (AST + external providers via stdin) after typing, tab
-  activation or save;
-* **workspace scope** — an indexed, batched, off-thread sweep plus one
-  external provider pass on workspace lifecycle events and on the explicit
-  "Analyze Workspace" action.
-
-Both always run; the user never chooses between them.
 """
 
 from editor import *
@@ -33,13 +15,67 @@ from editor.utils.resource_path import resource_path
 
 logger = logging.getLogger(__name__)
 
-#: Squiggle color per severity (red / yellow / blue / teal) — IDE theme
-#: accents so indicators always look native.
+#: Squiggle color per severity (red / yellow / violet / blue / teal) — IDE
+#: theme accents so indicators always look native.
 SEVERITY_COLORS = {
     ProblemSeverity.ERROR: "#F14C4C",
     ProblemSeverity.WARNING: "#FCC700",
+    ProblemSeverity.CHECK: "#C586C0",
     ProblemSeverity.TYPO: "#3794FF",
     ProblemSeverity.INFO: "#4EC9B0",
+}
+
+
+#: Named severity groups the status bar can count and filter on. The problems
+#: and warning buttons show everything; the check button narrows the panel to
+#: non-fatal checks (bare ``except`` and friends).
+def _count_severities(problems: Iterable[Problem]) -> tuple:
+    """Return ``(errors, warnings, checks, typos)`` for *problems*."""
+    counts = {
+        ProblemSeverity.ERROR: 0,
+        ProblemSeverity.WARNING: 0,
+        ProblemSeverity.CHECK: 0,
+        ProblemSeverity.TYPO: 0,
+    }
+    for problem in problems:
+        if problem.severity in counts:
+            counts[problem.severity] += 1
+    return (
+        counts[ProblemSeverity.ERROR],
+        counts[ProblemSeverity.WARNING],
+        counts[ProblemSeverity.CHECK],
+        counts[ProblemSeverity.TYPO],
+    )
+
+
+#: User-facing title of every severity group. Shared by the "Filter by"
+#: selector, the summary hint and the status-bar context menu so the panel and
+#: the buttons always use the same wording.
+_GROUP_TITLES = {
+    "errors": "Problems",
+    "warnings": "Warnings",
+    "checks": "Checks",
+    "typos": "Typos & Hints",
+}
+
+#: Groups offered in the "Filter by" selector (the status bar only drives the
+#: first three).
+_FILTER_GROUPS = ("errors", "warnings", "checks")
+
+#: ``(label, group)`` pairs of the "Filter by" selector. ``None`` means "every
+#: group"; ``"custom"`` is a display-only state the status-bar context menu
+#: produces when several groups are toggled at once.
+_FILTER_ITEMS = (
+    ("All", None),
+    *((_GROUP_TITLES[group], group) for group in _FILTER_GROUPS),
+    ("Custom", "custom"),
+)
+
+SEVERITY_GROUPS: Dict[str, frozenset] = {
+    "errors": frozenset({ProblemSeverity.ERROR}),
+    "warnings": frozenset({ProblemSeverity.WARNING}),
+    "checks": frozenset({ProblemSeverity.CHECK}),
+    "typos": frozenset({ProblemSeverity.TYPO, ProblemSeverity.INFO}),
 }
 
 
@@ -70,6 +106,8 @@ def _severity_icon_name(severity: ProblemSeverity) -> str:
     """Return the asset filename for *severity*."""
     if severity == ProblemSeverity.WARNING:
         return "warning.png"
+    if severity == ProblemSeverity.CHECK:
+        return "bug.png"
     if severity == ProblemSeverity.TYPO:
         return "spell_check.png"
     if severity == ProblemSeverity.INFO:
@@ -111,12 +149,31 @@ def _normalize_problems(
 #: distinguishable at a glance instead of collapsing onto the severity icon.
 CATEGORY_ICONS = {
     "syntax": "problem.png",
+    "check": "bug.png",
     "name": "bug.png",
     "type": "problem.png",
     "unused": "info.png",
     "style": "spell_check.png",
     "marker": "warning.png",
 }
+
+
+def _group_of(severity: ProblemSeverity) -> str:
+    """Return the severity-group *severity* belongs to (``""`` if unmapped)."""
+    for name, members in SEVERITY_GROUPS.items():
+        if severity in members:
+            return name
+    return ""
+
+
+def _groups_of_severities(severities: Iterable[ProblemSeverity]) -> set:
+    """Return every severity group covered by *severities*."""
+    groups = set()
+    for severity in severities or ():
+        name = _group_of(ProblemSeverity.coerce(severity))
+        if name:
+            groups.add(name)
+    return groups
 
 
 def _hover_text(problem: Problem) -> str:
@@ -330,7 +387,7 @@ class ProblemsWidget(QWidget):
 
     problemActivated = pyqtSignal(object)
     problemClicked = pyqtSignal(object)
-    countsChanged = pyqtSignal(int, int)
+    countsChanged = pyqtSignal(int, int, int)
     providerError = pyqtSignal(str)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -340,6 +397,7 @@ class ProblemsWidget(QWidget):
         self._icons: Dict[ProblemSeverity, QIcon] = {
             ProblemSeverity.ERROR: _load_icon("problem.png"),
             ProblemSeverity.WARNING: _load_icon("warning.png"),
+            ProblemSeverity.CHECK: _load_icon("bug.png"),
             ProblemSeverity.TYPO: _load_icon("spell_check.png"),
             ProblemSeverity.INFO: _load_icon("info.png"),
         }
@@ -350,6 +408,12 @@ class ProblemsWidget(QWidget):
         }
         # File-type icon cache (extension -> QIcon). Lazy-filled on demand.
         self._file_icons: Dict[str, QIcon] = {}
+        # Display state: which severity groups are listed in the tree and
+        # which are underlined in the editor. Both are presentation-only — the
+        # diagnostics themselves and the published counts never depend on them.
+        self._enabled_groups: set = set(SEVERITY_GROUPS)
+        self._underlined_groups: set = set(SEVERITY_GROUPS)
+        self._syncing_filter: bool = False
         self._scan_root: str = ""
         self._scan_gen: int = 0
         self._live_gen: int = 0
@@ -399,6 +463,26 @@ class ProblemsWidget(QWidget):
         self._summary_label = QLabel("No problems", header)
         self._summary_label.setObjectName("ProblemsSummaryLabel")
         h_layout.addWidget(self._summary_label)
+
+        self._filter_label = QLabel("Filter by", header)
+        self._filter_label.setObjectName("ProblemsFilterLabel")
+        h_layout.addWidget(self._filter_label)
+
+        self._filter_combo = QComboBox(header)
+        self._filter_combo.setObjectName("ProblemsFilterCombo")
+        self._filter_combo.setToolTip(
+            "Filter by — show only Problems, Warnings or Checks"
+        )
+        for label, group in _FILTER_ITEMS:
+            self._filter_combo.addItem(label, group)
+        # "Custom" only ever reflects a context-menu toggle combination, so the
+        # user cannot select it directly.
+        custom_index = self._filter_combo.findData("custom")
+        if custom_index >= 0:
+            self._filter_combo.model().item(custom_index).setEnabled(False)
+        self._filter_combo.currentIndexChanged.connect(self._on_filter_combo_changed)
+        h_layout.addWidget(self._filter_combo)
+
         h_layout.addStretch(1)
 
         self._btn_refresh = QToolButton(header)
@@ -492,7 +576,8 @@ class ProblemsWidget(QWidget):
         """
         self._problems = _normalize_problems(problems)
         self._skipped_files = int(skipped or 0)
-        self._active_filter: set | None = None
+        self._enabled_groups = set(SEVERITY_GROUPS)
+        self._sync_filter_combo()
         self._store.set_paths(self._problems)
         self._render_all()
 
@@ -548,16 +633,17 @@ class ProblemsWidget(QWidget):
         return len(self._problems)
 
     def problem_counts(self) -> tuple:
-        """Return current ``(errors, warnings)`` counts.
+        """Return current ``(errors, warnings, checks)`` counts.
+
+        Checks are counted apart from warnings because they are neither fatal
+        problems nor ordinary warnings; the status bar shows them on their own
+        button.
 
         Returns:
-            Tuple of error and warning counts derived from the cache.
+            Tuple of error, warning and check counts derived from the cache.
         """
-        errors = sum(1 for p in self._problems if p.severity == ProblemSeverity.ERROR)
-        warnings = sum(
-            1 for p in self._problems if p.severity == ProblemSeverity.WARNING
-        )
-        return errors, warnings
+        errors, warnings, checks, _typos = _count_severities(self._problems)
+        return errors, warnings, checks
 
     def analyze_workspace(self) -> None:
         """Explicit "Analyze Workspace" action.
@@ -576,7 +662,8 @@ class ProblemsWidget(QWidget):
         self._queued_paths = set()
         self._scan_gen += 1
         self._store.reset(self._scan_gen)
-        self._active_filter = None
+        self._enabled_groups = set(SEVERITY_GROUPS)
+        self._sync_filter_combo()
         self._problems = []
         self._rebuild()
         self.run_workspace_analysis(root)
@@ -641,11 +728,41 @@ class ProblemsWidget(QWidget):
         self._tree.collapseAll()
 
     def _visible_problems(self) -> List[Problem]:
-        """Return problems honoring the active severity filter."""
-        active = getattr(self, "_active_filter", None)
-        if active is None:
-            return list(self._problems)
-        return [p for p in self._problems if p.severity in active]
+        """Return the problems of every enabled severity group."""
+        enabled = self.enabled_groups()
+        return [p for p in self._problems if _group_of(p.severity) in enabled]
+
+    # -- Filter by ----------------------------------------------------
+    # Panel visibility is tracked per severity group, so the "Filter by"
+    # selector, the status-bar buttons and the right-click menu all drive the
+    # same state.
+
+    def enabled_groups(self) -> frozenset:
+        """Return the severity groups currently listed in the tree."""
+        return frozenset(self._enabled_groups)
+
+    def is_group_enabled(self, group: str) -> bool:
+        """Return ``True`` when *group* rows are shown in the tree."""
+        return self._group_name(group) in self._enabled_groups
+
+    def set_enabled_groups(self, groups: Iterable[str]) -> None:
+        """Show rows only for *groups* (unknown names are ignored)."""
+        wanted = {self._group_name(group) for group in groups or ()}
+        self._enabled_groups = wanted & set(SEVERITY_GROUPS)
+        self._rebuild()
+        self._sync_filter_combo()
+
+    def set_group_enabled(self, group: str, enabled: bool) -> None:
+        """Enable or hide *group* rows in the tree."""
+        name = self._group_name(group)
+        if not name:
+            return
+        groups = set(self._enabled_groups)
+        if enabled:
+            groups.add(name)
+        else:
+            groups.discard(name)
+        self.set_enabled_groups(groups)
 
     def filter_by_severity(self, severities: Iterable[ProblemSeverity]) -> None:
         """Show only diagnostics whose severity is in *severities*.
@@ -655,16 +772,129 @@ class ProblemsWidget(QWidget):
                 empty collection to hide all rows without mutating the
                 underlying collection.
         """
-        allowed = (
-            {ProblemSeverity.coerce(s) for s in severities} if severities else set()
-        )
-        self._active_filter = allowed
-        self._rebuild()
+        self.set_enabled_groups(_groups_of_severities(severities or ()))
 
-    # ------------------------------------------------------------------
-    # Legacy bridge — keeps old callers working without importing
-    # backends at module load time (widget stays isolated).
-    # ------------------------------------------------------------------
+    def show_group(self, group: str) -> None:
+        """Show only the diagnostics belonging to the named severity *group*.
+
+        Unlike :meth:`filter_by_severity` this survives re-analysis and new
+        results, so a status-bar button can keep the panel narrowed to the
+        counter the user pressed.
+
+        Args:
+            group: One of :data:`SEVERITY_GROUPS`, e.g. ``"checks"``. Unknown
+                names fall back to showing every diagnostic.
+        """
+        name = self._group_name(group)
+        if not name:
+            self.show_all_groups()
+            return
+        self.set_enabled_groups({name})
+
+    def show_all_groups(self) -> None:
+        """Clear the severity-group filter and show every diagnostic."""
+        self.set_enabled_groups(SEVERITY_GROUPS)
+
+    def filter_group(self) -> str:
+        """Return the single visible group, or ``""`` when not narrowed to one.
+
+        Every group visible (``"all"``) and several-but-not-all groups
+        (``"custom"``) both report ``""``, because neither is a narrowing.
+        """
+        enabled = self._enabled_groups
+        if len(enabled) == 1:
+            return next(iter(enabled))
+        return ""
+
+    @staticmethod
+    def _group_name(group: object) -> str:
+        """Normalize *group* to a known severity-group name (``""`` if unknown)."""
+        name = str(group or "").strip().lower()
+        return name if name in SEVERITY_GROUPS else ""
+
+    # -- Underlining in the editor ------------------------------------
+    # Independent of the tree filter: a group can stay listed in the panel
+    # while its squiggles are turned off in the code editor.
+
+    def underlined_groups(self) -> frozenset:
+        """Return the severity groups currently underlined in editors."""
+        return frozenset(self._underlined_groups)
+
+    def is_group_underlined(self, group: str) -> bool:
+        """Return ``True`` when *group* is underlined in editors."""
+        return self._group_name(group) in self._underlined_groups
+
+    def set_underlined_groups(self, groups: Iterable[str]) -> None:
+        """Underline only *groups* in editors and repaint the open ones."""
+        wanted = {self._group_name(group) for group in groups or ()}
+        self._underlined_groups = wanted & set(SEVERITY_GROUPS)
+        self._repaint_open_editors()
+
+    def set_group_underlined(self, group: str, underlined: bool) -> None:
+        """Turn editor underlining on or off for *group*."""
+        name = self._group_name(group)
+        if not name:
+            return
+        groups = set(self._underlined_groups)
+        if underlined:
+            groups.add(name)
+        else:
+            groups.discard(name)
+        self.set_underlined_groups(groups)
+
+    def underline_all_groups(self) -> None:
+        """Underline every severity group in the code editor."""
+        self.set_underlined_groups(SEVERITY_GROUPS)
+
+    def reset_display_options(self) -> None:
+        """Restore the defaults: every group listed and underlined."""
+        self._underlined_groups = set(SEVERITY_GROUPS)
+        self._enabled_groups = set(SEVERITY_GROUPS)
+        self._repaint_open_editors()
+        self._rebuild()
+        self._sync_filter_combo()
+
+    def _is_underlined(self, severity: ProblemSeverity) -> bool:
+        """Return ``True`` when *severity* should be squiggled in editors."""
+        return _group_of(severity) in self._underlined_groups
+
+    def _sync_filter_combo(self) -> None:
+        """Reflect the enabled groups in the "Filter by" selector."""
+        combo = getattr(self, "_filter_combo", None)
+        if combo is None:
+            return
+        enabled = self._enabled_groups
+        if enabled == set(SEVERITY_GROUPS):
+            target = None  # every group visible -> "All"
+        elif len(enabled) == 1:
+            target = next(iter(enabled))
+        else:
+            # A partial combination (or nothing at all) is the "Custom" state
+            # produced by the status-bar context menu.
+            target = "custom"
+        index = combo.findData(target)
+        if index < 0:
+            return
+        if combo.currentIndex() == index:
+            return
+        self._syncing_filter = True
+        try:
+            combo.setCurrentIndex(index)
+        finally:
+            self._syncing_filter = False
+
+    def _on_filter_combo_changed(self, index: int) -> None:
+        """Apply the group chosen in the "Filter by" selector."""
+        if self._syncing_filter or index < 0:
+            return
+        combo = self._filter_combo
+        group = combo.itemData(index)
+        if group == "custom":
+            return
+        if group is None:
+            self.show_all_groups()
+            return
+        self.set_enabled_groups({str(group)})
 
     def run_workspace_analysis(self, workspace_root: str) -> None:
         """Start continuous scanning of *workspace_root* off the GUI thread.
@@ -1339,10 +1569,15 @@ class ProblemsWidget(QWidget):
 
             ranges = []
             muted = []
+            underlined = self.underlined_groups()
             for problem in problems or []:
                 start_line, start_col, end_line, end_col = problem.range_0based
                 if is_deemphasized(problem):
+                    # Dimmed code is not underlined, so it stays visible even
+                    # when its severity group has no underlining.
                     muted.append((start_line, start_col, end_line, end_col))
+                    continue
+                if _group_of(problem.severity) not in underlined:
                     continue
                 ranges.append(
                     (
@@ -1452,6 +1687,7 @@ class ProblemsWidget(QWidget):
         """
         errors = sum(1 for p in problems if p.severity == ProblemSeverity.ERROR)
         warnings = sum(1 for p in problems if p.severity == ProblemSeverity.WARNING)
+        checks = sum(1 for p in problems if p.severity == ProblemSeverity.CHECK)
         typos = sum(1 for p in problems if p.severity == ProblemSeverity.TYPO)
 
         basename = os.path.basename(file_path) or file_path
@@ -1479,6 +1715,8 @@ class ProblemsWidget(QWidget):
             count_parts.append(f"{errors} error{'s' if errors != 1 else ''}")
         if warnings:
             count_parts.append(f"{warnings} warning{'s' if warnings != 1 else ''}")
+        if checks:
+            count_parts.append(f"{checks} check{'s' if checks != 1 else ''}")
         if typos:
             count_parts.append(f"{typos} typo{'s' if typos != 1 else ''}")
         if not count_parts:
@@ -1517,27 +1755,49 @@ class ProblemsWidget(QWidget):
 
     def _update_summary(self) -> None:
         """Refresh the header summary label and publish counts."""
-        errors, warnings = self.problem_counts()
+        errors, warnings, checks = self.problem_counts()
         if not self._problems:
-            self._summary_label.setText("No problems")
-            self.countsChanged.emit(0, 0)
+            self._summary_label.setText(self._filter_hint("No problems"))
+            self.countsChanged.emit(0, 0, 0)
             return
-        typos = sum(1 for p in self._problems if p.severity == ProblemSeverity.TYPO)
+        # While a severity group is active the header describes what is on
+        # screen; the emitted counters stay global so the status-bar buttons
+        # never change because the user pressed one.
+        scoped = (
+            self._visible_problems()
+            if self._enabled_groups != set(SEVERITY_GROUPS)
+            else self._problems
+        )
+        shown_errors, shown_warnings, shown_checks, typos = _count_severities(scoped)
         parts: List[str] = []
-        if errors:
-            parts.append(f"{errors} Error{'s' if errors != 1 else ''}")
-        if warnings:
-            parts.append(f"{warnings} Warning{'s' if warnings != 1 else ''}")
+        if shown_errors:
+            parts.append(f"{shown_errors} Error{'s' if shown_errors != 1 else ''}")
+        if shown_warnings:
+            parts.append(
+                f"{shown_warnings} Warning{'s' if shown_warnings != 1 else ''}"
+            )
+        if shown_checks:
+            parts.append(f"{shown_checks} Check{'s' if shown_checks != 1 else ''}")
         if typos:
             parts.append(f"{typos} Typo{'s' if typos != 1 else ''}")
         if not parts:
-            parts.append(f"{len(self._problems)} Problems")
-        total = len(self._problems)
-        files = len({p.file_path for p in self._problems})
+            parts.append(f"{len(scoped)} Problems")
+        total = len(scoped)
+        files = len({p.file_path for p in scoped})
         self._summary_label.setText(
-            f"{'  •  '.join(parts)}  —  {total} in {files} file{'s' if files != 1 else ''}"
+            self._filter_hint(
+                f"{'  •  '.join(parts)}  —  {total} in "
+                f"{files} file{'s' if files != 1 else ''}"
+            )
         )
-        self.countsChanged.emit(errors, warnings)
+        self.countsChanged.emit(errors, warnings, checks)
+
+    def _filter_hint(self, text: str) -> str:
+        """Prefix *text* with the active severity-group filter, if any."""
+        group = self.filter_group()
+        if not group:
+            return text
+        return f"{_GROUP_TITLES.get(group, group)}: {text}"
 
     def closeEvent(self, event) -> None:
         """Drain scanner workers before the widget is destroyed."""
