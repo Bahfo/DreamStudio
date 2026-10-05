@@ -7,6 +7,7 @@ Libclang integration adapter for DreamStudio embedded C support.
 import logging
 import os
 import re
+import sys
 import clang.cindex
 
 from typing import List, Optional
@@ -32,6 +33,29 @@ def _cursor_value(name: str) -> int:
     """Return the numeric libclang value for a cursor-kind name."""
     cursor_kind = getattr(CursorKind, name, None)
     return int(cursor_kind.value) if cursor_kind is not None else -1
+
+
+def _bundled_libclang() -> Optional[str]:
+    """Return the frozen-bundled libclang path, or ``None`` when absent.
+
+    PyInstaller cannot resolve the ``libclang`` pip package's native
+    library at runtime (``clang/cindex.py`` looks next to its own
+    ``__file__``, which lives inside the frozen archive). The Linux
+    build therefore ships ``clang/native/libclang.so`` as a binary and
+    this helper points the adapter at it. Returns ``None`` outside
+    frozen builds so development keeps the normal lookup behavior.
+    """
+    if not getattr(sys, "frozen", False):
+        return None
+    base = getattr(sys, "_MEIPASS", "")
+    if not base:
+        return None
+    for stem in ("libclang.so", "libclang.dylib", "libclang.dll"):
+        candidate = os.path.join(base, "clang", "native", stem)
+        if os.path.isfile(candidate):
+            return candidate
+    logger.debug("No bundled libclang found under %s", base)
+    return None
 
 
 _COMPLETION_KIND_MAP = {
@@ -73,6 +97,8 @@ class ClangAdapter(IClangAdapter):
 
     def __init__(self, library_path: Optional[str] = None) -> None:
         super().__init__()
+        if library_path is None:
+            library_path = _bundled_libclang()
         if library_path:
             clang.cindex.Config.set_library_file(library_path)
         self._index = Index.create()
@@ -106,9 +132,7 @@ class ClangAdapter(IClangAdapter):
         self._tu_cache.clear()
         self._tu_order.clear()
 
-    def _parse_translation_unit(
-        self, context: CContext
-    ) -> Optional[TranslationUnit]:
+    def _parse_translation_unit(self, context: CContext) -> Optional[TranslationUnit]:
         """Parse or reparse the translation unit for *context*.
 
         Args:
