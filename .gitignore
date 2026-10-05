@@ -17,3 +17,5 @@ config.json
 /additional/consoles_emulators/
 
 **/tests/
+
+publish/

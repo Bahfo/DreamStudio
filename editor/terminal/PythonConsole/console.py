@@ -1,3 +1,5 @@
+import shlex
+
 from editor import *
 from editor.utils.notifications.notification_manager import get_notification_manager
 from editor.utils.resource_path import resource_path
@@ -12,6 +14,25 @@ except ImportError:
     QtKernelManager = None  # type: ignore
     RichJupyterWidget = None  # type: ignore
     _JUPYTER_AVAILABLE = False
+
+try:
+    from qtconsole.inprocess import QtInProcessKernelManager
+
+    _INPROCESS_AVAILABLE = True
+except ImportError:
+    QtInProcessKernelManager = None  # type: ignore
+    _INPROCESS_AVAILABLE = False
+
+
+def _is_frozen() -> bool:
+    """Return ``True`` when running inside the packaged executable.
+
+    Frozen builds ship no Python interpreter, so an out-of-process kernel
+    can neither be provisioned (missing entry-point metadata) nor spawned
+    (``sys.executable`` is the IDE binary itself). The console therefore
+    uses an in-process kernel when frozen.
+    """
+    return bool(getattr(sys, "frozen", False))
 
 
 class PythonShell(QWidget):
@@ -47,20 +68,25 @@ class PythonShell(QWidget):
         if resolved_cwd and os.path.isdir(resolved_cwd):
             self._workspace_dir = os.path.abspath(resolved_cwd)
 
-        self.kernel_manager = QtKernelManager(kernel_name="python3")
+        # A kernel that fails to start must degrade to an inline error, never
+        # raise out of __init__: an exception here escapes through the Qt
+        # slot that opened the console and aborts the whole IDE.
         try:
-            self.kernel_manager.start_kernel(cwd=self._workspace_dir or None)
-        except Exception:
-            self.kernel_manager.start_kernel()
+            self._start_kernel()
+        except Exception as exc:
+            logger = logging.getLogger(__name__)
+            logger.error("Python console kernel failed to start: %s", exc)
+            self._show_kernel_error(
+                "Python console unavailable: the Jupyter kernel "
+                f"could not be started ({exc})."
+            )
+            return
         try:
             app = QApplication.instance()
             if app is not None:
                 app.aboutToQuit.connect(self._shutdown_kernel)
         except Exception:
             pass
-
-        self.kernel_client = self.kernel_manager.client()
-        self.kernel_client.start_channels()
 
         self.console = RichJupyterWidget(parent=self)
         self.console.setObjectName("JupyterConsole")
@@ -104,6 +130,52 @@ class PythonShell(QWidget):
             pass
         return ""
 
+    def _start_kernel(self) -> None:
+        """Create the kernel manager/client and start kernel channels.
+
+        Frozen builds use an in-process kernel: the bundle ships no
+        interpreter, so an out-of-process kernel can be neither
+        provisioned nor spawned. Development builds keep the standard
+        out-of-process kernel.
+
+        Raises:
+            Exception: Whatever the kernel backend raises. The caller
+                degrades to an inline error instead of propagating.
+        """
+        if _is_frozen():
+            if not _INPROCESS_AVAILABLE:
+                raise RuntimeError("in-process Jupyter kernel support is missing")
+            self.kernel_manager = QtInProcessKernelManager()
+            self.kernel_manager.start_kernel(show_banner=False)
+            try:
+                self.kernel_manager.kernel.gui = "qt"
+            except Exception:
+                pass
+        else:
+            self.kernel_manager = QtKernelManager(kernel_name="python3")
+            try:
+                self.kernel_manager.start_kernel(cwd=self._workspace_dir or None)
+            except Exception:
+                self.kernel_manager.start_kernel()
+        self.kernel_client = self.kernel_manager.client()
+        self.kernel_client.start_channels()
+
+    def _show_kernel_error(self, message: str) -> None:
+        """Replace the console with an inline error notice.
+
+        Args:
+            message: Human-readable reason the kernel is unavailable.
+        """
+        self._unavailable = True
+        self.kernel_manager = None
+        self.kernel_client = None
+        self.console = None
+        notice = QLabel(message)
+        notice.setWordWrap(True)
+        notice.setObjectName("PythonShellError")
+        layout = QVBoxLayout(self)
+        layout.addWidget(notice)
+
     def set_workspace(self, path: str) -> None:
         """Track workspace switches; restart kernel cwd when possible."""
         if getattr(self, "_unavailable", False):
@@ -112,7 +184,7 @@ class PythonShell(QWidget):
             return
         self._workspace_dir = os.path.abspath(path)
         try:
-            self.console.execute(f"%cd -q {shlex.quote(self._workspace_dir)}")
+            self.console.execute(f"%cd -q {self._quote(self._workspace_dir)}")
         except Exception:
             pass
 
