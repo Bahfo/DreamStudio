@@ -36,9 +36,6 @@ pyee==13.0.1
 Pygments==2.21.0
 pyinstaller==6.22.3
 pyinstaller-hooks-contrib==2026.8
-PyQt5==5.15.11
-PyQt5-Qt5==5.15.19
-PyQt5_sip==12.19.0
 PyQt6==6.11.0
 PyQt6-QScintilla==2.14.1
 PyQt6-Qt6==6.11.2

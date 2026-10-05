@@ -162,7 +162,20 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=["tkinter", "matplotlib", "PyQt5", "PySide2", "PySide6", "PyQt5.sip"],
+    excludes=[
+        "tkinter",
+        "matplotlib",
+        "PyQt5",
+        "PySide2",
+        "PySide6",
+        "PyQt5.sip",
+        # debugpy performs __file__-relative filesystem access at import
+        # time (os.listdir on its _vendored dir), which cannot work from
+        # inside the frozen archive. ipykernel treats a missing debugpy as
+        # "debug adapter unavailable" and starts the kernel without it, so
+        # excluding it is both safe and required for frozen consoles.
+        "debugpy",
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
