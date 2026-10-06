@@ -3225,10 +3225,18 @@ class CodeEditor(QsciScintilla):
                 return False
 
             popup = self._error_popup_widget()
-            # Keep the bubble on-theme with the current editor background.
             popup.set_theme_color(self.palette().color(QPalette.ColorRole.Base))
             popup.set_message(message)
             popup.adjustSize()
+
+            try:
+                self.ensureLineVisible(line)
+                self.ensureLineVisible(end_line)
+            except Exception:
+                pass
+            position = self.positionFromLineIndex(line, column)
+            if position is None or position < 0:
+                return False
 
             line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT) or (
                 self.fontMetrics().lineSpacing()
@@ -3236,46 +3244,42 @@ class CodeEditor(QsciScintilla):
             first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
             start_y = (line - first_visible) * line_height
             end_y = (end_line - first_visible) * line_height
-            start_x = self._token_pixel_x(
-                self.positionFromLineIndex(line, column), start_y
-            )
+            start_x = self._token_pixel_x(position, start_y)
+
+            if start_y < 0 or start_y >= self.height():
+                return False
+            if start_x < 0 or start_x >= self.width():
+                return False
 
             margin = 4
-            available_width = max(240, self.width() - 2 * margin)
-            available_height = max(80, self.height() - 2 * margin)
-            # Relax the authored minimums only when the editor is too small
-            # for them, so the bubble always fits inside its parent.
-            if available_width < popup.minimumWidth():
-                popup.setMinimumWidth(available_width)
-            if available_height < popup.minimumHeight():
-                popup.setMinimumHeight(available_height)
+            room_w = self.width() - 2 * margin
+            room_h = self.height() - 2 * margin
+            if room_w < 80 or room_h < 40:
+                return False
+            if room_w < popup.minimumWidth():
+                popup.setMinimumWidth(room_w)
+            if room_h < popup.minimumHeight():
+                popup.setMinimumHeight(room_h)
             width = min(
                 max(int(popup.sizeHint().width()), int(popup.minimumWidth())),
-                available_width,
+                room_w,
             )
             height = min(
                 max(int(popup.sizeHint().height()), int(popup.minimumHeight())),
-                available_height,
+                room_h,
             )
 
-            # The bubble is anchored to the token, so refuse to draw it when
-            # the token is scrolled out of the viewport. A partially visible
-            # last line still qualifies: the bubble simply flips upwards.
-            if start_y < 0 or start_y >= self.height():
-                return False
-
-            # Keep the bubble inside the editor and pin its arrow to the
-            # token, so the bubble never drifts with the mouse.
             arrow_inset = int(popup.BORDER_RADIUS) + 6
-            left = min(
-                max(margin, start_x - arrow_inset),
-                max(margin, self.width() - width - margin),
-            )
+            lo = margin
+            hi = max(margin, self.width() - width - margin)
+            left = start_x - arrow_inset
+            if left < lo or left > hi:
+                right_anchored = start_x - (width - arrow_inset)
+                if lo <= right_anchored <= hi:
+                    left = right_anchored
+            left = min(max(left, lo), hi)
             gap = 2
             top = end_y + line_height + gap
-            # The bubble sits below the token, so its arrow must point *up* at
-            # the token. When there is no room underneath (e.g. the last line
-            # of the file) the bubble moves above the token and points down.
             arrow_up = top + height <= self.height() - margin
             if not arrow_up:
                 top = start_y - height - gap
@@ -3439,6 +3443,12 @@ class CodeEditor(QsciScintilla):
             band.setGeometry(left, int(y), width, max(1, int(line_height)))
             band.show()
             band.raise_()
+            try:
+                popup = getattr(self, "_error_message", None)
+                if popup is not None and popup.isVisible():
+                    popup.raise_()
+            except Exception:
+                pass
         except Exception:
             pass
 

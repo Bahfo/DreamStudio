@@ -592,7 +592,3 @@ def _configure_logging() -> None:
 
     bootstrap_logger = logging.getLogger("bootstrap")
     bootstrap_logger.setLevel(logging.DEBUG)
-
-    # GitPython logs every spawned subprocess at DEBUG; that drowns real
-    # diagnostics during VCS scans, so keep it at WARNING in normal runs.
-    logging.getLogger("git").setLevel(logging.WARNING)

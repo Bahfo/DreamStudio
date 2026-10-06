@@ -12,6 +12,8 @@ class DreamStudioTitleBar(QWidget):
     _TITLE_BAR_BLUE_ENDS = {
         "dark": QColor("#004E98"),
         "light": QColor("#0081F2"),
+        "material_dark": QColor("#6E1F24"),
+        "material_light": QColor("#D64545"),
     }
 
     def __init__(self, parent, directory):

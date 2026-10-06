@@ -315,6 +315,12 @@ class EditorAPI:
     def _set_theme_coffee_light(self) -> None:
         self._set_theme_by_name("coffee_light")
 
+    def _set_theme_material_dark(self) -> None:
+        self._set_theme_by_name("material_dark")
+
+    def _set_theme_material_light(self) -> None:
+        self._set_theme_by_name("material_light")
+
     def _open_color_picker(self) -> str | None:
         """Open a color dialog and return the selected color as hex string.
 

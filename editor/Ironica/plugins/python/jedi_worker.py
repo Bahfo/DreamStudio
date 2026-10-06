@@ -140,6 +140,7 @@ class DiagnosticManager(QObject):
         self._owner_id = id(editor)
         self._enabled = True
         self._request_counter: int = 0
+        self._has_painted = False
 
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
@@ -199,20 +200,51 @@ class DiagnosticManager(QObject):
         except Exception as exc:
             logger.debug("Failed to read editor text: %s", exc)
 
+    @staticmethod
+    def _batch_ranges(diagnostics) -> list:
+        ranges = []
+        for diag in diagnostics or []:
+            if isinstance(diag, dict):
+                line = diag.get("line", 1)
+                start_col = diag.get("start_col", 0)
+                end_col = diag.get("end_col", 0)
+                color = diag.get("color", "#F14C4C")
+            else:
+                line = getattr(diag, "line", 1)
+                start_col = getattr(diag, "start_col", 0)
+                end_col = getattr(diag, "end_col", 0)
+                color = getattr(diag, "color", "#F14C4C")
+            try:
+                ranges.append(
+                    (int(line) - 1, int(start_col), int(line) - 1, int(end_col), str(color))
+                )
+            except (TypeError, ValueError):
+                continue
+        return ranges
+
     @pyqtSlot(int, list)
     def _apply_results(self, request_id: int, diagnostics: List[Diagnostic]) -> None:
         if request_id < self._request_counter:
             return  # Drop out-of-order evaluations
 
         try:
-            self._editor.clear_diagnostic_underlines()
-            for diag in diagnostics:
-                self._editor.add_diagnostic_underline(
-                    line=diag.line - 1,
-                    start_col=diag.start_col,
-                    end_col=diag.end_col,
-                    color_hex=diag.color,
-                )
+            setter = getattr(self._editor, "set_diagnostic_ranges", None)
+            if setter is None:
+                self._editor.clear_diagnostic_underlines()
+                for diag in diagnostics or []:
+                    self._editor.add_diagnostic_underline(
+                        line=diag.line - 1,
+                        start_col=diag.start_col,
+                        end_col=diag.end_col,
+                        color_hex=diag.color,
+                    )
+                self._has_painted = bool(diagnostics)
+                return
+            ranges = self._batch_ranges(diagnostics)
+            if not ranges and not self._has_painted:
+                return
+            self._has_painted = bool(ranges)
+            setter(ranges)
         except Exception as exc:
             logger.debug("Failed to apply diagnostics to UI: %s", exc)
 

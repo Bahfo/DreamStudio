@@ -165,7 +165,7 @@ class _StyleHints:
 
 
 def index_python_files(
-    root: str, known: Optional[dict] = None
+    root: str, known: Optional[dict] = None, seen: Optional[set] = None
 ) -> tuple[List[tuple], int]:
     """List analyzable Python files under *root*, "major" files first.
 
@@ -176,6 +176,8 @@ def index_python_files(
         root: Directory to walk.
         known: Optional ``{path: (mtime, size)}`` map of already indexed
             files. When given, only new or modified files are returned.
+        seen: Optional set filled with every successfully statted file
+            path, so callers can detect deletions without a second walk.
 
     Returns:
         Tuple of ``(entries, skipped)`` where each entry is
@@ -203,6 +205,8 @@ def index_python_files(
                     skipped += 1
                     logger.debug("Index skip %s: %s", path, exc)
                     continue
+                if seen is not None:
+                    seen.add(path)
                 if stat.st_size > _MAX_FILE_BYTES:
                     skipped += 1
                     continue

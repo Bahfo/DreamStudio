@@ -220,7 +220,7 @@ def _hover_text(problem: Problem) -> str:
 class _IndexThread(QThread):
     """Off-GUI-thread workspace index (stat only, no file reads)."""
 
-    indexed = pyqtSignal(int, object, int)
+    indexed = pyqtSignal(int, object, int, object)
 
     def __init__(self, root: str, known: Optional[dict], gen: int, parent=None) -> None:
         super().__init__(parent)
@@ -232,13 +232,14 @@ class _IndexThread(QThread):
         """Collect the file list; never touch GUI objects here."""
         entries: List[tuple] = []
         skipped = 0
+        seen: set = set()
         try:
             from editor.analysis.walker import index_python_files
 
-            entries, skipped = index_python_files(self._root, self._known)
+            entries, skipped = index_python_files(self._root, self._known, seen)
         except Exception as exc:
             logger.warning("Workspace index failed: %s", exc)
-        self.indexed.emit(self._gen, entries, skipped)
+        self.indexed.emit(self._gen, entries, skipped, seen)
 
 
 class _BatchThread(QThread):
@@ -452,6 +453,7 @@ class ProblemsWidget(QWidget):
         self._provider_notes: List[str] = []
         self._store = DiagnosticStore(self)
         self._store.changed.connect(self._on_store_changed)
+        self._group_items: Dict[str, QTreeWidgetItem] = {}
         self._skipped_files: int = 0
         self._scan_busy: bool = False
         self._live_busy: bool = False
@@ -1011,7 +1013,9 @@ class ProblemsWidget(QWidget):
         self._index_thread = thread
         thread.start()
 
-    def _on_indexed(self, gen: object, entries: object, skipped: object) -> None:
+    def _on_indexed(
+        self, gen: object, entries: object, skipped: object, seen: object = None
+    ) -> None:
         """Queue indexed files and pump analysis batches."""
         try:
             if int(gen) != int(self._scan_gen):
@@ -1022,6 +1026,8 @@ class ProblemsWidget(QWidget):
             self._skipped_files = int(skipped or 0)
         except (TypeError, ValueError):
             self._skipped_files = 0
+        if isinstance(seen, set):
+            self._purge_vanished(seen)
         indexed = entries if isinstance(entries, list) else []
         self._enqueue(indexed)
         self._start_watch_timer()
@@ -1037,6 +1043,34 @@ class ProblemsWidget(QWidget):
             self._start_workspace_providers()
         self._schedule_batch(0)
         self._maybe_finish_indexing()
+
+    def _purge_vanished(self, seen: set) -> None:
+        """Drop cached state for files missing from the latest walk.
+
+        Deleted files never appear in new index entries, so without this
+        their stamps, queued analyses and panel rows would linger forever.
+        Only previously indexed paths are purged; pending new paths are
+        left for their batch to skip gracefully. One store announcement
+        covers every purged path.
+        """
+        try:
+            vanished = [path for path in self._file_stamps if path not in seen]
+        except Exception:
+            return
+        if not vanished:
+            return
+        gone = set(vanished)
+        for path in vanished:
+            self._file_stamps.pop(path, None)
+            self._queued_paths.discard(path)
+        if self._index_queue:
+            self._index_queue = [
+                entry for entry in self._index_queue if entry[0] not in gone
+            ]
+        try:
+            self._store.purge_paths(vanished)
+        except Exception:
+            pass
 
     def _enqueue(self, entries: List[tuple]) -> None:
         """Append ``(path, mtime, size)`` entries not already queued."""
@@ -1137,12 +1171,41 @@ class ProblemsWidget(QWidget):
                 every tracked file changed.
         """
         paths = [path for path in (touched or []) if isinstance(path, str)]
+        if paths and all(self._awaiting_live_result(path) for path in paths):
+            return
         self._problems = self._store.problems()
-        self._rebuild()
         if not paths:
+            self._rebuild()
             self._repaint_open_editors()
             return
+        for path in paths:
+            self._refresh_file_group(path)
+        if self._tree.topLevelItemCount() == 0:
+            self._rebuild()
+        else:
+            try:
+                self._stack.setCurrentIndex(0)
+            except Exception:
+                pass
+            self._update_summary()
         self._repaint_paths({path: self._store.problems_for(path) for path in paths})
+
+    def _awaiting_live_result(self, path: str) -> bool:
+        """Return True while *path* has edits but no buffer result yet.
+
+        Right after the first keystroke the buffer bucket is still empty,
+        so repainting now would flash the editor and panel blank until the
+        debounced analysis lands. Keeping the previous paint until then
+        matches how editors normally surface diagnostics.
+        """
+        try:
+            if not self._store.is_dirty(path):
+                return False
+            if self._store.live_revision_applied(path) > 0:
+                return False
+            return self._store.revision_for(path) > 0
+        except Exception:
+            return False
 
     def _render_all(self) -> None:
         """Re-render everything from the coordinator state."""
@@ -1619,6 +1682,8 @@ class ProblemsWidget(QWidget):
                     continue
                 path = getattr(editor, "current_file_path", "") or ""
                 if path in by_path:
+                    if self._awaiting_live_result(path):
+                        continue
                     painted.append(id(editor))
                     self._paint_editor(editor, by_path[path])
             except Exception:
@@ -1627,7 +1692,7 @@ class ProblemsWidget(QWidget):
         if live is not None and id(live) not in painted:
             try:
                 path = getattr(live, "current_file_path", "") or ""
-                if path in by_path:
+                if path in by_path and not self._awaiting_live_result(path):
                     self._paint_editor(live, by_path[path])
             except Exception:
                 pass
@@ -1727,6 +1792,7 @@ class ProblemsWidget(QWidget):
     def _rebuild(self) -> None:
         """Group problems by file and repopulate the tree."""
         self._tree.clear()
+        self._group_items = {}
         visible = self._visible_problems()
         if not visible:
             self._update_summary()
@@ -1764,12 +1830,89 @@ class ProblemsWidget(QWidget):
         self._tree.expandAll()
         self._update_summary()
 
+    def _group_key(self, index: int) -> str:
+        """Return the lowercased file path of the top-level row at *index*."""
+        try:
+            item = self._tree.topLevelItem(index)
+            data = item.data(0, Qt.ItemDataRole.UserRole) if item is not None else ""
+            return str(data or "").lower()
+        except Exception:
+            return ""
+
+    def _remove_file_group(self, file_path: str) -> None:
+        """Remove one file group from the tree without touching the rest."""
+        header = self._group_items.pop(file_path, None)
+        if header is None:
+            return
+        try:
+            row = self._tree.indexOfTopLevelItem(header)
+            if row >= 0:
+                self._tree.takeTopLevelItem(row)
+        except Exception:
+            pass
+
+    def _refresh_file_group(self, path: str) -> None:
+        """Rebuild only the file group for *path*, preserving UI state.
+
+        Untouched groups keep their expansion, selection and scroll
+        position, so routine file operations no longer replay a full
+        tree rebuild. An empty group is removed instead of shown.
+        """
+        enabled = self._enabled_groups
+        items = [
+            prob
+            for prob in self._store.problems_for(path)
+            if _group_of(prob.severity) in enabled
+        ]
+        old = self._group_items.get(path)
+        expanded = True
+        if old is not None:
+            try:
+                expanded = old.isExpanded()
+            except Exception:
+                pass
+            self._remove_file_group(path)
+        if not items:
+            return
+        items.sort(key=lambda prob: (prob.line, prob.column, prob.severity.value))
+        header = self._build_file_group(path, items)
+        try:
+            header.setExpanded(bool(expanded))
+        except Exception:
+            pass
+        key = (path or "").lower()
+        lo, hi = 0, self._tree.topLevelItemCount()
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if self._group_key(mid) < key:
+                lo = mid + 1
+            else:
+                hi = mid
+        self._tree.insertTopLevelItem(lo, header)
+        self._group_items[path] = header
+
     def _add_file_group(self, file_path: str, problems: List[Problem]) -> None:
         """Create a collapsible file header with *problems* as children.
 
         Args:
             file_path: Full path for the group.
             problems: Diagnostics belonging to that file.
+        """
+        header = self._build_file_group(file_path, problems)
+        self._tree.addTopLevelItem(header)
+        self._group_items[file_path] = header
+
+    def _build_file_group(
+        self, file_path: str, problems: List[Problem]
+    ) -> QTreeWidgetItem:
+        """Build (without attaching) a file header with *problems* as children.
+
+        Args:
+            file_path: Full path for the group.
+            problems: Diagnostics belonging to that file.
+
+        Returns:
+            The detached header item, ready to insert into the tree.
         """
         errors = sum(1 for p in problems if p.severity == ProblemSeverity.ERROR)
         warnings = sum(1 for p in problems if p.severity == ProblemSeverity.WARNING)
@@ -1778,7 +1921,7 @@ class ProblemsWidget(QWidget):
 
         basename = os.path.basename(file_path) or file_path
         # QTreeWidgetItem with two columns: file label + count summary.
-        header = QTreeWidgetItem(self._tree)
+        header = QTreeWidgetItem()
         header.setExpanded(True)
         header.setData(0, Qt.ItemDataRole.UserRole, file_path)
         # File icon by extension (best-effort).
@@ -1838,6 +1981,7 @@ class ProblemsWidget(QWidget):
             child.setToolTip(1, f"{file_path}:{prob.line}:{prob.column}")
             child.setData(0, Qt.ItemDataRole.UserRole, prob)
             child.setData(0, Qt.ItemDataRole.UserRole + 1, "problem-row")
+        return header
 
     def _update_summary(self) -> None:
         """Refresh the header summary label and publish counts."""

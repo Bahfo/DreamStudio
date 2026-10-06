@@ -144,12 +144,20 @@ class IronicaLexer(QsciLexerCustom):
         editor.setLexer(lexer)
     """
 
+    #: Bytes between recorded lexer states. Bounds the rescan work for
+    #: any edit to roughly this window instead of the whole prefix.
+    _CHECKPOINT_EVERY = 8192
+
+    #: Cap for stored checkpoints; exceeding it thins them by half.
+    _CHECKPOINT_LIMIT = 2048
+
     def __init__(self, parent, config: dict) -> None:
         super().__init__(parent)
         self.config = config
         comment_style = str(config.get("comment_style", "hash")).lower()
         self._supports_c_comments = comment_style == "c"
         self._bracket_cache: Optional[list] = None
+        self._state_checkpoints: list = []
         self._keyword_map: Dict[str, int] = {}
         self._keyword_style_names: Dict[int, str] = {}
         self._paren_offset: int = 0
@@ -413,6 +421,27 @@ class IronicaLexer(QsciLexerCustom):
             pos = at + 1
         return state
 
+    def _checkpoints_before(self, start: int) -> tuple:
+        wave = self._state_checkpoints
+        while wave and wave[-1][0] > start:
+            wave.pop()
+        if wave:
+            latest = wave[-1]
+            return latest[0], latest[1], latest[2]
+        return 0, [], _ST_DEFAULT
+
+    def _commit_state(
+        self, offset: int, depth_stack: List[str], state: int
+    ) -> None:
+        self._bracket_cache = [offset, depth_stack, state]
+        wave = self._state_checkpoints
+        if wave and wave[-1][0] == offset:
+            wave[-1] = [offset, list(depth_stack), state]
+            return
+        wave.append([offset, list(depth_stack), state])
+        if len(wave) > self._CHECKPOINT_LIMIT:
+            del wave[::2]
+
     # ------------------------------------------------------------------
     # Core lexer entry point
     # ------------------------------------------------------------------
@@ -429,29 +458,21 @@ class IronicaLexer(QsciLexerCustom):
         end = min(end, doc_len)
 
         # ── Resolve the lexical state + bracket depth before *start* ──
-        # QScintilla restyles from the edit position, so when the new
-        # start is at/after the previous style end only the delta needs
-        # re-scanning (fast path); an edit before the cache point falls
-        # back to a full rebuild.
-        cached = self._bracket_cache
-        if cached is not None and start >= cached[0]:
-            depth_stack = cached[1]
-            state = cached[2] if len(cached) > 2 else _ST_DEFAULT
-            if start > cached[0]:
-                delta = self._get_range(editor, cached[0], start)
-                if delta:
-                    state = self._scan_state(delta, state, depth_stack, 0, len(delta))
-        else:
-            depth_stack = []
-            state = _ST_DEFAULT
-            if start > 0:
-                prefix = self._get_range(editor, 0, start)
-                if prefix:
-                    state = self._scan_state(prefix, state, depth_stack, 0, len(prefix))
+        # QScintilla restyles from the edit position. The nearest stored
+        # checkpoint at or below *start* bounds the forward scan to one
+        # checkpoint window no matter where in the document the edit is.
+        base_offset, base_stack, base_state = self._checkpoints_before(start)
+        depth_stack = list(base_stack)
+        state = base_state
+        if start > base_offset:
+            delta = self._get_range(editor, base_offset, start)
+            if delta:
+                state = self._scan_state(delta, state, depth_stack, 0, len(delta))
+        checkpoint_at = base_offset
 
         data = self._get_range(editor, start, end)
         if not data:
-            self._bracket_cache = [end, depth_stack, state]
+            self._commit_state(end, depth_stack, state)
             return
 
         self.startStyling(start)
@@ -464,7 +485,7 @@ class IronicaLexer(QsciLexerCustom):
             j = self._find_unescaped(data, i, 0x27)
             if j == -1:
                 self.setStyling(length - i, self._string_style)
-                self._bracket_cache = [end, depth_stack, _ST_SINGLE]
+                self._commit_state(end, depth_stack, _ST_SINGLE)
                 return
             self.setStyling(j - i + 1, self._string_style)
             i = j + 1
@@ -473,7 +494,7 @@ class IronicaLexer(QsciLexerCustom):
             j = self._find_unescaped(data, i, 0x22)
             if j == -1:
                 self.setStyling(length - i, self._string_style)
-                self._bracket_cache = [end, depth_stack, _ST_DOUBLE]
+                self._commit_state(end, depth_stack, _ST_DOUBLE)
                 return
             self.setStyling(j - i + 1, self._string_style)
             i = j + 1
@@ -483,7 +504,7 @@ class IronicaLexer(QsciLexerCustom):
             j = self._find_unescaped_triple(data, i, delim)
             if j == -1:
                 self.setStyling(length - i, self._string_style)
-                self._bracket_cache = [end, depth_stack, state]
+                self._commit_state(end, depth_stack, state)
                 return
             self.setStyling(j - i + 3, self._string_style)
             i = j + 3
@@ -492,7 +513,7 @@ class IronicaLexer(QsciLexerCustom):
             j = data.find(b"\n", i)
             if j == -1:
                 self.setStyling(length - i, self._comment_style)
-                self._bracket_cache = [end, depth_stack, _ST_COMMENT]
+                self._commit_state(end, depth_stack, _ST_COMMENT)
                 return
             self.setStyling(j - i, self._comment_style)
             i = j
@@ -501,14 +522,19 @@ class IronicaLexer(QsciLexerCustom):
             j = data.find(b"*/", i)
             if j == -1:
                 self.setStyling(length - i, self._comment_style)
-                self._bracket_cache = [end, depth_stack, _ST_BLOCK_COMMENT]
+                self._commit_state(end, depth_stack, _ST_BLOCK_COMMENT)
                 return
             span = j + 2 - i
             self.setStyling(span, self._comment_style)
             i += span
             state = _ST_DEFAULT
 
+        check_every = self._CHECKPOINT_EVERY
         while i < length:
+            absolute = start + i
+            if absolute - checkpoint_at >= check_every:
+                self._commit_state(absolute, depth_stack, state)
+                checkpoint_at = absolute
             ch = data[i]
 
             # ── Skip whitespace ────────────────────────────────────
@@ -637,7 +663,7 @@ class IronicaLexer(QsciLexerCustom):
             self.setStyling(1, 0)
             i += 1
 
-        self._bracket_cache = [end, depth_stack, state]
+        self._commit_state(end, depth_stack, state)
 
     @staticmethod
     def _get_range(editor, start: int, end: int) -> bytes:

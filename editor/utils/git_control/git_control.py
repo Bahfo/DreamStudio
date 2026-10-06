@@ -309,33 +309,12 @@ def switch_branch(
         raise
 
 
-def _decode_porcelain_path(raw: str) -> str:
-    """Undo C-style quoting applied to porcelain paths.
-
-    Args:
-        raw: Path token as emitted by ``git status --porcelain``.
-
-    Returns:
-        The unquoted path, or *raw* unchanged when decoding fails.
-    """
-    text = raw.strip()
-    if len(text) >= 2 and text.startswith('"') and text.endswith('"'):
-        inner = text[1:-1]
-        try:
-            return inner.encode("utf-8").decode("unicode_escape").encode("latin-1").decode("utf-8")
-        except Exception:
-            return inner
-    return text
-
-
 def get_status_map(repo: Repo) -> dict[str, str]:
     """
     Collect a name-only working-tree status map for fast VCS coloring.
 
-    Unlike ``get_changed_files``, a single ``git status --porcelain``
-    subprocess backs the whole map (previously three separate GitPython
-    traversals), keeping scans cheap enough for operation-triggered
-    refreshes.
+    Unlike ``get_changed_files``, no numstat or content diffs are computed,
+    keeping scans cheap enough for operation-triggered refreshes.
 
     Args:
         repo: An open GitPython repository handle.
@@ -349,31 +328,30 @@ def get_status_map(repo: Repo) -> dict[str, str]:
     status_map: dict[str, str] = {}
 
     try:
-        output = repo.git.status("--porcelain=v1", "--untracked-files=normal")
+        for diff in repo.index.diff(None):
+            if diff.change_type == "D":
+                continue
+            key = diff.b_path or diff.a_path or ""
+            if key:
+                status_map[key] = "U" if diff.change_type == "R" else "M"
     except Exception:
-        return status_map
+        pass
 
-    for line in (output or "").splitlines():
-        if len(line) < 4:
-            continue
-        x, y = line[0], line[1]
-        if x == " " and y == " ":
-            continue
-        path = _decode_porcelain_path(line[3:])
-        if " -> " in path:
-            path = _decode_porcelain_path(path.rsplit(" -> ", 1)[-1])
-        path = path.rstrip("/")
-        if not path:
-            continue
-        if x == "?" and y == "?":
+    try:
+        for path in repo.untracked_files:
             status_map[path] = "U"
-            continue
-        if "D" in (x + y) and x in " D" and y in " D":
-            continue
-        if x in ("A", "R"):
-            status_map[path] = "A"
-        else:
-            status_map[path] = "M"
+    except Exception:
+        pass
+
+    try:
+        for diff in repo.index.diff("HEAD"):
+            if diff.change_type == "D":
+                continue
+            key = diff.b_path or diff.a_path or ""
+            if key:
+                status_map[key] = "A" if diff.change_type in ("A", "R") else "M"
+    except Exception:
+        pass
 
     return status_map
 

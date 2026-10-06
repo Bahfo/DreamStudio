@@ -343,6 +343,35 @@ class DiagnosticStore(QObject):
         revisions = self._live_revision.get(path, {})
         return max(revisions.values()) if revisions else 0
 
+    def purge_paths(self, paths: Iterable[str]) -> List[str]:
+        """Drop on-disk results for files that no longer exist.
+
+        Buffer-scope buckets survive so an open unsaved editor keeps its
+        diagnostics; only saved-state results are discarded. A single
+        announcement covers all purged paths.
+
+        Args:
+            paths: Absolute file paths to purge.
+
+        Returns:
+            Paths whose visible diagnostics changed.
+        """
+        touched: List[str] = []
+        for path in paths or []:
+            if not path:
+                continue
+            buckets = self._buckets.get(path)
+            if not buckets:
+                continue
+            previous = self.problems_for(path)
+            for bucket in [key for key in buckets if not _is_live(key)]:
+                buckets.pop(bucket, None)
+            if not buckets:
+                self._buckets.pop(path, None)
+            if self.problems_for(path) != previous:
+                touched.append(path)
+        return self._announce(touched)
+
     def set_paths(self, problems: Iterable[Problem]) -> List[str]:
         """Replace the whole state with *problems* (external callers).
 

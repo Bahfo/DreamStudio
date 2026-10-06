@@ -1,0 +1,22 @@
+{
+    "theme": "material_dark",
+    "name": "Material Dark",
+    "palette": {
+        "KEYWORD_COLOR": "#FF6B8A",
+        "BUILTIN_COLOR": "#6FC3DF",
+        "DEFINITION_COLOR": "#9ECE6A",
+        "CLASS_COLOR": "#9ECE6A",
+        "STRING_COLOR": "#9ECE6A",
+        "NUMBER_COLOR": "#FF9E64",
+        "COMMENT_COLOR": "#636D83",
+        "DECORATOR_COLOR": "#E5C07B",
+        "ADDITIONAL_COLOR": "#6FC3DF",
+        "OPERATOR_COLOR": "#D4D4D4",
+        "BRACKET_COLOR": "#FF6B8A",
+        "BRACKET2_COLOR": "#C678DD",
+        "BRACKET3_COLOR": "#6FC3DF",
+        "EXCEPTION_COLOR": "#FF6B8A",
+        "IMPORT_COLOR": "#6FC3DF",
+        "VARIABLE_COLOR": "#EAEAEA"
+    }
+}

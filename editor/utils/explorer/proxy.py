@@ -169,8 +169,6 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         Args:
             index: Normalized absolute path to ``modified``/``added``.
         """
-        if index == self._vcs_index:
-            return
         self._vcs_index = index
         # Use dataChanged instead of layoutChanged to preserve selection/expansion
         try:

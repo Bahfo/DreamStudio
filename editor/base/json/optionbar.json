@@ -227,6 +227,14 @@
                 "callback": "_set_theme_coffee_light"
             },
             {
+                "text": "Material Dark",
+                "callback": "_set_theme_material_dark"
+            },
+            {
+                "text": "Material Light",
+                "callback": "_set_theme_material_light"
+            },
+            {
                 "type": "separator"
             },
             {

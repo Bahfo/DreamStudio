@@ -1,0 +1,22 @@
+{
+    "theme": "material_light",
+    "name": "Material Light",
+    "palette": {
+        "KEYWORD_COLOR": "#A82E3C",
+        "BUILTIN_COLOR": "#0070A0",
+        "DEFINITION_COLOR": "#6A5A2B",
+        "CLASS_COLOR": "#267F99",
+        "STRING_COLOR": "#5E7A34",
+        "NUMBER_COLOR": "#8A6D00",
+        "COMMENT_COLOR": "#7A7A7A",
+        "DECORATOR_COLOR": "#8A6D2B",
+        "ADDITIONAL_COLOR": "#0070A0",
+        "OPERATOR_COLOR": "#1E1E1E",
+        "BRACKET_COLOR": "#A82E3C",
+        "BRACKET2_COLOR": "#7A3FAA",
+        "BRACKET3_COLOR": "#0070A0",
+        "EXCEPTION_COLOR": "#A82E3C",
+        "IMPORT_COLOR": "#0070A0",
+        "VARIABLE_COLOR": "#1E1E1E"
+    }
+}
