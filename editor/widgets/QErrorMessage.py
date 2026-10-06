@@ -22,6 +22,19 @@ class QErrorMessage(QWidget):
     MIN_WIDTH = 460
     MIN_HEIGHT = 66
 
+    APPEAR_DELAY_MS = 80
+    APPEAR_FADE_MS = 160
+    APPEAR_RISE_MS = 180
+    APPEAR_RISE_PX = 4
+
+    _SEVERITY_TITLES = {
+        "error": "Error",
+        "warning": "Warning",
+        "check": "Check",
+        "typo": "Typo",
+        "info": "Info",
+    }
+
     #: Accent (border + arrow) per severity. The final card colours are mixed
     #: from these against the theme background, so every DreamStudio theme
     #: gets a readable, native-looking bubble.
@@ -45,6 +58,12 @@ class QErrorMessage(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setMinimumHeight(self.MIN_HEIGHT)
         self.setMinimumWidth(self.MIN_WIDTH)
+
+        self._fade_in = None
+        self._rise_in = None
+        self._fx = QGraphicsOpacityEffect(self)
+        self._fx.setOpacity(1.0)
+        self.setGraphicsEffect(self._fx)
 
     ###############################################
     # STATE
@@ -201,29 +220,111 @@ class QErrorMessage(QWidget):
     # PAINTING
     ###############################################
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(self.APPEAR_DELAY_MS, self._play_appear)
+
+    def hideEvent(self, event):
+        try:
+            for animation in (self._fade_in, self._rise_in):
+                if animation is not None:
+                    animation.stop()
+            self._fx.setOpacity(1.0)
+        except Exception:
+            pass
+        super().hideEvent(event)
+
+    def _play_appear(self):
+        if not self.isVisible():
+            return
+        try:
+            for animation in (self._fade_in, self._rise_in):
+                if animation is not None:
+                    animation.stop()
+            target = self.pos()
+            start = target + QPoint(0, self.APPEAR_RISE_PX)
+            self._fx.setOpacity(0.0)
+            self.move(start)
+            self._fade_in = QPropertyAnimation(self._fx, b"opacity")
+            self._fade_in.setDuration(self.APPEAR_FADE_MS)
+            self._fade_in.setStartValue(0.0)
+            self._fade_in.setEndValue(1.0)
+            self._fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+            self._rise_in = QPropertyAnimation(self, b"pos")
+            self._rise_in.setDuration(self.APPEAR_RISE_MS)
+            self._rise_in.setStartValue(start)
+            self._rise_in.setEndValue(target)
+            self._rise_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+            self._fade_in.start()
+            self._rise_in.start()
+        except Exception:
+            pass
+
     def paintEvent(self, a0):
         accent_hex, fill_hex, text_hex = self.style_colors()
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        surface = self._surface_color()
+        border = self._mix(QColor(accent_hex), surface, 0.55)
+
         painter.setPen(QPen(QColor(accent_hex), 1.4))
         painter.setBrush(QColor(fill_hex))
         painter.drawPath(self._bubble_path())
 
         body = self.body_rect()
-        text_rect = QRectF(
-            body.left() + 16,
-            body.top() + 10,
-            body.width() - 32,
-            body.height() - 20,
+        accent = QColor(accent_hex)
+        base_font = QFont(painter.font())
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(accent)
+        painter.drawRoundedRect(
+            QRectF(
+                body.left() + 5.0,
+                body.top() + 34.0,
+                3.0,
+                max(1.0, body.height() - 46.0),
+            ),
+            1.5,
+            1.5,
+        )
+
+        dot_center = QPointF(body.left() + 26.0, body.top() + 16.0)
+        painter.setBrush(accent)
+        painter.drawEllipse(dot_center, 4.0, 4.0)
+
+        title = self._SEVERITY_TITLES.get(self._severity, "Error")
+        title_font = QFont(base_font)
+        title_font.setBold(True)
+        title_font.setPointSize(max(8, base_font.pointSize() - 1))
+        painter.setFont(title_font)
+        painter.setPen(QColor(text_hex))
+        painter.drawText(
+            QRectF(body.left() + 38.0, body.top() + 5.0, body.width() - 52.0, 22.0),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            title.upper(),
+        )
+
+        divider_y = body.top() + 30.0
+        painter.setPen(QPen(border, 1.0))
+        painter.drawLine(
+            QPointF(body.left() + 14.0, divider_y),
+            QPointF(body.right() - 14.0, divider_y),
         )
 
         painter.setPen(QColor(text_hex))
+        painter.setFont(base_font)
+        text_rect = QRectF(
+            body.left() + 16,
+            divider_y + 6.0,
+            max(1.0, body.width() - 32),
+            max(1.0, body.bottom() - divider_y - 12.0),
+        )
         painter.drawText(
             text_rect,
             Qt.AlignmentFlag.AlignLeft
-            | Qt.AlignmentFlag.AlignVCenter
+            | Qt.AlignmentFlag.AlignTop
             | Qt.TextFlag.TextWordWrap,
             self.message,
         )

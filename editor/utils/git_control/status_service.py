@@ -20,10 +20,18 @@ class _ScanWorker(QThread):
 
     Wakes exclusively when an operation requests a scan. A dirty flag set
     during an active scan coalesces bursts into exactly one follow-up
-    pass instead of queuing per-operation work.
+    pass instead of queuing per-operation work. A trailing-edge cooldown
+    additionally rate-limits follow-up scans so sustained signal storms
+    (e.g. QFileSystemModel population at startup) cannot retrigger full
+    git traversals more than once per interval.
     """
 
     statuses_ready = pyqtSignal(str, dict)
+
+    #: Minimum seconds between the end of one scan and the start of the next.
+    MIN_SCAN_INTERVAL = 2.0
+    #: Slice used while waiting out the cooldown so stop/set_root stay responsive.
+    _COOLDOWN_SLICE = 0.2
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
@@ -33,6 +41,10 @@ class _ScanWorker(QThread):
         self._running = True
         self._root: Optional[str] = None
         self._generation = 0
+        self._last_scan_end = 0.0
+        self._last_scanned_gen = -1
+        self._repo = None
+        self._repo_key: Optional[str] = None
 
     def set_root(self, root_path: Optional[str]) -> None:
         """Update the scanned workspace root and force a fresh scan."""
@@ -48,7 +60,6 @@ class _ScanWorker(QThread):
         """Coalesce a scan request; concurrent requests collapse to one."""
         with self._state_lock:
             self._dirty = True
-        logger.debug("VCS scan requested: %s", reason)
         self._wake_event.set()
 
     def stop(self) -> None:
@@ -57,10 +68,35 @@ class _ScanWorker(QThread):
             self._running = False
         self._wake_event.set()
 
+    def _cooldown_elapsed(self) -> bool:
+        """Wait out the trailing-edge cooldown; True when a scan may start.
+
+        Returns immediately when the cooldown already elapsed or the
+        workspace root changed since the last completed scan (a new root
+        always scans promptly). Returns False when stopped while waiting.
+        """
+        while True:
+            with self._state_lock:
+                if not self._running:
+                    return False
+                if self._generation != self._last_scanned_gen:
+                    return True
+                remaining = (
+                    self._last_scan_end + self.MIN_SCAN_INTERVAL
+                ) - time.monotonic()
+            if remaining <= 0:
+                return True
+            self._wake_event.wait(timeout=min(remaining, self._COOLDOWN_SLICE))
+
     def run(self) -> None:
         """Block until woken, scan, publish; repeat until stopped."""
         while True:
             self._wake_event.wait()
+            with self._state_lock:
+                if not self._running:
+                    return
+            if not self._cooldown_elapsed():
+                return
             self._wake_event.clear()
             with self._state_lock:
                 if not self._running:
@@ -69,7 +105,15 @@ class _ScanWorker(QThread):
                 gen = self._generation
                 self._dirty = False
 
-            repo_root, snapshot = self._scan(root)
+            logger.debug("VCS scan started: %s", root)
+            repo = self._resolve_repo(root)
+            repo_root, snapshot = self._scan(repo)
+            if repo is not None and not repo_root:
+                self._repo = None
+                self._repo_key = None
+            with self._state_lock:
+                self._last_scan_end = time.monotonic()
+                self._last_scanned_gen = gen
 
             with self._state_lock:
                 superseded = self._dirty or gen != self._generation
@@ -79,12 +123,24 @@ class _ScanWorker(QThread):
                 continue
             self.statuses_ready.emit(repo_root, snapshot)
 
+    def _resolve_repo(self, root_path: Optional[str]):
+        """Return a cached repository handle for *root_path*.
+
+        The handle is reused across scans (constructing a ``Repo`` spawns
+        several git subprocesses) and re-resolved only when the workspace
+        root changes or a previous scan invalidated it.
+        """
+        key = os.path.normpath(root_path) if root_path else ""
+        if not key:
+            return None
+        if key != self._repo_key:
+            self._repo = return_repository(root_path)
+            self._repo_key = key if self._repo is not None else None
+        return self._repo
+
     @staticmethod
-    def _scan(root_path: Optional[str]) -> tuple[str, dict[str, str]]:
-        """Resolve the enclosing repository and read its status map."""
-        if not root_path:
-            return "", {}
-        repo = return_repository(root_path)
+    def _scan(repo) -> tuple[str, dict[str, str]]:
+        """Read the status map from an open repository handle."""
         if repo is None:
             return "", {}
         try:

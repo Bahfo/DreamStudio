@@ -106,6 +106,14 @@ class LanguageBadge(QWidget):
 
 
 class LanguageAnalyzer(QWidget):
+    """Visual breakdown of project languages by bytes on disk.
+
+    Main attributes:
+        bar: Segmented progress bar showing per-language share.
+        legend_layout: Flow layout holding one badge per language.
+        empty_label: Placeholder shown when no recognized files exist.
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.main_layout = QVBoxLayout(self)
@@ -120,8 +128,13 @@ class LanguageAnalyzer(QWidget):
         self.legend_container = QWidget()
         self.legend_layout = FlowLayout(self.legend_container, margin=0, spacing=8)
 
+        self.empty_label = QLabel("No recognized source files")
+        self.empty_label.setStyleSheet("color: #8b949e; background: transparent;")
+        self.empty_label.setVisible(False)
+
         self.main_layout.addWidget(self.bar)
         self.main_layout.addWidget(self.legend_container)
+        self.main_layout.addWidget(self.empty_label)
 
         self.setStyleSheet("font-family: Segoe UI, Inter, sans-serif; font-size: 12px;")
 
@@ -151,18 +164,92 @@ class LanguageAnalyzer(QWidget):
                             patterns.append(pat)
         return patterns
 
-    def analyze_directory(self, target_dir: str):
-        stats = {}
+    def _is_ignored(self, name: str, rel_path: str, patterns: list) -> bool:
+        """Return True when a file/dir matches gitignore-style patterns.
+
+        Args:
+            name: Basename being tested.
+            rel_path: Path relative to the analysis root (posix style).
+            patterns: Ignore patterns from `_get_ignore_patterns`.
+
+        Returns:
+            True when either the basename or the relative path matches.
+        """
+        for pattern in patterns:
+            if "/" in pattern:
+                if fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(
+                    rel_path, pattern.strip("/") + "/*"
+                ):
+                    return True
+                if fnmatch.fnmatch(name, pattern.split("/")[-1]):
+                    return True
+            elif fnmatch.fnmatch(name, pattern):
+                return True
+        return False
+
+    def clear_analysis(self) -> None:
+        """Reset the bar, legend, and empty-state placeholder."""
+        self.bar.set_data([])
+        while self.legend_layout.count():
+            child = self.legend_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        self.empty_label.setVisible(False)
+        self.legend_container.setVisible(True)
+
+    def content_height_for_width(self, width: int) -> int:
+        """Return the height needed to display the bar plus all badges.
+
+        Args:
+            width: Available width for the legend flow layout.
+
+        Returns:
+            Required height in pixels, at least the widget minimum.
+        """
+        margins = self.main_layout.contentsMargins()
+        spacing = self.main_layout.spacing()
+        bar_height = 8
+        legend_width = max(0, width - margins.left() - margins.right())
+        try:
+            legend_height = self.legend_layout.heightForWidth(legend_width)
+        except Exception:
+            legend_height = 0
+        empty_height = self.empty_label.sizeHint().height() if self.empty_label.isVisible() else 0
+        total = (
+            margins.top()
+            + bar_height
+            + spacing
+            + max(legend_height, empty_height)
+            + margins.bottom()
+        )
+        return max(65, total)
+
+    def analyze_directory(self, target_dir: str) -> dict:
+        """Scan a directory and render per-language byte shares.
+
+        Args:
+            target_dir: Project root to walk.
+
+        Returns:
+            Mapping of ``(lang_id, display_name)`` to byte counts.
+        """
+        self.clear_analysis()
+        stats: dict = {}
         total_bytes = 0
+        if not target_dir or not os.path.isdir(target_dir):
+            self.empty_label.setVisible(True)
+            self.legend_container.setVisible(False)
+            return stats
         ignore_patterns = self._get_ignore_patterns(target_dir)
         try:
             from editor.Ironica.language_engine import LanguageRegistry
         except Exception:
             LanguageRegistry = None
         extensions = LanguageRegistry.get_all_extensions() if LanguageRegistry else {}
-        language_details = {}
+        normalized_extensions = {str(ext).lower(): lang for ext, lang in extensions.items()}
+        language_details: dict = {}
         if LanguageRegistry is not None:
-            for extension, lang_id in extensions.items():
+            for extension, lang_id in normalized_extensions.items():
                 try:
                     config = LanguageRegistry.get_config(lang_id) or {}
                     language_details[extension] = (
@@ -172,15 +259,19 @@ class LanguageAnalyzer(QWidget):
                 except Exception:
                     language_details[extension] = (lang_id, _badge_color(None))
 
-        for root, dirs, files in os.walk(target_dir):
-            dirs[:] = [
-                d
-                for d in dirs
-                if not any(fnmatch.fnmatch(d, p) for p in ignore_patterns)
-            ]
+        base = os.path.abspath(target_dir)
+        for root, dirs, files in os.walk(base):
+            rel_root = os.path.relpath(root, base)
+            kept_dirs = []
+            for d in dirs:
+                rel = d if rel_root == os.curdir else f"{rel_root}/{d}"
+                if not self._is_ignored(d, rel, ignore_patterns):
+                    kept_dirs.append(d)
+            dirs[:] = kept_dirs
 
             for f in files:
-                if any(fnmatch.fnmatch(f, p) for p in ignore_patterns):
+                rel = f if rel_root == os.curdir else f"{rel_root}/{f}"
+                if self._is_ignored(f, rel, ignore_patterns):
                     continue
 
                 ext = Path(f).suffix.lower()
@@ -190,7 +281,7 @@ class LanguageAnalyzer(QWidget):
                 display_name, color_hex = detail
                 try:
                     size = os.path.getsize(os.path.join(root, f))
-                    key = (extensions.get(ext, ""), display_name)
+                    key = (normalized_extensions.get(ext, ""), display_name)
                     count, _old_color = stats.get(key, (0, color_hex))
                     stats[key] = (count + size, color_hex)
                     total_bytes += size
@@ -198,16 +289,14 @@ class LanguageAnalyzer(QWidget):
                     pass
 
         if total_bytes == 0:
-            return
+            self.empty_label.setVisible(True)
+            self.legend_container.setVisible(False)
+            return stats
 
         sorted_stats = sorted(stats.items(), key=lambda item: item[1][0], reverse=True)
 
         bar_data = []
-        while self.legend_layout.count():
-            child = self.legend_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-
+        visible = 0
         for (_lang_id, display_name), (byte_count, color_hex) in sorted_stats:
             percentage = (byte_count / total_bytes) * 100
             if percentage < 0.1:
@@ -217,5 +306,10 @@ class LanguageAnalyzer(QWidget):
 
             badge = LanguageBadge(display_name, percentage, color_hex)
             self.legend_layout.addWidget(badge)
+            visible += 1
 
         self.bar.set_data(bar_data)
+        if visible == 0:
+            self.empty_label.setVisible(True)
+            self.legend_container.setVisible(False)
+        return stats

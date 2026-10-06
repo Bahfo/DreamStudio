@@ -98,6 +98,14 @@ class EditorAPI:
         try:
             container = self.hero_window._lower_widget
             problems = container.problems_window
+            if (
+                container.isVisible()
+                and container._stack.currentWidget() is problems
+                and problems.filter_group() == "checks"
+            ):
+                container.setVisible(False)
+                self.hero_window._main_vertical_splitter.setSizes([1, 0])
+                return
             problems.show_group("checks")
             container._stack.setCurrentWidget(problems)
             container.setVisible(True)

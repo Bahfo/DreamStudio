@@ -388,7 +388,7 @@ class LanguageRegistry:
             logger.warning("Language %r already registered — overwriting", lang_name)
         cls._configs[lang_name] = config
         for ext in config.get("extensions", []):
-            normalized_ext = f".{ext.lstrip('.')}"
+            normalized_ext = f".{str(ext).lstrip('.').lower()}"
             existing = cls._extension_map.get(normalized_ext)
             if existing and existing != lang_name:
                 logger.warning(
@@ -523,7 +523,10 @@ class LanguageRegistry:
         Args:
             ext: File extension including the leading dot (e.g. `".py"`).
         """
-        return cls._extension_map.get(ext)
+        if not isinstance(ext, str) or not ext:
+            return None
+        normalized = f".{ext.lstrip('.').lower()}"
+        return cls._extension_map.get(normalized)
 
     @classmethod
     def get_config(cls, lang: str) -> Optional[dict]:

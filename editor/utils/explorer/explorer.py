@@ -327,12 +327,12 @@ class SolutionExplorer(PanelShell):
         self.base_model.fileRenamed.connect(self._notify_vcs_activity)
         self.base_model.directoryLoaded.connect(self._notify_vcs_activity)
         self.base_model.rootPathChanged.connect(self._notify_vcs_activity)
-        try:
-            self.base_model.rowsInserted.connect(self._notify_vcs_activity)
-            self.base_model.rowsRemoved.connect(self._notify_vcs_activity)
-            self.base_model.dataChanged.connect(self._notify_vcs_activity)
-        except Exception:
-            pass
+        # NOTE: rowsInserted/rowsRemoved/dataChanged are intentionally NOT
+        # wired here. They fire in bursts alongside directoryLoaded (and
+        # dataChanged also fires on mere metadata/icon refreshes), which
+        # previously retriggered full git scans dozens of times per second
+        # during startup population. Structural changes are covered by
+        # directoryLoaded; real mutations request scans explicitly.
         get_status_service().statuses_updated.connect(self._on_vcs_statuses_updated)
         self._setup_vfs_watcher()
         self._connect_dirty_tracker()

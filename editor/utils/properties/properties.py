@@ -152,6 +152,11 @@ class PropertiesExplorer(PanelShell):
         self.env_tree.setColumnWidth(0, 140)
 
         self.env_tree.installEventFilter(self)
+        try:
+            self.env_tree.viewport().installEventFilter(self)
+        except Exception:
+            pass
+        self._languages_expanded = True
         self._populate_python_info()
         top_layout.addWidget(self.env_tree)
 
@@ -197,6 +202,10 @@ class PropertiesExplorer(PanelShell):
         # Refresh the Languages analysis for the new workspace.
         self._remove_languages_section()
         self._add_languages_section()
+        try:
+            QTimer.singleShot(0, self._fit_languages_row)
+        except Exception:
+            pass
         self._watch_project_metadata(project_dir)
 
     def _watch_project_metadata(self, project_dir: str) -> None:
@@ -317,13 +326,51 @@ class PropertiesExplorer(PanelShell):
             if self.env_tree.itemAt(click_pos) is None:
                 self.env_tree.clearSelection()
                 return True
+        viewport = None
+        try:
+            viewport = self.env_tree.viewport()
+        except Exception:
+            viewport = None
+        if (source is self.env_tree or source is viewport) and event.type() == QEvent.Type.Resize:
+            try:
+                QTimer.singleShot(0, self._fit_languages_row)
+            except Exception:
+                pass
         return super().eventFilter(source, event)
 
     def analyze_languages(self) -> LanguageAnalyzer:
+        """Build a LanguageAnalyzer for the active project directory.
+
+        Returns:
+            A populated LanguageAnalyzer widget.
+        """
         target = self.current_project_dir or os.curdir
+        try:
+            target = os.path.abspath(target)
+        except Exception:
+            pass
         analysis_widget = LanguageAnalyzer()
         analysis_widget.analyze_directory(target)
         return analysis_widget
+
+    def _find_languages_items(self) -> tuple | tuple[None, None]:
+        """Locate the Languages parent and embedded analyzer widget.
+
+        Returns:
+            Tuple of (parent item, child item, widget) or (None, None).
+        """
+        if not hasattr(self, "env_tree"):
+            return None, None
+        for i in range(self.env_tree.topLevelItemCount()):
+            item = self.env_tree.topLevelItem(i)
+            if item.text(0) == "Languages" and item.childCount() > 0:
+                child = item.child(0)
+                try:
+                    widget = self.env_tree.itemWidget(child, 0)
+                except Exception:
+                    widget = None
+                return item, child
+        return None, None
 
     def _remove_languages_section(self) -> None:
         """Remove the existing 'Languages' tree section if present."""
@@ -332,6 +379,18 @@ class PropertiesExplorer(PanelShell):
         for i in range(self.env_tree.topLevelItemCount() - 1, -1, -1):
             item = self.env_tree.topLevelItem(i)
             if item.text(0) == "Languages":
+                try:
+                    self._languages_expanded = item.isExpanded()
+                except Exception:
+                    pass
+                try:
+                    if item.childCount() > 0:
+                        old_widget = self.env_tree.itemWidget(item.child(0), 0)
+                        if old_widget is not None:
+                            self.env_tree.removeItemWidget(item.child(0), 0)
+                            old_widget.deleteLater()
+                except Exception:
+                    pass
                 self.env_tree.takeTopLevelItem(i)
 
     def _add_languages_section(self) -> None:
@@ -341,13 +400,45 @@ class PropertiesExplorer(PanelShell):
         parent = QTreeWidgetItem(self.env_tree)
         parent.setText(0, "Languages")
         parent.setFlags(parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
-        parent.setExpanded(False)
+        parent.setExpanded(getattr(self, "_languages_expanded", True))
         widget = self.analyze_languages()
         child = QTreeWidgetItem(parent)
         child.setText(0, "")
-        child.setSizeHint(0, QSize(200, 65))
         child.setFirstColumnSpanned(True)
         self.env_tree.setItemWidget(child, 0, widget)
+        self._fit_languages_row()
+        try:
+            QTimer.singleShot(0, self._fit_languages_row)
+        except Exception:
+            pass
+
+    def _fit_languages_row(self) -> None:
+        """Resize the Languages row so the bar and all badges stay visible."""
+        if not hasattr(self, "env_tree"):
+            return
+        found = self._find_languages_items()
+        if not found or found[0] is None:
+            return
+        parent, child = found
+        try:
+            widget = self.env_tree.itemWidget(child, 0)
+        except Exception:
+            widget = None
+        if widget is None:
+            return
+        try:
+            available = self.env_tree.viewport().width() - 8
+        except Exception:
+            available = 200
+        try:
+            needed = widget.content_height_for_width(max(80, available))
+        except Exception:
+            needed = 65
+        needed = max(65, min(int(needed), 400))
+        try:
+            child.setSizeHint(0, QSize(max(80, available), needed))
+        except Exception:
+            pass
 
     def _populate_python_info(self) -> None:
         sections = [

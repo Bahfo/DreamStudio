@@ -5,13 +5,13 @@ from editor.utils.resource_path import resource_path
 class DreamStudioIconProvider(QFileIconProvider):
     _EXT_ICON = {
         "bash": "bash.png",
-        "sh": "bash.png",
         "bat": "bat.png",
         "bin": "bin.png",
         "bsharp": "bsharp.png",
         "c": "c.png",
         "css": "css.png",
         "csv": "csv.png",
+        "d": "dlang.png",
         "docker": "docker.png",
         "docx": "docx.png",
         "html": "html.png",
@@ -28,11 +28,13 @@ class DreamStudioIconProvider(QFileIconProvider):
         "md": "md.png",
         "pdf": "pdf.png",
         "poly": "poly.png",
+        "ps1": "powershell.png",
+        "ps": "powershell.png",
         "pyc": "pyc.png",
         "pyx": "pyc.png",
         "pyz": "pyc.png",
         "py": "python.png",
-        "ps1": "shell.png",
+        "sh": "shell.png",
         "svg": "svg.png",
         "sql": "data.png",
         "ts": "typescript.png",
@@ -50,11 +52,33 @@ class DreamStudioIconProvider(QFileIconProvider):
         ".dockerignore": "docker.png",
     }
 
+    _FOLDER_NAME_ICON = {
+        "windows": "windows.png",
+        "win32": "windows.png",
+        "win": "windows.png",
+        "linux": "linux.png",
+        "test": "test.png",
+        "tests": "test.png",
+        "config": "config.png",
+        "configs": "config.png",
+        "python": "pyfolder.png",
+        "__pycache__": "pyfolder.png",
+        "assets": "assets.png",
+        "asset": "assets.png",
+        "libs": "libs.png",
+        "lib": "libs.png",
+    }
+
     def icon(self, file_info: QFileInfo) -> QIcon:
         if not isinstance(file_info, QFileInfo):
             return super().icon(file_info)
 
         if file_info.isDir():
+            folder_icon = self._FOLDER_NAME_ICON.get(file_info.fileName().lower())
+            if folder_icon:
+                candidate = resource_path(f"assets/types/{folder_icon}")
+                if os.path.exists(candidate):
+                    return QIcon(candidate)
             return QIcon(resource_path("assets/types/folder.png"))
 
         name_lower = file_info.fileName().lower()
