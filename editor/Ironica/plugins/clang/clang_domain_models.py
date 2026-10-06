@@ -24,6 +24,7 @@ class CContext:
     col: int
     file_path: Optional[str] = None
     compile_args: List[str] = field(default_factory=list)
+    project_root: Optional[str] = None
 
 
 @dataclass(frozen=True)

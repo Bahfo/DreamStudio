@@ -92,7 +92,16 @@ class CLanguageProvider(BaseLanguageProvider):
         super().__init__()
         self._adapter = adapter or ClangAdapter(library_path=clang_library_path)
         self._file_path: Optional[str] = None
+        self._project_root: Optional[str] = None
         self._completion_manager: Optional[CCompletionManager] = None
+
+    @property
+    def project_root(self) -> Optional[str]:
+        return self._project_root
+
+    @project_root.setter
+    def project_root(self, value: Optional[str]) -> None:
+        self._project_root = value
 
     @property
     def file_path(self) -> Optional[str]:
@@ -180,15 +189,22 @@ class CLanguageProvider(BaseLanguageProvider):
         return cleaned or None
 
     def _build_context(
-        self, text: str, line: int, col: int, file_path: Optional[str] = None
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
     ) -> CContext:
         effective_path = file_path or self._file_path
+        effective_root = project_root or self._project_root
         return CContext(
             source_code=text,
             line=line + 1,  # Clang uses 1-indexed lines
             col=col + 1,  # Clang uses 1-indexed columns
             file_path=effective_path,
             compile_args=[],  # Could be enhanced with compile_commands.json
+            project_root=effective_root,
         )
 
     @staticmethod
@@ -244,7 +260,12 @@ class CLanguageProvider(BaseLanguageProvider):
         return None
 
     def get_hover_details(
-        self, text: str, line: int, col: int
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
     ) -> Optional[HoverDetails]:
         if not text:
             return None
@@ -253,7 +274,7 @@ class CLanguageProvider(BaseLanguageProvider):
         if not symbol:
             return None
 
-        context = self._build_context(text, line, col)
+        context = self._build_context(text, line, col, file_path, project_root)
         return self._adapter.get_hover(context)
 
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
@@ -310,9 +331,14 @@ class CLanguageProvider(BaseLanguageProvider):
         return title_markdown, body_markdown
 
     def get_definition_location(
-        self, text: str, line: int, col: int
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
     ) -> Optional[Tuple[str, int, int]]:
-        context = self._build_context(text, line, col)
+        context = self._build_context(text, line, col, file_path, project_root)
         location = self._adapter.get_definition(context)
         if not location:
             return None
@@ -323,12 +349,19 @@ class CLanguageProvider(BaseLanguageProvider):
             max(0, int(location.column) - 1),
         )
 
-    def get_completions(self, text: str, cursor_position: tuple, prefix: str) -> list:
+    def get_completions(
+        self,
+        text: str,
+        cursor_position: tuple,
+        prefix: str,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
+    ) -> list:
         if not text:
             return []
 
         line, col = cursor_position
-        context = self._build_context(text, line, col)
+        context = self._build_context(text, line, col, file_path, project_root)
 
         try:
             return self._adapter.get_completions(context)

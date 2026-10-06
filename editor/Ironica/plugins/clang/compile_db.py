@@ -182,14 +182,41 @@ def _split_command(command: str) -> List[str]:
         return command.split()
 
 
+def _project_include_args(
+    file_path: Optional[str], project_root: Optional[str] = None
+) -> List[str]:
+    """Return ``-I`` flags for the buffer dir and project root.
+
+    Args:
+        file_path: Buffer path used to derive the buffer directory.
+        project_root: User project directory used as an include root.
+
+    Returns:
+        Deduplicated ``-I`` flag list for libclang parsing.
+    """
+    flags: List[str] = []
+    seen: set = set()
+    for candidate in (
+        os.path.dirname(os.path.abspath(file_path)) if file_path else None,
+        os.path.abspath(project_root) if project_root else None,
+    ):
+        if candidate and os.path.isdir(candidate) and candidate not in seen:
+            seen.add(candidate)
+            flags.extend(["-I", candidate])
+    return flags
+
+
 def args_for_file(
-    file_path: Optional[str], extra_args: Optional[List[str]] = None
+    file_path: Optional[str],
+    extra_args: Optional[List[str]] = None,
+    project_root: Optional[str] = None,
 ) -> List[str]:
     """Resolve effective libclang args for a buffer.
 
     Args:
         file_path: Buffer path; ``None`` yields built-in C defaults.
         extra_args: Caller-provided flags appended last (highest priority).
+        project_root: User project directory added as an ``-I`` root.
 
     Returns:
         Full argument list: defaults, then database flags, then extras.
@@ -206,6 +233,11 @@ def args_for_file(
                     args.extend(_entry_args(entry))
                 except Exception as exc:
                     logger.debug("Ignoring malformed DB entry: %s", exc)
+    for flag in _project_include_args(file_path, project_root):
+        if flag == "-I":
+            args.append(flag)
+        elif flag not in args:
+            args.append(flag)
     if extra_args:
         args.extend(extra_args)
     return args

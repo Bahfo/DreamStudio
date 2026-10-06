@@ -53,7 +53,8 @@ class LanguageCache:
         """
         code_hash = self._code_hash(context.source_code)
         file_path = context.file_path or "unsaved_buffer"
-        return f"{request_type}:{code_hash}:{context.line}:{context.column}:{file_path}"
+        project_root = getattr(context, "project_root", None) or ""
+        return f"{request_type}:{code_hash}:{context.line}:{context.column}:{file_path}:{project_root}"
 
     def get(self, context: PythonContext, request_type: str) -> Optional[Any]:
         """Retrieve a cached value if present, updating access history.

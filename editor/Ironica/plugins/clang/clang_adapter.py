@@ -142,7 +142,11 @@ class ClangAdapter(IClangAdapter):
             A translation unit, or ``None`` when parsing failed.
         """
         file_path = context.file_path or unsaved_name_for_path(None)
-        args = args_for_file(context.file_path, context.compile_args)
+        args = args_for_file(
+            context.file_path,
+            context.compile_args,
+            getattr(context, "project_root", None),
+        )
         unsaved_files = [(file_path, context.source_code)]
         options = (
             TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
@@ -293,12 +297,20 @@ class ClangAdapter(IClangAdapter):
 
         header_name = match.group(1)
         base_dir = os.path.dirname(context.file_path) if context.file_path else ""
+        project_root = getattr(context, "project_root", None) or ""
 
         if base_dir:
             rel_path = os.path.join(base_dir, header_name)
             if os.path.isfile(rel_path):
                 return DefinitionLocation(
                     file_path=os.path.abspath(rel_path), line=1, column=1
+                )
+
+        if project_root and os.path.isdir(project_root):
+            proj_path = os.path.join(project_root, header_name)
+            if os.path.isfile(proj_path):
+                return DefinitionLocation(
+                    file_path=os.path.abspath(proj_path), line=1, column=1
                 )
 
         search_dirs = [

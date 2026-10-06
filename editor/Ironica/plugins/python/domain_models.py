@@ -19,6 +19,7 @@ class PythonContext:
     line: int
     column: int
     file_path: Optional[str] = None
+    project_root: Optional[str] = None
 
 
 @dataclass(frozen=True)

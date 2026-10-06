@@ -230,7 +230,16 @@ class PythonLanguageProvider(BaseLanguageProvider):
         self._adapter = adapter
         self._cache = cache if cache is not None else LanguageCache()
         self._file_path = file_path
+        self._project_root: Optional[str] = None
         self._completion_manager = None
+
+    @property
+    def project_root(self) -> Optional[str]:
+        return self._project_root
+
+    @project_root.setter
+    def project_root(self, value: Optional[str]) -> None:
+        self._project_root = value
 
     @property
     def file_path(self) -> Optional[str]:
@@ -245,14 +254,21 @@ class PythonLanguageProvider(BaseLanguageProvider):
     # ------------------------------------------------------------------
 
     def _build_context(
-        self, text: str, line: int, col: int, file_path: Optional[str] = None
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
     ) -> PythonContext:
         effective_path = file_path or self._file_path
+        effective_root = project_root or getattr(self, "_project_root", None)
         return PythonContext(
             source_code=text,
             line=line + 1,
             column=col,
             file_path=effective_path,
+            project_root=effective_root,
         )
 
     # ------------------------------------------------------------------
@@ -260,7 +276,12 @@ class PythonLanguageProvider(BaseLanguageProvider):
     # ------------------------------------------------------------------
 
     def get_hover_details(
-        self, text: str, line: int, col: int
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
     ) -> Optional[HoverDetails]:
         """Return raw HoverDetails domain model for structured UI rendering."""
         if not text:
@@ -270,7 +291,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         if not symbol or keyword.iskeyword(symbol):
             return None
 
-        context = self._build_context(text, line, col)
+        context = self._build_context(text, line, col, file_path, project_root)
         return self._adapter.get_hover(context)
 
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
@@ -353,9 +374,14 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return title_markdown, body_markdown
 
     def get_definition_location(
-        self, text: str, line: int, col: int
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
     ) -> Optional[Tuple[str, int, int]]:
-        context = self._build_context(text, line, col)
+        context = self._build_context(text, line, col, file_path, project_root)
 
         cached_result = self._cache.get(context, "definition")
         if cached_result is not None:
@@ -367,7 +393,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
         result = (
             str(location.file_path) if location.file_path else "",
-            int(location.line),
+            max(0, int(location.line) - 1),
             int(location.column),
         )
         self._cache.set(context, "definition", result)
@@ -377,7 +403,14 @@ class PythonLanguageProvider(BaseLanguageProvider):
     # Completion Support
     # ------------------------------------------------------------------
 
-    def get_completions(self, text: str, cursor_position: tuple, prefix: str) -> list:
+    def get_completions(
+        self,
+        text: str,
+        cursor_position: tuple,
+        prefix: str,
+        file_path: Optional[str] = None,
+        project_root: Optional[str] = None,
+    ) -> list:
         """Return code-completion suggestions for the editor.
 
         The signature matches the duck-typed contract expected by
@@ -396,7 +429,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
             return []
 
         line, col = cursor_position
-        context = self._build_context(text, line, col)
+        context = self._build_context(text, line, col, file_path, project_root)
 
         try:
             return self._adapter.get_completions(context)

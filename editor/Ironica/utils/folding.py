@@ -97,47 +97,110 @@ class FoldManager:
 
         self._apply_colours(e)
 
-    def _arrow_pixmap(self, color: QColor, up: bool) -> QPixmap:
+    @staticmethod
+    def _blend(first: QColor, second: QColor, amount: float) -> QColor:
+        """Blend *first* toward *second* by *amount* (0.0-1.0).
+
+        Args:
+            first: Base colour.
+            second: Colour to blend toward.
+            amount: Blend factor clamped to ``0.0``-``1.0``.
+
+        Returns:
+            The blended ``QColor``.
+        """
+        t = max(0.0, min(1.0, amount))
+        return QColor(
+            int(first.red() + (second.red() - first.red()) * t),
+            int(first.green() + (second.green() - first.green()) * t),
+            int(first.blue() + (second.blue() - first.blue()) * t),
+        )
+
+    def _arrow_pixmap(
+        self, color: QColor, up: bool, stem_color: QColor | None = None
+    ) -> QPixmap:
         """Build a VS Code-style chevron-arrow pixmap for a fold header.
 
-        The arrow is painted on a 4x supersampled canvas and scaled back
-        down with smooth filtering so it renders crisp and anti-aliased
-        at the small gutter size instead of looking pixelated.
+        The arrow is painted on an 8x supersampled canvas with a thin
+        round-capped stroke and generous padding, then downscaled with
+        smooth filtering at the screen's device pixel ratio so it
+        renders soft and anti-aliased instead of pixelated. A short
+        vertical stem below the chevron ties the header into the fold
+        extent line drawn on the lines beneath it.
 
-        *up* points the chevron toward the top of the fold; otherwise it
-        points toward the body below the header.
+        Args:
+            color: Chevron stroke colour.
+            up: Chevron direction; ``True`` points toward the fold header.
+            stem_color: Extent-line colour, or ``None`` for no stem.
+
+        Returns:
+            A DPR-aware ``QPixmap`` of logical size ``ARROW_SIZE``.
         """
         s = self.ARROW_SIZE
-        scale = 4
-        big = QPixmap(s * scale, s * scale)
+        scale = 8
+        try:
+            dpr = float(self._editor.devicePixelRatioF() or 1.0)
+        except Exception:
+            dpr = 1.0
+        if dpr < 1.0:
+            dpr = 1.0
+        big = QImage(s * scale, s * scale, QImage.Format.Format_ARGB32)
         big.fill(QColor(0, 0, 0, 0))
         p = QPainter(big)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(color, max(2.0, scale * 1.4))
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        pen = QPen(color, scale * 1.15)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         p.setPen(pen)
         c = (s * scale) / 2.0
-        arm = 3.6 * scale
+        arm = 3.0 * scale
         apex = c + (-arm * 0.8 if up else arm * 0.8)
         base = c + (arm * 0.8 if up else -arm * 0.8)
         p.drawLine(QPointF(c - arm, base), QPointF(c, apex))
         p.drawLine(QPointF(c, apex), QPointF(c + arm, base))
+        if stem_color is not None:
+            stem = QPen(stem_color, scale * 1.2)
+            stem.setCapStyle(Qt.PenCapStyle.RoundCap)
+            p.setPen(stem)
+            low = max(base, apex) + scale * 0.6
+            p.drawLine(QPointF(c, low), QPointF(c, s * scale))
         p.end()
-        return big.scaled(
-            s,
-            s,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
+        target = max(1, int(round(s * dpr)))
+        small = QPixmap.fromImage(
+            big.scaled(
+                target,
+                target,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         )
+        small.setDevicePixelRatio(dpr)
+        return small
 
     def _apply_theme_colours(self, e: QsciScintilla, bg: QColor) -> None:
         """Derive the fold-gutter colours from the editor background *bg*."""
         dark = bg.lightness() < 128
-        arrow_colour = QColor(197, 197, 197) if dark else QColor(80, 80, 80)
-        line_colour = QColor(128, 128, 128) if dark else QColor(160, 160, 160)
-        mid = bg.lighter(130) if dark else bg.darker(115)
+        if dark:
+            arrow_colour = self._blend(QColor(197, 197, 197), bg, 0.35)
+            line_colour = self._blend(QColor(128, 128, 128), bg, 0.25)
+            mid = bg.lighter(107)
+        else:
+            arrow_colour = self._blend(QColor(80, 80, 80), bg, 0.35)
+            line_colour = self._blend(QColor(160, 160, 160), bg, 0.25)
+            mid = bg.darker(105)
 
+        fold_markers = (
+            QsciScintilla.SC_MARKNUM_FOLDER,
+            QsciScintilla.SC_MARKNUM_FOLDEROPEN,
+            QsciScintilla.SC_MARKNUM_FOLDEREND,
+            QsciScintilla.SC_MARKNUM_FOLDEROPENMID,
+            QsciScintilla.SC_MARKNUM_FOLDERSUB,
+            QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL,
+            QsciScintilla.SC_MARKNUM_FOLDERTAIL,
+        )
+        for marker in fold_markers:
+            e.setMarkerBackgroundColor(mid, marker)
         e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERSUB)
         e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL)
         e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERTAIL)
@@ -147,22 +210,22 @@ class FoldManager:
         e.SendScintilla(
             QsciScintilla.SCI_MARKERDEFINEPIXMAP,
             QsciScintilla.SC_MARKNUM_FOLDER,
-            self._arrow_pixmap(arrow_colour, up=True),
+            self._arrow_pixmap(arrow_colour, up=True, stem_color=line_colour),
         )
         e.SendScintilla(
             QsciScintilla.SCI_MARKERDEFINEPIXMAP,
             QsciScintilla.SC_MARKNUM_FOLDEROPEN,
-            self._arrow_pixmap(arrow_colour, up=False),
+            self._arrow_pixmap(arrow_colour, up=False, stem_color=line_colour),
         )
         e.SendScintilla(
             QsciScintilla.SCI_MARKERDEFINEPIXMAP,
             QsciScintilla.SC_MARKNUM_FOLDEREND,
-            self._arrow_pixmap(arrow_colour, up=True),
+            self._arrow_pixmap(arrow_colour, up=True, stem_color=line_colour),
         )
         e.SendScintilla(
             QsciScintilla.SCI_MARKERDEFINEPIXMAP,
             QsciScintilla.SC_MARKNUM_FOLDEROPENMID,
-            self._arrow_pixmap(arrow_colour, up=False),
+            self._arrow_pixmap(arrow_colour, up=False, stem_color=line_colour),
         )
 
         e.setFoldMarginColors(mid, mid)

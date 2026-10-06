@@ -1871,9 +1871,21 @@ class CodeEditor(QsciScintilla):
         try:
             if line is None or col is None:
                 line, col = self.getCursorPosition()
-            target = self.current_provider.get_definition_location(
-                self.text(), line, col
-            )
+            file_path = getattr(self, "current_file_path", None) or None
+            try:
+                from editor.utils.workspace import get_workspace_dir
+
+                project_root = get_workspace_dir(self) or None
+            except Exception:
+                project_root = None
+            try:
+                target = self.current_provider.get_definition_location(
+                    self.text(), line, col, file_path, project_root
+                )
+            except TypeError:
+                target = self.current_provider.get_definition_location(
+                    self.text(), line, col
+                )
 
             if not target:
                 return

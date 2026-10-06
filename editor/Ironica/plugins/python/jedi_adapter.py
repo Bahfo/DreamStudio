@@ -51,6 +51,13 @@ class JediAdapter(IJediAdapter):
         The subsystem does not touch the filesystem; code is passed purely in memory.
         """
         try:
+            project = self._resolve_project(context)
+            if project is not None:
+                return jedi.Script(
+                    code=context.source_code,
+                    path=context.file_path,
+                    project=project,
+                )
             return jedi.Script(
                 code=context.source_code,
                 path=context.file_path,
@@ -62,6 +69,41 @@ class JediAdapter(IJediAdapter):
                 str(e),
                 exc_info=True,
             )
+            return None
+
+    @staticmethod
+    def _resolve_project(context: PythonContext):
+        """Build a Jedi project rooted at the user's project directory.
+
+        Falls back to the buffer's own directory when no project root
+        was supplied, and returns ``None`` when neither is available
+        so callers keep the previous behaviour.
+        """
+        import os
+
+        candidates: list = []
+        file_dir = None
+        if context.file_path:
+            try:
+                file_dir = os.path.dirname(os.path.abspath(context.file_path))
+            except Exception:
+                file_dir = None
+        project_root = None
+        if getattr(context, "project_root", None):
+            try:
+                project_root = os.path.abspath(context.project_root)
+            except Exception:
+                project_root = None
+        for candidate in (file_dir, project_root):
+            if candidate and os.path.isdir(candidate):
+                if candidate not in candidates:
+                    candidates.append(candidate)
+        if not candidates:
+            return None
+        root = project_root or file_dir
+        try:
+            return jedi.Project(path=root, added_sys_path=candidates)
+        except Exception:
             return None
 
     def get_hover(self, context: PythonContext) -> Optional[HoverDetails]:
@@ -145,7 +187,16 @@ class JediAdapter(IJediAdapter):
 
         try:
             try:
-                definitions = script.goto(line=context.line, column=context.column)
+                try:
+                    definitions = script.goto(
+                        line=context.line,
+                        column=context.column,
+                        follow_imports=True,
+                    )
+                except TypeError:
+                    definitions = script.goto(
+                        line=context.line, column=context.column
+                    )
                 if not definitions:
                     definitions = script.infer(line=context.line, column=context.column)
             except Exception as e:
