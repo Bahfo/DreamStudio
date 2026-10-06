@@ -36,7 +36,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "editor": {
         "theme": "dark",
-        "font_family": Fonts.FONT_INTER,
+        "font_family": Fonts.FONT_SEGOE_UI,
         "font_size": 12,
     },
     "workspace": {

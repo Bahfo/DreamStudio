@@ -61,6 +61,8 @@ class FoldMarginMarker(QWidget):
 class FoldManager:
     """Language-agnostic fold region manager for a QsciScintilla editor."""
 
+    # NOTE: Must stay in sync with CodeEditor.MARGIN_FOLD. Fold owns
+    # margin 3; modified/saved owns margin 4 (last before text).
     FOLD_MARGIN = 3
     FOLD_MARGIN_WIDTH = 14
     ARROW_SIZE = 12
@@ -76,11 +78,12 @@ class FoldManager:
     def _setup_margin(self) -> None:
         """Configure the dedicated fold margin with clean markers."""
         e = self._editor
+        margin = int(getattr(e, "MARGIN_FOLD", self.FOLD_MARGIN))
 
-        e.setMarginType(self.FOLD_MARGIN, QsciScintilla.MarginType.SymbolMargin)
-        e.setMarginWidth(self.FOLD_MARGIN, self.FOLD_MARGIN_WIDTH)
-        e.setMarginSensitivity(self.FOLD_MARGIN, True)
-        e.setMarginMarkerMask(self.FOLD_MARGIN, QsciScintilla.SC_MASK_FOLDERS)
+        e.setMarginType(margin, QsciScintilla.MarginType.SymbolMargin)
+        e.setMarginWidth(margin, self.FOLD_MARGIN_WIDTH)
+        e.setMarginSensitivity(margin, True)
+        e.setMarginMarkerMask(margin, QsciScintilla.SC_MASK_FOLDERS)
 
         # Tail markers share a thin vertical connecting line; the fold
         # headers (up/down chevrons) are drawn as pixmaps in
@@ -188,7 +191,8 @@ class FoldManager:
 
     def _on_margin_clicked(self, margin: int, line: int, modifiers: int) -> None:
         """Handle click on a margin to toggle fold state."""
-        if margin != self.FOLD_MARGIN:
+        expected = int(getattr(self._editor, "MARGIN_FOLD", self.FOLD_MARGIN))
+        if margin != expected:
             return
 
         region = self.get_region_at_line(line)

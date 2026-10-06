@@ -62,21 +62,16 @@ class CodeEditor(QsciScintilla):
 
     _INDENTATION_SPACING = 4
 
-    # Bracket-pair highlight indicator slots.  Slots 0-7 are used for
-    # semantic overlays and 8-15 for diagnostics, so 16+ are free.
     BRACKET_HL_SLOT = 16
     BRACKET_BAD_SLOT = 17
 
-    # Occurrence highlight (VS Code-style word occurrence) slot.
     OCCURRENCE_HL_SLOT = 18
     OCCURRENCE_MIN_LENGTH = 2
     OCCURRENCE_MAX_OCC = 200
 
-    # Deferred semantic-overlay ranges painted per idle callback. Larger
-    # values finish big files faster; smaller values keep each UI slice
-    # shorter. 8000 ranges slice in a few milliseconds.
     _SEMANTIC_CHUNK_RANGES = 8000
 
+    MARGIN_LINENUMBER = 0
     MARGIN_BREAKPOINT = 1
     MARKER_BREAKPOINT = 1
     COLOR_MARGIN = 2
@@ -88,11 +83,17 @@ class CodeEditor(QsciScintilla):
     COLOR_EXEC_LINE = QColor("#FFD54F")
     CIRCLE_RADIUS = 4
 
-    # Works for three types: Hex, RGB, and RGBA
     COLOR_MARKER_START = 10
     COLOR_MARKER_END = 24
 
-    # ELF inspector gutter button margin (binary mode only).
+    MARGIN_FOLD = 3
+    MARGIN_MODIFIED = 4
+    MARKER_MODIFIED = 6
+    MARKER_SAVED = 7
+
+    COLOR_MODIFED = QColor("#FFB900")
+    COLOR_SAVED = QColor("#107C10")
+
     MARGIN_ELF = 3
     MARKER_ELF = 5
 
@@ -115,14 +116,10 @@ class CodeEditor(QsciScintilla):
         self.current_file_path = None
         self._font_size = 10
         self._is_dirty = False
-        # Slots 8-15 are reserved for diagnostic squiggles so they never
-        # collide with lexer/folding indicators.
         self._diagnostic_ranges: list = []
         self._diagnostic_labels: list = []
         self._deemphasized_ranges: list = []
         self._configured_diagnostic_slots: dict = {}
-        # Per-editor copy: an unknown severity colour allocates its slot here
-        # instead of mutating the class-level mapping shared by every editor.
         self._severity_slots: dict = dict(self._SEVERITY_SLOTS)
 
         # Overview-ruler ticks
@@ -167,6 +164,11 @@ class CodeEditor(QsciScintilla):
         self.textChanged.connect(self._on_text_changed)
 
         ###############################################
+        # Text Modification
+        ###############################################
+        self.textChanged.connect(self._handle_text_modification)
+
+        ###############################################
         # Color Wheel and Indicators
         ###############################################
         self._color_marker_cache = {}
@@ -195,7 +197,7 @@ class CodeEditor(QsciScintilla):
         # the expensive fold-toggle round-trip.
         self._fold_display_text_cache: dict = {}
 
-        self._font = Fonts.jetbrains_mono(11)
+        self._font = Fonts.cascadia_code(10)
         self.setFont(self._font)
         try:
             self.setUtf8(True)
@@ -725,15 +727,26 @@ class CodeEditor(QsciScintilla):
         self.setMarginMarkerMask(margin, mask)
 
     def _setup_margins(self) -> None:
-        """Configure line numbers, breakpoints, and colorwheel margins."""
+        """Configure margins left-to-right with modified/saved last.
+
+        Layout is 0 line numbers, 1 breakpoints, 2 color, 3 fold,
+        4 modified/saved directly before the text. Each margin masks
+        only its own markers so indicators never leak into neighbours.
+        """
         bg, text, _, _ = self._theme_colors()
         self.setPaper(bg)
         self.setColor(text)
+        try:
+            self.setMargins(5)
+        except Exception:
+            pass
 
         # Line Numbers
-        self.setMarginType(0, QsciScintilla.MarginType.NumberMargin)
-        self.setMarginWidth(0, "000000")
-        self.setMarginLineNumbers(0, True)
+        self.setMarginType(
+            self.MARGIN_LINENUMBER, QsciScintilla.MarginType.NumberMargin
+        )
+        self.setMarginWidth(self.MARGIN_LINENUMBER, "000000")
+        self.setMarginLineNumbers(self.MARGIN_LINENUMBER, True)
         self.setMarginsBackgroundColor(bg)
         self.setMarginsForegroundColor(text)
         self._apply_indent_guide_color(text)
@@ -751,6 +764,16 @@ class CodeEditor(QsciScintilla):
             QsciScintilla.MarkerSymbol.FullRectangle,
             self.MARKER_EXEC_LINE,
         )
+        self.markerDefine(
+            QsciScintilla.MarkerSymbol.FullRectangle,
+            self.MARKER_MODIFIED,
+        )
+        self.markerDefine(
+            QsciScintilla.MarkerSymbol.FullRectangle,
+            self.MARKER_SAVED,
+        )
+        self.setMarkerBackgroundColor(self.COLOR_SAVED, self.MARKER_SAVED)
+        self.setMarkerBackgroundColor(self.COLOR_MODIFED, self.MARKER_MODIFIED)
         self.setMarkerForegroundColor(self.COLOR_EXEC_LINE, self.MARKER_EXEC_LINE)
         self.setMarkerBackgroundColor(self.COLOR_EXEC_LINE, self.MARKER_EXEC_LINE)
 
@@ -761,13 +784,19 @@ class CodeEditor(QsciScintilla):
             self.MARKER_EXEC_LINE,
         )
 
-        # Colorwheel Margin
         color_marker_ids = list(
             range(self.COLOR_MARKER_START, self.COLOR_MARKER_END + 1)
         )
         self.setup_symbol_margin(self.COLOR_MARGIN, *color_marker_ids)
 
-        # Left padding offset
+        self.setup_symbol_margin(
+            self.MARGIN_MODIFIED,
+            self.MARKER_MODIFIED,
+            self.MARKER_SAVED,
+            width=4,
+        )
+        self.setMarginSensitivity(self.MARGIN_MODIFIED, False)
+
         self.SendScintilla(QsciScintilla.SCI_SETMARGINLEFT, 0, 10)
 
     def _apply_indent_guide_color(self, text_color) -> None:
@@ -887,6 +916,32 @@ class CodeEditor(QsciScintilla):
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     ###############################################
+    # CODE MODIFICATION MARGIN DEFINITIONS
+    ###############################################
+
+    def _handle_text_modification(self):
+        """
+        Mark the current line with modified color when modified.
+        """
+        line, _ = self.getCursorPosition()
+        self.markerDelete(line, self.MARKER_SAVED)
+        if not (self.markersAtLine(line) & (1 << self.MARKER_MODIFIED)):
+            self.markerAdd(line, self.MARKER_MODIFIED)
+
+    def mark_document_saved(self) -> None:
+        line_count = self.lines()
+        for line in range(line_count):
+            if self.markersAtLine(line) & (1 << self.MARKER_MODIFIED):
+                self.markerDelete(line, self.MARKER_MODIFIED)
+                self.markerAdd(line, self.MARKER_SAVED)
+
+        self.setModified(False)
+
+    def clear_save_indicators(self) -> None:
+        self.markerDeleteAll(self.MARKER_SAVED)
+        self.markerDeleteAll(self.MARKER_MODIFIED)
+
+    ###############################################
     # BRACKET HIGHLIGHTING
     ###############################################
 
@@ -970,8 +1025,6 @@ class CodeEditor(QsciScintilla):
             return
         pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
 
-        # The active bracket is the character immediately before the
-        # caret, or the character under the caret (strict behaviour).
         active = -1
         for cand in (pos - 1, pos):
             if 0 <= cand < length:
@@ -998,7 +1051,7 @@ class CodeEditor(QsciScintilla):
             self._bracket_hl_ranges = [(active, 1)]
 
     ###############################################
-    # OCCURRENCE HIGHLIGHT (VS CODE-STYLE)
+    # OCCURRENCE HIGHLIGHT
     ###############################################
 
     def _setup_occurrence_highlight(self) -> None:
@@ -1344,7 +1397,6 @@ class CodeEditor(QsciScintilla):
             return
 
         if self.isReadOnly():
-            # Block all editing keys when read-only; allow navigation.
             if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 e.ignore()
                 return
@@ -2078,7 +2130,6 @@ class CodeEditor(QsciScintilla):
             UnicodeDecodeError: If the file cannot be decoded (after
                 fallback attempt).
         """
-        # Leaving binary mode when opening a normal text file
         if getattr(self, "_binary_mode", False):
             try:
                 self.exit_binary_mode()
@@ -2089,7 +2140,6 @@ class CodeEditor(QsciScintilla):
         if not path_obj.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        # Try UTF-8 first, then fall back to system default.
         content = None
         for encoding in ("utf-8", "utf-8-sig", None):
             try:
@@ -2101,15 +2151,11 @@ class CodeEditor(QsciScintilla):
                 continue
 
         if content is None:
-            # Final fallback: read as bytes, replace errors.
             with open(file_path, "rb") as f:
                 content = f.read().decode("utf-8", errors="replace")
 
         self.current_file_path = file_path
 
-        # Invalidate the semantic provider cache before setText so the
-        # debounced refresh always computes fresh results for the new
-        # buffer content.
         if self.current_provider and hasattr(self.current_provider, "invalidate_cache"):
             try:
                 self.current_provider.invalidate_cache()
@@ -2117,8 +2163,13 @@ class CodeEditor(QsciScintilla):
                 pass
 
         prev_dirty = self._is_dirty
-        self.setText(content)
+        self.blockSignals(True)
+        try:
+            self.setText(content)
+        finally:
+            self.blockSignals(False)
         self.setModified(False)
+        self.clear_save_indicators()
         self._is_dirty = False
         self._fold_display_text_cache.clear()
         self.dirty_state_changed.emit(False)
@@ -2132,7 +2183,6 @@ class CodeEditor(QsciScintilla):
         self._dismiss_hover_flyout()
         self._recompute_folds()
 
-        # Check read-only permissions.
         try:
             write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
             if not (path_obj.stat().st_mode & write_bits):
@@ -2142,7 +2192,6 @@ class CodeEditor(QsciScintilla):
                 except Exception:
                     pass
             else:
-                # Ensure editor is writable when file has write permission.
                 if self.isReadOnly():
                     self.setReadOnly(False)
                     try:
@@ -2168,7 +2217,7 @@ class CodeEditor(QsciScintilla):
             dialog = ConfirmDialog(
                 parent=self,
                 title="Read-Only",
-                message="File is read-only. Toggle read-only off to save.",
+                message="Cannot save a read-only file.",
                 confirm_text="OK",
                 cancel_text="CANCEL",
                 destructive=False,
@@ -2211,7 +2260,8 @@ class CodeEditor(QsciScintilla):
         return self.save_to_file(file_path)
 
     def save_to_file(self, file_path: str) -> bool:
-        """Write the editor buffer to *file_path*.
+        """
+        Write the editor buffer to *file_path*.
 
         Args:
             file_path: Destination path (overwritten if it exists).
@@ -2225,7 +2275,7 @@ class CodeEditor(QsciScintilla):
             dialog = ConfirmDialog(
                 parent=self,
                 title="Read-Only",
-                message="File is read-only. Toggle read-only off to save.",
+                message="Cannot save a file in read-only state.",
                 confirm_text="OK",
                 cancel_text="CANCEL",
                 destructive=False,
@@ -2238,6 +2288,7 @@ class CodeEditor(QsciScintilla):
                 f.write(content)
             self.current_file_path = file_path
             self.setModified(False)
+            self.mark_document_saved()
             was_dirty = self._is_dirty
             if self._is_dirty:
                 self._is_dirty = False
@@ -2245,8 +2296,6 @@ class CodeEditor(QsciScintilla):
             try:
                 from editor.utils.git_control.status_service import get_status_service
 
-                # Covers: file modified / added (requirement 5) and
-                # dirty false transition (requirement 2).
                 if was_dirty:
                     get_status_service().request_scan("editor:save_dirty_false")
                 else:
