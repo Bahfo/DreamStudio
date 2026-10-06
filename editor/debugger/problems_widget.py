@@ -413,6 +413,9 @@ class ProblemsWidget(QWidget):
     problemClicked = pyqtSignal(object)
     countsChanged = pyqtSignal(int, int, int)
     providerError = pyqtSignal(str)
+    indexing_started = pyqtSignal(int)
+    indexing_progress = pyqtSignal(int, int)
+    indexing_finished = pyqtSignal()
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -454,6 +457,11 @@ class ProblemsWidget(QWidget):
         self._live_busy: bool = False
         self._semantic_busy: bool = False
         self._index_incremental: bool = False
+        self._indexing_active: bool = False
+        self._index_total: int = 0
+        self._index_done: int = 0
+        self._provider_gen: Optional[int] = None
+        self._providers_done: bool = True
         self._scan_timer = None
         self._live_timer = None
         self._watch_timer = None
@@ -733,6 +741,9 @@ class ProblemsWidget(QWidget):
                     thread.wait(2000)
             except Exception:
                 pass
+        if self._indexing_active:
+            self._indexing_active = False
+            self.indexing_finished.emit()
 
     def _stop_timers(self) -> None:
         """Stop all debounce/watch timers owned by the scanner."""
@@ -943,6 +954,9 @@ class ProblemsWidget(QWidget):
         root = os.path.abspath(workspace_root or "")
         if not root or not os.path.isdir(root):
             self.set_problems([])
+            if self._indexing_active:
+                self._indexing_active = False
+                self.indexing_finished.emit()
             return
         self._scan_gen += 1
         if root != self._scan_root:
@@ -1008,11 +1022,21 @@ class ProblemsWidget(QWidget):
             self._skipped_files = int(skipped or 0)
         except (TypeError, ValueError):
             self._skipped_files = 0
-        self._enqueue(entries if isinstance(entries, list) else [])
+        indexed = entries if isinstance(entries, list) else []
+        self._enqueue(indexed)
         self._start_watch_timer()
-        if not getattr(self, "_index_incremental", False):
+        incremental = bool(getattr(self, "_index_incremental", False))
+        if not incremental:
+            if indexed:
+                self._index_total = len(indexed)
+                self._index_done = 0
+                self._indexing_active = True
+                self._providers_done = False
+                self._provider_gen = None
+                self.indexing_started.emit(len(indexed))
             self._start_workspace_providers()
         self._schedule_batch(0)
+        self._maybe_finish_indexing()
 
     def _enqueue(self, entries: List[tuple]) -> None:
         """Append ``(path, mtime, size)`` entries not already queued."""
@@ -1071,7 +1095,14 @@ class ProblemsWidget(QWidget):
                 self._file_stamps[path] = (mtime, size)
                 pairs.append((path, list(problems)))
             self._store.set_disk_results(pairs)
+        if not stale and self._indexing_active and self._index_total:
+            self._index_done = max(
+                0, min(self._index_total, self._index_total - len(self._index_queue))
+            )
+            self.indexing_progress.emit(self._index_done, self._index_total)
         self._schedule_batch(_LAZY_BATCH_GAP_MS)
+        if not stale:
+            self._maybe_finish_indexing()
 
     def _start_watch_timer(self) -> None:
         """Arm the repeating timer that re-indexes for on-disk changes."""
@@ -1130,6 +1161,7 @@ class ProblemsWidget(QWidget):
         thread = _WorkspaceProviderThread(root, self._scan_gen, parent=self)
         thread.provider_done.connect(self._on_provider_done)
         self._provider_thread = thread
+        self._provider_gen = self._scan_gen
         thread.start()
 
     def _on_provider_done(
@@ -1157,6 +1189,26 @@ class ProblemsWidget(QWidget):
         self._record_provider_errors(errors)
         self._record_provider_notes(notes)
         self._update_summary()
+        if int(gen) == int(self._provider_gen or -1):
+            self._providers_done = True
+        self._maybe_finish_indexing()
+
+    def _maybe_finish_indexing(self) -> None:
+        """Emit :attr:`indexing_finished` once the active scan is drained.
+
+        A scan is done when its batch queue is empty, no batch is running,
+        and no provider pass is outstanding for the current generation.
+        Incremental watch re-scans never arm the bar, so they can never
+        finish it either — completion requires a prior `started` signal.
+        """
+        if not self._indexing_active:
+            return
+        if self._index_queue or self._scan_busy:
+            return
+        if self._provider_gen == self._scan_gen and not self._providers_done:
+            return
+        self._indexing_active = False
+        self.indexing_finished.emit()
 
     def _record_provider_errors(self, errors: object) -> None:
         """Merge provider failure messages into the visible provider status."""

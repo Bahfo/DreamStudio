@@ -2,6 +2,7 @@ from editor import *
 from editor.utils.resource_path import resource_path
 
 from editor.widgets.QToolButton import ToolbarButton
+from editor.widgets.QIndexingProgress import IndexingProgress
 from editor.utils.git_control.git_control import *
 
 #: Severity groups that own a diagnostic status-bar button, in display order.
@@ -165,6 +166,10 @@ class StatusBar(QFrame):
         progress_container_layout.addWidget(self.bootstrap_progress)
         statusbar_layout.addWidget(self.bootstrap_progress_container)
 
+        self.indexing_bar = IndexingProgress(self)
+        self.indexing_bar.setObjectName("indexingProgress")
+        statusbar_layout.addWidget(self.indexing_bar)
+
         statusbar_layout.addStretch()
 
         self.lines_and_cols = QLabel()
@@ -273,11 +278,22 @@ class StatusBar(QFrame):
     def attach_problems_panel(self, panel) -> None:
         """Bind the Problems panel whose display options these buttons drive.
 
+        Also wires the panel's indexing signals to the status-bar progress
+        indicator, so a repository scan shows a loader bar until it ends.
+
         Args:
             panel: The ``ProblemsWidget`` the menu reads and updates. When it
                 is ``None`` the menu reports that the panel is unavailable.
         """
         self._problems_panel = panel
+        try:
+            if panel is None:
+                return
+            panel.indexing_started.connect(self.indexing_bar.start_indexing)
+            panel.indexing_progress.connect(self.indexing_bar.advance_indexing)
+            panel.indexing_finished.connect(self.indexing_bar.finish_indexing)
+        except Exception:
+            pass
 
     def problems_panel(self):
         """Return the attached Problems panel, or ``None``."""
