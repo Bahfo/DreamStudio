@@ -209,6 +209,7 @@ class CodeEditor(QsciScintilla):
         self._analysis_enabled = False
         self._analysis_owner_id = id(self)
         self._analysis_manager = AnalysisManager(self)
+        self._analysis_deferrals = 0
 
         # Fold-display-text lines already sent to Scintilla, keyed by
         # line number → import count, so repeated analysis applies skip
@@ -306,6 +307,9 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
         if self.current_provider and self.current_provider.has_folding():
+            from editor.Ironica import completion_profile as _profile
+
+            _profile.mark(self, "fold-sched")
             self._schedule_fold_recompute()
         if self.current_provider:
             provider_cls = type(self.current_provider)
@@ -321,6 +325,9 @@ class CodeEditor(QsciScintilla):
                     )
                 except Exception:
                     pass
+                from editor.Ironica import completion_profile as _profile
+
+                _profile.mark(self, "hl-sched")
                 self._import_highlight_timer.start()
 
         if self._is_replacing:
@@ -434,8 +441,34 @@ class CodeEditor(QsciScintilla):
             pass
         self._fold_recompute_timer.start()
 
+    def _completion_in_flight(self) -> bool:
+        """Return whether a completion round-trip is still outstanding."""
+        widget = getattr(self, "_autocompletion_widget", None)
+        return bool(getattr(widget, "_request_pending", False))
+
+    def _defer_rival_paint(self, timer) -> bool:
+        """Defer one analysis cycle while completion owns the paint.
+
+        Returns True when deferred (bounded: at most three consecutive
+        deferrals, then the analysis proceeds regardless).
+        """
+        if not self._completion_in_flight():
+            self._analysis_deferrals = 0
+            return False
+        if self._analysis_deferrals >= 3:
+            self._analysis_deferrals = 0
+            return False
+        self._analysis_deferrals += 1
+        try:
+            timer.start()
+        except Exception:
+            pass
+        return True
+
     def _recompute_folds(self) -> None:
         """Schedule whole-document analysis (folds + semantic overlays)."""
+        if self._defer_rival_paint(self._fold_recompute_timer):
+            return
         self._request_analysis()
 
     def _request_analysis(self) -> None:
@@ -2160,6 +2193,8 @@ class CodeEditor(QsciScintilla):
         The heavy provider computation runs off the UI thread; the
         computed overlays are painted via ``_apply_semantic_overlays``.
         """
+        if self._defer_rival_paint(self._import_highlight_timer):
+            return
         self._request_analysis()
 
     ###############################################

@@ -14,6 +14,8 @@ from typing import List, Optional
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
+from editor.Ironica import completion_profile as _profile
+
 # Local Imports
 from .models import CppContext
 
@@ -29,6 +31,7 @@ class _CompletionRequest:
 
     request_id: int
     context: CppContext
+    warmup: bool = False
 
 
 class _CppCompletionWorker(threading.Thread):
@@ -51,13 +54,14 @@ class _CppCompletionWorker(threading.Thread):
         self._current: Optional[_CompletionRequest] = None
         self._shutting_down = False
 
-    def process(self, request_id: int, context: CppContext) -> None:
+    def process(self, request_id: int, context: CppContext,
+                warmup: bool = False) -> None:
         """
         Queue *context*, waking the thread (drops any pending older item).
         """
         if self._shutting_down:
             return
-        self._current = _CompletionRequest(request_id, context)
+        self._current = _CompletionRequest(request_id, context, warmup)
         self._wake.set()
         if not self._started_once:
             self._started_once = True
@@ -77,7 +81,12 @@ class _CppCompletionWorker(threading.Thread):
             if self._shutting_down:
                 continue
             try:
+                _profile.mark(self._owner._editor, "engine-start")
+                if request.warmup:
+                    self._engine.prime(request.context)
+                    continue
                 items = self._engine.complete(request.context) or []
+                _profile.mark(self._owner._editor, "engine-done")
             except Exception as exc:  # Bad input doesn't kill worker
                 logger.warning("C++ completion engine failed: %s", exc)
                 items = []
@@ -86,6 +95,7 @@ class _CppCompletionWorker(threading.Thread):
             if request.request_id < self._owner._request_counter:
                 continue
             try:
+                _profile.mark(self._owner._editor, "emit")
                 self._owner.completions_ready.emit(request.request_id, list(items))
             except RuntimeError:
                 pass  # owner deleted with its editor
@@ -158,6 +168,7 @@ class CppCompletionManager(QObject):
         """
         if self._dead:
             return False
+        _profile.mark(self._editor, "queue")
         try:
             from .context import classify
 
@@ -177,11 +188,46 @@ class CppCompletionManager(QObject):
             prefix=prefix or "",
         )
         try:
+            from editor.Ironica.debounce import adaptive_delay_for_editor
+
+            self._timer.setInterval(
+                adaptive_delay_for_editor(COMPLETION_DEBOUNCE_MS, self._editor)
+            )
+        except Exception:
+            pass
+        try:
             self._timer.start()
         except RuntimeError:
             self._dead = True
             return False
         return True
+
+    def warmup(
+        self,
+        source: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+    ) -> None:
+        """Prime engine caches off the typing path; results are discarded.
+
+        Safe to call once per editor while idle: a real request always
+        supersedes the queued warmup, and a running warmup costs no more
+        than the cold parse the first keystroke would pay anyway.
+        """
+        if self._dead or not self._enabled or not source:
+            return
+        try:
+            context = CppContext(
+                source_code=source,
+                line=line + 1,
+                col=col + 1,
+                file_path=file_path or self._file_path,
+                compile_args=list(self._compile_args),
+            )
+            self._worker.process(self._request_counter, context, warmup=True)
+        except Exception as exc:
+            logger.debug("C++ completion warmup failed: %s", exc)
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
@@ -191,6 +237,7 @@ class CppCompletionManager(QObject):
 
         if not self._enabled or self._pending is None:
             return
+        _profile.mark(self._editor, "debounce")
         try:
             self._worker.process(self._request_counter, self._pending)
         except Exception as exc:

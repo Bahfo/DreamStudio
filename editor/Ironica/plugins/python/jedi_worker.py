@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from editor import *
 
+from editor.Ironica import completion_profile as _profile
 from editor.Ironica.analysis_bridge import AnalysisProcess, AnalysisProcessError
 from editor.Ironica.process_manager import process_manager
 
@@ -194,6 +195,14 @@ class DiagnosticManager(QObject):
     def _on_debounce_fired(self) -> None:
         if not self._enabled:
             return
+        _profile.mark(self._editor, "diag-fire")
+        widget = getattr(self._editor, "_autocompletion_widget", None)
+        if getattr(widget, "_request_pending", False):
+            try:
+                self._debounce_timer.start()
+            except RuntimeError:
+                pass
+            return
         try:
             source = self._editor.text()
             self._worker.process(self._request_counter, source, self._file_path)
@@ -286,6 +295,7 @@ class _CompletionRequest:
     line: int
     col: int
     file_path: Optional[str]
+    warmup: bool = False
 
 
 class _CompletionWorker(threading.Thread):
@@ -312,6 +322,7 @@ class _CompletionWorker(threading.Thread):
         line: int,
         col: int,
         file_path: Optional[str],
+        warmup: bool = False,
     ) -> None:
         if self._is_shutting_down:
             return
@@ -322,6 +333,7 @@ class _CompletionWorker(threading.Thread):
             line=line,
             col=col,
             file_path=file_path,
+            warmup=warmup,
         )
         self._wake.set()
         if not self._started_once:
@@ -400,7 +412,9 @@ class _CompletionWorker(threading.Thread):
                 continue
 
             try:
+                _profile.mark(self._owner._editor, "engine-start")
                 completions = self._remote_completions(request)
+                _profile.mark(self._owner._editor, "engine-done")
                 if completions is None:
                     continue  # superseded by a newer request
             except Exception as exc:
@@ -410,7 +424,10 @@ class _CompletionWorker(threading.Thread):
             if not self._is_shutting_down and self._current_request is None:
                 if request.request_id < self._owner._request_counter:
                     continue
+                if request.warmup:
+                    continue
                 try:
+                    _profile.mark(self._owner._editor, "emit")
                     self._owner.completions_ready.emit(request.request_id, completions)
                 except RuntimeError:
                     pass
@@ -517,10 +534,19 @@ class CompletionManager(QObject):
         """
         if self._dead:
             return False
+        _profile.mark(self._editor, "queue")
         self._request_counter += 1
         self._pending_source = source
         self._pending_line = line
         self._pending_col = col
+        try:
+            from editor.Ironica.debounce import adaptive_delay_for_editor
+
+            self._debounce_timer.setInterval(
+                adaptive_delay_for_editor(COMPLETION_DEBOUNCE_MS, self._editor)
+            )
+        except Exception:
+            pass
         try:
             self._debounce_timer.start()
         except RuntimeError:
@@ -528,10 +554,29 @@ class CompletionManager(QObject):
             return False
         return True
 
+    def warmup(
+        self,
+        source: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+    ) -> None:
+        """Prime engine caches off the typing path; results are discarded."""
+        if self._dead or not self._enabled or not source:
+            return
+        try:
+            self._worker.process(
+                self._request_counter, source, line, col,
+                file_path or self._file_path, warmup=True,
+            )
+        except Exception as exc:
+            logger.debug("Completion warmup failed: %s", exc)
+
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
         if not self._enabled:
             return
+        _profile.mark(self._editor, "debounce")
         try:
             self._worker.process(
                 self._request_counter,

@@ -291,6 +291,17 @@ class CppEngine:
         )
         return [completion for _, completion in scored[:_MAX_ITEMS]]
 
+    def prime(self, ctx: CppContext) -> None:
+        """Build the translation unit without completing (idle warmup).
+
+        Warms parse caches off the typing path; completion queries that
+        arrive later reuse the cached unit instead of paying a cold parse.
+        """
+        try:
+            self._tu_for_completion(ctx)
+        except Exception as exc:
+            logger.debug("completion warmup failed: %s", exc)
+
     def _tu_for_completion(self, ctx: CppContext):
         """Return a TU for completion without reparsing (fast path).
 

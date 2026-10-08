@@ -6,6 +6,7 @@ The main completion widget for Ironica.
 from __future__ import annotations
 
 from editor import *
+from editor.Ironica import completion_profile as _profile
 from editor.utils.resource_path import resource_path
 
 logger = logging.getLogger("DreamStudio.Completion")
@@ -82,8 +83,23 @@ class CompletionDelegate(QStyledItemDelegate):
         self.color_signature = QColor("#858585")
         self.color_icon = QColor("#4FC1FF")
         self.color_method = QColor("#C586C0")
+        self._icon_cache: Dict[str, Optional[QIcon]] = {}
+        self._width_cache: Dict[tuple, int] = {}
+
+    def measure_widths(self, fm, text: str, signature: str) -> tuple:
+        """Return cached ``(text_width, signature_width)`` for a row."""
+        key = (text, signature)
+        cached = self._width_cache.get(key)
+        if cached is None:
+            cached = (
+                fm.horizontalAdvance(text),
+                fm.horizontalAdvance(signature) if signature else 0,
+            )
+            self._width_cache[key] = cached
+        return cached
 
     def retheme(self, bg: QColor, fg: QColor, sel: QColor) -> None:
+        self._width_cache.clear()
         if bg.lightness() < 128:
             self.color_selected = bg.lighter(135)
             self.color_hover = bg.lighter(120)
@@ -107,11 +123,8 @@ class CompletionDelegate(QStyledItemDelegate):
             return QSize(400, self.ROW_HEIGHT)
 
         fm = option.fontMetrics
-        text_width = fm.horizontalAdvance(item.text)
-
-        signature_width = 0
-        if item.signature:
-            signature_width = fm.horizontalAdvance(item.signature)
+        text_width, signature_width = self.measure_widths(
+            fm, item.text, item.signature or "")
 
         width = (
             self.LEFT_PADDING
@@ -254,25 +267,37 @@ class CompletionDelegate(QStyledItemDelegate):
         x = rect.left()
         y = rect.top() + (rect.height() + fm.ascent() - fm.descent()) // 2
 
-        for i, char in enumerate(text):
-            matched = any(start <= i < start + length for start, length in ranges)
-            painter.setPen(self.color_match if matched else self.color_normal)
-            painter.drawText(x, y, char)
-            x += fm.horizontalAdvance(char)
-
+        matched = [False] * len(text)
+        for start, length in ranges:
+            for i in range(max(0, start), min(len(text), start + max(0, length))):
+                matched[i] = True
+        index = 0
+        while index < len(text):
+            flag = matched[index]
+            stop = index + 1
+            while stop < len(text) and matched[stop] == flag:
+                stop += 1
+            painter.setPen(self.color_match if flag else self.color_normal)
+            run = text[index:stop]
+            painter.drawText(x, y, run)
+            x += fm.horizontalAdvance(run)
             if x >= rect.right():
                 break
+            index = stop
 
     def _get_icon(self, name: str) -> Optional[QIcon]:
         if not name:
             return None
-        filename = self._KIND_ICON_MAP.get(name.lower())
-        if filename is None:
-            return None
-        full_path = os.path.join(self._ICON_DIR, filename)
-        if not os.path.exists(full_path):
-            return None
-        return QIcon(full_path)
+        key = name.lower()
+        if key not in self._icon_cache:
+            filename = self._KIND_ICON_MAP.get(key)
+            icon = None
+            if filename is not None:
+                full_path = os.path.join(self._ICON_DIR, filename)
+                if os.path.exists(full_path):
+                    icon = QIcon(full_path)
+            self._icon_cache[key] = icon
+        return self._icon_cache[key]
 
 
 class CompletionHintBar(QFrame):
@@ -571,10 +596,8 @@ class CompletionPopup(QWidget):
             if item is None:
                 continue
 
-            text_width = fm.horizontalAdvance(item.text)
-            signature_width = (
-                fm.horizontalAdvance(item.signature) if item.signature else 0
-            )
+            text_width, signature_width = delegate.measure_widths(
+                fm, item.text, item.signature or "")
 
             candidate_width = (
                 delegate.LEFT_PADDING
@@ -724,6 +747,11 @@ class CompletionController(QObject):
         self._requested_context = ("", "")
         self._requested_cursor = None
         self._requested_prefix = ""
+        self._last_presented_id = 0
+        self._request_pending = False
+        self._doc_words: set = set()
+        self._doc_words_key = None
+        self._doc_version = 0
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         # ``editor`` is assigned right after ``super().__init__``; a filter can
@@ -843,10 +871,20 @@ class CompletionController(QObject):
         return False
 
     def _on_text_changed(self) -> None:
+        self._doc_version += 1
         if self._committing or getattr(self.editor, "_is_replacing", False):
             self._close()
             return
 
+        _profile.mark(self.editor, "trigger")
+        try:
+            from editor.Ironica.debounce import adaptive_delay_for_editor
+
+            self._debounce_timer.setInterval(
+                adaptive_delay_for_editor(COMPLETION_DEBOUNCE_MS, self.editor)
+            )
+        except Exception:
+            pass
         pos = self.editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
         self._last_cursor_pos = pos
 
@@ -1082,6 +1120,7 @@ class CompletionController(QObject):
             self.popup.populate(matches)
 
     def _request_completions(self) -> None:
+        _profile.mark(self.editor, "request")
         self._requested_context = (self._current_ident, self._current_prefix)
         try:
             self._requested_cursor = self.editor.getCursorPosition()
@@ -1130,6 +1169,7 @@ class CompletionController(QObject):
                 # through to the synchronous provider path instead.
                 accepted = False
             if accepted is not False:
+                self._request_pending = True
                 return
             if not getattr(completion_manager, "_dead", True):
                 self._close()  # context suppressed; nothing to show
@@ -1138,11 +1178,18 @@ class CompletionController(QObject):
 
         if hasattr(provider, "get_completions"):
             try:
+                sync_start = time.perf_counter()
                 raw_items = provider.get_completions(
                     self.editor.text(),
                     self.editor.getCursorPosition(),
                     self._current_prefix,
                 )
+                sync_ms = (time.perf_counter() - sync_start) * 1000.0
+                if sync_ms > 50.0:
+                    logger.debug(
+                        "synchronous completion took %.0fms on the UI thread",
+                        sync_ms,
+                    )
                 items = self._coerce_items(raw_items or [])
             except Exception:
                 items = []
@@ -1182,6 +1229,8 @@ class CompletionController(QObject):
                 self._show_popup(visible)
             else:
                 self._close()
+            _profile.mark(self.editor, "shown")
+            _profile.log_report(self.editor, "completion")
             return
 
         visible = [
@@ -1196,9 +1245,11 @@ class CompletionController(QObject):
         if (
             len(visible) == 1
             and not self._requested_context[0]
-            and visible[0].text == self._current_prefix
+            and             visible[0].text == self._current_prefix
         ):
             self._close()
+            _profile.mark(self.editor, "shown")
+            _profile.log_report(self.editor, "completion")
             return
 
         # Merge snippets that match this word prefix (without needing "/")
@@ -1218,6 +1269,8 @@ class CompletionController(QObject):
         if not visible and not items and not snippet_items:
             if getattr(provider_now, "suppress_token_fallback", False):
                 self._close()  # e.g. preprocessor lines: no noise allowed
+                _profile.mark(self.editor, "shown")
+                _profile.log_report(self.editor, "completion")
                 return
             visible = self._get_document_tokens()
             # Also include snippets in fallback if tokens found no prefix match
@@ -1229,6 +1282,8 @@ class CompletionController(QObject):
             self._show_popup(visible)
         else:
             self._close()
+        _profile.mark(self.editor, "shown")
+        _profile.log_report(self.editor, "completion")
 
     def _connect_to_manager(self, manager) -> None:
         if self._connected_manager is manager:
@@ -1243,6 +1298,7 @@ class CompletionController(QObject):
                 pass
 
         self._connected_manager = manager
+        self._last_presented_id = 0
         try:
             manager.completions_ready.connect(self._on_completions_ready)
         except (TypeError, RuntimeError):
@@ -1250,14 +1306,25 @@ class CompletionController(QObject):
 
     @pyqtSlot(int, list)
     def _on_completions_ready(self, request_id: int, raw_items: list) -> None:
+        _profile.mark(self.editor, "arrive")
+        self._request_pending = False
         requested = getattr(self, "_requested_cursor", None)
         if requested is not None:
             try:
                 live_line, live_col = self.editor.getCursorPosition()
                 if live_line != requested[0] or live_col < requested[1]:
                     return  # cursor moved lines (e.g. Enter); drop stale results
+                want = self._requested_prefix or ""
+                if want:
+                    live_text = self.editor.text(live_line)[:live_col]
+                    current = re.search(r"[A-Za-z_]\w*$", live_text)
+                    if current is None or not current.group(0).startswith(want):
+                        return  # typed past the request; drop before coerce
             except Exception:
                 pass
+        if request_id < self._last_presented_id:
+            return  # older batch landed after a newer paint; skip rebuild
+        self._last_presented_id = request_id
         self._present_items(self._coerce_items(raw_items or []))
 
     @staticmethod
@@ -1322,9 +1389,7 @@ class CompletionController(QObject):
         return result
 
     def _get_document_tokens(self) -> List[CompletionItem]:
-        document_text = self.editor.text()
-        words = set(re.findall(r"\b[a-zA-Z_]\w*\b", document_text))
-
+        words = self._document_words()
         prefix_lower = self._current_prefix.lower()
         results: List[CompletionItem] = []
 
@@ -1340,6 +1405,15 @@ class CompletionController(QObject):
                 )
 
         return sorted(results, key=lambda item: item.text.lower())
+
+    def _document_words(self) -> set:
+        """Return buffer words, rescanning once per buffer version."""
+        if self._doc_words_key != self._doc_version:
+            document_text = self.editor.text()
+            self._doc_words = set(
+                re.findall(r"\b[a-zA-Z_]\w*\b", document_text))
+            self._doc_words_key = self._doc_version
+        return self._doc_words
 
     def _show_popup(self, items: List[CompletionItem]) -> None:
         if not self.popup.populate(items):
@@ -1505,6 +1579,7 @@ class CompletionController(QObject):
 
     def _close(self) -> None:
         self._debounce_timer.stop()
+        self._request_pending = False
         if self.popup.isVisible():
             self.popup.hide()
         self._active = False

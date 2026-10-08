@@ -603,6 +603,7 @@ class DreamTabbedEditor(QDreamTabEditor):
                     file_path=file_path,
                     parent=code_editor,
                 )
+                self._schedule_completion_warmup(code_editor, file_path)
 
         if isinstance(new_editor, MiniMapHostWidget):
             if hasattr(self._parent, "update_position_status"):
@@ -647,6 +648,39 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.return_file_info()
 
         return new_editor
+
+    @staticmethod
+    def _schedule_completion_warmup(code_editor, file_path) -> None:
+        """Prime completion caches once while the fresh tab is idle.
+
+        Skipped when the user typed first (a real request already warms
+        the engine) or the tab closed meanwhile. Warmup results are
+        always discarded, never shown.
+        """
+        try:
+            import weakref
+
+            target = weakref.ref(code_editor)
+
+            def _warm() -> None:
+                editor = target()
+                if editor is None:
+                    return
+                manager = getattr(editor, "_completion_manager", None)
+                warmup = getattr(manager, "warmup", None)
+                if not callable(warmup):
+                    return
+                if getattr(manager, "_request_counter", 1) != 0:
+                    return
+                try:
+                    line, col = editor.getCursorPosition()
+                    warmup(editor.text(), line, col, file_path)
+                except Exception as exc:
+                    logger.debug("completion warmup skipped: %s", exc)
+
+            QTimer.singleShot(500, _warm)
+        except Exception as exc:
+            logger.debug("completion warmup not scheduled: %s", exc)
 
     def open_free_trial_tab(self) -> None:
         """
