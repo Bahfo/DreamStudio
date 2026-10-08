@@ -749,6 +749,7 @@ class CompletionController(QObject):
         self._requested_prefix = ""
         self._last_presented_id = 0
         self._request_pending = False
+        self._reuse_state = None
         self._doc_words: set = set()
         self._doc_words_key = None
         self._doc_version = 0
@@ -1152,6 +1153,15 @@ class CompletionController(QObject):
         # Prefer the editor-scoped manager (like _diag_manager); the
         # provider singleton's slot may still hold another tab's — or an
         # already destroyed — manager.
+        try:
+            live_text = self.editor.text()
+            live_line, live_col = self.editor.getCursorPosition()
+            live_file = getattr(provider, "file_path", None)
+            if self._try_cached_present(live_text, live_line, live_col,
+                                        self._current_prefix, live_file):
+                _profile.mark(self.editor, "cache-hit")
+        except Exception:
+            pass
         completion_manager = getattr(self.editor, "_completion_manager", None)
         if completion_manager is None:
             completion_manager = getattr(provider, "completion_manager", None)
@@ -1299,6 +1309,7 @@ class CompletionController(QObject):
 
         self._connected_manager = manager
         self._last_presented_id = 0
+        self._reuse_state = None
         try:
             manager.completions_ready.connect(self._on_completions_ready)
         except (TypeError, RuntimeError):
@@ -1325,7 +1336,62 @@ class CompletionController(QObject):
         if request_id < self._last_presented_id:
             return  # older batch landed after a newer paint; skip rebuild
         self._last_presented_id = request_id
-        self._present_items(self._coerce_items(raw_items or []))
+        items = self._coerce_items(raw_items or [])
+        try:
+            cursor = self.editor.getCursorPosition()
+            provider = getattr(self.editor, "current_provider", None)
+            self._reuse_state = (
+                self.editor.text(),
+                cursor[0],
+                cursor[1],
+                self._requested_prefix,
+                getattr(provider, "file_path", None),
+                list(items),
+            )
+        except Exception:
+            pass
+        self._present_items(items)
+
+    def _try_cached_present(self, source: str, line: int, col: int,
+                            prefix: str, file_path) -> bool:
+        """Present filtered cached rows for pure prefix extensions.
+
+        Returns True when the buffer differs from the cached version
+        only by appended identifier characters on the current line; the
+        caller still submits the background refresh to confirm.
+        """
+        state = self._reuse_state
+        if not state or not prefix:
+            return False
+        old_source, old_line, old_col, old_prefix, old_file, old_items = state
+        if (old_line != line or old_file != file_path or not prefix.startswith(
+                old_prefix or "") or prefix == (old_prefix or "")):
+            return False
+        try:
+            old_lines = old_source.splitlines()
+            new_lines = source.splitlines()
+            if len(old_lines) != len(new_lines):
+                return False
+            for index, (old_row, new_row) in enumerate(zip(old_lines, new_lines)):
+                if index != line and old_row != new_row:
+                    return False
+            old_row = old_lines[line] if 0 <= line < len(old_lines) else None
+            new_row = new_lines[line] if 0 <= line < len(new_lines) else None
+            if old_row is None or new_row is None:
+                return False
+            added = prefix[len(old_prefix or ""):]
+            if not added or new_row != (
+                    old_row[:old_col] + added + old_row[old_col:]):
+                return False
+        except Exception:
+            return False
+        lowered = prefix.lower()
+        visible = [item for item in old_items
+                   if item.text.lower().startswith(lowered)]
+        if not visible:
+            return False
+        self._present_items(list(visible))
+        return True
 
     @staticmethod
     def _full_insert_text(text: str, candidate: str) -> str:

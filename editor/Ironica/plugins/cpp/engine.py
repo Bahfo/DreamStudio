@@ -221,39 +221,44 @@ class CppEngine:
             return []
         per_name: dict[str, int] = {}
         out: list[CppCompletion] = []
+        want_prefix = (ctx.prefix or "").lower()
         for item in res.results:
-            name = ""
+            typed = ""
+            for chunk in item.string:
+                if chunk.isKindTypedText():
+                    typed = chunk.spelling
+                    break
+            if not typed:
+                continue
+            if want_prefix and not typed.lower().startswith(want_prefix):
+                continue
             placeholders: list[str] = []
             informative: list[str] = []
-            for ch in item.string:
-                if ch.isKindTypedText():
-                    name = ch.spelling
-                elif ch.isKindPlaceHolder():
-                    placeholders.append(ch.spelling)
-                elif ch.isKindInformative():
-                    informative.append(ch.spelling)
-            if not name:
-                continue
-            if ctx.prefix and not name.lower().startswith(ctx.prefix.lower()):
-                continue
-            seen_count = per_name.get(name, 0)
+            for chunk in item.string:
+                if chunk.isKindTypedText():
+                    continue
+                elif chunk.isKindPlaceHolder():
+                    placeholders.append(chunk.spelling)
+                elif chunk.isKindInformative():
+                    informative.append(chunk.spelling)
+            seen_count = per_name.get(typed, 0)
             if seen_count >= _MAX_OVERLOADS_PER_NAME:
                 continue
-            per_name[name] = seen_count + 1
+            per_name[typed] = seen_count + 1
             try:
                 item_kind = _KIND.get(int(item.cursorKind), "text")
             except (TypeError, ValueError):
                 item_kind = "text"
             if placeholders:
-                call = f"{name}({', '.join(placeholders)})"
+                call = f"{typed}({', '.join(placeholders)})"
                 ret = " ".join(informative).strip()
                 signature = f"{ret} {call}".strip() if ret else call
             else:
                 signature = " ".join(informative).strip()
             out.append(
                 CppCompletion(
-                    text=name,
-                    insert_text=name,
+                    text=typed,
+                    insert_text=typed,
                     kind=item_kind,
                     signature=signature,
                 )
@@ -274,7 +279,9 @@ class CppEngine:
             logger.debug("callsite resolution failed: %s", exc)
             site = _callsite.CallSite()
         scored: List[Tuple[int, object]] = []
-        declared = _callsite.buffer_declared_types(ctx.source_code)
+        declared = {}
+        if site.expected:
+            declared = _callsite.buffer_declared_types(ctx.source_code)
         for completion in out:
             if not site.expected:
                 scored.append((0, completion))
@@ -292,9 +299,11 @@ class CppEngine:
                 cand_type = declared.get(completion.text, "")
             scored.append(
                 (_callsite.type_tier(site.expected, cand_type), completion))
+        typed_prefix = ctx.prefix or ""
         scored.sort(
             key=lambda pair: (
                 pair[0],
+                not (typed_prefix and pair[1].text.startswith(typed_prefix)),
                 _KIND_RANK.get(pair[1].kind, 9),
                 pair[1].text not in locals_boost,
                 not pair[1].text.lower().startswith(prefix)

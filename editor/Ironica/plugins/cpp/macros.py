@@ -122,18 +122,19 @@ def complete_guards(
         Ranked macro completions starting with *prefix*.
     """
     lowered = (prefix or "").lower()
-    cache_key = (main_path or "", hash(source))
+    tu_tag = id(tu) if tu is not None else hash(source)
+    cache_key = (main_path or "", tu_tag)
     cached = _macro_cache.get(cache_key)
     if cached is None:
-        names = collect_macros(tu, main_path)
-        for name in buffer_macros(source):
-            if name not in names:
-                names.append(name)
+        cached = collect_macros(tu, main_path)
         if len(_macro_cache) >= _CACHE_BOUND:
             _macro_cache.pop(next(iter(_macro_cache)))
-        _macro_cache[cache_key] = names
-        cached = names
-    merged: List[str] = list(cached)
+        _macro_cache[cache_key] = cached
+    names = list(cached)
+    for name in buffer_macros(source):
+        if name not in names:
+            names.append(name)
+    merged: List[str] = names
     for name in clang_names or []:
         if name not in merged:
             merged.append(name)

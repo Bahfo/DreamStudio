@@ -53,6 +53,9 @@ class _CppCompletionWorker(threading.Thread):
         self._started_once = False
         self._current: Optional[_CompletionRequest] = None
         self._shutting_down = False
+        from .symbols import SymbolsCache
+
+        self._symbols = SymbolsCache()
 
     def process(self, request_id: int, context: CppContext,
                 warmup: bool = False) -> None:
@@ -85,6 +88,7 @@ class _CppCompletionWorker(threading.Thread):
                 if request.warmup:
                     self._engine.prime(request.context)
                     continue
+                self._emit_symbol_rows(request)
                 items = self._engine.complete(request.context) or []
                 _profile.mark(self._owner._editor, "engine-done")
             except Exception as exc:  # Bad input doesn't kill worker
@@ -99,6 +103,40 @@ class _CppCompletionWorker(threading.Thread):
                 self._owner.completions_ready.emit(request.request_id, list(items))
             except RuntimeError:
                 pass  # owner deleted with its editor
+
+    def _emit_symbol_rows(self, request: _CompletionRequest) -> None:
+        """Emit instant buffer-name rows ahead of the semantic result.
+
+        The symbol cache refreshes on every new buffer version (~1ms),
+        so names being defined right now are included. Only plain naming
+        contexts qualify — member scopes and preprocessor lines keep
+        their dedicated engines. The full result replaces this batch
+        through the normal latest-wins path.
+        """
+        try:
+            from .context import classify
+
+            context = request.context
+            self._symbols.update(context.source_code or "")
+            lines = (context.source_code.splitlines()
+                     if context.source_code else [])
+            row = lines[context.line - 1] if 0 <= context.line - 1 < len(
+                lines) else ""
+            kind, _ = classify(row, context.col - 1)
+            if kind not in ("identifier", "call", "construction",
+                            "template_args"):
+                return
+            rows = self._symbols.match(context.prefix or "")
+            if not rows:
+                return
+            if (self._shutting_down or self._current is not None
+                    or request.request_id < self._owner._request_counter):
+                return
+            self._owner.completions_ready.emit(request.request_id, rows)
+        except RuntimeError:
+            pass
+        except Exception as exc:
+            logger.debug("symbol fast path failed: %s", exc)
 
     def shutdown(self) -> None:
         """

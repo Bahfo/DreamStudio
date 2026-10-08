@@ -19,9 +19,7 @@ from typing import Dict, List, Optional, Tuple
 logger = logging.getLogger("DreamStudio.Cpp.CallSite")
 
 _IDENT = re.compile(r"[A-Za-z_]\w*")
-_DECL_INIT = re.compile(
-    r"^\s*(?P<type>.+?)\s+(?P<name>[A-Za-z_]\w*)\s*=\s*$"
-)
+_DECL_INIT = re.compile(r"^\s*(?P<type>.+?)\s+(?P<name>[A-Za-z_]\w*)\s*=\s*$")
 _FUNC_HEADER = re.compile(
     r"(?P<ret>[A-Za-z_:][\w:<>,\s*&]*?)\s+(?P<name>[A-Za-z_]\w*)\s*\([^;{}]*$"
 )
@@ -31,20 +29,66 @@ _SKIP_TYPE_WORDS = frozenset(
     {"return", "new", "delete", "case", "throw", "co_return", "co_yield"}
 )
 
+_CALLABLE_CODES: Optional[set] = None
+
 _INTEGRAL = frozenset(
-    {"bool", "char", "char8_t", "char16_t", "char32_t", "wchar_t", "short",
-     "int", "long", "signed", "unsigned", "size_t", "ssize_t", "ptrdiff_t",
-     "int8_t", "uint8_t", "int16_t", "uint16_t", "int32_t", "uint32_t",
-     "int64_t", "uint64_t", "intptr_t", "uintptr_t", "intmax_t",
-     "uintmax_t", "int_least8_t", "int_least16_t", "int_least32_t",
-     "int_least64_t", "uint_least8_t", "uint_least16_t", "uint_least32_t",
-     "uint_least64_t", "int_fast8_t", "int_fast16_t", "int_fast32_t",
-     "int_fast64_t", "uint_fast8_t", "uint_fast16_t", "uint_fast32_t",
-     "uint_fast64_t"}
+    {
+        "bool",
+        "char",
+        "char8_t",
+        "char16_t",
+        "char32_t",
+        "wchar_t",
+        "short",
+        "int",
+        "long",
+        "signed",
+        "unsigned",
+        "size_t",
+        "ssize_t",
+        "ptrdiff_t",
+        "int8_t",
+        "uint8_t",
+        "int16_t",
+        "uint16_t",
+        "int32_t",
+        "uint32_t",
+        "int64_t",
+        "uint64_t",
+        "intptr_t",
+        "uintptr_t",
+        "intmax_t",
+        "uintmax_t",
+        "int_least8_t",
+        "int_least16_t",
+        "int_least32_t",
+        "int_least64_t",
+        "uint_least8_t",
+        "uint_least16_t",
+        "uint_least32_t",
+        "uint_least64_t",
+        "int_fast8_t",
+        "int_fast16_t",
+        "int_fast32_t",
+        "int_fast64_t",
+        "uint_fast8_t",
+        "uint_fast16_t",
+        "uint_fast32_t",
+        "uint_fast64_t",
+    }
 )
 _FLOATING = frozenset({"float", "double", "long double"})
-_STRINGY = frozenset({"std::string", "string", "std::string_view",
-                      "string_view", "char*", "const char*", "char[]"})
+_STRINGY = frozenset(
+    {
+        "std::string",
+        "string",
+        "std::string_view",
+        "string_view",
+        "char*",
+        "const char*",
+        "char[]",
+    }
+)
 
 _OVERLOAD_CACHE_BOUND = 16
 _overload_cache: Dict[Tuple[str, int, str], List[List[str]]] = {}
@@ -64,8 +108,12 @@ class CallSite:
 def normalize_type(spelling: str) -> str:
     """Normalize a type spelling for comparison purposes."""
     text = (spelling or "").strip()
-    text = re.sub(r"\b(?:const|constexpr|volatile|static|inline|virtual|"
-                  r"friend|mutable|explicit)\b", " ", text)
+    text = re.sub(
+        r"\b(?:const|constexpr|volatile|static|inline|virtual|"
+        r"friend|mutable|explicit)\b",
+        " ",
+        text,
+    )
     text = text.replace("&", " ").replace("*", " * ")
     text = re.sub(r"\s+", " ", text).strip()
     return text
@@ -104,8 +152,7 @@ def type_tier(expected: Tuple[str, ...], candidate: str) -> int:
     return 2
 
 
-def find_call(lines: List[str], line0: int, col0: int
-              ) -> Optional[Tuple[str, int]]:
+def find_call(lines: List[str], line0: int, col0: int) -> Optional[Tuple[str, int]]:
     """Find the enclosing call ``(name, arg_index)`` scanning backwards.
 
     Balances ``()`` (and ``[]`` inside them) best-effort — incomplete
@@ -121,7 +168,7 @@ def find_call(lines: List[str], line0: int, col0: int
     first = True
     while line >= 0:
         text = lines[line] if 0 <= line < len(lines) else ""
-        segment = text[:max(0, col0)] if first else text
+        segment = text[: max(0, col0)] if first else text
         first = False
         index = len(segment) - 1
         while index >= 0:
@@ -164,23 +211,27 @@ def declared_init_type(line_text: str) -> Optional[str]:
     if not match:
         return None
     type_text = match.group("type").strip().rstrip("*&").strip()
-    if (not type_text or "(" in type_text or ";" in type_text
-            or "=" in type_text or not _TYPE_CHARS.match(type_text)):
+    if (
+        not type_text
+        or "(" in type_text
+        or ";" in type_text
+        or "=" in type_text
+        or not _TYPE_CHARS.match(type_text)
+    ):
         return None
     if type_text.split()[-1] in _SKIP_TYPE_WORDS:
         return None
     return type_text or None
 
 
-def enclosing_return_type(lines: List[str], line0: int, col0: int
-                          ) -> Optional[str]:
+def enclosing_return_type(lines: List[str], line0: int, col0: int) -> Optional[str]:
     """Find the enclosing function definition's return type lexically."""
     depth = 0
     line = line0
     first = True
     while line >= 0:
         text = lines[line] if 0 <= line < len(lines) else ""
-        segment = text[:max(0, col0)] if first else text
+        segment = text[: max(0, col0)] if first else text
         first = False
         for char in reversed(segment):
             if char == "}":
@@ -189,20 +240,31 @@ def enclosing_return_type(lines: List[str], line0: int, col0: int
                 if depth == 0:
                     header = text.split("{")[0]
                     probe = line - 1
-                    while ("(" not in header and probe >= max(0, line - 5)
-                           and header.strip()
-                           and not header.strip().startswith(("if", "for",
-                                                             "while",
-                                                             "switch",
-                                                             "catch"))):
-                        header = (lines[probe] if 0 <= probe < len(lines)
-                                  else "") + " " + header
+                    while (
+                        "(" not in header
+                        and probe >= max(0, line - 5)
+                        and header.strip()
+                        and not header.strip().startswith(
+                            ("if", "for", "while", "switch", "catch")
+                        )
+                    ):
+                        header = (
+                            (lines[probe] if 0 <= probe < len(lines) else "")
+                            + " "
+                            + header
+                        )
                         probe -= 1
                     match = _FUNC_HEADER.search(header + " ")
                     if match:
                         ret = match.group("ret").strip()
-                        if ret and ret not in ("if", "for", "while",
-                                               "switch", "catch", "return"):
+                        if ret and ret not in (
+                            "if",
+                            "for",
+                            "while",
+                            "switch",
+                            "catch",
+                            "return",
+                        ):
                             return ret
                     return None
                 depth -= 1
@@ -212,7 +274,7 @@ def enclosing_return_type(lines: List[str], line0: int, col0: int
 
 def in_condition(line_text: str, col0: int) -> bool:
     """Return whether the cursor sits in an ``if/while`` condition open."""
-    return _CONDITION.search(line_text[:max(0, col0)]) is not None
+    return _CONDITION.search(line_text[: max(0, col0)]) is not None
 
 
 def buffer_declared_types(source: str) -> Dict[str, str]:
@@ -233,15 +295,16 @@ def buffer_declared_types(source: str) -> Dict[str, str]:
     for match in pattern.finditer(source):
         type_text = match.group("type").strip().rstrip("*&").strip()
         name = match.group("name")
-        if (not type_text or not _TYPE_CHARS.match(type_text)
-                or "(" in type_text or type_text.split()[-1]
-                in _SKIP_TYPE_WORDS or name in found):
+        if (
+            not type_text
+            or not _TYPE_CHARS.match(type_text)
+            or "(" in type_text
+            or type_text.split()[-1] in _SKIP_TYPE_WORDS
+            or name in found
+        ):
             continue
         found[name] = type_text
     return found
-
-
-_CALLABLE_CODES: Optional[set] = None
 
 
 def _callable_codes() -> set:
@@ -253,9 +316,15 @@ def _callable_codes() -> set:
     try:
         from clang.cindex import CursorKind
 
-        for name in ("FUNCTION_DECL", "FUNCTION_TEMPLATE", "CXX_METHOD",
-                     "CONSTRUCTOR", "CXX_CONSTRUCTOR", "DESTRUCTOR",
-                     "CXX_DESTRUCTOR"):
+        for name in (
+            "FUNCTION_DECL",
+            "FUNCTION_TEMPLATE",
+            "CXX_METHOD",
+            "CONSTRUCTOR",
+            "CXX_CONSTRUCTOR",
+            "DESTRUCTOR",
+            "CXX_DESTRUCTOR",
+        ):
             member = getattr(CursorKind, name, None)
             if member is not None:
                 try:
@@ -268,11 +337,19 @@ def _callable_codes() -> set:
     return codes
 
 
-def overload_param_types(tu, main_path: Optional[str], callee: str,
-                         source_hash: int, cache_tag: str
-                         ) -> List[List[str]]:
-    """Collect parameter-type lists for same-named callables (cached)."""
-    key = (cache_tag, source_hash, callee)
+def overload_param_types(
+    tu, main_path: Optional[str], callee: str, source_hash: int, cache_tag: str
+) -> List[List[str]]:
+    """Collect parameter-type lists for same-named callables (cached).
+
+    Keyed by translation-unit identity rather than buffer hash: a
+    reparse mutates the TU in place, so the entry survives keystrokes
+    and rescans happen only after a full reparse mints a new unit.
+    Declaration edits between reparses keep slightly stale ranks;
+    rows are never hidden by this cache.
+    """
+    tu_tag = id(tu) if tu is not None else source_hash
+    key = (cache_tag, tu_tag, callee)
     cached = _overload_cache.get(key)
     if cached is not None:
         return [list(params) for params in cached]
@@ -292,8 +369,7 @@ def overload_param_types(tu, main_path: Optional[str], callee: str,
                 if code in wanted:
                     if cursor.spelling == callee:
                         try:
-                            params = [a.type.spelling
-                                      for a in cursor.get_arguments()]
+                            params = [a.type.spelling for a in cursor.get_arguments()]
                         except Exception:
                             continue
                         if params not in collected:
@@ -319,23 +395,29 @@ def overload_param_types(tu, main_path: Optional[str], callee: str,
     return collected
 
 
-def resolve(lines: List[str], line0: int, col0: int, tu=None,
-            main_path: Optional[str] = None, source_hash: int = 0,
-            cache_tag: str = "") -> CallSite:
+def resolve(
+    lines: List[str],
+    line0: int,
+    col0: int,
+    tu=None,
+    main_path: Optional[str] = None,
+    source_hash: int = 0,
+    cache_tag: str = "",
+) -> CallSite:
     """Resolve the completion context for a cursor position."""
     row = lines[line0] if 0 <= line0 < len(lines) else ""
-    head = row[:max(0, col0)]
+    head = row[: max(0, col0)]
     call = find_call(lines, line0, col0)
     if call is not None:
         name, index = call
         expected: List[str] = []
-        params_lists = overload_param_types(tu, main_path, name,
-                                            source_hash, cache_tag)
+        params_lists = overload_param_types(tu, main_path, name, source_hash, cache_tag)
         for params in params_lists:
             if 0 <= index < len(params):
                 expected.append(params[index])
-        return CallSite(kind="call_arg", callee=name, arg_index=index,
-                        expected=tuple(expected))
+        return CallSite(
+            kind="call_arg", callee=name, arg_index=index, expected=tuple(expected)
+        )
     declared = declared_init_type(head)
     if declared is not None and declared != "auto":
         return CallSite(kind="initializer", expected=(declared,))
@@ -351,8 +433,7 @@ def resolve(lines: List[str], line0: int, col0: int, tu=None,
 def candidate_type(signature: str) -> str:
     """Extract the salient type from a completion signature string."""
     text = (signature or "").strip()
-    if not text or text in ("macro", "header", "directory", "snippet",
-                            "text"):
+    if not text or text in ("macro", "header", "directory", "snippet", "text"):
         return ""
     if "(" in text:
         head = text.split("(")[0].rstrip()
@@ -369,7 +450,7 @@ def signature_params(signature: str) -> List[str]:
     end = text.rfind(")")
     if start == -1 or end == -1 or end <= start:
         return []
-    inner = text[start + 1:end]
+    inner = text[start + 1 : end]
     params: List[str] = []
     depth = 0
     current: List[str] = []
