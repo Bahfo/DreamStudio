@@ -3,9 +3,10 @@ from editor.utils.resource_path import resource_path
 from editor.utils.theme import extract_qss_color as _shared_qss_color
 
 # Local Imports
-from editor.terminal.PythonConsole.console import PythonShell
 from editor.utils.find_replace.find_replace import FindReplace
+from editor.terminal.PythonConsole.console import PythonShell
 from docs.doc_panel import DocumentationWindow
+from node_editor.ui_build import NodeBuilder
 
 
 class EditorAPI:
@@ -83,6 +84,11 @@ class EditorAPI:
     def _toggle_documentation(self):
         self.hero_window._text_editor_center._tabs.add_new_tab(
             DocumentationWindow, "Documentation"
+        )
+
+    def _toggle_nodes_editor(self):
+        self.hero_window._text_editor_center.tabs.add_new_tab(
+            NodeBuilder, "Nodes Editor"
         )
 
     def _toggle_problems(self) -> None:

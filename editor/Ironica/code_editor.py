@@ -143,7 +143,25 @@ class CodeEditor(QsciScintilla):
         self._is_zoomed = False
 
         self.shortcut_reset = QShortcut(QKeySequence("Ctrl+0"), self)
+        self.shortcut_reset.setContext(Qt.ShortcutContext.WidgetShortcut)
         self.shortcut_reset.activated.connect(self.reset_zoom_level)
+
+        self._zoom_in_shortcuts: list = []
+        for _seq in ("Ctrl++", "Ctrl+=", "Ctrl+Shift++", "Ctrl+Shift+="):
+            _sc = QShortcut(QKeySequence(_seq), self)
+            _sc.setContext(Qt.ShortcutContext.WidgetShortcut)
+            _sc.activated.connect(self.zoomIn)
+            self._zoom_in_shortcuts.append(_sc)
+        self.shortuct_zoomIn = self._zoom_in_shortcuts[0]
+        self.shortcut_zoom_in = self._zoom_in_shortcuts[0]
+
+        self._zoom_out_shortcuts: list = []
+        for _seq in ("Ctrl+-", "Ctrl+Shift+-"):
+            _sc = QShortcut(QKeySequence(_seq), self)
+            _sc.setContext(Qt.ShortcutContext.WidgetShortcut)
+            _sc.activated.connect(self.zoomOut)
+            self._zoom_out_shortcuts.append(_sc)
+        self.shortcut_zoom_out = self._zoom_out_shortcuts[0]
 
         ###############################################
         # Breakpoint Helpers
@@ -1227,6 +1245,14 @@ class CodeEditor(QsciScintilla):
 
     def wheelEvent(self, event) -> None:
         """Dismiss all popups when the editor scrolls."""
+        if bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.zoomIn()
+            elif delta < 0:
+                self.zoomOut()
+            event.accept()
+            return
         self._dismiss_all_popups()
         try:
             popup = getattr(self, "_elf_popup", None)
@@ -1359,6 +1385,20 @@ class CodeEditor(QsciScintilla):
         """Intercept key events for goto definition and enhanced enter/return behaviour."""
         # The error-message bubble is tooltip-like: any keystroke dismisses it.
         self.hide_error_message()
+        if bool(e.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            _k = e.key()
+            if _k in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                self.zoomIn()
+                e.accept()
+                return
+            if _k == Qt.Key.Key_Minus:
+                self.zoomOut()
+                e.accept()
+                return
+            if _k == Qt.Key.Key_0:
+                self.reset_zoom_level()
+                e.accept()
+                return
         # Strict binary read-only guard — block all mutating keys
         if getattr(self, "_binary_mode", False):
             # Allow navigation and copy/select, block everything else

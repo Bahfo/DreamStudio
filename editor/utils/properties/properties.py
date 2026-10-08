@@ -200,8 +200,7 @@ class PropertiesExplorer(PanelShell):
             self.config_grid.blockSignals(False)
 
         # Refresh the Languages analysis for the new workspace.
-        self._remove_languages_section()
-        self._add_languages_section()
+        self.refresh_languages(force=True)
         try:
             QTimer.singleShot(0, self._fit_languages_row)
         except Exception:
@@ -277,6 +276,10 @@ class PropertiesExplorer(PanelShell):
             pass
         try:
             self._wire_editor_tracking()
+        except Exception:
+            pass
+        try:
+            self.refresh_languages()
         except Exception:
             pass
 
@@ -371,6 +374,50 @@ class PropertiesExplorer(PanelShell):
                     widget = None
                 return item, child
         return None, None
+
+    @staticmethod
+    def _languages_fingerprint() -> tuple:
+        """Return a hashable snapshot of registered language ids.
+
+        Returns:
+            Tuple of sorted language identifiers, or an empty tuple
+            when the registry is unavailable.
+        """
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+
+            return tuple(LanguageRegistry.list_languages())
+        except Exception:
+            return ()
+
+    def refresh_languages(self, force: bool = False) -> None:
+        """Rebuild the Languages section when registrations changed.
+
+        Language plugins register after this panel is constructed, so a
+        section built with an empty registry would otherwise stay empty.
+        Rebuilds the tree section and the File-tab combos when the
+        registry fingerprint changed, or unconditionally when ``force``
+        is ``True``.
+
+        Args:
+            force: Rebuild even when the fingerprint is unchanged.
+        """
+        fingerprint = self._languages_fingerprint()
+        if not force and fingerprint == getattr(self, "_languages_seen", ()):
+            return
+        self._remove_languages_section()
+        self._add_languages_section()
+        self._languages_seen = fingerprint
+        try:
+            file_grid = getattr(self, "file_grid", None)
+            if file_grid is not None and hasattr(file_grid, "refresh_choices"):
+                file_grid.refresh_choices()
+        except Exception:
+            pass
+        try:
+            QTimer.singleShot(0, self._fit_languages_row)
+        except Exception:
+            pass
 
     def _remove_languages_section(self) -> None:
         """Remove the existing 'Languages' tree section if present."""

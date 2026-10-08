@@ -147,6 +147,22 @@ class HoverController(QObject):
             pass
         return None
 
+    def _is_editor_watched(self, watched: QObject) -> bool:
+        """Identity check against editor/viewport without hashing *watched*.
+
+        The controller is installed as an application-wide event filter,
+        so ``watched`` can be any QObject — including unhashable ones such
+        as ``QInputDevice``. Identity comparison avoids the ``TypeError``
+        raised by ``in`` on a set.
+        """
+        try:
+            if watched is self.editor:
+                return True
+            viewport = getattr(self, "_viewport", None)
+            return viewport is not None and watched is viewport
+        except Exception:
+            return False
+
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if self._shutdown:
             return False
@@ -224,7 +240,7 @@ class HoverController(QObject):
         if event_type == QEvent.Type.MouseMove:
             self._track_cursor()
 
-            if watched in self._editor_watchers:
+            if self._is_editor_watched(watched):
                 # Once the flyout exists, a mouse move in the editor is no
                 # longer a reason to blindly keep it open.  The current symbol
                 # rectangle decides whether it remains open.
@@ -232,7 +248,7 @@ class HoverController(QObject):
                     self._handle_editor_mouse_move(watched, event)
             return False
 
-        if watched in self._editor_watchers:
+        if self._is_editor_watched(watched):
             if event_type in (
                 QEvent.Type.MouseButtonPress,
                 QEvent.Type.MouseButtonDblClick,

@@ -282,6 +282,16 @@ class FilePropertiesGrid(QTreeWidget):
         except Exception:
             return []
 
+    def refresh_choices(self) -> None:
+        """Rebuild language and extension combos from the registry.
+
+        Safe to call any time; preserves the current selection when
+        possible. Used when language plugins register after this grid
+        was constructed.
+        """
+        self._refresh_language_choices()
+        self._refresh_extension_choices()
+
     def _refresh_language_choices(self) -> None:
         """Rebuild the language combo from the current language registry."""
         current = self.combo_lang.currentText()
