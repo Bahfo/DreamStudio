@@ -91,7 +91,9 @@ class _CppCompletionWorker(threading.Thread):
                 pass  # owner deleted with its editor
 
     def shutdown(self) -> None:
-        """Stop the thread at editor teardown."""
+        """
+        Stop the thread at editor teardown.
+        """
         self._shutting_down = True
         self._current = None
         self._wake.set()
@@ -149,6 +151,7 @@ class CppCompletionManager(QObject):
         line: int,
         col: int,
         file_path: Optional[str] = None,
+        prefix: str = "",
     ) -> bool:
         """
         Debounce one completion query; False means use sync fallback.
@@ -171,6 +174,7 @@ class CppCompletionManager(QObject):
             col=col + 1,
             file_path=file_path or self._file_path,
             compile_args=list(self._compile_args),
+            prefix=prefix or "",
         )
         try:
             self._timer.start()

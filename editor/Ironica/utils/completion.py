@@ -807,7 +807,7 @@ class CompletionController(QObject):
 
         if self._is_completion_terminating_key(key_event):
             text = key_event.text() or ""
-            if text == ":" and getattr(
+            if text in (":", "<", "(") and getattr(
                 getattr(self.editor, "current_provider", None),
                 "cpp_member_triggers",
                 False,
@@ -853,8 +853,6 @@ class CompletionController(QObject):
         line, col = self.editor.lineIndexFromPosition(pos)
         text_before_cursor = self.editor.text(line)[:col]
 
-        # Snippet trigger: a trailing "/xxx" at the cursor.  A single "/" must
-        # trigger immediately so the user can discover available snippets.
         snippet_match = re.search(r"/[A-Za-z0-9_]*$", text_before_cursor)
         if snippet_match:
             prefix = snippet_match.group(0)
@@ -869,10 +867,7 @@ class CompletionController(QObject):
             ):
                 self._refresh_from_cache()
             else:
-                # Show snippets instantly for "/" prefix even before debounce fires
-                # when no cached provider results exist.
                 if prefix == "/":
-                    # Populate synchronously so discovery is instant
                     snippet_items = self._get_snippet_completions()
                     if snippet_items:
                         self._cached_items = list(snippet_items)
@@ -883,15 +878,34 @@ class CompletionController(QObject):
             self._debounce_timer.start()
             return
 
-        # FIX: Allow dot expressions (e.g., 'os.' or 'os.pa') to trigger completion
         match = re.search(r"([A-Za-z_]\w*)\.([A-Za-z_]\w*)?$", text_before_cursor)
         if not match:
             provider_hint = getattr(self.editor, "current_provider", None)
             if getattr(provider_hint, "cpp_member_triggers", False):
+                directive = re.search(
+                    r"^\s*#\s*([A-Za-z_]\w*)?$", text_before_cursor
+                )
+                if directive and "#" in text_before_cursor:
+                    self._current_prefix = directive.group(1) or ""
+                    self._current_ident = ""
+                    self._debounce_timer.start()
+                    return
+                include = re.search(
+                    r"#\s*include\s*[<\"]([^>\"<>]*)$", text_before_cursor
+                )
+                if include:
+                    self._current_prefix = include.group(1) or ""
+                    self._current_ident = ""
+                    self._debounce_timer.start()
+                    return
                 member = re.search(
                     r"([A-Za-z_]\w*)\s*(::|->|\.)\s*([A-Za-z_]\w*)?$",
                     text_before_cursor,
                 )
+                rich = re.search(r"\bnew\s+([A-Za-z_]\w*)?$", text_before_cursor)
+                call = re.search(r"\(\s*([A-Za-z_]\w*)?$", text_before_cursor)
+                angle = re.search(r"<\s*([A-Za-z_]\w*)?$", text_before_cursor)
+
                 if member:
                     ident = member.group(1) or ""
                     prefix = member.group(3) or ""
@@ -899,6 +913,23 @@ class CompletionController(QObject):
                     self._current_ident = ident
                     if self.popup.isVisible() and self._cached_items:
                         self._refresh_from_cache()
+                    self._debounce_timer.start()
+                    return
+
+                if rich and rich.group(1):
+                    self._current_prefix = rich.group(1) or ""
+                    self._current_ident = ""
+                    self._debounce_timer.start()
+                    return
+
+                if call and "(" in text_before_cursor and call.group(1):
+                    self._current_prefix = call.group(1) or ""
+                    self._current_ident = ""
+                    self._debounce_timer.start()
+                    return
+                if angle and "<" in text_before_cursor and angle.group(1):
+                    self._current_prefix = angle.group(1) or ""
+                    self._current_ident = ""
                     self._debounce_timer.start()
                     return
             match = re.search(r"([A-Za-z_]\w*)$", text_before_cursor)
@@ -919,18 +950,13 @@ class CompletionController(QObject):
         self._current_prefix = prefix or ""
         self._current_ident = ident
 
-        # Require dot OR at least 2 characters to auto-trigger
         if not dot and len(self._current_prefix) < 2:
             self._close()
             return
 
-        # Fast path: while the popup is already open, narrow the cached
-        # results synchronously so the list tracks every keystroke with
-        # zero perceived latency. The debounce only refreshes the cache.
         if self.popup.isVisible() and self._cached_items and ident == self._cache_ident:
             self._refresh_from_cache()
 
-        # Restart single-shot timer (Debounce)
         self._debounce_timer.start()
 
     def _get_snippet_completions(self) -> List[CompletionItem]:
@@ -951,7 +977,6 @@ class CompletionController(QObject):
         if getattr(provider, "slash_snippets_only", False) and not is_snippet_prefix:
             return []
 
-        # Collect trigger -> body, preserving bodies from snippet_map
         triggers: dict[str, str] = {}
         snippet_map = getattr(self.editor, "snippet_map", {}) or {}
         for trig, body in snippet_map.items():
@@ -968,7 +993,6 @@ class CompletionController(QObject):
             except Exception:
                 pass
 
-        # If still empty, fall back to any snippet_map entries already collected
         if not triggers:
             return []
 
@@ -1099,12 +1123,16 @@ class CompletionController(QObject):
                     self.editor.text(),
                     *self.editor.getCursorPosition(),
                     getattr(provider, "file_path", None),
+                    self._current_prefix,
                 )
             except RuntimeError:
                 # Manager's Qt object was deleted with its editor — fall
                 # through to the synchronous provider path instead.
                 accepted = False
             if accepted is not False:
+                return
+            if not getattr(completion_manager, "_dead", True):
+                self._close()  # context suppressed; nothing to show
                 return
             logger.debug("completion manager is dead; using sync path")
 
@@ -1188,6 +1216,9 @@ class CompletionController(QObject):
                     visible.append(s)
 
         if not visible and not items and not snippet_items:
+            if getattr(provider_now, "suppress_token_fallback", False):
+                self._close()  # e.g. preprocessor lines: no noise allowed
+                return
             visible = self._get_document_tokens()
             # Also include snippets in fallback if tokens found no prefix match
             for s in snippet_items:
@@ -1388,9 +1419,12 @@ class CompletionController(QObject):
             line, col = self.editor.getCursorPosition()
             before_cursor = self.editor.text(line)[:col]
 
-            # Detect snippet trigger including leading "/"
             snippet_match = None
-            if item.icon_name == "snippet" or item.text.startswith("/"):
+            if item.icon_name == "path":
+                snippet_match = re.search(r"[\w./\-+]*$", before_cursor)
+            elif item.icon_name == "decorator":
+                snippet_match = re.search(r"#[A-Za-z_]*$", before_cursor)
+            elif item.icon_name == "snippet" or item.text.startswith("/"):
                 snippet_match = re.search(r"/[A-Za-z0-9_]*$", before_cursor)
 
             if snippet_match:
@@ -1399,7 +1433,6 @@ class CompletionController(QObject):
                 match = re.search(r"[A-Za-z_]\w*$", before_cursor)
                 start_col = match.start() if match else col
 
-            # Handle multi-line snippet bodies with indentation preservation
             is_snippet_body = item.icon_name == "snippet" and "\n" in insert_text
             if is_snippet_body:
                 line_text = self.editor.text(line)
@@ -1431,13 +1464,11 @@ class CompletionController(QObject):
                     self.editor.replaceSelectedText(insert_text)
                 else:
                     self.editor.insertAt(insert_text, line, col)
-                # For single-line snippet trigger without newlines, place cursor after
-                # the inserted text; for multi-line non-snippet, naive placement is OK
+
                 if "\n" in insert_text:
                     lines = insert_text.split("\n")
                     end_line = line + len(lines) - 1
                     end_col = len(lines[-1])
-                    # Adjust for possible indentation prefix on first line removal
                     self.editor.setCursorPosition(end_line, end_col)
                 else:
                     self.editor.setCursorPosition(line, start_col + len(insert_text))
@@ -1484,8 +1515,6 @@ class CompletionController(QObject):
         if not text:
             return False
 
-        # FIX: Removed '.' and '/' from terminating keys so '.' and '/' trigger completion
-        # '/' must not terminate because snippets use "/Name" triggers.
         return text in {
             " ",
             "\t",

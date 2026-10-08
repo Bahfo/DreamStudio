@@ -19,6 +19,7 @@ class CppContext:
     col: int
     file_path: str | None = None
     compile_args: list[str] = field(default_factory=list)
+    prefix: str = ""
 
 
 @dataclass(frozen=True)

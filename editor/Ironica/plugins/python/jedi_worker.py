@@ -498,7 +498,12 @@ class CompletionManager(QObject):
             self._dead = True
 
     def request(
-        self, source: str, line: int, col: int, file_path: Optional[str]
+        self,
+        source: str,
+        line: int,
+        col: int,
+        file_path: Optional[str],
+        prefix: str = "",
     ) -> bool:
         """Debounce and submit a completion request to the background worker.
 

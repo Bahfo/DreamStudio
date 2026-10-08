@@ -24,6 +24,7 @@ class CppProvider(BaseLanguageProvider):
     language_id: str = "cpp"
     slash_snippets_only: bool = True
     cpp_member_triggers: bool = True
+    suppress_token_fallback: bool = True
 
     def __init__(self) -> None:
         super().__init__()
@@ -67,6 +68,28 @@ class CppProvider(BaseLanguageProvider):
         kind, _ = classify(row, col0)
         if kind in ("none", "comment", "preprocessor"):
             return []
+        if kind == "include":
+            from .includes import complete_include, parse_include
+
+            try:
+                parsed = parse_include(row, col0)
+                if not parsed:
+                    return []
+                open_char, partial = parsed
+                items = complete_include(
+                    partial,
+                    open_char,
+                    file_path=file_path or self._file_path,
+                    compile_args=cpp_args.args_for_file(
+                        file_path or self._file_path, text
+                    ),
+                )
+            except Exception:
+                return []
+            if prefix:
+                partial_lower = prefix.lower()
+                items = [c for c in items if c.text.lower().startswith(partial_lower)]
+            return items
 
         ctx = CppContext(
             source_code=text,
@@ -74,6 +97,7 @@ class CppProvider(BaseLanguageProvider):
             col=col0 + 1,
             file_path=file_path or self._file_path,
             compile_args=cpp_args.args_for_file(file_path or self._file_path, text),
+            prefix=prefix or "",
         )
         try:
             items = self._make_engine().complete(ctx) or []
