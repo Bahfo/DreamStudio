@@ -168,6 +168,19 @@ class CppEngine:
             except Exception as exc:
                 logger.warning("guard completion failed: %s", exc)
                 return []
+        if kind == "macro_body":
+            from .macros import complete_macro_body
+
+            try:
+                return complete_macro_body(
+                    ctx.prefix,
+                    row,
+                    self._tu_for_completion(ctx),
+                    ctx.file_path or cpp_args.unsaved_name(),
+                )
+            except Exception as exc:
+                logger.warning("macro-body completion failed: %s", exc)
+                return []
         if kind == "include":
             from .includes import complete_include, parse_include
 

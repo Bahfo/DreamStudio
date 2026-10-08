@@ -7,11 +7,17 @@ Completion context classifier for C++ plugin.
 from __future__ import annotations
 
 import re
-from typing import Tuple
+from typing import List, Tuple
 
 _INCLUDE = re.compile(r"#\s*include\s*[<\"]([^>\"<>]*)$")
 _GUARD = re.compile(
     r"#\s*(ifdef|ifndef|elifdef|elifndef|undef)\s+([A-Za-z_]\w*)?$"
+)
+_MACRO_DEFINE = re.compile(
+    r"^\s*#\s*define\s+(?P<name>[A-Za-z_]\w*)(?P<rest>.*)$"
+)
+_MACRO_PARAMS = re.compile(
+    r"^\s*#\s*define\s+[A-Za-z_]\w*\s*\((?P<params>[^)]*)\)?"
 )
 _DIRECTIVE = re.compile(r"#\s*([A-Za-z_]\w*)?$")
 _TEMPLATE_PREFIX = re.compile(r"<\s*([A-Za-z_]\w*)?$")
@@ -36,7 +42,7 @@ def classify(line_text: str, col: int) -> Tuple[str, str]:
         ``(kind, prefix)`` where kind is one of ``none``,
         ``identifier``, ``member``, ``construction``, ``call``,
         ``template_args``, ``include``, ``directive``, ``macro_guard``,
-        ``preprocessor``, or ``comment``.
+        ``macro_body``, ``preprocessor``, or ``comment``.
     """
 
     before = line_text[: max(0, col)]
@@ -46,6 +52,10 @@ def classify(line_text: str, col: int) -> Tuple[str, str]:
     guard_match = _GUARD.search(before)
     if guard_match:
         return ("macro_guard", guard_match.group(2) or "")
+    define_match = _MACRO_DEFINE.match(before)
+    if define_match and define_match.group("rest").strip():
+        tail = _IDENT.search(before)
+        return ("macro_body", tail.group(0) if tail else "")
     directive_match = _DIRECTIVE.search(before)
     if directive_match and before.lstrip().startswith("#"):
         return ("directive", directive_match.group(1) or "")
@@ -76,3 +86,17 @@ def classify(line_text: str, col: int) -> Tuple[str, str]:
     if not match:
         return ("none", "")
     return ("identifier", match.group(0))
+
+
+def macro_params(line_text: str) -> List[str]:
+    """Return function-like macro parameter names from a `#define` line."""
+    match = _MACRO_PARAMS.match(line_text)
+    if not match:
+        return []
+    names: List[str] = []
+    for part in match.group("params").split(","):
+        name = part.strip().split()[-1] if part.strip() else ""
+        name = name.lstrip(".").rstrip(".")
+        if re.fullmatch(r"[A-Za-z_]\w*", name or "") and name not in names:
+            names.append(name)
+    return names

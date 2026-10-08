@@ -152,3 +152,132 @@ def complete_guards(
     out.sort(key=lambda c: (not c.text.lower().startswith(lowered) if lowered
                             else False, c.text.lower()))
     return out
+
+
+_TOP_LEVEL_BOUND = 20000
+_SCOPE_CHILD_BOUND = 20000
+_BODY_MAX_ITEMS = 1000
+_SCOPE_CANDIDATE = re.compile(r"([A-Za-z_]\w*)::")
+_PLAIN_IDENTIFIER = re.compile(r"[A-Za-z_]\w*\Z")
+
+
+def _kind_icon(code) -> str:
+    """Map a libclang kind code to a completion icon, defaulting to text."""
+    from .engine import _KIND
+
+    try:
+        return _KIND.get(int(code), "text")
+    except (TypeError, ValueError):
+        return "text"
+
+
+def _named_children(cursor, bound: int) -> List[tuple]:
+    """Return ``(spelling, kind_code)`` for a cursor's named children."""
+    found: List[tuple] = []
+    try:
+        children = cursor.get_children()
+    except Exception:
+        return found
+    for child in children:
+        if len(found) >= bound:
+            break
+        try:
+            spelling = child.spelling or ""
+        except Exception:
+            continue
+        if not spelling:
+            continue
+        try:
+            code = int(getattr(child.kind, "value", child.kind))
+        except (TypeError, ValueError):
+            continue
+        found.append((spelling, code))
+    return found
+
+
+def _top_entries(tu) -> List[tuple]:
+    """Return ``(spelling, kind_code, cursor)`` for TU top-level cursors."""
+    entries: List[tuple] = []
+    try:
+        children = tu.cursor.get_children()
+    except Exception:
+        return entries
+    for child in children:
+        if len(entries) >= _TOP_LEVEL_BOUND:
+            break
+        try:
+            spelling = child.spelling or ""
+        except Exception:
+            continue
+        if not spelling:
+            continue
+        try:
+            code = int(getattr(child.kind, "value", child.kind))
+        except (TypeError, ValueError):
+            continue
+        entries.append((spelling, code, child))
+    return entries
+
+
+def complete_macro_body(prefix: str, line_text: str, tu=None,
+                        main_path: Optional[str] = None,
+                        ) -> List[CppCompletion]:
+    """Complete an expression inside a `#define` body.
+
+    libclang returns nothing inside macro definitions, so names come
+    from the translation unit's top level (functions, globals, types,
+    macros — one level only, never a deep walk), narrowed by an
+    explicit `` qualifier`` when present. Function-like macro
+    parameters rank first.
+    """
+    from .context import macro_params
+
+    lowered = (prefix or "").lower()
+    qualifier = ""
+    for scope_match in _SCOPE_CANDIDATE.finditer(line_text):
+        qualifier = scope_match.group(1)
+    params = [p for p in macro_params(line_text)
+              if not lowered or p.lower().startswith(lowered)]
+    out: List[CppCompletion] = [
+        CppCompletion(text=name, insert_text=name, kind="parameter",
+                      signature="macro parameter")
+        for name in params
+    ]
+    seen = set(params)
+    candidates: List[tuple] = []
+    if tu is not None:
+        try:
+            scope: List[tuple] = []
+            targets = []
+            for spelling, code, cursor in _top_entries(tu):
+                scope.append((spelling, code))
+                if qualifier and spelling == qualifier:
+                    targets.append(cursor)
+            if targets:
+                merged: Dict[str, tuple] = {}
+                for target in targets:
+                    for spelling, code in _named_children(
+                            target, _SCOPE_CHILD_BOUND):
+                        merged.setdefault(spelling, (spelling, code))
+                candidates = list(merged.values())
+            else:
+                candidates = scope
+        except Exception as exc:
+            logger.debug("macro-body scope lookup failed: %s", exc)
+    ranked: List[tuple] = []
+    for spelling, code in candidates:
+        if spelling in seen:
+            continue
+        if _PLAIN_IDENTIFIER.fullmatch(spelling) is None:
+            continue
+        if lowered and not spelling.lower().startswith(lowered):
+            continue
+        if spelling.startswith("_") and not lowered.startswith("_"):
+            continue
+        seen.add(spelling)
+        ranked.append((spelling.lower(), spelling, code))
+    ranked.sort()
+    for _, spelling, code in ranked[:_BODY_MAX_ITEMS]:
+        out.append(CppCompletion(text=spelling, insert_text=spelling,
+                                 kind=_kind_icon(code), signature=""))
+    return out
