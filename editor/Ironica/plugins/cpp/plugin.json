@@ -1,0 +1,11 @@
+{
+    "id": "cpp",
+    "display_name": "C++",
+    "requires": [],
+    "keywords": "keywords/cpp.json",
+    "snippets": "snippets/cpp.json",
+    "provider": {
+        "file": "provider.py",
+        "function": "create_provider"
+    }
+}

@@ -722,6 +722,8 @@ class CompletionController(QObject):
         self._cached_items: List[CompletionItem] = []
         self._cache_ident = ""
         self._requested_context = ("", "")
+        self._requested_cursor = None
+        self._requested_prefix = ""
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         # ``editor`` is assigned right after ``super().__init__``; a filter can
@@ -804,6 +806,13 @@ class CompletionController(QObject):
             return False
 
         if self._is_completion_terminating_key(key_event):
+            text = key_event.text() or ""
+            if text == ":" and getattr(
+                getattr(self.editor, "current_provider", None),
+                "cpp_member_triggers",
+                False,
+            ):
+                return False  # second ':' of '::' must not kill the popup
             self._close()
 
         return False
@@ -877,6 +886,21 @@ class CompletionController(QObject):
         # FIX: Allow dot expressions (e.g., 'os.' or 'os.pa') to trigger completion
         match = re.search(r"([A-Za-z_]\w*)\.([A-Za-z_]\w*)?$", text_before_cursor)
         if not match:
+            provider_hint = getattr(self.editor, "current_provider", None)
+            if getattr(provider_hint, "cpp_member_triggers", False):
+                member = re.search(
+                    r"([A-Za-z_]\w*)\s*(::|->|\.)\s*([A-Za-z_]\w*)?$",
+                    text_before_cursor,
+                )
+                if member:
+                    ident = member.group(1) or ""
+                    prefix = member.group(3) or ""
+                    self._current_prefix = prefix
+                    self._current_ident = ident
+                    if self.popup.isVisible() and self._cached_items:
+                        self._refresh_from_cache()
+                    self._debounce_timer.start()
+                    return
             match = re.search(r"([A-Za-z_]\w*)$", text_before_cursor)
 
         if not match:
@@ -922,6 +946,10 @@ class CompletionController(QObject):
         prefix_lower = prefix.lower()
         stripped_prefix = prefix.lstrip("/").lower()
         is_snippet_prefix = prefix.startswith("/")
+
+        provider = getattr(self.editor, "current_provider", None)
+        if getattr(provider, "slash_snippets_only", False) and not is_snippet_prefix:
+            return []
 
         # Collect trigger -> body, preserving bodies from snippet_map
         triggers: dict[str, str] = {}
@@ -1015,17 +1043,27 @@ class CompletionController(QObject):
             if item.text.lower().startswith(self._current_prefix.lower())
         ]
         # Merge snippets that match this word prefix
-        snippet_matches = self._get_snippet_completions()
-        existing = {m.text for m in matches}
-        for s in snippet_matches:
-            if s.text not in existing:
-                matches.append(s)
+        provider = getattr(self.editor, "current_provider", None)
+        slash_only = getattr(provider, "slash_snippets_only", False)
+        if slash_only and not self._current_prefix.startswith("/"):
+            pass
+        else:
+            snippet_matches = self._get_snippet_completions()
+            existing = {m.text for m in matches}
+            for s in snippet_matches:
+                if s.text not in existing:
+                    matches.append(s)
 
         if matches:
             self.popup.populate(matches)
 
     def _request_completions(self) -> None:
         self._requested_context = (self._current_ident, self._current_prefix)
+        try:
+            self._requested_cursor = self.editor.getCursorPosition()
+        except Exception:
+            self._requested_cursor = None
+        self._requested_prefix = self._current_prefix
         provider = getattr(self.editor, "current_provider", None)
 
         # Snippet-only prefix: bypass language provider and show snippets instantly
@@ -1124,12 +1162,30 @@ class CompletionController(QObject):
             if item.text.lower().startswith(prefix_lower)
         ]
 
+        # Suppress self-echo: a lone exact match of a plain identifier
+        # (e.g. finishing 'std' suggests 'std') shows no popup. Member
+        # contexts (ident set) are exempt so 'std::' still completes.
+        if (
+            len(visible) == 1
+            and not self._requested_context[0]
+            and visible[0].text == self._current_prefix
+        ):
+            self._close()
+            return
+
         # Merge snippets that match this word prefix (without needing "/")
-        snippet_items = self._get_snippet_completions()
-        existing_texts = {v.text for v in visible}
-        for s in snippet_items:
-            if s.text not in existing_texts:
-                visible.append(s)
+        provider_now = getattr(self.editor, "current_provider", None)
+        snippet_items = []
+        if getattr(provider_now, "slash_snippets_only", False) and not (
+            self._current_prefix.startswith("/")
+        ):
+            pass
+        else:
+            snippet_items = self._get_snippet_completions()
+            existing_texts = {v.text for v in visible}
+            for s in snippet_items:
+                if s.text not in existing_texts:
+                    visible.append(s)
 
         if not visible and not items and not snippet_items:
             visible = self._get_document_tokens()
@@ -1163,6 +1219,14 @@ class CompletionController(QObject):
 
     @pyqtSlot(int, list)
     def _on_completions_ready(self, request_id: int, raw_items: list) -> None:
+        requested = getattr(self, "_requested_cursor", None)
+        if requested is not None:
+            try:
+                live_line, live_col = self.editor.getCursorPosition()
+                if live_line != requested[0] or live_col < requested[1]:
+                    return  # cursor moved lines (e.g. Enter); drop stale results
+            except Exception:
+                pass
         self._present_items(self._coerce_items(raw_items or []))
 
     @staticmethod
