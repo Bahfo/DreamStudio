@@ -478,6 +478,11 @@
           "text": "Collapse All",
           "icon": null,
           "action": "set_collapse_all_folds"
+        },
+        {
+          "text": "Collapse Includes",
+          "icon": null,
+          "action": "set_collapse_includes"
         }
       ]
     },

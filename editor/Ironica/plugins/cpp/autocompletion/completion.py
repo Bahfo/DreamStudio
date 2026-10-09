@@ -17,7 +17,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 from editor.Ironica import completion_profile as _profile
 
 # Local Imports
-from .models import CppContext
+from ..models import CppContext
 
 logger = logging.getLogger("DreamStudio.Cpp.CompletionManager")
 COMPLETION_DEBOUNCE_MS: int = 30  # Thirty milliseconds
@@ -266,6 +266,20 @@ class CppCompletionManager(QObject):
             self._worker.process(self._request_counter, context, warmup=True)
         except Exception as exc:
             logger.debug("C++ completion warmup failed: %s", exc)
+
+    def invalidate(self) -> None:
+        """Retire in-flight and armed requests without emitting.
+
+        Used when the user commits a completion: any background result
+        still computing belongs to the pre-commit buffer and must never
+        repaint the popup.
+        """
+        self._request_counter += 1
+        self._pending = None
+        try:
+            self._timer.stop()
+        except RuntimeError:
+            self._dead = True
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:

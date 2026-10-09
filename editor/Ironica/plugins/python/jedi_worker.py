@@ -505,6 +505,17 @@ class CompletionManager(QObject):
     def set_file_path(self, path: Optional[str]) -> None:
         self._file_path = path
 
+    def invalidate(self) -> None:
+        """Retire in-flight and armed requests without emitting.
+
+        Used when the user commits a completion: any background result
+        still computing belongs to the pre-commit buffer and must never
+        repaint the popup.
+        """
+        self._request_counter += 1
+        self._pending_source = ""
+        self._stop_timer()
+
     def _stop_timer(self) -> None:
         """Stop the debounce timer, tolerating an already-deleted C++ side."""
         if self._dead:

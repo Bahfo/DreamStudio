@@ -13,7 +13,7 @@ import subprocess
 from typing import List, Optional, Tuple
 
 # Local Imports
-from .models import CppCompletion
+from ..models import CppCompletion
 
 logger = logging.getLogger("DreamStudio.Cpp.Includes")
 

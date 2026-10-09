@@ -29,7 +29,7 @@
         "string": "STRING_COLOR",
         "number": "NUMBER_COLOR",
         "comment": "COMMENT_COLOR",
-        "decorator": "PREPROC_COLOR",
+        "decorator": "DECORATOR_COLOR",
         "additional": "ADDITIONAL_COLOR",
         "operator": "OPERATOR_COLOR",
         "bracket": "BRACKET_COLOR",
@@ -37,7 +37,8 @@
         "bracket_3": "BRACKET3_COLOR",
         "exception": "EXCEPTION_COLOR",
         "import": "IMPORT_COLOR",
-        "variable": "VARIABLE_COLOR"
+        "variable": "VARIABLE_COLOR",
+        "header": "HEADER_COLOR"
     },
     "palette": {
         "KEYWORD_COLOR": "#C586C0",
@@ -48,6 +49,7 @@
         "NUMBER_COLOR": "#B5CEA8",
         "COMMENT_COLOR": "#898989",
         "PREPROC_COLOR": "#C586C0",
+        "DECORATOR_COLOR": "#C586C0",
         "ADDITIONAL_COLOR": "#569CD6",
         "OPERATOR_COLOR": "#D4D4D4",
         "BRACKET_COLOR": "#FFD700",
@@ -55,7 +57,8 @@
         "BRACKET3_COLOR": "#61AFEF",
         "EXCEPTION_COLOR": "#FF6B6B",
         "IMPORT_COLOR": "#CE9178",
-        "VARIABLE_COLOR": "#9CDCFE"
+        "VARIABLE_COLOR": "#9CDCFE",
+        "HEADER_COLOR": "#4FC1FF"
     },
     "keywords": {
         "keyword": [

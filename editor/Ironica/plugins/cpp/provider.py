@@ -6,14 +6,21 @@ New C++ provider (Feature 1: completion only).
 
 from __future__ import annotations
 
+import logging
+
 # Base Language Provider
 from editor.Ironica.language_engine import BaseLanguageProvider
 
-# Local Imports
+logger = logging.getLogger("DreamStudio.Cpp.Provider")
+
+# Local Imports: the full plugin surface, loaded as one watched unit.
 from .models import CppContext
-from . import args as cpp_args
-from .context import classify
-from .engine import CppEngine
+from .intellisense import args as cpp_args
+from .intellisense import CppEngine
+from .autocompletion import (
+    classify,
+    CppCompletionManager,
+)
 
 
 class CppProvider(BaseLanguageProvider):
@@ -31,6 +38,71 @@ class CppProvider(BaseLanguageProvider):
         self._shared_index = None
         self._file_path: str | None = None
         self._completion_manager = None
+        self._fold_engine = None
+        self._highlight_cache = None
+
+    def get_semantic_highlights(self, text: str, theme_name: str | None = None):
+        """Return libclang identifier overlays for the buffer.
+
+        Args:
+            text: Full editor buffer content.
+            theme_name: Active IDE theme; resolved automatically when omitted.
+
+        Returns:
+            List of ``(start, length, "#RRGGBB")`` overlay ranges.
+        """
+        import hashlib
+
+        from .highlighting.tokens import compute_highlights, _resolve_colors
+
+        if not text or not text.strip():
+            return []
+        try:
+            from editor.Ironica.language_engine import LanguageRegistry
+            from editor.Ironica.retheme import active_theme_name
+
+            config = LanguageRegistry.get_config("cpp") or {}
+            theme = theme_name or active_theme_name()
+        except Exception:
+            config = {}
+            theme = theme_name or "dark"
+        digest = hashlib.sha1(text.encode("utf-8")).hexdigest()
+        key = (digest, theme, self._file_path)
+        cached = self._highlight_cache
+        if cached is not None and cached[0] == key:
+            return list(cached[1])
+        try:
+            if self._fold_engine is None:
+                self._fold_engine = self._make_engine()
+            engine = self._fold_engine
+            file_path = self._file_path
+            context = CppContext(
+                source_code=text,
+                line=1,
+                col=1,
+                file_path=file_path,
+                compile_args=cpp_args.args_for_file(file_path, text),
+            )
+            try:
+                tu = engine._tu(context)
+            except Exception:
+                tu = None
+            colors = _resolve_colors(config, theme)
+            ranges = compute_highlights(
+                text, tu, colors,
+                file_path or cpp_args.unsaved_name())
+        except Exception:
+            return []
+        self._highlight_cache = (key, ranges)
+        return list(ranges)
+
+    def get_semantic_ranges(self, text: str, theme_name: str | None = None):
+        """Return ``(start, length, color)`` ranges (token-provider alias)."""
+        return self.get_semantic_highlights(text, theme_name)
+
+    def invalidate_cache(self) -> None:
+        """Drop cached highlight styles and token ranges (retheme)."""
+        self._highlight_cache = None
 
     def get_hover_hint(self, text, line, col):
         return None
@@ -43,6 +115,62 @@ class CppProvider(BaseLanguageProvider):
 
     def has_diagnostics(self):
         return False
+
+    def has_folding(self) -> bool:
+        return True
+
+    def get_fold_regions(self, text: str) -> list:
+        """Return AST-accurate fold regions for the buffer."""
+        from .folding.regions import compute_fold_regions
+
+        if not text or not text.strip():
+            return []
+        try:
+            if self._fold_engine is None:
+                self._fold_engine = self._make_engine()
+            engine = self._fold_engine
+            file_path = self._file_path
+            context = CppContext(
+                source_code=text,
+                line=1,
+                col=1,
+                file_path=file_path,
+                compile_args=cpp_args.args_for_file(file_path, text),
+            )
+            try:
+                tu = engine._tu(context)
+            except Exception:
+                tu = None
+            regions = compute_fold_regions(
+                text, tu,
+                file_path or cpp_args.unsaved_name())
+        except Exception:
+            from .folding.regions import compute_fold_regions as fallback
+
+            regions = fallback(text)
+        return regions
+
+    def post_fold_setup(self, editor, regions) -> None:
+        """Label collapsed include runs with their line counts."""
+        setup = getattr(editor, "_setup_folding_display_text", None)
+        if callable(setup):
+            try:
+                setup()
+            except Exception:
+                pass
+        set_text = getattr(editor, "set_custom_import_fold_text", None)
+        if callable(set_text):
+            for region in regions or []:
+                kind = getattr(region, "kind", "")
+                if kind != "include":
+                    continue
+                count = (getattr(region, "end_line", 0)
+                         - getattr(region, "start_line", 0) + 1)
+                try:
+                    set_text(getattr(region, "start_line", 0), count,
+                             "includes")
+                except Exception:
+                    continue
 
     def get_completions(
         self,
@@ -69,7 +197,7 @@ class CppProvider(BaseLanguageProvider):
         if kind in ("none", "comment", "preprocessor"):
             return []
         if kind == "include":
-            from .includes import complete_include, parse_include
+            from .autocompletion.includes import complete_include, parse_include
 
             try:
                 parsed = parse_include(row, col0)
@@ -110,7 +238,7 @@ class CppProvider(BaseLanguageProvider):
 
     def _make_engine(self):
         """Return a shared-index engine (TU cache lives per editor)."""
-        from .engine import CppEngine
+        from .intellisense.engine import CppEngine
 
         return CppEngine(shared_index=self._shared_index)
 
@@ -118,9 +246,6 @@ class CppProvider(BaseLanguageProvider):
         """
         Called by tab_editor.py:597. Editor-scoped, never singleton.
         """
-
-        from .completion import CppCompletionManager
-        from .engine import CppEngine
 
         if file_path:
             self._file_path = file_path

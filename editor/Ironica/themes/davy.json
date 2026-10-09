@@ -17,6 +17,8 @@
         "BRACKET3_COLOR": "#82AAFF",
         "EXCEPTION_COLOR": "#FF6363",
         "IMPORT_COLOR": "#82AAFF",
-        "VARIABLE_COLOR": "#EEFFFF"
+        "VARIABLE_COLOR": "#EEFFFF",
+        "HEADER_COLOR": "#82AAFF",
+        "PREPROC_COLOR": "#ADDB67"
     }
 }

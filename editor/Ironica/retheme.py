@@ -174,9 +174,9 @@ def editor_colors(theme_name: str) -> Dict[str, QColor]:
 def set_active_theme(theme_name: str) -> None:
     """Record the currently active theme for palette resolution.
 
-    The Python plugin's semantic-highlight cache is invalidated on every
-    theme switch so cached overlay tokens never keep the palette of a
-    previously active theme.
+    The Python and C++ semantic-highlight caches are invalidated on
+    every theme switch so cached overlay tokens never keep the palette
+    of a previously active theme.
     """
     global _ACTIVE_THEME
     if theme_name:
@@ -187,6 +187,14 @@ def set_active_theme(theme_name: str) -> None:
             )
 
             invalidate_semantic_cache()
+        except Exception:
+            pass
+        try:
+            from editor.Ironica.plugins.cpp.highlighting.tokens import (
+                invalidate_semantic_cache as _invalidate_cpp,
+            )
+
+            _invalidate_cpp()
         except Exception:
             pass
 

@@ -14,7 +14,7 @@ import clang.cindex as C
 
 # Local Imports and CLang Extension
 from clang.cindex import CursorKind, Index, TranslationUnit
-from .models import CppContext, CppCompletion
+from ..models import CppContext, CppCompletion
 from . import args as cpp_args
 
 logger = logging.getLogger("DreamStudio.Cpp.Engine")
@@ -140,7 +140,7 @@ class CppEngine:
         """
         Return ranked completions or empty list; one row per overload.
         """
-        from .context import classify
+        from ..autocompletion.context import classify
 
         lines = ctx.source_code.splitlines() if ctx.source_code else []
         row = lines[ctx.line - 1] if 0 <= ctx.line - 1 < len(lines) else ""
@@ -148,7 +148,7 @@ class CppEngine:
         if kind in ("none", "comment", "preprocessor"):
             return []
         if kind == "directive":
-            from .directives import complete_directive
+            from ..autocompletion.directives import complete_directive
 
             try:
                 return complete_directive(prefix_hint)
@@ -156,7 +156,7 @@ class CppEngine:
                 logger.warning("directive completion failed: %s", exc)
                 return []
         if kind == "macro_guard":
-            from .macros import complete_guards
+            from ..autocompletion.macros import complete_guards
 
             try:
                 return complete_guards(
@@ -169,7 +169,7 @@ class CppEngine:
                 logger.warning("guard completion failed: %s", exc)
                 return []
         if kind == "macro_body":
-            from .macros import complete_macro_body
+            from ..autocompletion.macros import complete_macro_body
 
             try:
                 return complete_macro_body(
@@ -182,7 +182,7 @@ class CppEngine:
                 logger.warning("macro-body completion failed: %s", exc)
                 return []
         if kind == "include":
-            from .includes import complete_include, parse_include
+            from ..autocompletion.includes import complete_include, parse_include
 
             try:
                 parsed = parse_include(row, ctx.col - 1)
@@ -268,7 +268,7 @@ class CppEngine:
         if match:
             prefix = match.group(0).lower()
         locals_boost = self._local_names(ctx)
-        from . import callsite as _callsite
+        from ..autocompletion import callsite as _callsite
 
         try:
             site = _callsite.resolve(

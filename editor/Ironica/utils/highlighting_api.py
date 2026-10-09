@@ -80,6 +80,7 @@ SEMANTIC_TO_CONFIG_KEY: Dict[str, str] = {
     "bracket_2": "bracket_2",
     "bracket_3": "bracket_3",
     "exception": "exception",
+    "header": "header",
 }
 
 # Fallback colours for semantic types not present in the language config.
@@ -105,6 +106,7 @@ _DEFAULT_COLOURS: Dict[str, str] = {
     "bracket_3": "#61AFEF",
     "exception": "#FF6B6B",
     "import": "#82AAFF",
+    "header": "#4FC1FF",
 }
 
 

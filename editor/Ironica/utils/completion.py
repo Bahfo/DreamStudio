@@ -748,6 +748,7 @@ class CompletionController(QObject):
         self._requested_cursor = None
         self._requested_prefix = ""
         self._last_presented_id = 0
+        self._commit_suppress_id = 0
         self._request_pending = False
         self._reuse_state = None
         self._doc_words: set = set()
@@ -1309,6 +1310,7 @@ class CompletionController(QObject):
 
         self._connected_manager = manager
         self._last_presented_id = 0
+        self._commit_suppress_id = 0
         self._reuse_state = None
         try:
             manager.completions_ready.connect(self._on_completions_ready)
@@ -1319,15 +1321,19 @@ class CompletionController(QObject):
     def _on_completions_ready(self, request_id: int, raw_items: list) -> None:
         _profile.mark(self.editor, "arrive")
         self._request_pending = False
+        if request_id <= self._commit_suppress_id:
+            return  # committed since this batch was requested; never repaint
         requested = getattr(self, "_requested_cursor", None)
         if requested is not None:
             try:
                 live_line, live_col = self.editor.getCursorPosition()
                 if live_line != requested[0] or live_col < requested[1]:
                     return  # cursor moved lines (e.g. Enter); drop stale results
+                live_text = self.editor.text(live_line)[:live_col]
+                if re.search(r"[)\];}{]\s*$", live_text):
+                    return  # closed construct; nothing to complete here
                 want = self._requested_prefix or ""
                 if want:
-                    live_text = self.editor.text(live_line)[:live_col]
                     current = re.search(r"[A-Za-z_]\w*$", live_text)
                     if current is None or not current.group(0).startswith(want):
                         return  # typed past the request; drop before coerce
@@ -1553,6 +1559,15 @@ class CompletionController(QObject):
 
         self._committing = True
         self._close()
+        manager = self._connected_manager
+        invalidate = getattr(manager, "invalidate", None)
+        if callable(invalidate):
+            try:
+                invalidate()
+                self._commit_suppress_id = int(
+                    getattr(manager, "_request_counter", 0))
+            except (TypeError, ValueError, RuntimeError):
+                pass
 
         try:
             insert_text = item.insert_text or item.text

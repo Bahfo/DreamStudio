@@ -182,6 +182,7 @@ class DreamStudioTitleBar(QWidget):
         "set_expand_all_folds": "folds",
         "set_collapse_current_fold": "folds",
         "set_collapse_all_folds": "folds",
+        "set_collapse_includes": "folds",
     }
 
     def _build_menu_items(self, parent_menu, items):

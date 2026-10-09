@@ -615,6 +615,31 @@ class EditorAPI:
         if fm is not None:
             fm.collapse_all()
 
+    def smart_collapse(self) -> None:
+        """Collapse boilerplate first, everything on a second press.
+
+        First press collapses ``include``/``import``/``namespace``
+        regions and leaves code open; when nothing smart remains open,
+        falls through to a full collapse.
+        """
+        fm = getattr(self._editor, "_fold_manager", None)
+        if fm is None:
+            return
+        pending = [region for region in fm.get_fold_regions()
+                   if region.kind in ("include", "import", "namespace")
+                   and not region.folded]
+        if pending:
+            for region in pending:
+                fm.collapse_region(region)
+        else:
+            fm.collapse_all()
+
+    def collapse_includes(self) -> None:
+        """Collapse ``"include"`` kind fold regions (C++ headers)."""
+        fm = getattr(self._editor, "_fold_manager", None)
+        if fm is not None:
+            fm.collapse_kind("include")
+
     def expand_all(self) -> None:
         """Expand every registered fold region."""
         fm = getattr(self._editor, "_fold_manager", None)

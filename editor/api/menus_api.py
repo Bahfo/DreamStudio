@@ -459,8 +459,14 @@ class MenusAPI:
         self._run_editor_command("Collapse Current", lambda api: api.collapse_current())
 
     def set_collapse_all_folds(self) -> None:
-        """Collapse every fold region."""
-        self._run_editor_command("Collapse All", lambda api: api.collapse_all())
+        """Smart collapse: boilerplate first, everything on second press."""
+        self._run_editor_command(
+            "Collapse All", lambda api: api.smart_collapse())
+
+    def set_collapse_includes(self) -> None:
+        """Collapse grouped C++ header includes."""
+        self._run_editor_command(
+            "Collapse Includes", lambda api: api.collapse_includes())
 
     # ------------------------------------------------------------------
     # Shared helpers

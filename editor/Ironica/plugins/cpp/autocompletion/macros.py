@@ -15,7 +15,7 @@ import logging
 import re
 from typing import Dict, List, Optional, Tuple
 
-from .models import CppCompletion
+from ..models import CppCompletion
 
 logger = logging.getLogger("DreamStudio.Cpp.Macros")
 
@@ -164,7 +164,7 @@ _PLAIN_IDENTIFIER = re.compile(r"[A-Za-z_]\w*\Z")
 
 def _kind_icon(code) -> str:
     """Map a libclang kind code to a completion icon, defaulting to text."""
-    from .engine import _KIND
+    from ..intellisense.engine import _KIND
 
     try:
         return _KIND.get(int(code), "text")

@@ -3544,6 +3544,14 @@ class CodeEditor(QsciScintilla):
         self.SendScintilla(
             QsciScintilla.SCI_STYLESETFORE, style_id, self._scintilla_rgb(color_hex)
         )
+        try:
+            paper = self._theme_colors()[0]
+        except Exception:
+            paper = None
+        if paper is not None:
+            self.SendScintilla(
+                QsciScintilla.SCI_STYLESETBACK, style_id, paper
+            )
 
         if hasattr(self._font, "family"):
             self.SendScintilla(
@@ -3555,21 +3563,24 @@ class CodeEditor(QsciScintilla):
             QsciScintilla.SCI_STYLESETSIZE, style_id, self._font.pointSize()
         )
 
-        self.SendScintilla(2540, line, text.encode("utf-8"))
-        self.SendScintilla(2542, line, style_id)
+        self.SendScintilla(
+            QsciScintilla.SCI_ANNOTATIONSETTEXT, line, text.encode("utf-8"))
+        self.SendScintilla(
+            QsciScintilla.SCI_ANNOTATIONSETSTYLE, line, style_id)
 
-        self.SendScintilla(2544, 1)
+        self.SendScintilla(
+            QsciScintilla.SCI_ANNOTATIONSETVISIBLE,
+            QsciScintilla.ANNOTATION_STANDARD)
 
     def clear_ghost_text(self, line: int) -> None:
         """Clear custom ghost text rendered on a specific line index."""
         if line < 0 or line >= self.lines():
             return
-        self.SendScintilla(2540, line, b"")
+        self.SendScintilla(QsciScintilla.SCI_ANNOTATIONSETTEXT, line, b"")
 
     def clear_all_ghost_text(self) -> None:
         """Clear every active ghost text annotation throughout the entire document buffer."""
-        # SCI_ANNOTATIONCLEARALL = 2546
-        self.SendScintilla(2546)
+        self.SendScintilla(QsciScintilla.SCI_ANNOTATIONCLEARALL)
 
     ###############################################
     # LIFECYCLE

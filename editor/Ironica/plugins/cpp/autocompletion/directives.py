@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from .models import CppCompletion
+from ..models import CppCompletion
 
 #: (directive word, one-line doc). Insert text carries a trailing space so
 #: header/macro completion continues naturally after acceptance.

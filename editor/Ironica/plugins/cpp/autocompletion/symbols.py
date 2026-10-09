@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from .models import CppCompletion
+from ..models import CppCompletion
 
 logger = logging.getLogger("DreamStudio.Cpp.Symbols")
 
