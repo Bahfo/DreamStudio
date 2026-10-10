@@ -32,10 +32,10 @@ logger = logging.getLogger(__name__)
 from editor.utils.resource_path import resource_path
 
 from editor.Ironica.code_editor import CodeEditor
-from editor.Ironica.process_manager import process_manager
-from editor.Ironica.utils.minimap import MiniMapHostWidget
 from editor.base.user.trial import FreeTrialWindow
 from editor.base.user.whats_new import IDEStartPage
+from editor.Ironica.process_manager import process_manager
+from editor.Ironica.utils.minimap import MiniMapHostWidget
 
 
 def _webviewer_cls():
@@ -432,6 +432,29 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.setCurrentIndex(index)
         self.setFocus()
 
+    def diffed_tab(
+        self,
+        left_widget: QWidget,
+        right_widget: QWidget,
+        title: str,
+    ) -> QWidget:
+        """
+        Constructed a two parts tab, can be used to show diff changes.
+        """
+        main_widget = QWidget()
+        index = self.addTab(main_widget, title)
+        self.setCurrentIndex(index)
+        self.setFocus()
+
+        _layout = QVBoxLayout(main_widget)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        splitter.addWidget(left_widget)
+        splitter.addWidget(right_widget)
+
+        _layout.addWidget(splitter)
+        return main_widget  # Returns ts to be used in editing widgets content if needed
+
     def add_binary_editor(self, file_name: str, file_path: str):
         """Create a tab for a binary/ELF file in read-only hex mode."""
         key = self.resolve_key(file_path) if file_path else None
@@ -551,7 +574,6 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         code_editor = None
         if file_path:
-            # Detect binary/ELF before normal text loading
             if self._is_elf_binary(file_path):
                 return self.add_binary_editor(
                     file_name=file_name or pathlib.Path(file_path).name,
@@ -571,7 +593,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             code_editor.clear_dirty()
             new_editor = MiniMapHostWidget(code_editor, parent=self)
 
-        # Wire the threaded file-analysis spinner into the status bar.
         if code_editor is not None:
             status = getattr(self._parent, "status_bar", None)
             if status is not None:
@@ -582,7 +603,6 @@ class DreamTabbedEditor(QDreamTabEditor):
                 if finish_handler is not None:
                     code_editor.analysis_finished.connect(finish_handler)
 
-        # Attach background diagnostics for languages that provide them.
         if isinstance(new_editor, MiniMapHostWidget) and language:
             from editor.Ironica.language_engine import LanguageRegistry
 
@@ -805,7 +825,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             except Exception as e:
                 logger.debug("Close interceptor error: %s", e)
 
-        # Stop any active debug session whose target file is being closed.
         closing_path = getattr(code_editor, "current_file_path", None)
         if closing_path:
             parent = self._parent
@@ -857,8 +876,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             except (TypeError, RuntimeError):
                 pass
 
-        # Teardown hover controller/flyout to remove global event filters
-        # and prevent segfaults from dangling QApplication filters.
         if code_editor is not None and hasattr(code_editor, "_teardown_hover_engine"):
             try:
                 code_editor._teardown_hover_engine()

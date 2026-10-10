@@ -7,8 +7,8 @@ from editor import *
 
 try:
     from git import Repo
-except Exception:  # GitPython optional; VCS degrades gracefully
-    Repo = None  # type: ignore
+except Exception:
+    Repo = None
 
 from editor.utils.notifications.notification_manager import get_notification_manager
 

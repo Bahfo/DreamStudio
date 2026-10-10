@@ -609,7 +609,7 @@ class CompletionPopup(QWidget):
             )
             content_width = max(content_width, candidate_width)
 
-        screen = QApplication.screenAt(self.pos())
+        screen = QApplication.screenAt(self.mapToGlobal(QPoint(0, 0)))
         if screen is None:
             screen = QApplication.primaryScreen()
 
@@ -739,6 +739,7 @@ class CompletionController(QObject):
         self._current_prefix = ""
         self._current_ident = ""
         self._active = False
+        self._popup_side: Optional[str] = None
         self._committing = False
         self._last_cursor_pos = -1
         self._connected_manager = None
@@ -1488,6 +1489,14 @@ class CompletionController(QObject):
         return self._doc_words
 
     def _show_popup(self, items: List[CompletionItem]) -> None:
+        """Show the popup at the caret with a deterministic side.
+
+        The popup prefers below the caret and flips above only when
+        below does not fit. While visible it keeps its side across
+        refreshes whenever that side still fits, so async result
+        batches and content-height changes never make it jump.
+        """
+        was_visible = self.popup.isVisible()
         if not self.popup.populate(items):
             self._close()
             return
@@ -1502,10 +1511,17 @@ class CompletionController(QObject):
         )
 
         x = max(0, x)
+        caret = self.editor.mapToGlobal(QPoint(x, y))
         below = self.editor.mapToGlobal(QPoint(x, y + line_height + 3))
         above = self.editor.mapToGlobal(QPoint(x, y - self.popup.height() - 3))
 
-        screen = QApplication.screenAt(below)
+        screen = QApplication.screenAt(caret)
+        if screen is None:
+            screen = QApplication.screenAt(below)
+        if screen is None:
+            handle = self.editor.window().windowHandle()
+            if handle is not None:
+                screen = handle.screen()
         if screen is None:
             screen = QApplication.primaryScreen()
 
@@ -1513,26 +1529,44 @@ class CompletionController(QObject):
             self.popup.move(below)
             self.popup.show()
             self._active = True
+            self._popup_side = "below"
             return
 
         available = screen.availableGeometry()
         margin = 8
+        height = self.popup.height()
 
-        if below.y() + self.popup.height() <= available.bottom() - margin:
-            popup_y = below.y()
-        elif above.y() >= available.top() + margin:
-            popup_y = above.y()
-        else:
-            popup_y = max(
-                available.top() + margin,
-                min(below.y(), available.bottom() - self.popup.height() - margin),
-            )
+        fits_below = below.y() + height <= available.bottom() - margin
+        fits_above = above.y() >= available.top() + margin
+
+        side = self._popup_side if was_visible else None
+        if side in ("below", "above"):
+            if side == "below" and fits_below:
+                popup_y = below.y()
+            elif side == "above" and fits_above:
+                popup_y = above.y()
+            else:
+                side = None
+        if side is None:
+            if fits_below:
+                side = "below"
+                popup_y = below.y()
+            elif fits_above:
+                side = "above"
+                popup_y = above.y()
+            else:
+                side = "below" if below.y() <= available.bottom() else "above"
+                popup_y = max(
+                    available.top() + margin,
+                    min(below.y(), available.bottom() - height - margin),
+                )
 
         popup_x = max(
             available.left() + margin,
             min(below.x(), available.right() - self.popup.width() - margin),
         )
 
+        self._popup_side = side
         self.popup.move(popup_x, popup_y)
         self.popup.show()
         self._active = True
@@ -1661,6 +1695,7 @@ class CompletionController(QObject):
     def _close(self) -> None:
         self._debounce_timer.stop()
         self._request_pending = False
+        self._popup_side = None
         if self.popup.isVisible():
             self.popup.hide()
         self._active = False

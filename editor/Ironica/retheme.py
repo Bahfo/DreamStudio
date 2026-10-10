@@ -310,3 +310,6 @@ class RethemeEngine:
             editor = getattr(widget, "editor", None)
             if editor is not None:
                 yield editor
+                continue
+            if getattr(widget, "is_diff_view", False):
+                yield widget

@@ -99,6 +99,15 @@ class EditorAPI:
             pass
         self._toggle_lower_panel("problems_window")
 
+    def _get_tab_editor(self):
+        """
+        Returns the tab editor to be used by an internal widget.
+        """
+        try:
+            return self.hero_window._text_editor_center._tabs
+        except Exception:
+            return None
+
     def _show_problem_checks(self) -> None:
         """Open the Problems panel narrowed to non-fatal checks."""
         try:

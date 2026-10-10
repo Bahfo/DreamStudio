@@ -1,12 +1,13 @@
 from editor import *
 from editor.utils.resource_path import resource_path
 
+from editor.api.editor_api import EditorAPI
 from editor.utils.panel_shell import PanelShell
-from editor.utils.git_control.commit_history import GitGraph, compute_commit_graph
-from editor.utils.git_control.status_service import get_status_service
-from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
-from editor.utils.git_control.commit_text import ExpandingTextEdit
 import editor.utils.git_control.git_control as git_control
+from editor.utils.git_control.commit_text import ExpandingTextEdit
+from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
+from editor.utils.git_control.status_service import get_status_service
+from editor.utils.git_control.commit_history import GitGraph, compute_commit_graph
 
 
 class GitCommitHistory(QFrame):
@@ -332,6 +333,7 @@ class GitVersionControl(PanelShell):
         self.tree.setAnimated(True)
         self.tree.setIndentation(20)
         layout.addWidget(self.tree, 1)
+        self.tree.itemDoubleClicked.connect(self._show_diff_editor)
 
         self.workspace_stack.addWidget(page)
 
@@ -553,6 +555,24 @@ class GitVersionControl(PanelShell):
                         files.append(path)
         return files
 
+    def getChangedFilePath(self, item: Optional[QTreeWidgetItem]) -> Optional[str]:
+        """Return the file path for a changed-files tree item.
+
+        Args:
+            item: Tree item to resolve, typically from a click or
+                selection signal.
+
+        Returns:
+            Stored file path for file rows, or ``None`` for parent
+            category rows, placeholders, and invalid input.
+        """
+        if item is None:
+            return None
+        if item.parent() is None:
+            return None
+        path = item.data(0, Qt.ItemDataRole.UserRole)
+        return path if isinstance(path, str) and path else None
+
     def _setup_focus_tracking(self) -> None:
         QApplication.instance().focusChanged.connect(self._on_app_focus_changed)
 
@@ -574,3 +594,55 @@ class GitVersionControl(PanelShell):
         self._frame.setProperty("focused", focused)
         self._frame.style().unpolish(self._frame)
         self._frame.style().polish(self._frame)
+
+    def _get_tab_editor(self):
+        """
+        Return the central tab editor via the main window, or None.
+        """
+        try:
+            top = self.window()
+            hero = getattr(top, "hero_window", None)
+            center = getattr(hero, "_text_editor_center", None)
+            return getattr(center, "tabs", None)
+        except Exception:
+            return None
+
+    def _show_diff_editor(self, item) -> None:
+        """
+        Show the diff editor for a double-clicked file row.
+        """
+        path = self.getChangedFilePath(item)
+        if not path or self._repo is None:
+            return
+
+        try:
+            diff = git_control.get_file_diff(self._repo, path)
+        except Exception:
+            return
+
+        old = diff.get("old", "") or ""
+        new = diff.get("new", "") or ""
+
+        try:
+            tab_editor = self._get_tab_editor()
+
+        except Exception:
+            return
+
+        if tab_editor is None:
+            return
+        if not old and not new:
+            return
+        if not old:
+            try:
+                base = self._repo.working_dir or self._root_path or "."
+                tab_editor.open_file_by_path(os.path.join(base, path))
+            except Exception:
+                return
+            return
+        try:
+            from editor.utils.git_control import diff_view
+
+            diff_view.build_diff_tab(tab_editor, path, old, new)
+        except Exception:
+            return

@@ -1005,7 +1005,7 @@ class CodeEditor(QsciScintilla):
         """
         self._bracket_hl_ranges = []
         self.cursorPositionChanged.connect(self._update_brace_highlight)
-        self.textChanged.connect(self._update_brace_highlight)
+        self.textChanged.connect(self._on_brace_text_changed)
         self._apply_brace_highlight_colors()
 
     def _apply_brace_highlight_colors(self, bg=None) -> None:
@@ -1056,12 +1056,37 @@ class CodeEditor(QsciScintilla):
         )
         self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_BAD_SLOT, 0)
 
+    def _on_brace_text_changed(self, *args) -> None:
+        """Clear stale bracket highlights after edits, then recompute.
+
+        Document positions shift on insertion/deletion, so ranges saved
+        before the edit may no longer align with the brackets. Clearing
+        the whole indicator slot (which holds at most two runs) drops
+        any stale box that could otherwise linger on a neighbouring
+        token character, e.g. part of ``QMainWindow`` in
+        ``(QMainWindow)``.
+        """
+        try:
+            length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+        except Exception:
+            return
+        self._bracket_hl_ranges = []
+        if length > 0:
+            for slot in (self.BRACKET_HL_SLOT, self.BRACKET_BAD_SLOT):
+                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+                self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
+        self._update_brace_highlight(*args)
+
     def _update_brace_highlight(self, *args) -> None:
         """Highlight the bracket pair adjacent to the caret, if any.
 
         Only the previously highlighted ranges are cleared (never the
         whole document) so caret movement stays O(1) regardless of the
-        buffer size.
+        buffer size. Both the active position and its ``SCI_BRACEMATCH``
+        counterpart are re-validated as complementary brackets before
+        painting, so only ``()[]{}`` characters are ever highlighted —
+        never an adjacent token character such as the ``Q`` in
+        ``(QMainWindow)``.
         """
         prev = self._bracket_hl_ranges
         self._bracket_hl_ranges = []
@@ -1077,29 +1102,47 @@ class CodeEditor(QsciScintilla):
         pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
 
         active = -1
+        active_ch = -1
         for cand in (pos - 1, pos):
             if 0 <= cand < length:
                 ch = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, cand)
                 if ch in (0x28, 0x29, 0x5B, 0x5D, 0x7B, 0x7D):
                     active = cand
+                    active_ch = ch
                     break
         if active < 0:
             return
 
         match = self.SendScintilla(QsciScintilla.SCI_BRACEMATCH, active, 0)
-        if match >= 0:
-            self.SendScintilla(
-                QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_HL_SLOT
-            )
-            for p in (active, match):
-                self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, p, 1)
-            self._bracket_hl_ranges = [(active, 1), (match, 1)]
-        else:
-            self.SendScintilla(
-                QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT
-            )
-            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, active, 1)
-            self._bracket_hl_ranges = [(active, 1)]
+        if match >= 0 and match != active and match < length:
+            match_ch = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, match)
+            if self._is_complementary_bracket(active_ch, match_ch):
+                self.SendScintilla(
+                    QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_HL_SLOT
+                )
+                for p in (active, match):
+                    self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, p, 1)
+                self._bracket_hl_ranges = [(active, 1), (match, 1)]
+                return
+        self.SendScintilla(
+            QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT
+        )
+        self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, active, 1)
+        self._bracket_hl_ranges = [(active, 1)]
+
+    @staticmethod
+    def _is_complementary_bracket(active_ch: int, match_ch: int) -> bool:
+        """Return True when two char codes form a valid bracket pair.
+
+        Args:
+            active_ch: Byte value at the caret-adjacent position.
+            match_ch: Byte value returned by ``SCI_BRACEMATCH``.
+
+        Returns:
+            True only for ``()``, ``[]`` and ``{}`` in either order.
+        """
+        pairs = {0x28: 0x29, 0x29: 0x28, 0x5B: 0x5D, 0x5D: 0x5B, 0x7B: 0x7D, 0x7D: 0x7B}
+        return pairs.get(active_ch) == match_ch
 
     ###############################################
     # OCCURRENCE HIGHLIGHT
