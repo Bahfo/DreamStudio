@@ -1308,6 +1308,12 @@ class CompletionController(QObject):
                 )
             except (TypeError, RuntimeError):
                 pass
+            try:
+                self._connected_manager.completion_hint.disconnect(
+                    self._on_completion_hint
+                )
+            except (TypeError, RuntimeError, AttributeError):
+                pass
 
         self._connected_manager = manager
         self._last_presented_id = 0
@@ -1316,6 +1322,36 @@ class CompletionController(QObject):
         try:
             manager.completions_ready.connect(self._on_completions_ready)
         except (TypeError, RuntimeError):
+            pass
+        try:
+            manager.completion_hint.connect(self._on_completion_hint)
+        except (TypeError, RuntimeError, AttributeError):
+            pass
+
+    @pyqtSlot(int, str)
+    def _on_completion_hint(self, request_id: int, message: str) -> None:
+        """Surface a missing-include hint as a throttled notification.
+
+        Args:
+            request_id: Request the hint belongs to (unused, latest wins).
+            message: Comma-separated missing header names.
+        """
+        del request_id
+        if not message:
+            return
+        try:
+            from editor.utils.notifications.notification_manager import (
+                get_notification_manager,
+            )
+
+            get_notification_manager().add_warning(
+                "C++ includes not found",
+                f"Headers not found: {message}. "
+                "Add a compile_commands.json, or open a CMake project so "
+                "DreamStudio can generate .ds/cpp/compile_commands.json.",
+                "Completion",
+            )
+        except Exception:
             pass
 
     @pyqtSlot(int, list)

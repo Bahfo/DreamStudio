@@ -6,6 +6,7 @@ progress updates and renders status text.
 """
 
 import logging
+import time
 import os
 
 from PyQt6.QtCore import Qt, QRectF
@@ -23,19 +24,20 @@ from fonts.font_strapper import Fonts
 
 logger = logging.getLogger(__name__)
 
-_SPLASH_WIDTH = 680
-_SPLASH_HEIGHT = 420
-_CORNER_RADIUS = 10.0
+_SPLASH_WIDTH = 690
+_SPLASH_HEIGHT = 450
+_CORNER_RADIUS = 0.0
+_MIN_VISIBLE_SECONDS = 5.0
+
 
 def _get_icon_src_path() -> str:
-    # Frozen compatibility: resources are under sys._MEIPASS
     import sys
 
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, "icon_src", "welcome_mountains.svg")  # type: ignore[attr-defined]
+        return os.path.join(sys._MEIPASS, "icon_src", "blue_geometry.svg")
     return os.path.normpath(
         os.path.join(
-            os.path.dirname(__file__), os.pardir, "icon_src", "welcome_mountains.svg"
+            os.path.dirname(__file__), os.pardir, "icon_src", "blue_geometry.svg"
         )
     )
 
@@ -50,7 +52,14 @@ def _get_sans_font(
     font = QFont()
     font.setStyleHint(QFont.StyleHint.SansSerif)
     font.setFamilies(
-        [Fonts.FONT_INTER, "Roboto", Fonts.FONT_SEGOE_UI, "Helvetica Neue", "Arial", "sans-serif"]
+        [
+            Fonts.FONT_INTER,
+            "Roboto",
+            Fonts.FONT_SEGOE_UI,
+            "Helvetica Neue",
+            "Arial",
+            "sans-serif",
+        ]
     )
     font.setPointSize(point_size)
     font.setWeight(weight)
@@ -83,43 +92,12 @@ def _render_pixmap(status_text: str, progress: float) -> QPixmap:
     clip_path.addRoundedRect(logical_rect, _CORNER_RADIUS, _CORNER_RADIUS)
     painter.setClipPath(clip_path)
 
-    bg_color = QColor("#0A52C2")
-    painter.fillRect(logical_rect, bg_color)
-
     if os.path.isfile(_SVG_PATH):
         renderer = QSvgRenderer(_SVG_PATH)
         if renderer.isValid():
             renderer.render(painter, logical_rect)
     else:
         logger.warning("SVG not found: %s", _SVG_PATH)
-
-    painter.setPen(QColor("#FFFFFF"))
-    title_font = _get_sans_font(36, QFont.Weight.Bold)
-    title_font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 98)
-    painter.setFont(title_font)
-    painter.drawText(
-        QRectF(45, 50, 500, 60),
-        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-        "DreamStudio",
-    )
-
-    sub_font = _get_sans_font(13)
-    painter.setFont(sub_font)
-    painter.drawText(
-        QRectF(48, 115, 500, 30),
-        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-        "Quiet Valley 1.1.0",
-    )
-
-    icon_y = _SPLASH_HEIGHT - 70
-
-    brand_font = _get_sans_font(9, QFont.Weight.Bold)
-    painter.setFont(brand_font)
-    painter.drawText(
-        QRectF(48, icon_y, 300, 18),
-        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-        "© EXCELLENT TECHSTACKS",
-    )
 
     bar_h = 4
     bar_y = _SPLASH_HEIGHT - bar_h
@@ -153,6 +131,7 @@ class SplashController:
         self._current_step = 0
         self._status_text = "Starting..."
         self._closed = False
+        self._shown_at = 0.0
         logger.info("SplashController created")
 
     def set_step_count(self, count: int) -> None:
@@ -170,6 +149,7 @@ class SplashController:
         )
         self._splash.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._splash.show()
+        self._shown_at = time.monotonic()
         logger.info("Splash screen shown")
 
     def update_status(self, message: str, step: int | None = None) -> None:
@@ -183,7 +163,6 @@ class SplashController:
             if self._step_count > 0:
                 progress = self._current_step / self._step_count
 
-            # Re-render with new progress
             pixmap = _render_pixmap(self._status_text, progress)
             self._splash.setPixmap(pixmap)
             self._splash.repaint()
@@ -199,8 +178,20 @@ class SplashController:
             )
 
     def close(self) -> None:
-        """Close and delete the splash screen."""
+        """Close and delete the splash screen.
+
+        Keeps the splash visible for at least ``_MIN_VISIBLE_SECONDS``
+        so it stays on screen a bit longer on fast startups.
+        """
         if self._splash and not self._closed:
+            remaining = _MIN_VISIBLE_SECONDS - (time.monotonic() - self._shown_at)
+            app = QApplication.instance()
+            while remaining > 0:
+                chunk = min(remaining, 0.05)
+                time.sleep(chunk)
+                if app:
+                    app.processEvents()
+                remaining -= chunk
             self._splash.close()
             self._splash.deleteLater()
             self._splash = None

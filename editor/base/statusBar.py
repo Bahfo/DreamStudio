@@ -170,6 +170,13 @@ class StatusBar(QFrame):
         self.indexing_bar.setObjectName("indexingProgress")
         statusbar_layout.addWidget(self.indexing_bar)
 
+        try:
+            from editor.widgets.QIndexingCoordinator import IndexingCoordinator
+
+            self.indexing_coordinator = IndexingCoordinator(self.indexing_bar, self)
+        except Exception:
+            self.indexing_coordinator = None
+
         statusbar_layout.addStretch()
 
         self.lines_and_cols = QLabel()
@@ -289,9 +296,46 @@ class StatusBar(QFrame):
         try:
             if panel is None:
                 return
-            panel.indexing_started.connect(self.indexing_bar.start_indexing)
-            panel.indexing_progress.connect(self.indexing_bar.advance_indexing)
-            panel.indexing_finished.connect(self.indexing_bar.finish_indexing)
+            coordinator = getattr(self, "indexing_coordinator", None)
+            if coordinator is None:
+                panel.indexing_started.connect(self.indexing_bar.start_indexing)
+                panel.indexing_progress.connect(self.indexing_bar.advance_indexing)
+                panel.indexing_finished.connect(self.indexing_bar.finish_indexing)
+                return
+            panel.indexing_started.connect(
+                lambda total: coordinator.start("python", total)
+            )
+            panel.indexing_progress.connect(
+                lambda done, _total: coordinator.advance("python", done)
+            )
+            panel.indexing_finished.connect(lambda: coordinator.finish("python"))
+        except Exception:
+            pass
+
+    def attach_cpp_indexer(self, indexer) -> None:
+        """Wire a C++ indexer trio into the shared progress coordinator.
+
+        Args:
+            indexer: Object emitting ``indexing_started(int)``,
+                ``indexing_progress(int, int)`` and ``indexing_finished()``.
+                ``None`` detaches nothing and is ignored.
+        """
+        try:
+            if indexer is None:
+                return
+            coordinator = getattr(self, "indexing_coordinator", None)
+            if coordinator is None:
+                indexer.indexing_started.connect(self.indexing_bar.start_indexing)
+                indexer.indexing_progress.connect(self.indexing_bar.advance_indexing)
+                indexer.indexing_finished.connect(self.indexing_bar.finish_indexing)
+                return
+            indexer.indexing_started.connect(
+                lambda total: coordinator.start("cpp", total)
+            )
+            indexer.indexing_progress.connect(
+                lambda done, _total: coordinator.advance("cpp", done)
+            )
+            indexer.indexing_finished.connect(lambda: coordinator.finish("cpp"))
         except Exception:
             pass
 

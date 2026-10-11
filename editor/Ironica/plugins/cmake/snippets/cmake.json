@@ -1,0 +1,49 @@
+{
+    "snippets": "CMake",
+    "Boilerplate": {
+        "Project": [
+            "cmake_minimum_required(VERSION 3.16)",
+            "",
+            "project(ProjectName LANGUAGES C CXX)",
+            "",
+            "set(CMAKE_CXX_STANDARD 20)",
+            "set(CMAKE_CXX_STANDARD_REQUIRED ON)"
+        ],
+        "Executable": [
+            "add_executable(${1:app}",
+            "    src/main.cpp",
+            ")",
+            "target_include_directories(${1:app} PRIVATE",
+            "    include",
+            ")"
+        ],
+        "Library": [
+            "add_library(${1:lib} STATIC",
+            "    src/lib.cpp",
+            ")",
+            "target_include_directories(${1:lib} PUBLIC",
+            "    include",
+            ")"
+        ],
+        "FindPackage": [
+            "find_package(${1:SDL2} REQUIRED)",
+            "target_link_libraries(${2:app} PRIVATE ${1:SDL2}::${1:SDL2})"
+        ],
+        "LinkLibraries": [
+            "target_link_libraries(${1:app} PRIVATE",
+            "    ${2:lib}",
+            ")"
+        ],
+        "IncludeDirs": [
+            "target_include_directories(${1:app} PRIVATE",
+            "    ${2:include}",
+            ")"
+        ],
+        "Option": [
+            "option(${1:BUILD_TESTS} \"${2:Build the test suite}\" OFF)"
+        ],
+        "Subdirectory": [
+            "add_subdirectory(${1:src})"
+        ]
+    }
+}

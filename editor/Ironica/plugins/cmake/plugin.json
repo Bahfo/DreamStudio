@@ -1,0 +1,11 @@
+{
+    "id": "cmake",
+    "display_name": "CMake",
+    "requires": [],
+    "keywords": "keywords/cmake.json",
+    "snippets": "snippets/cmake.json",
+    "provider": {
+        "file": "provider.py",
+        "function": "create_provider"
+    }
+}

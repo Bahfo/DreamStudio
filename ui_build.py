@@ -319,6 +319,14 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
             self.status_bar.set_problem_counts(*problems.problem_counts())
             # Right-clicking a diagnostic button edits this panel's options.
             self.status_bar.attach_problems_panel(problems)
+            try:
+                from editor.Ironica.plugins.cpp.intellisense.index import (
+                    get_cpp_indexer,
+                )
+
+                self.status_bar.attach_cpp_indexer(get_cpp_indexer())
+            except Exception as exc:
+                logger.debug("C++ indexer not bound: %s", exc)
         except Exception as exc:
             logger.debug("Problem counts not bound: %s", exc)
 
@@ -350,6 +358,12 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         workspace_root = self.currentDirectory
         problems = self.hero_window._lower_widget.problems_window
         problems.run_workspace_analysis(workspace_root)
+        try:
+            from editor.Ironica.plugins.cpp.intellisense.index import get_cpp_indexer
+
+            get_cpp_indexer().run(workspace_root)
+        except Exception as exc:
+            logger.debug("C++ index on ready failed: %s", exc)
 
     def _on_free_trial_click(self) -> None:
         self.hero_window._text_editor_center.tabs.open_free_trial_tab()

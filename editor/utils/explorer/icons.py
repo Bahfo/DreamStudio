@@ -9,6 +9,7 @@ class DreamStudioIconProvider(QFileIconProvider):
         "bin": "bin.png",
         "bsharp": "bsharp.png",
         "c": "c.png",
+        "cmake": "make.png",
         "css": "css.png",
         "csv": "csv.png",
         "d": "dlang.png",
@@ -47,7 +48,7 @@ class DreamStudioIconProvider(QFileIconProvider):
         ".gitignore": "git.png",
         ".gitattributes": "git.png",
         "Makefile": "make.png",
-        "CMakelists": "make.png",
+        "CMakeLists": "make.png",
         "Dockerfile": "docker.png",
         ".dockerignore": "docker.png",
     }

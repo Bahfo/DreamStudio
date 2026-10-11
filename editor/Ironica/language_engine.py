@@ -368,6 +368,7 @@ class LanguageRegistry:
     _configs: Dict[str, dict] = {}
     _providers: Dict[str, BaseLanguageProvider] = {}
     _extension_map: Dict[str, str] = {}
+    _filename_map: Dict[str, str] = {}
     _snippet_paths: Dict[str, str] = {}
 
     # ------------------------------------------------------------------
@@ -398,6 +399,19 @@ class LanguageRegistry:
                     lang_name,
                 )
             cls._extension_map[normalized_ext] = lang_name
+        for filename in config.get("filenames", []):
+            normalized_name = str(filename).strip().lower()
+            if not normalized_name:
+                continue
+            existing = cls._filename_map.get(normalized_name)
+            if existing and existing != lang_name:
+                logger.warning(
+                    "Filename %r already mapped to %r — replacing with %r",
+                    normalized_name,
+                    existing,
+                    lang_name,
+                )
+            cls._filename_map[normalized_name] = lang_name
         if provider_instance is not None:
             if not isinstance(provider_instance, BaseLanguageProvider):
                 logger.error(
@@ -502,12 +516,17 @@ class LanguageRegistry:
         cls._providers.pop(lang_name, None)
         cls._snippet_paths.pop(lang_name, None)
 
-        # Remove extensions that point to this language.
+        # Remove extensions and filenames that point to this language.
         to_remove = [
             ext for ext, name in cls._extension_map.items() if name == lang_name
         ]
         for ext in to_remove:
             del cls._extension_map[ext]
+        to_remove = [
+            name for name, lang in cls._filename_map.items() if lang == lang_name
+        ]
+        for name in to_remove:
+            del cls._filename_map[name]
 
         logger.info("Unregistered language: %s", lang_name)
         return True
@@ -527,6 +546,30 @@ class LanguageRegistry:
             return None
         normalized = f".{ext.lstrip('.').lower()}"
         return cls._extension_map.get(normalized)
+
+    @classmethod
+    def get_language_for_file(cls, file_path: str) -> Optional[str]:
+        """Resolve a file path to its language identifier.
+
+        Exact filename matches (e.g. ``"CMakeLists.txt"``) take precedence
+        over the extension mapping, so extensionless or misleadingly
+        suffixed files still resolve correctly.
+
+        Args:
+            file_path: Absolute or relative file path.
+
+        Returns:
+            Language identifier, or ``None`` when unmapped.
+        """
+        if not isinstance(file_path, str) or not file_path:
+            return None
+        basename = os.path.basename(file_path).strip().lower()
+        if basename and basename in cls._filename_map:
+            return cls._filename_map[basename]
+        _, ext = os.path.splitext(basename)
+        if ext:
+            return cls.get_language_by_extension(ext)
+        return None
 
     @classmethod
     def get_config(cls, lang: str) -> Optional[dict]:
@@ -615,6 +658,11 @@ class LanguageRegistry:
         """Return a copy of the extension → language mapping."""
         return dict(cls._extension_map)
 
+    @classmethod
+    def get_all_filenames(cls) -> Dict[str, str]:
+        """Return a copy of the exact-filename → language mapping."""
+        return dict(cls._filename_map)
+
     # ------------------------------------------------------------------
     # Reset (for testing)
     # ------------------------------------------------------------------
@@ -625,6 +673,7 @@ class LanguageRegistry:
         cls._configs.clear()
         cls._providers.clear()
         cls._extension_map.clear()
+        cls._filename_map.clear()
         cls._snippet_paths.clear()
 
     # ------------------------------------------------------------------
@@ -716,6 +765,10 @@ class LanguageRegistry:
             errors.append(
                 "No extensions defined — language will be unreachable by file type"
             )
+
+        filenames = config.get("filenames", [])
+        if filenames and not isinstance(filenames, list):
+            errors.append("'filenames' must be a list of exact file names")
 
         styles = config.get("styles")
         if styles is None:

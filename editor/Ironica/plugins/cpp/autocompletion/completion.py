@@ -53,6 +53,7 @@ class _CppCompletionWorker(threading.Thread):
         self._started_once = False
         self._current: Optional[_CompletionRequest] = None
         self._shutting_down = False
+        self._last_hint_key = None
         from .symbols import SymbolsCache
 
         self._symbols = SymbolsCache()
@@ -90,6 +91,8 @@ class _CppCompletionWorker(threading.Thread):
                     continue
                 self._emit_symbol_rows(request)
                 items = self._engine.complete(request.context) or []
+                if not items and not request.warmup:
+                    items = self._index_fallback(request)
                 _profile.mark(self._owner._editor, "engine-done")
             except Exception as exc:  # Bad input doesn't kill worker
                 logger.warning("C++ completion engine failed: %s", exc)
@@ -98,6 +101,7 @@ class _CppCompletionWorker(threading.Thread):
                 continue
             if request.request_id < self._owner._request_counter:
                 continue
+            self._maybe_hint(request, items)
             try:
                 _profile.mark(self._owner._editor, "emit")
                 self._owner.completions_ready.emit(request.request_id, list(items))
@@ -138,6 +142,58 @@ class _CppCompletionWorker(threading.Thread):
         except Exception as exc:
             logger.debug("symbol fast path failed: %s", exc)
 
+    def _index_fallback(self, request: _CompletionRequest) -> list:
+        """Search the workspace index when the semantic TU yields nothing.
+
+        Args:
+            request: The finished completion request.
+
+        Returns:
+            Index rows (possibly empty) — never raises.
+        """
+        try:
+            from ..intellisense.index import search_for_file
+
+            return search_for_file(
+                request.context.file_path, request.context.prefix or ""
+            )
+        except Exception as exc:
+            logger.debug("index fallback failed: %s", exc)
+            return []
+
+    def _maybe_hint(self, request: _CompletionRequest, items: list) -> None:
+        """Emit a missing-include hint when semantic completion is empty.
+
+        Fires at most once per ``(file, headers)`` combination so typing
+        does not spam notifications. Runs on the worker thread; delivery
+        to the GUI thread happens through the ``completion_hint`` signal.
+
+        Args:
+            request: The finished completion request.
+            items: Semantic items produced for it (possibly empty).
+        """
+        try:
+            if request.warmup or items:
+                return
+            getter = getattr(self._engine, "missing_includes", None)
+            if getter is None:
+                return
+            missing = getter(request.context) or []
+            if not missing:
+                return
+            key = (request.context.file_path, tuple(missing))
+            if key == self._last_hint_key:
+                return
+            self._last_hint_key = key
+            shown = ", ".join(missing[:4])
+            if len(missing) > 4:
+                shown += f", +{len(missing) - 4} more"
+            self._owner.completion_hint.emit(request.request_id, shown)
+        except RuntimeError:
+            pass  # owner deleted with its editor
+        except Exception as exc:
+            logger.debug("completion hint failed: %s", exc)
+
     def shutdown(self) -> None:
         """
         Stop the thread at editor teardown.
@@ -154,6 +210,7 @@ class CppCompletionManager(QObject):
     """
 
     completions_ready = pyqtSignal(int, list)
+    completion_hint = pyqtSignal(int, str)
 
     def __init__(
         self,

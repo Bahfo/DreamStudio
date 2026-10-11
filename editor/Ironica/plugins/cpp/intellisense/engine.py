@@ -324,6 +324,34 @@ class CppEngine:
         except Exception as exc:
             logger.debug("completion warmup failed: %s", exc)
 
+    def missing_includes(self, ctx: CppContext) -> list:
+        """Return header names the TU reports as not found, sorted.
+
+        Parses ``'X' file not found`` diagnostics off the cached unit so
+        the UI can tell the user *why* completion is empty instead of
+        failing silently.
+
+        Args:
+            ctx: Completion context to inspect.
+
+        Returns:
+            Sorted unique header names (possibly empty) — never raises.
+        """
+        try:
+            tu = self._tu_for_completion(ctx)
+            if tu is None:
+                return []
+            missing: set = set()
+            for diagnostic in getattr(tu, "diagnostics", []) or []:
+                spelling = getattr(diagnostic, "spelling", "") or ""
+                match = re.search(r"'([^']+)' file not found", spelling)
+                if match:
+                    missing.add(match.group(1))
+            return sorted(missing)
+        except Exception as exc:
+            logger.debug("include diagnostics failed: %s", exc)
+            return []
+
     def _tu_for_completion(self, ctx: CppContext):
         """Return a TU for completion without reparsing (fast path).
 

@@ -1,0 +1,113 @@
+{
+    "lang": "cmake",
+    "display_name": "CMake",
+    "badge_color": "#064F8C",
+    "comment_style": "hash",
+    "extensions": [
+        "cmake"
+    ],
+    "filenames": [
+        "CMakeLists.txt"
+    ],
+    "styles": {
+        "keyword": "KEYWORD_COLOR",
+        "builtin": "BUILTIN_COLOR",
+        "definition": "DEFINITION_COLOR",
+        "string": "STRING_COLOR",
+        "number": "NUMBER_COLOR",
+        "comment": "COMMENT_COLOR",
+        "variable": "VARIABLE_COLOR",
+        "operator": "OPERATOR_COLOR",
+        "bracket": "BRACKET_COLOR",
+        "bracket_2": "BRACKET2_COLOR"
+    },
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "BUILTIN_COLOR": "#4EC9B0",
+        "DEFINITION_COLOR": "#DCDCAA",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "VARIABLE_COLOR": "#9CDCFE",
+        "OPERATOR_COLOR": "#D4D4D4",
+        "BRACKET_COLOR": "#FFD700",
+        "BRACKET2_COLOR": "#C678DD"
+    },
+    "keywords": {
+        "keyword": [
+            "if",
+            "elseif",
+            "else",
+            "endif",
+            "foreach",
+            "endforeach",
+            "while",
+            "endwhile",
+            "function",
+            "endfunction",
+            "macro",
+            "endmacro",
+            "return",
+            "break",
+            "continue",
+            "include_guard"
+        ],
+        "builtin": [
+            "project",
+            "cmake_minimum_required",
+            "add_subdirectory",
+            "include",
+            "find_package",
+            "option",
+            "set",
+            "message",
+            "configure_file",
+            "install",
+            "enable_testing",
+            "add_test",
+            "pkg_check_modules"
+        ],
+        "definition": [
+            "add_executable",
+            "add_library",
+            "add_custom_command",
+            "add_custom_target",
+            "target_link_libraries",
+            "target_include_directories",
+            "target_compile_definitions",
+            "target_compile_options",
+            "target_compile_features",
+            "set_target_properties"
+        ],
+        "string": [],
+        "number": [],
+        "comment": [],
+        "variable": [
+            "CMAKE_SOURCE_DIR",
+            "CMAKE_BINARY_DIR",
+            "CMAKE_CURRENT_SOURCE_DIR",
+            "CMAKE_CURRENT_BINARY_DIR",
+            "CMAKE_CURRENT_LIST_DIR",
+            "CMAKE_CXX_STANDARD",
+            "CMAKE_C_STANDARD",
+            "CMAKE_BUILD_TYPE",
+            "CMAKE_PREFIX_PATH",
+            "PROJECT_SOURCE_DIR",
+            "PROJECT_BINARY_DIR",
+            "PROJECT_NAME"
+        ],
+        "operator": [],
+        "bracket": [],
+        "bracket_2": []
+    },
+    "snippets": [
+        "/Project",
+        "/Executable",
+        "/Library",
+        "/FindPackage",
+        "/LinkLibraries",
+        "/IncludeDirs",
+        "/Option",
+        "/Subdirectory"
+    ]
+}

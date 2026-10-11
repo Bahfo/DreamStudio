@@ -9,6 +9,10 @@ import os
 DS_DIR = ".ds"
 SOLUTION_FILE = "solution.yaml"
 RUN_SUBDIR = "run"
+CPP_SUBDIR = "cpp"
+CPP_INDEX_SUBDIR = "index"
+COMPILE_COMMANDS_FILENAME = "compile_commands.json"
+COMPILE_FLAGS_FILENAME = "compile_flags.txt"
 PROJECT_INFO_FILE = "project_info.yaml"
 PROPERTIES_FILE = "properties.json"
 METADATA_FILE = "metadata.txt"
@@ -52,6 +56,32 @@ def run_dir(root: str, ensure: bool = False) -> str:
     if ensure:
         os.makedirs(directory, exist_ok=True)
     return directory
+
+
+def cpp_dir(root: str, ensure: bool = False) -> str:
+    """Return absolute per-workspace C++ artefact directory (``.ds/cpp``)."""
+    directory = os.path.join(ds_dir(root), CPP_SUBDIR)
+    if ensure:
+        os.makedirs(directory, exist_ok=True)
+    return directory
+
+
+def cpp_index_dir(root: str, ensure: bool = False) -> str:
+    """Return absolute per-workspace C++ symbol-index directory."""
+    directory = os.path.join(cpp_dir(root), CPP_INDEX_SUBDIR)
+    if ensure:
+        os.makedirs(directory, exist_ok=True)
+    return directory
+
+
+def compile_commands_path(root: str) -> str:
+    """Return absolute generated compile-database path for *root*."""
+    return os.path.join(cpp_dir(root), COMPILE_COMMANDS_FILENAME)
+
+
+def compile_flags_path(root: str) -> str:
+    """Return absolute generated compile-flags path for *root*."""
+    return os.path.join(cpp_dir(root), COMPILE_FLAGS_FILENAME)
 
 
 def is_solution(root: str) -> bool:

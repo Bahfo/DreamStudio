@@ -240,6 +240,20 @@ class WorkspaceService(QObject):
         if problems is None or not hasattr(problems, "run_workspace_analysis"):
             return
         QTimer.singleShot(0, lambda: self._safe_analysis(problems, path, gen))
+        QTimer.singleShot(0, lambda: self._start_cpp_index(path, gen))
+
+    def _start_cpp_index(self, path: str, gen: int | None = None) -> None:
+        """Best-effort C++ workspace index that never raises into the GUI."""
+        if gen is not None and gen != self._generation:
+            return
+        if path != self.current_path:
+            return
+        try:
+            from editor.Ironica.plugins.cpp.intellisense.index import get_cpp_indexer
+
+            get_cpp_indexer().run(path)
+        except Exception as exc:
+            logger.debug("C++ index fan-out failed: %s", exc)
 
     def _safe_analysis(self, problems, path: str, gen: int | None = None) -> None:
         """Best-effort problems analysis that never raises into the GUI."""

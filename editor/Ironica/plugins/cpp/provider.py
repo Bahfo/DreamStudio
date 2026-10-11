@@ -231,6 +231,15 @@ class CppProvider(BaseLanguageProvider):
             items = self._make_engine().complete(ctx) or []
         except Exception:
             return []
+        if not items:
+            try:
+                from .intellisense.index import search_for_file
+
+                items = search_for_file(
+                    file_path or self._file_path, prefix or ""
+                )
+            except Exception:
+                pass
         if prefix:
             pl = prefix.lower()
             items = [c for c in items if c.text.lower().startswith(pl)]

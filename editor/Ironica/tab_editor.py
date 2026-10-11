@@ -944,7 +944,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             file_path: Absolute path to the file.
         """
         file_name = pathlib.Path(file_path).name
-        file_extn = pathlib.Path(file_path).suffix
 
         try:
             # Binary/ELF files are detected via magic/header, not extension
@@ -954,7 +953,7 @@ class DreamTabbedEditor(QDreamTabEditor):
             self.add_new_editor(
                 file_name=file_name,
                 file_path=file_path,
-                language=self.set_language(file_extn),
+                language=self.set_language_for_file(file_path),
             )
         except Exception as e:
             logger.error("Open file by path failed: %s", e)
@@ -979,14 +978,13 @@ class DreamTabbedEditor(QDreamTabEditor):
             line: Zero-based destination line for go-to-definition navigation.
         """
         file_name = pathlib.Path(file_path).name
-        file_extn = pathlib.Path(file_path).suffix
         destination_line = max(0, int(line))
 
         try:
             self.add_new_editor(
                 file_name=file_name,
                 file_path=file_path,
-                language=self.set_language(file_extn),
+                language=self.set_language_for_file(file_path),
             )
             editor = self.get_editor_for_path(file_path)
             if editor is None:
@@ -1038,6 +1036,20 @@ class DreamTabbedEditor(QDreamTabEditor):
         from editor.Ironica.language_engine import LanguageRegistry
 
         return LanguageRegistry.get_language_by_extension(lang)
+
+    @staticmethod
+    def set_language_for_file(file_path: str):
+        """Resolve a full file path to a language identifier.
+
+        Exact filename matches (e.g. ``"CMakeLists.txt"``) win over the
+        extension mapping.
+
+        Args:
+            file_path: Absolute path to the file being opened.
+        """
+        from editor.Ironica.language_engine import LanguageRegistry
+
+        return LanguageRegistry.get_language_for_file(file_path)
 
     def open_new_workspace(self, path: str) -> None:
         """Update the current working directory for the file chooser."""
@@ -1117,7 +1129,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.add_new_editor(
             file_name=pathlib.Path(file_path).name,
             file_path=file_path,
-            language=self.set_language(pathlib.Path(file_path).suffix),
+            language=self.set_language_for_file(file_path),
         )
 
     def save_all_files(self) -> None:

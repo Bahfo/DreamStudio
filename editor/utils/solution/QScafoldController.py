@@ -192,6 +192,13 @@ class ScaffoldController:
         except AttributeError:
             pass
 
+        try:
+            from editor.Ironica.plugins.cpp.intellisense.index import get_cpp_indexer
+
+            get_cpp_indexer().run(target)
+        except Exception:
+            pass
+
 
 class QScaffoldProgressDialog(QDialog):
     """Blocking progress dialog bound to a running ``ProjectBootstrap``.
