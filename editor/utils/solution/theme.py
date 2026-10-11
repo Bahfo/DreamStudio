@@ -4,13 +4,89 @@
 Shared theming and screen-centering helpers for the solution-management
 widgets (start window, create dialog, scaffold dialog, confirm boxes).
 
-The IDE theme (a QSS string registered as ``theme_content`` during boot) is
-applied here so every dialer the solution flow creates matches whatever theme
-the IDE is running with, and every popup is centered on the screen.
+Also loads the standalone start-window QSS files (``editor/qss/startup_*``)
+and the create-dialog fallback QSS so no widget embeds stylesheets inline.
 """
 
 from PyQt6.QtWidgets import QApplication, QWidget
-from editor.utils.theme import apply_theme as _central_apply  # noqa: F401
+
+from editor.utils.resource_path import resource_path
+
+_STARTUP_QSS_FILES = {
+    "dark": "editor/qss/startup_dark.qss",
+    "light": "editor/qss/startup_light.qss",
+}
+
+_DIALOG_QSS_FILE = "editor/qss/create_dialog.qss"
+
+_HIGHLIGHT_COLORS = {
+    "dark": "#5B5BD6",
+    "light": "#4F46E5",
+}
+
+
+def normalize_theme_mode(mode: str = "dark") -> str:
+    """Normalize a theme mode to ``"dark"`` or ``"light"``.
+
+    Args:
+        mode: Raw mode string (case-insensitive).
+
+    Returns:
+        ``"light"`` for light input, ``"dark"`` for anything else.
+    """
+    return "light" if str(mode).strip().lower() == "light" else "dark"
+
+
+def _read_qss(relative_path: str) -> str:
+    """Read a QSS resource file, returning ``""`` when unavailable.
+
+    Args:
+        relative_path: Project-relative resource path.
+
+    Returns:
+        File content or an empty string on any failure.
+    """
+    try:
+        with open(resource_path(relative_path), encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return ""
+
+
+def load_startup_qss(mode: str = "dark") -> str:
+    """Load the standalone start-window QSS for *mode*.
+
+    Args:
+        mode: ``"dark"`` or ``"light"`` (anything else falls back to dark).
+
+    Returns:
+        QSS content, or ``""`` when neither file is readable.
+    """
+    content = _read_qss(_STARTUP_QSS_FILES[normalize_theme_mode(mode)])
+    if content:
+        return content
+    return _read_qss(_STARTUP_QSS_FILES["dark"])
+
+
+def load_dialog_qss() -> str:
+    """Load the create-dialog fallback QSS.
+
+    Returns:
+        QSS content, or ``""`` when the file is unreadable.
+    """
+    return _read_qss(_DIALOG_QSS_FILE)
+
+
+def startup_highlight(mode: str = "dark") -> str:
+    """Return the search-match highlight color for *mode*.
+
+    Args:
+        mode: ``"dark"`` or ``"light"``.
+
+    Returns:
+        Hex color string used for template match highlighting.
+    """
+    return _HIGHLIGHT_COLORS[normalize_theme_mode(mode)]
 
 
 def apply_theme(widget: QWidget, registry=None) -> bool:

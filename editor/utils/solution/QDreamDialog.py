@@ -15,29 +15,31 @@ import os
 
 from editor import *
 
-from editor.utils.solution.solution_marker import write_solution
+from editor.utils.solution.dialogs import ask_yes_no, themed_box
+from editor.utils.solution.solution_marker import ensure_solution_marker
 from editor.utils.solution.theme import (
-    center_on_screen,
     center_on_screen_show,
     inherit_theme,
+    load_dialog_qss,
 )
 
 _DIALOG_MIN_WIDTH = 520
 
 
-def _message_box(parent, icon, title, text, buttons=QMessageBox.StandardButton.Ok):
-    box = QMessageBox(parent)
-    box.setIcon(icon)
-    box.setWindowTitle(title)
-    box.setText(text)
-    box.setStandardButtons(buttons)
-    inherit_theme(box)
-    center_on_screen(box)
-    return box
-
-
 class CreateSolutionDialog(QDialog):
+    """Collect a solution name and location for the chosen template.
+
+    Attributes:
+        result_data: Creation result dict after an accepted dialog.
+    """
+
     def __init__(self, parent=None, project_entry=None) -> None:
+        """Build the dialog for *project_entry*.
+
+        Args:
+            parent: Parent widget to inherit the theme from.
+            project_entry: Manifest entry the solution is created from.
+        """
         super().__init__(parent)
         self._project_entry = project_entry or {}
         self.result_data: dict = {}
@@ -48,15 +50,15 @@ class CreateSolutionDialog(QDialog):
 
         self._build_ui()
 
-        styled = inherit_theme(self)
-        if not styled:
-            self._apply_style()
+        if not inherit_theme(self):
+            self.setStyleSheet(load_dialog_qss())
 
     def showEvent(self, event) -> None:
         """Center the dialog on the screen each time it is shown."""
         center_on_screen_show(self, event)
 
     def _build_ui(self) -> None:
+        """Create the name, location and confirmation widgets."""
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
@@ -105,49 +107,33 @@ class CreateSolutionDialog(QDialog):
         layout.addLayout(buttons)
 
     def _heading(self, text: str) -> QLabel:
+        """Build a heading label for *text*.
+
+        Args:
+            text: Heading content.
+
+        Returns:
+            Configured label.
+        """
         label = QLabel(text)
         label.setObjectName("HeadingLabel")
         return label
 
     def _label(self, text: str) -> QLabel:
+        """Build a field label for *text*.
+
+        Args:
+            text: Label content.
+
+        Returns:
+            Configured label.
+        """
         label = QLabel(text)
         label.setObjectName("FieldLabel")
         return label
 
-    def _apply_style(self) -> None:
-        self.setStyleSheet("""
-            QLabel#HeadingLabel {
-                font-size: 18px;
-                font-weight: bold;
-            }
-            QLabel#FieldLabel {font-size: 12px;}
-            QLabel#ProjectTypeLabel {
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QLabel#DescriptionLabel {font-size: 12px;}
-            QLineEdit {
-                border: 1px solid #45475a;
-                border-radius: 6px;
-                color: #cdd6f4;
-                padding: 6px 8px;
-                font-size: 13px;
-            }
-            QLineEdit:focus {border: 1px solid #89b4fa;}
-            QPushButton {
-                border: 1px solid #45475a;
-                border-radius: 6px;
-                color: #cdd6f4;
-                padding: 7px 14px;
-                font-size: 13px;
-            }
-            QPushButton#PrimaryButton {
-                color: #11111b;
-                font-weight: bold;
-            }
-            """)
-
     def _choose_location(self) -> None:
+        """Let the user pick the parent folder for the new solution."""
         start_dir = self._location_input.text() or os.path.expanduser("~")
         folder = QFileDialog.getExistingDirectory(
             self, "Select Project Location", start_dir
@@ -156,12 +142,13 @@ class CreateSolutionDialog(QDialog):
             self._location_input.setText(folder)
 
     def _validate_and_accept(self) -> None:
+        """Validate inputs, write the marker and accept the dialog."""
         name = self._name_input.text().strip()
         location = os.path.expanduser(self._location_input.text().strip())
         project_entry = self._project_entry or {}
 
         if not name:
-            _message_box(
+            themed_box(
                 self,
                 QMessageBox.Icon.Warning,
                 "Missing name",
@@ -174,7 +161,7 @@ class CreateSolutionDialog(QDialog):
 
         for char in ("/", "\\", ":", "*", "?", '"', "<", ">", "|"):
             if char in name:
-                _message_box(
+                themed_box(
                     self,
                     QMessageBox.Icon.Warning,
                     "Invalid name",
@@ -184,21 +171,17 @@ class CreateSolutionDialog(QDialog):
 
         target = os.path.join(location, name)
         if os.path.exists(target) and any(os.scandir(target)):
-            box = _message_box(
+            if not ask_yes_no(
                 self,
-                QMessageBox.Icon.Question,
                 "Directory not empty",
                 f"'{target}' already exists and is not empty.\n\nOpen it anyway?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            reply = box.exec()
-            if reply != QMessageBox.StandardButton.Yes:
+            ):
                 return
         else:
             try:
                 os.makedirs(target, exist_ok=True)
             except OSError as exc:
-                _message_box(
+                themed_box(
                     self,
                     QMessageBox.Icon.Critical,
                     "Creation failed",
@@ -208,28 +191,14 @@ class CreateSolutionDialog(QDialog):
 
         project_type = project_entry.get("project_type", "directory")
         try:
-            write_solution(
+            ensure_solution_marker(
                 target,
                 name=name,
                 project_type=project_type,
                 manifest=project_entry.get("manifest_path", ""),
             )
-            from editor.utils.properties.project_data_engine import ProjectDataEngine
-
-            engine = ProjectDataEngine(target)
-            engine.commit_solution_properties(
-                {
-                    "name": name,
-                    "authors": "",
-                    "copyright": "",
-                    "details": "",
-                    "code_of_conduct": "",
-                    "license": "",
-                    "contributing": "",
-                }
-            )
         except OSError as exc:
-            _message_box(
+            themed_box(
                 self,
                 QMessageBox.Icon.Critical,
                 "Creation failed",
@@ -247,8 +216,16 @@ class CreateSolutionDialog(QDialog):
         self.accept()
 
     def _resolve_location(self, location: str) -> str:
+        """Ensure *location* exists and return it, warning when empty.
+
+        Args:
+            location: Raw location text from the input field.
+
+        Returns:
+            The ensured directory, or ``""`` when no location was given.
+        """
         if not location:
-            _message_box(
+            themed_box(
                 self,
                 QMessageBox.Icon.Warning,
                 "Missing location",

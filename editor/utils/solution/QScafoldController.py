@@ -9,8 +9,8 @@ from PyQt6.QtWidgets import QMessageBox
 
 from editor import *
 from editor.init.project_bootstrap import ProjectBootstrap
+from editor.utils.solution.dialogs import ask_yes_no, themed_box
 from editor.utils.solution.manifests_scanner import load_manifest
-from editor.utils.solution.theme import center_on_screen, inherit_theme
 from editor.utils.solution.theme import center_on_screen_show, inherit_theme
 
 logger = logging.getLogger(__name__)
@@ -82,16 +82,14 @@ class ScaffoldController:
         step = dialog.failed_step or "unknown step"
         detail = dialog.error_text.strip().splitlines()
         tail = "\n".join(detail[-8:]) if detail else "See the application log."
-        box = QMessageBox(self._window)
-        box.setIcon(QMessageBox.Icon.Critical)
-        box.setWindowTitle("Project Creation Failed")
-        box.setText(
+        themed_box(
+            self._window,
+            QMessageBox.Icon.Critical,
+            "Project Creation Failed",
             f"Scaffolding failed during '{step}' and created files were "
             "rolled back.\n\n"
-            f"{tail}"
-        )
-        inherit_theme(box)
-        box.exec()
+            f"{tail}",
+        ).exec()
 
     def _collect_packages(self, manifest: dict) -> list[str]:
         """Extract dependency names from the manifest's requirements template.
@@ -142,18 +140,7 @@ class ScaffoldController:
             body += "\n".join(f"  • {pkg}" for pkg in packages)
         body += "\n\nThis may take a while. Continue?"
 
-        box = QMessageBox(self._window)
-        box.setIcon(QMessageBox.Icon.Question)
-        box.setWindowTitle("Create Solution")
-        box.setText(body)
-        box.setStandardButtons(
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        box.setDefaultButton(QMessageBox.StandardButton.Yes)
-        inherit_theme(box)
-        center_on_screen(box)
-        reply = box.exec()
-        return reply == QMessageBox.StandardButton.Yes
+        return ask_yes_no(self._window, "Create Solution", body)
 
     def _refresh_ide(self) -> None:
         """Re-point path-dependent panels at the scaffolded solution root."""
@@ -207,6 +194,16 @@ class ScaffoldController:
 
 
 class QScaffoldProgressDialog(QDialog):
+    """Blocking progress dialog bound to a running ``ProjectBootstrap``.
+
+    Attributes:
+        success: Whether scaffolding finished successfully.
+        cancelled: Whether the user cancelled the run.
+        failed: Whether any step failed.
+        failed_step: Name of the failed step, if any.
+        error_text: Tail of the failure output, if any.
+    """
+
     def __init__(
         self,
         parent=None,

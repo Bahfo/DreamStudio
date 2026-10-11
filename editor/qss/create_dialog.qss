@@ -1,0 +1,44 @@
+/* DreamStudio create-solution dialog - fallback style. */
+
+QLabel#HeadingLabel {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+QLabel#FieldLabel {
+    font-size: 12px;
+}
+
+QLabel#ProjectTypeLabel {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+QLabel#DescriptionLabel {
+    font-size: 12px;
+}
+
+QLineEdit {
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    color: #cdd6f4;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+QLineEdit:focus {
+    border: 1px solid #89b4fa;
+}
+
+QPushButton {
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    color: #cdd6f4;
+    padding: 7px 14px;
+    font-size: 13px;
+}
+
+QPushButton#PrimaryButton {
+    color: #11111b;
+    font-weight: bold;
+}

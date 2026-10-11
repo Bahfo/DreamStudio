@@ -155,6 +155,8 @@ a = Analysis(
         "editor.utils.solution.paths",
         "editor.utils.solution.solution_marker",
         "editor.utils.solution.theme",
+        "editor.utils.solution.dialogs",
+        "editor.utils.solution.project_card",
         "editor.utils.solution.QDreamDialog",
         "editor.utils.solution.QScafoldController",
         "ui_build",

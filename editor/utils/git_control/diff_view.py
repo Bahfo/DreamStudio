@@ -274,7 +274,7 @@ class DiffView(QWidget):
         lv.valueChanged.connect(lambda v: _forward(rv, v))
         rv.valueChanged.connect(lambda v: _forward(lv, v))
         lh.valueChanged.connect(lambda v: _forward(rh, v))
-        rh.valueChanged.connect(lambda v: _forward(rh, lh, v))
+        rh.valueChanged.connect(lambda v: _forward(lh, v))
 
     def retheme(self, theme_name: str) -> None:
         """Re-apply a theme to both panes and their change markers.

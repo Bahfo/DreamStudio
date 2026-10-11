@@ -1,10 +1,16 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+
+Solution-marker persistence for the ``.ds`` workspace footprint.
+
+Reads and writes the solution marker and stamps newly adopted folders so
+both the start window and the create dialog share one code path.
 """
 
 from editor import *
 
-from editor.utils.solution.paths import DS_DIR, SOLUTION_FILE, ds_dir
+from editor.utils.io import load_yaml, save_json
+from editor.utils.solution.paths import DS_DIR, ds_dir, is_solution, marker_path
 
 logger = logging.getLogger(__name__)
 
@@ -13,20 +19,28 @@ SOLUTION_MARKER_VERSION = 1
 SOLUTION_DIR = DS_DIR
 
 
-def _marker_path(path: str) -> str:
-    from editor.utils.solution.paths import marker_path
-
-    return marker_path(path)
-
-
 def is_solution_dir(path: str) -> bool:
-    return os.path.isfile(_marker_path(path))
+    """Check whether *path* carries a solution marker file.
+
+    Args:
+        path: Workspace root to inspect.
+
+    Returns:
+        ``True`` when the marker file exists.
+    """
+    return is_solution(path)
 
 
 def read_solution(path: str) -> dict | None:
-    from editor.utils.io import load_yaml
+    """Read the solution marker for *path*.
 
-    marker = _marker_path(path)
+    Args:
+        path: Workspace root to inspect.
+
+    Returns:
+        Marker dict, or ``None`` when missing or unreadable.
+    """
+    marker = marker_path(path)
     if not os.path.isfile(marker):
         return None
     try:
@@ -44,6 +58,21 @@ def write_solution(
     manifest: str = "",
     created_at: str = "",
 ) -> dict:
+    """Write the solution marker inside *path*.
+
+    Args:
+        path: Workspace root receiving the marker.
+        name: Solution display name.
+        project_type: Project-type identifier.
+        manifest: Source manifest path (empty for plain folders).
+        created_at: Creation stamp (defaults to now).
+
+    Returns:
+        The persisted marker payload.
+
+    Raises:
+        OSError: When the marker directory or file cannot be written.
+    """
     if not created_at:
         created_at = str(time.time())
     payload = {
@@ -54,15 +83,48 @@ def write_solution(
         "created_at": created_at,
     }
 
-    from editor.utils.io import save_json
-
     ds_dir_path = ds_dir(path)
     try:
         os.makedirs(ds_dir_path, exist_ok=True)
-        marker = _marker_path(path)
+        marker = marker_path(path)
         save_json(marker, payload)
         logger.info("Solution marker written: %s", marker)
     except OSError as exc:
         logger.error("Could not write solution marker in %s: %s", path, exc)
         raise
+    return payload
+
+
+def ensure_solution_marker(
+    path: str,
+    name: str,
+    project_type: str = "",
+    manifest: str = "",
+) -> dict:
+    """Write the marker for *path* and stamp its display name best-effort.
+
+    Args:
+        path: Workspace root receiving the marker.
+        name: Solution display name.
+        project_type: Project-type identifier.
+        manifest: Source manifest path (empty for plain folders).
+
+    Returns:
+        The persisted marker payload.
+
+    Raises:
+        OSError: When the marker itself cannot be written.
+    """
+    payload = write_solution(
+        path,
+        name=name,
+        project_type=project_type,
+        manifest=manifest,
+    )
+    try:
+        from editor.utils.properties.project_data_engine import ProjectDataEngine
+
+        ProjectDataEngine(path).commit_solution_properties({"name": name})
+    except Exception:
+        pass
     return payload
