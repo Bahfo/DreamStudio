@@ -33,7 +33,7 @@ from editor.utils.solution.paths import (
 
 logger = logging.getLogger("DreamStudio.Cpp.Indexer")
 
-_INDEX_VERSION = 2
+_INDEX_VERSION = 3
 _MAX_FILES = 2000
 _MAX_CURSORS_PER_FILE = 3000
 
@@ -133,6 +133,13 @@ class CppIndexer(QObject):
         self._pending: str | None = None
         self._generation = 0
         self._memory: dict = {}
+        self._sysmemory: dict = {}
+        try:
+            from . import sysindex as sysindex_support
+
+            self._sysmemory = sysindex_support.load()
+        except Exception as exc:
+            logger.debug("sysindex preload skipped: %s", exc)
 
     def run(self, root: str) -> None:
         """Index *root* on a worker thread (latest request wins).
@@ -193,6 +200,24 @@ class CppIndexer(QObject):
         rows.sort(key=lambda row: row.text.lower())
         return rows[:limit]
 
+    def search_sys(self, prefix: str, limit: int = 50) -> list:
+        """Return preloaded system-index rows matching *prefix*.
+
+        Args:
+            prefix: Case-insensitive name prefix.
+            limit: Maximum rows returned.
+
+        Returns:
+            List of ``CppCompletion`` rows (possibly empty).
+        """
+        try:
+            from . import sysindex as sysindex_support
+
+            return sysindex_support.search(self._sysmemory, prefix, limit)
+        except Exception as exc:
+            logger.debug("sysindex search failed: %s", exc)
+            return []
+
     def _run_guarded(self, root: str, generation: int) -> None:
         """Run one pass, then pick up a pending root when superseded.
 
@@ -249,8 +274,52 @@ class CppIndexer(QObject):
                 return
         if generation == self._generation:
             self._refresh_pch(root, files)
+        if generation == self._generation:
+            self._refresh_sysindex(root, files, generation)
         try:
             self.indexing_finished.emit()
+        except RuntimeError:
+            pass
+
+    def _refresh_sysindex(self, root: str, files: list, generation: int) -> None:
+        """Build the per-machine system index, then preload it.
+
+        Runs after workspace symbols so fast value lands first; the
+        system build is one-time per machine afterwards (mtime-keyed).
+
+        Args:
+            root: Workspace root whose include graph is collected.
+            files: Workspace source files seeding the graph.
+            generation: Run generation used to drop stale passes.
+        """
+        try:
+            from . import sysindex as sysindex_support
+            from . import args as cpp_args
+
+            base = (
+                cpp_args.args_for_file(files[0], "")
+                if files
+                else ["-x", "c++", "-std=c++20"]
+            )
+            result = sysindex_support.build(
+                files,
+                base,
+                progress=lambda done, total: self._emit_sysindex_progress(
+                    done, total
+                ),
+                cancelled=lambda: generation != self._generation,
+            )
+            logger.info("sysindex built: %s", result)
+            self._sysmemory = sysindex_support.load()
+        except Exception as exc:
+            logger.debug("sysindex refresh failed: %s", exc)
+
+    def _emit_sysindex_progress(self, done: int, total: int) -> None:
+        """Forward system-index progress to the shared trio."""
+        try:
+            if done <= 1:
+                self.indexing_started.emit(max(1, total))
+            self.indexing_progress.emit(done, max(1, total))
         except RuntimeError:
             pass
 
@@ -440,10 +509,14 @@ class CppIndexer(QObject):
                     CursorKind.CLASS_DECL,
                     CursorKind.STRUCT_DECL,
                     CursorKind.CLASS_TEMPLATE,
+                    CursorKind.ENUM_DECL,
                 ):
                     scope = f"{parent_name}{spelling}::" if spelling else parent_name
                     for child in cursor.get_children():
                         _record(child, scope)
+                elif kind == CursorKind.LINKAGE_SPEC:
+                    for child in cursor.get_children():
+                        _record(child, parent_name)
             except Exception:
                 pass
 

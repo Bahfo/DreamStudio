@@ -164,6 +164,7 @@ class _CppCompletionWorker(threading.Thread):
                             "template_args"):
                 return
             rows = self._symbols.match(context.prefix or "")
+            rows = list(rows) + self._sysindex_rows(request)
             if not rows:
                 return
             if (self._shutting_down or self._current is not None
@@ -175,8 +176,28 @@ class _CppCompletionWorker(threading.Thread):
         except Exception as exc:
             logger.debug("symbol fast path failed: %s", exc)
 
+    def _sysindex_rows(self, request: _CompletionRequest) -> list:
+        """Return preloaded system-index rows for the request prefix.
+
+        Served under workspace rows; the semantic result replaces the
+        merged batch through the normal latest-wins path.
+
+        Args:
+            request: The completion request carrying file and prefix.
+
+        Returns:
+            System rows (possibly empty) — never raises.
+        """
+        try:
+            from ..intellisense.index import get_cpp_indexer
+
+            return get_cpp_indexer().search_sys(request.context.prefix or "")
+        except Exception as exc:
+            logger.debug("sysindex fast path failed: %s", exc)
+            return []
+
     def _index_fallback(self, request: _CompletionRequest) -> list:
-        """Search the workspace index when the semantic TU yields nothing.
+        """Search workspace and system indexes when the TU yields nothing.
 
         Args:
             request: The finished completion request.
@@ -187,9 +208,10 @@ class _CppCompletionWorker(threading.Thread):
         try:
             from ..intellisense.index import search_for_file
 
-            return search_for_file(
+            rows = search_for_file(
                 request.context.file_path, request.context.prefix or ""
             )
+            return list(rows) + self._sysindex_rows(request)
         except Exception as exc:
             logger.debug("index fallback failed: %s", exc)
             return []

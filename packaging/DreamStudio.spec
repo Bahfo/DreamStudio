@@ -125,6 +125,7 @@ a = Analysis(
         "editor.Ironica.plugins.cpp.provider",
         "editor.Ironica.plugins.cpp.intellisense.index",
         "editor.Ironica.plugins.cpp.intellisense.pch",
+        "editor.Ironica.plugins.cpp.intellisense.sysindex",
         "editor.Ironica.plugins.cmake.provider",
         "editor.Ironica.plugins.cmake.cmake.scanner",
         "editor.Ironica.plugins.cmake.cmake.generator",

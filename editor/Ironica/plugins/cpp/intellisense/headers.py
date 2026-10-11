@@ -79,37 +79,18 @@ def _known_include_dirs(compile_args: list) -> list:
 
 
 def _find_in_system(header: str) -> list:
-    """Search system roots for *header*, including one subdir level.
+    """Search system roots for directories holding *header*.
 
-    The extra level covers ``<pkg>/<header>`` layouts (e.g. a header
-    living in an immediate subdirectory of an include root) without
+    Covers ``<pkg>/<header>`` layouts via one subdir level without
     assuming any package name.
 
     Args:
         header: Header filename or qualified path (``a/b.h``).
 
     Returns:
-        ``-I`` flags (possibly empty).
+        Absolute directories (possibly empty).
     """
-    flags: list = []
-    for root in _system_roots():
-        if os.path.isfile(os.path.join(root, header)):
-            continue
-        try:
-            subdirs = sorted(
-                entry.path
-                for entry in os.scandir(root)
-                if entry.is_dir(follow_symlinks=False)
-            )
-        except OSError:
-            continue
-        for subdir in subdirs[:_MAX_SYSTEM_SUBDIRS]:
-            if os.path.isfile(os.path.join(subdir, header)):
-                flag = f"-I{subdir}"
-                if flag not in flags:
-                    flags.append(flag)
-                break
-    return flags
+    return _find_in_dirs(header, _system_roots())
 
 
 def _find_in_dirs(header: str, dirs: list) -> list:
@@ -120,9 +101,9 @@ def _find_in_dirs(header: str, dirs: list) -> list:
         dirs: Directories already on the include path.
 
     Returns:
-        ``-I`` flags (possibly empty).
+        Absolute directories (possibly empty).
     """
-    flags: list = []
+    found: list = []
     for root in dirs:
         if os.path.isfile(os.path.join(root, header)):
             continue
@@ -136,11 +117,10 @@ def _find_in_dirs(header: str, dirs: list) -> list:
             continue
         for subdir in subdirs[:_MAX_SYSTEM_SUBDIRS]:
             if os.path.isfile(os.path.join(subdir, header)):
-                flag = f"-I{subdir}"
-                if flag not in flags:
-                    flags.append(flag)
+                if subdir not in found:
+                    found.append(subdir)
                 break
-    return flags
+    return found
 
 
 def _find_in_project(header: str, anchor: str) -> list:
@@ -151,12 +131,12 @@ def _find_in_project(header: str, anchor: str) -> list:
         anchor: Project root to walk.
 
     Returns:
-        ``-I`` flags (possibly empty).
+        Absolute directories (possibly empty).
     """
     name = os.path.basename(header)
     if not name or not anchor or not os.path.isdir(anchor):
         return []
-    flags: list = []
+    found: list = []
     visited = 0
     base_depth = anchor.rstrip(os.sep).count(os.sep)
     for current, directories, files in os.walk(anchor, followlinks=False):
@@ -171,13 +151,40 @@ def _find_in_project(header: str, anchor: str) -> list:
         visited += len(files)
         if visited > _MAX_PROJECT_FILES:
             break
-        if name in files:
-            flag = f"-I{current}"
-            if flag not in flags:
-                flags.append(flag)
-            if len(flags) >= 4:
+        if name in files and current not in found:
+            found.append(current)
+            if len(found) >= 4:
                 break
-    return flags
+    return found
+
+
+def locate_header(header: str, search_dirs: list, anchor: str) -> list:
+    """Locate *header* across known dirs, system roots and the project.
+
+    Shared by missing-header resolution and transitive include-graph
+    collection so both agree on where a header lives.
+
+    Args:
+        header: Header filename or qualified path (``a/b.h``).
+        search_dirs: Explicit include directories to try first.
+        anchor: Project root for the bounded tree walk.
+
+    Returns:
+        Ordered absolute directories holding *header* — never raises.
+    """
+    try:
+        name = str(header).strip()
+        if not name:
+            return []
+        found = _find_in_dirs(name, search_dirs)
+        if not found:
+            found = _find_in_system(name)
+        if not found:
+            found = _find_in_project(name, anchor)
+        return found
+    except Exception as exc:
+        logger.debug("header locate failed: %s", exc)
+        return []
 
 
 def extra_flags_for(file_path: str | None) -> list:
@@ -220,12 +227,8 @@ def resolve_missing(
         search_dirs = _known_include_dirs(compile_args or [])
         grown = False
         for header in headers:
-            found = _find_in_dirs(header, search_dirs)
-            if not found:
-                found = _find_in_system(header)
-            if not found:
-                found = _find_in_project(header, anchor)
-            for flag in found:
+            for directory in locate_header(header, search_dirs, anchor):
+                flag = f"-I{directory}"
                 if flag not in known:
                     known.add(flag)
                     grown = True
