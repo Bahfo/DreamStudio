@@ -259,4 +259,10 @@ def args_for_file(
         args += _env_include_args()
         d = os.path.dirname(absolute)
         args += ["-I", d]
+        try:
+            from . import pch as pch_support
+
+            args += pch_support.include_args(root)
+        except Exception as exc:
+            logger.debug("Ignoring pch flags: %s", exc)
     return args

@@ -7,6 +7,7 @@ The Completion Manager and Object for C++ Extension - DreamStudio.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from ..models import CppContext
 
 logger = logging.getLogger("DreamStudio.Cpp.CompletionManager")
 COMPLETION_DEBOUNCE_MS: int = 30  # Thirty milliseconds
+IDLE_PREQUERY_MS: int = 1500  # Pause before a speculative warm query
 
 
 @dataclass(frozen=True)
@@ -32,6 +34,7 @@ class _CompletionRequest:
     request_id: int
     context: CppContext
     warmup: bool = False
+    prefetch: bool = False
 
 
 class _CppCompletionWorker(threading.Thread):
@@ -53,19 +56,24 @@ class _CppCompletionWorker(threading.Thread):
         self._started_once = False
         self._current: Optional[_CompletionRequest] = None
         self._shutting_down = False
+        self._running = False
         self._last_hint_key = None
         from .symbols import SymbolsCache
 
         self._symbols = SymbolsCache()
 
+    def is_busy(self) -> bool:
+        """Return ``True`` while a request is queued or executing."""
+        return self._current is not None or self._running
+
     def process(self, request_id: int, context: CppContext,
-                warmup: bool = False) -> None:
+                warmup: bool = False, prefetch: bool = False) -> None:
         """
         Queue *context*, waking the thread (drops any pending older item).
         """
         if self._shutting_down:
             return
-        self._current = _CompletionRequest(request_id, context, warmup)
+        self._current = _CompletionRequest(request_id, context, warmup, prefetch)
         self._wake.set()
         if not self._started_once:
             self._started_once = True
@@ -84,10 +92,16 @@ class _CppCompletionWorker(threading.Thread):
             self._current = None
             if self._shutting_down:
                 continue
+            self._running = True
             try:
                 _profile.mark(self._owner._editor, "engine-start")
                 if request.warmup:
                     self._engine.prime(request.context)
+                    self._running = False
+                    continue
+                if request.prefetch:
+                    self._prefetch(request)
+                    self._running = False
                     continue
                 self._emit_symbol_rows(request)
                 items = self._engine.complete(request.context) or []
@@ -98,8 +112,10 @@ class _CppCompletionWorker(threading.Thread):
                 logger.warning("C++ completion engine failed: %s", exc)
                 items = []
             if self._shutting_down or self._current is not None:
+                self._running = False
                 continue
             if request.request_id < self._owner._request_counter:
+                self._running = False
                 continue
             self._maybe_hint(request, items)
             try:
@@ -107,6 +123,23 @@ class _CppCompletionWorker(threading.Thread):
                 self._owner.completions_ready.emit(request.request_id, list(items))
             except RuntimeError:
                 pass  # owner deleted with its editor
+            self._running = False
+
+    def _prefetch(self, request: _CompletionRequest) -> None:
+        """Warm TU and completion caches without presenting anything.
+
+        Runs :meth:`prime` plus one discarded :meth:`complete` so the
+        next keystroke at this caret finds warm caches. Never emits,
+        never raises.
+
+        Args:
+            request: The prefetch request carrying the caret context.
+        """
+        try:
+            self._engine.prime(request.context)
+            self._engine.complete(request.context)
+        except Exception as exc:
+            logger.debug("prefetch failed: %s", exc)
 
     def _emit_symbol_rows(self, request: _CompletionRequest) -> None:
         """Emit instant buffer-name rows ahead of the semantic result.
@@ -239,6 +272,10 @@ class CppCompletionManager(QObject):
         self._timer.setSingleShot(True)
         self._timer.setInterval(debounce_ms)
         self._timer.timeout.connect(self._on_debounce_fired)
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setSingleShot(True)
+        self._idle_timer.setInterval(IDLE_PREQUERY_MS)
+        self._idle_timer.timeout.connect(self._on_idle_fired)
         self._worker = _CppCompletionWorker(self, self._engine)
         destroyed = getattr(editor, "destroyed", None)
         if destroyed is not None:
@@ -249,6 +286,61 @@ class CppCompletionManager(QObject):
         Replace include flags.
         """
         self._compile_args = list(args or [])
+
+    def query_cost_ms(self) -> float:
+        """Return the engine's smoothed parse+complete cost in milliseconds.
+
+        Used by the cost-scaled debounce. Never raises.
+
+        Returns:
+            Smoothed cost (``0.0`` when unknown).
+        """
+        try:
+            getter = getattr(self._engine, "query_cost_ms", None)
+            if getter is None:
+                return 0.0
+            return float(getter() or 0.0)
+        except Exception:
+            return 0.0
+
+    def current_flags(
+        self,
+        source: str,
+        line: int,
+        col: int,
+        file_path: Optional[str] = None,
+        prefix: str = "",
+    ) -> tuple:
+        """Return the TU flags the engine would use for this position.
+
+        Pure computation (no parsing) so the controller can detect flag
+        changes without submitting a query. Never raises.
+
+        Args:
+            source: Full buffer content.
+            line: 0-indexed cursor line.
+            col: 0-indexed cursor column.
+            file_path: File being edited.
+            prefix: Current completion prefix.
+
+        Returns:
+            Ordered flag tuple (possibly empty on any failure).
+        """
+        try:
+            context = CppContext(
+                source_code=source,
+                line=line + 1,
+                col=col + 1,
+                file_path=file_path or self._file_path,
+                compile_args=list(self._compile_args),
+                prefix=prefix or "",
+            )
+            getter = getattr(self._engine, "flags_for", None)
+            if getter is None:
+                return ()
+            return tuple(getter(context) or ())
+        except Exception:
+            return ()
 
     def request(
         self,
@@ -283,10 +375,12 @@ class CppCompletionManager(QObject):
             prefix=prefix or "",
         )
         try:
-            from editor.Ironica.debounce import adaptive_delay_for_editor
+            from editor.Ironica.debounce import adaptive_delay_for_cost
 
             self._timer.setInterval(
-                adaptive_delay_for_editor(COMPLETION_DEBOUNCE_MS, self._editor)
+                adaptive_delay_for_cost(
+                    COMPLETION_DEBOUNCE_MS, self._editor, self.query_cost_ms()
+                )
             )
         except Exception:
             pass
@@ -295,6 +389,10 @@ class CppCompletionManager(QObject):
         except RuntimeError:
             self._dead = True
             return False
+        try:
+            self._idle_timer.start()
+        except RuntimeError:
+            pass
         return True
 
     def warmup(
@@ -337,6 +435,10 @@ class CppCompletionManager(QObject):
             self._timer.stop()
         except RuntimeError:
             self._dead = True
+        try:
+            self._idle_timer.stop()
+        except RuntimeError:
+            pass
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
@@ -350,7 +452,49 @@ class CppCompletionManager(QObject):
         try:
             self._worker.process(self._request_counter, self._pending)
         except Exception as exc:
-            logger.debug("Failed to submit C++ completion: %s", exc)
+            logger.warning("Failed to submit C++ completion: %s", exc)
+
+    @pyqtSlot()
+    def _on_idle_fired(self) -> None:
+        """Speculatively warm caches at the idle caret; never presents.
+
+        Fires after a typing pause. Skipped while the worker is busy or
+        the caret sits outside a completable context — a real keystroke
+        always supersedes the prefetch through latest-wins numbering.
+        """
+        if not self._enabled or self._dead:
+            return
+        if self._worker.is_busy():
+            try:
+                self._idle_timer.start()
+            except RuntimeError:
+                pass
+            return
+        try:
+            from .context import classify
+
+            source = self._editor.text()
+            if not source:
+                return
+            line, col = self._editor.getCursorPosition()
+            lines = source.splitlines()
+            row = lines[line] if 0 <= line < len(lines) else ""
+            kind, _ = classify(row, col)
+            if kind in ("none", "comment", "preprocessor"):
+                return
+            match = re.search(r"([A-Za-z_]\w*)$", row[:col])
+            context = CppContext(
+                source_code=source,
+                line=line + 1,
+                col=col + 1,
+                file_path=self._file_path,
+                compile_args=list(self._compile_args),
+                prefix=match.group(1) if match else "",
+            )
+            _profile.mark(self._editor, "prefetch")
+            self._worker.process(self._request_counter, context, prefetch=True)
+        except Exception as exc:
+            logger.debug("C++ prefetch failed: %s", exc)
 
     @pyqtSlot()
     def _on_editor_destroyed(self) -> None:
@@ -360,6 +504,10 @@ class CppCompletionManager(QObject):
 
         try:
             self._timer.stop()
+        except RuntimeError:
+            pass
+        try:
+            self._idle_timer.stop()
         except RuntimeError:
             pass
         self._dead = True
@@ -373,6 +521,10 @@ class CppCompletionManager(QObject):
         self._enabled = False
         try:
             self._timer.stop()
+        except RuntimeError:
+            pass
+        try:
+            self._idle_timer.stop()
         except RuntimeError:
             pass
         self._worker.shutdown()

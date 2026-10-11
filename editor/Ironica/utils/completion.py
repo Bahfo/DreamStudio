@@ -12,6 +12,8 @@ from editor.utils.resource_path import resource_path
 logger = logging.getLogger("DreamStudio.Completion")
 
 COMPLETION_DEBOUNCE_MS: int = 40
+# Delay before a cache-served popup is confirmed by one background query.
+CACHE_CONFIRM_MS: int = 800
 
 
 @dataclass
@@ -731,6 +733,13 @@ class CompletionController(QObject):
         self._debounce_timer.setInterval(COMPLETION_DEBOUNCE_MS)
         self._debounce_timer.timeout.connect(self._request_completions)
 
+        # Confirm timer: after a popup is served from cache (no worker
+        # query), one background refresh converges it to true results.
+        self._confirm_timer = QTimer(self)
+        self._confirm_timer.setSingleShot(True)
+        self._confirm_timer.setInterval(CACHE_CONFIRM_MS)
+        self._confirm_timer.timeout.connect(self._confirm_cached_results)
+
         try:
             self.editor.textChanged.connect(self._on_text_changed)
         except Exception:
@@ -752,6 +761,9 @@ class CompletionController(QObject):
         self._commit_suppress_id = 0
         self._request_pending = False
         self._reuse_state = None
+        self._last_queried_prefix = ""
+        self._last_queried_flags = None
+        self._skip_cache_gate_once = False
         self._doc_words: set = set()
         self._doc_words_key = None
         self._doc_version = 0
@@ -881,10 +893,12 @@ class CompletionController(QObject):
 
         _profile.mark(self.editor, "trigger")
         try:
-            from editor.Ironica.debounce import adaptive_delay_for_editor
+            from editor.Ironica.debounce import adaptive_delay_for_cost
 
             self._debounce_timer.setInterval(
-                adaptive_delay_for_editor(COMPLETION_DEBOUNCE_MS, self.editor)
+                adaptive_delay_for_cost(
+                    COMPLETION_DEBOUNCE_MS, self.editor, self._manager_query_cost()
+                )
             )
         except Exception:
             pass
@@ -1155,6 +1169,7 @@ class CompletionController(QObject):
         # Prefer the editor-scoped manager (like _diag_manager); the
         # provider singleton's slot may still hold another tab's — or an
         # already destroyed — manager.
+        cache_hit = False
         try:
             live_text = self.editor.text()
             live_line, live_col = self.editor.getCursorPosition()
@@ -1162,11 +1177,28 @@ class CompletionController(QObject):
             if self._try_cached_present(live_text, live_line, live_col,
                                         self._current_prefix, live_file):
                 _profile.mark(self.editor, "cache-hit")
+                cache_hit = True
         except Exception:
-            pass
+            cache_hit = False
+            live_text, live_line, live_col, live_file = "", 0, 0, None
         completion_manager = getattr(self.editor, "_completion_manager", None)
         if completion_manager is None:
             completion_manager = getattr(provider, "completion_manager", None)
+        if (
+            cache_hit
+            and not self._skip_cache_gate_once
+            and self._prefix_extends_last_query()
+            and self._flags_unchanged(
+                completion_manager, live_text, live_line, live_col, live_file
+            )
+        ):
+            # Pure prefix extension on a fresh TU: the popup already shows
+            # re-filtered rows — skip the worker and confirm in background.
+            _profile.mark(self.editor, "cache-served")
+            self._request_pending = False
+            self._confirm_timer.start()
+            return
+        self._skip_cache_gate_once = False
         if completion_manager is not None:
             self._connect_to_manager(completion_manager)
             try:
@@ -1182,6 +1214,12 @@ class CompletionController(QObject):
                 accepted = False
             if accepted is not False:
                 self._request_pending = True
+                _profile.note(
+                    self.editor, f"cost={self._manager_query_cost():.0f}ms"
+                )
+                self._note_submitted_query(
+                    completion_manager, live_text, live_line, live_col, live_file
+                )
                 return
             if not getattr(completion_manager, "_dead", True):
                 self._close()  # context suppressed; nothing to show
@@ -1208,7 +1246,99 @@ class CompletionController(QObject):
         else:
             items = []
 
+        self._note_submitted_query(
+            completion_manager, live_text, live_line, live_col, live_file
+        )
         self._present_items(items)
+
+    def _prefix_extends_last_query(self) -> bool:
+        """Check the prefix strictly extends the last submitted query.
+
+        Returns:
+            ``True`` when the current prefix is a longer extension of the
+            last submitted one in the same completion context.
+        """
+        last = self._last_queried_prefix or ""
+        current = self._current_prefix or ""
+        return (
+            bool(last)
+            and len(current) > len(last)
+            and current.startswith(last)
+            and self._current_ident == self._cache_ident
+        )
+
+    def _flags_unchanged(
+        self, manager, text: str, line: int, col: int, file_path,
+    ) -> bool:
+        """Check the TU flags match the last submitted query's snapshot.
+
+        Args:
+            manager: Completion manager exposing ``current_flags``.
+            text: Full buffer content.
+            line: 0-indexed cursor line.
+            col: 0-indexed cursor column.
+            file_path: File being edited.
+
+        Returns:
+            ``True`` when flags are known and unchanged (``False`` keeps
+            the old always-submit behavior for untracked providers).
+        """
+        if self._last_queried_flags is None:
+            return False
+        try:
+            getter = getattr(manager, "current_flags", None)
+            if getter is None:
+                return False
+            current = tuple(
+                getter(text, line, col, file_path, self._current_prefix) or ()
+            )
+            return bool(current) and current == self._last_queried_flags
+        except Exception:
+            return False
+
+    def _note_submitted_query(
+        self, manager, text: str, line: int, col: int, file_path,
+    ) -> None:
+        """Snapshot prefix and flags for the cache-skip gate.
+
+        Args:
+            manager: Completion manager exposing ``current_flags``.
+            text: Full buffer content.
+            line: 0-indexed cursor line.
+            col: 0-indexed cursor column.
+            file_path: File being edited.
+        """
+        self._last_queried_prefix = self._current_prefix or ""
+        self._last_queried_flags = None
+        try:
+            getter = getattr(manager, "current_flags", None)
+            if getter is not None:
+                flags = tuple(
+                    getter(text, line, col, file_path, self._current_prefix) or ()
+                )
+                self._last_queried_flags = flags or None
+        except Exception:
+            self._last_queried_flags = None
+
+    def _manager_query_cost(self) -> float:
+        """Return the completion manager's smoothed query cost in ms.
+
+        Returns:
+            Smoothed parse+complete cost (``0.0`` when unknown).
+        """
+        try:
+            manager = getattr(self.editor, "_completion_manager", None)
+            getter = getattr(manager, "query_cost_ms", None)
+            if getter is None:
+                return 0.0
+            return float(getter() or 0.0)
+        except Exception:
+            return 0.0
+
+    def _confirm_cached_results(self) -> None:
+        """Submit one background refresh to confirm cache-served rows."""
+        self._skip_cache_gate_once = True
+        self._request_completions()
 
     def _present_items(self, items: List[CompletionItem]) -> None:
         """Cache fresh results and display those matching the typed prefix.

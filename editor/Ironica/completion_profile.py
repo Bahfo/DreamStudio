@@ -20,6 +20,7 @@ logger = logging.getLogger("DreamStudio.CompletionProfile")
 _FLAG = "DS_COMPLETION_PROFILE"
 
 _marks: Dict[int, List[tuple]] = {}
+_notes: Dict[int, List[str]] = {}
 
 
 def enabled() -> bool:
@@ -53,6 +54,7 @@ def report(owner: object) -> Optional[str]:
     base = store[0][1]
     parts = [f"{stage}=+{(stamp - base) / 1e6:.1f}ms"
              for stage, stamp in store]
+    parts.extend(_notes.get(id(owner), []))
     return " ".join(parts)
 
 
@@ -68,3 +70,19 @@ def log_report(owner: object, label: str) -> None:
 def reset(owner: object) -> None:
     """Drop recorded stages for *owner*."""
     _marks.pop(id(owner), None)
+    _notes.pop(id(owner), None)
+
+
+def note(owner: object, message: str) -> None:
+    """Attach a free-form note (e.g. measured cost) to *owner*'s report.
+
+    Args:
+        owner: Request owner (manager or controller instance).
+        message: Short human-readable note.
+    """
+    if not enabled():
+        return
+    try:
+        _notes.setdefault(id(owner), []).append(str(message))
+    except Exception:
+        pass

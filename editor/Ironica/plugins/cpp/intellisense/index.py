@@ -247,10 +247,29 @@ class CppIndexer(QObject):
                 self.indexing_progress.emit(done, len(files))
             except RuntimeError:
                 return
+        if generation == self._generation:
+            self._refresh_pch(root, files)
         try:
             self.indexing_finished.emit()
         except RuntimeError:
             pass
+
+    def _refresh_pch(self, root: str, files: list) -> None:
+        """Build the shared precompiled header for *root* (background).
+
+        Runs after symbol indexing so keystrokes never wait on it; a
+        failed or skipped build simply leaves completion unaccelerated.
+
+        Args:
+            root: Workspace root owning ``.ds/cpp/stable.pch``.
+            files: Workspace source files harvested for includes.
+        """
+        try:
+            from . import pch as pch_support
+
+            pch_support.ensure_for_root(root, files)
+        except Exception as exc:
+            logger.debug("pch refresh failed: %s", exc)
 
     def _refresh_compile_db(self, root: str) -> None:
         """Regenerate ``.ds/cpp`` artefacts from ``CMakeLists.txt``.

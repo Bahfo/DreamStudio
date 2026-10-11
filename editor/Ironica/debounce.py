@@ -65,3 +65,39 @@ def adaptive_delay_for_editor(base_ms: int, editor: Any) -> int:
         Effective debounce delay in milliseconds.
     """
     return adaptive_delay_ms(base_ms, line_count_of(editor))
+
+
+def adaptive_delay_for_cost(
+    base_ms: int,
+    editor: Any,
+    cost_ms: float = 0.0,
+    cap_extra_ms: int = 400,
+) -> int:
+    """Return the debounce delay scaled by buffer size and query cost.
+
+    Slow translation units back the delay off so keystrokes stop queuing
+    full queries that latest-wins discards anyway. The cost term decays
+    on its own (the EMA behind *cost_ms* drops on fast queries), so
+    fixing flags or a PCH landing re-snappens the delay automatically.
+
+    Args:
+        base_ms: Delay used for small buffers and cheap queries.
+        editor: Editor widget to size the delay for.
+        cost_ms: Smoothed parse+complete cost in milliseconds.
+        cap_extra_ms: Cap for the cost-based extra delay.
+
+    Returns:
+        Effective debounce delay in milliseconds.
+    """
+    delay = adaptive_delay_for_editor(base_ms, editor)
+    try:
+        cost = float(cost_ms or 0.0)
+    except (TypeError, ValueError):
+        return delay
+    if cost >= 1000.0:
+        extra = 300
+    elif cost >= 200.0:
+        extra = 150
+    else:
+        extra = 0
+    return delay + min(extra, max(0, int(cap_extra_ms)))

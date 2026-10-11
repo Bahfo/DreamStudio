@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from typing import List, Tuple
 
 import clang.cindex as C
@@ -99,6 +100,22 @@ class CppEngine:
         self._owner_id = owner_id
         self._cache: dict[str, tuple] = {}
         self._order: list[str] = []
+        self._query_cost_ms = 0.0
+
+    def query_cost_ms(self) -> float:
+        """Return the EMA of parse+complete cost in milliseconds.
+
+        Feeds the cost-scaled debounce; decays toward fast queries on its
+        own, so fixing flags (or a PCH landing) re-snappens delays with
+        no manual reset.
+
+        Returns:
+            Smoothed query cost (``0.0`` before any query).
+        """
+        try:
+            return float(self._query_cost_ms)
+        except (TypeError, ValueError):
+            return 0.0
 
     @property
     def shared_index(self):
@@ -202,9 +219,13 @@ class CppEngine:
         out: list[CppCompletion] = []
         tu = None
         clang_path = ctx.file_path or cpp_args.unsaved_name()
+        want = ctx.prefix or ""
+        include_macros = not want or want[:1].isupper()
         for _ in range(4):
             try:
-                tu, res, clang_path = self._request_completion(ctx)
+                tu, res, clang_path = self._request_completion(
+                    ctx, include_macros=include_macros
+                )
             except Exception as exc:
                 logger.warning("codeComplete failed: %s", exc)
                 return []
@@ -270,16 +291,20 @@ class CppEngine:
         )
         return [completion for _, completion in scored[:_MAX_ITEMS]]
 
-    def _request_completion(self, ctx: CppContext):
+    def _request_completion(self, ctx: CppContext, include_macros: bool = True):
         """Run ``codeComplete`` for *ctx* on its cached TU.
 
         Args:
             ctx: Completion context to complete.
+            include_macros: Whether libclang should include macro rows.
+                Disabled for lowercase prefixes (macros are overwhelmingly
+                ``UPPER_SNAKE``), halving row counts on big TUs.
 
         Returns:
             Tuple of ``(tu, result_or_None, clang_path)``. The TU may be
             ``None`` when parsing failed; the result may be ``None``.
         """
+        started = time.perf_counter()
         tu = self._tu_for_completion(ctx)
         if tu is None:
             return None, None, ctx.file_path or cpp_args.unsaved_name()
@@ -292,9 +317,15 @@ class CppEngine:
             ctx.line,
             ctx.col,
             unsaved_files=[(clang_path, ctx.source_code)],
-            include_macros=True,
+            include_macros=include_macros,
             include_brief_comments=True,
         )
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        try:
+            previous = float(self._query_cost_ms)
+            self._query_cost_ms = previous * 0.7 + elapsed_ms * 0.3
+        except (TypeError, ValueError):
+            self._query_cost_ms = elapsed_ms
         return tu, res, clang_path
 
     def _shape_results(self, ctx: CppContext, res) -> list:
@@ -313,8 +344,9 @@ class CppEngine:
         per_name: dict[str, int] = {}
         want_prefix = (ctx.prefix or "").lower()
         for item in res.results:
+            chunks = list(item.string)
             typed = ""
-            for chunk in item.string:
+            for chunk in chunks:
                 if chunk.isKindTypedText():
                     typed = chunk.spelling
                     break
@@ -324,7 +356,7 @@ class CppEngine:
                 continue
             placeholders: list[str] = []
             informative: list[str] = []
-            for chunk in item.string:
+            for chunk in chunks:
                 if chunk.isKindTypedText():
                     continue
                 elif chunk.isKindPlaceHolder():
@@ -394,6 +426,23 @@ class CppEngine:
             logger.debug("include diagnostics failed: %s", exc)
             return []
 
+    def flags_for(self, ctx: CppContext) -> tuple:
+        """Return the exact flags a TU for *ctx* would be built with.
+
+        Pure computation (no parsing): defaults, database overlays,
+        resolved header extras and the ``-include-pch`` flag when valid.
+
+        Args:
+            ctx: Completion context to compute flags for.
+
+        Returns:
+            Ordered flag tuple.
+        """
+        flags = ctx.compile_args or cpp_args.args_for_file(
+            ctx.file_path, ctx.source_code
+        )
+        return tuple(list(flags) + header_resolution.extra_flags_for(ctx.file_path))
+
     def _tu_for_completion(self, ctx: CppContext):
         """Return a TU for completion without reparsing (fast path).
 
@@ -403,10 +452,7 @@ class CppEngine:
         """
         key = self._cache_key(ctx)
         clang_path = ctx.file_path or cpp_args.unsaved_name()
-        flags = ctx.compile_args or cpp_args.args_for_file(
-            ctx.file_path, ctx.source_code
-        )
-        flags = list(flags) + header_resolution.extra_flags_for(ctx.file_path)
+        flags = list(self.flags_for(ctx))
         hit = self._cache.get(key)
         if hit and hit[2] == tuple(flags):
             return hit[0]
