@@ -16,6 +16,7 @@ import clang.cindex as C
 from clang.cindex import CursorKind, Index, TranslationUnit
 from ..models import CppContext, CppCompletion
 from . import args as cpp_args
+from . import headers as header_resolution
 
 logger = logging.getLogger("DreamStudio.Cpp.Engine")
 _CACHE_SIZE = 8
@@ -198,29 +199,118 @@ class CppEngine:
             except Exception as exc:
                 logger.warning("include completion failed: %s", exc)
                 return []
-        try:
-            tu = self._tu_for_completion(ctx)
-            if tu is None:
+        out: list[CppCompletion] = []
+        tu = None
+        clang_path = ctx.file_path or cpp_args.unsaved_name()
+        for _ in range(4):
+            try:
+                tu, res, clang_path = self._request_completion(ctx)
+            except Exception as exc:
+                logger.warning("codeComplete failed: %s", exc)
                 return []
-            clang_path = ctx.file_path or cpp_args.unsaved_name()
-            # NOTE: no reparse here — codeComplete consumes the unsaved
-            # buffer itself. An explicit reparse costs ~0.8s per keystroke
-            # with zero benefit for completion freshness.
-            res = tu.codeComplete(
+            out = self._shape_results(ctx, res)
+            if out:
+                break
+            missing = self.missing_includes(ctx)
+            if not missing or not header_resolution.resolve_missing(
+                missing, ctx.file_path, list(ctx.compile_args or [])
+            ):
+                break
+        if not out:
+            return []
+        prefix = ""
+        match = re.search(r"[A-Za-z_]\w*$", row[: ctx.col - 1])
+        if match:
+            prefix = match.group(0).lower()
+        locals_boost = self._local_names(ctx)
+        from ..autocompletion import callsite as _callsite
+
+        try:
+            site = _callsite.resolve(
+                lines,
+                ctx.line - 1,
+                ctx.col - 1,
+                tu,
                 clang_path,
-                ctx.line,
-                ctx.col,
-                unsaved_files=[(clang_path, ctx.source_code)],
-                include_macros=True,
-                include_brief_comments=True,
+                hash(ctx.source_code),
+                self._cache_key(ctx),
             )
         except Exception as exc:
-            logger.warning("codeComplete failed: %s", exc)
-            return []
-        if not res or not res.results:
-            return []
-        per_name: dict[str, int] = {}
+            logger.debug("callsite resolution failed: %s", exc)
+            site = _callsite.CallSite()
+        scored: List[Tuple[int, object]] = []
+        declared = {}
+        if site.expected:
+            declared = _callsite.buffer_declared_types(ctx.source_code)
+        for completion in out:
+            if not site.expected:
+                scored.append((0, completion))
+                continue
+            if site.kind == "call_arg":
+                params = _callsite.signature_params(completion.signature)
+                if 0 <= site.arg_index < len(params):
+                    cand_type = _callsite.param_type(params[site.arg_index])
+                else:
+                    cand_type = _callsite.candidate_type(completion.signature)
+            else:
+                cand_type = _callsite.candidate_type(completion.signature)
+            if not cand_type:
+                cand_type = declared.get(completion.text, "")
+            scored.append((_callsite.type_tier(site.expected, cand_type), completion))
+        typed_prefix = ctx.prefix or ""
+        scored.sort(
+            key=lambda pair: (
+                pair[0],
+                not (typed_prefix and pair[1].text.startswith(typed_prefix)),
+                _KIND_RANK.get(pair[1].kind, 9),
+                pair[1].text not in locals_boost,
+                not pair[1].text.lower().startswith(prefix) if prefix else False,
+                pair[1].text.lower(),
+            ),
+        )
+        return [completion for _, completion in scored[:_MAX_ITEMS]]
+
+    def _request_completion(self, ctx: CppContext):
+        """Run ``codeComplete`` for *ctx* on its cached TU.
+
+        Args:
+            ctx: Completion context to complete.
+
+        Returns:
+            Tuple of ``(tu, result_or_None, clang_path)``. The TU may be
+            ``None`` when parsing failed; the result may be ``None``.
+        """
+        tu = self._tu_for_completion(ctx)
+        if tu is None:
+            return None, None, ctx.file_path or cpp_args.unsaved_name()
+        clang_path = ctx.file_path or cpp_args.unsaved_name()
+        # NOTE: no reparse here — codeComplete consumes the unsaved
+        # buffer itself. An explicit reparse costs ~0.8s per keystroke
+        # with zero benefit for completion freshness.
+        res = tu.codeComplete(
+            clang_path,
+            ctx.line,
+            ctx.col,
+            unsaved_files=[(clang_path, ctx.source_code)],
+            include_macros=True,
+            include_brief_comments=True,
+        )
+        return tu, res, clang_path
+
+    def _shape_results(self, ctx: CppContext, res) -> list:
+        """Shape raw code-complete results into prefix-filtered rows.
+
+        Args:
+            ctx: Completion context carrying the prefix filter.
+            res: Raw ``codeComplete`` result (or ``None``).
+
+        Returns:
+            Ordered ``CppCompletion`` rows (possibly empty).
+        """
         out: list[CppCompletion] = []
+        if not res or not res.results:
+            return out
+        per_name: dict[str, int] = {}
         want_prefix = (ctx.prefix or "").lower()
         for item in res.results:
             typed = ""
@@ -263,55 +353,7 @@ class CppEngine:
                     signature=signature,
                 )
             )
-        prefix = ""
-        match = re.search(r"[A-Za-z_]\w*$", row[: ctx.col - 1])
-        if match:
-            prefix = match.group(0).lower()
-        locals_boost = self._local_names(ctx)
-        from ..autocompletion import callsite as _callsite
-
-        try:
-            site = _callsite.resolve(
-                lines, ctx.line - 1, ctx.col - 1, tu, clang_path,
-                hash(ctx.source_code), self._cache_key(ctx),
-            )
-        except Exception as exc:
-            logger.debug("callsite resolution failed: %s", exc)
-            site = _callsite.CallSite()
-        scored: List[Tuple[int, object]] = []
-        declared = {}
-        if site.expected:
-            declared = _callsite.buffer_declared_types(ctx.source_code)
-        for completion in out:
-            if not site.expected:
-                scored.append((0, completion))
-                continue
-            if site.kind == "call_arg":
-                params = _callsite.signature_params(completion.signature)
-                if 0 <= site.arg_index < len(params):
-                    cand_type = _callsite.param_type(params[site.arg_index])
-                else:
-                    cand_type = _callsite.candidate_type(
-                        completion.signature)
-            else:
-                cand_type = _callsite.candidate_type(completion.signature)
-            if not cand_type:
-                cand_type = declared.get(completion.text, "")
-            scored.append(
-                (_callsite.type_tier(site.expected, cand_type), completion))
-        typed_prefix = ctx.prefix or ""
-        scored.sort(
-            key=lambda pair: (
-                pair[0],
-                not (typed_prefix and pair[1].text.startswith(typed_prefix)),
-                _KIND_RANK.get(pair[1].kind, 9),
-                pair[1].text not in locals_boost,
-                not pair[1].text.lower().startswith(prefix)
-                if prefix else False,
-                pair[1].text.lower(),
-            ),
-        )
-        return [completion for _, completion in scored[:_MAX_ITEMS]]
+        return out
 
     def prime(self, ctx: CppContext) -> None:
         """Build the translation unit without completing (idle warmup).
@@ -364,6 +406,7 @@ class CppEngine:
         flags = ctx.compile_args or cpp_args.args_for_file(
             ctx.file_path, ctx.source_code
         )
+        flags = list(flags) + header_resolution.extra_flags_for(ctx.file_path)
         hit = self._cache.get(key)
         if hit and hit[2] == tuple(flags):
             return hit[0]

@@ -30,6 +30,39 @@ _MEMBER_EMPTY = re.compile(r"(::|->|\.)\s*$")
 _IDENT = re.compile(r"[A-Za-z_]\w*$")
 
 
+def line_comment_at(line_text: str) -> int:
+    """Return the index where a real ``//`` comment starts, or ``-1``.
+
+    A ``//`` inside single- or double-quoted spans (e.g. ``"http://…"`` in
+    a string literal) does not start a comment.
+
+    Args:
+        line_text: Full text of the current line.
+
+    Returns:
+        Comment start index, or ``-1`` when the line has no comment.
+    """
+    quote = ""
+    index = 0
+    while index < len(line_text):
+        char = line_text[index]
+        if quote:
+            if char == "\\":
+                index += 2
+                continue
+            if char == quote:
+                quote = ""
+        elif char in ("'", '"'):
+            quote = char
+        elif (
+            char == "/"
+            and line_text[index + 1:index + 2] == "/"
+        ):
+            return index
+        index += 1
+    return -1
+
+
 def classify(line_text: str, col: int) -> Tuple[str, str]:
     """
     Classify the completion context at *col* on *line_text*.
@@ -61,7 +94,7 @@ def classify(line_text: str, col: int) -> Tuple[str, str]:
         return ("directive", directive_match.group(1) or "")
     if before.lstrip().startswith("#"):
         return ("preprocessor", "")
-    comment_at = line_text.find("//")
+    comment_at = line_comment_at(line_text)
     if comment_at != -1 and comment_at < max(0, col):
         return ("comment", "")
     for pattern in (_MEMBER_COLONS, _MEMBER_ARROW, _MEMBER_DOT):
