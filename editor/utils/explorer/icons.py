@@ -3,12 +3,20 @@ from editor.utils.resource_path import resource_path
 
 
 class DreamStudioIconProvider(QFileIconProvider):
+    """Provides file, name-based, and folder icons for the explorer tree.
+
+    Attributes:
+        _EXT_ICON: Mapping of lowercase file extension to icon file name.
+        _NAME_ICON: Mapping of lowercase full file name to icon file name.
+        _FOLDER_NAME_ICON: Mapping of lowercase folder name to icon file name.
+    """
     _EXT_ICON = {
         "bash": "bash.png",
         "bat": "bat.png",
         "bin": "bin.png",
         "bsharp": "bsharp.png",
         "c": "c.png",
+        "cpp": "cplusplus.png",
         "cmake": "make.png",
         "css": "css.png",
         "csv": "csv.png",
@@ -17,6 +25,7 @@ class DreamStudioIconProvider(QFileIconProvider):
         "docx": "docx.png",
         "html": "html.png",
         "h": "h.png",
+        "hpp": "hplusplus.png",
         "ipynb": "ipynb.png",
         "js": "javascript.png",
         "json": "json.png",
@@ -47,9 +56,10 @@ class DreamStudioIconProvider(QFileIconProvider):
         "copyright": "license.png",
         ".gitignore": "git.png",
         ".gitattributes": "git.png",
-        "Makefile": "make.png",
-        "CMakeLists": "make.png",
-        "Dockerfile": "docker.png",
+        "makefile": "make.png",
+        "cmakelists": "make.png",
+        "cmakelists.txt": "make.png",
+        "dockerfile": "docker.png",
         ".dockerignore": "docker.png",
     }
 
@@ -71,6 +81,14 @@ class DreamStudioIconProvider(QFileIconProvider):
     }
 
     def icon(self, file_info: QFileInfo) -> QIcon:
+        """Resolves the icon for a file or folder.
+
+        Args:
+            file_info: File metadata provided by the file system model.
+
+        Returns:
+            Matching ``QIcon`` or the generic file/folder fallback.
+        """
         if not isinstance(file_info, QFileInfo):
             return super().icon(file_info)
 
@@ -83,8 +101,20 @@ class DreamStudioIconProvider(QFileIconProvider):
             return QIcon(resource_path("assets/types/folder.png"))
 
         name_lower = file_info.fileName().lower()
-        if name_lower in self._NAME_ICON:
-            return QIcon(resource_path(f"assets/types/{self._NAME_ICON[name_lower]}"))
+        icon_file = self._NAME_ICON.get(name_lower)
+        if icon_file is None:
+            # NOTE: catches `CMakeLists.txt` (stem `cmakelists`) and variants
+            # such as `Makefile.am` or `Dockerfile.dev`.
+            try:
+                stem_lower = file_info.completeBaseName().lower()
+            except Exception:
+                stem_lower = ""
+            if stem_lower:
+                icon_file = self._NAME_ICON.get(stem_lower)
+        if icon_file:
+            candidate = resource_path(f"assets/types/{icon_file}")
+            if os.path.exists(candidate):
+                return QIcon(candidate)
 
         ext = file_info.suffix().lower()
         icon_file = self._EXT_ICON.get(ext)
