@@ -33,6 +33,9 @@ _ALL_LANGUAGES = "All languages"
 _ALL_PLATFORMS = "All platforms"
 _ALL_TYPES = "All project types"
 
+_FADE_OUT_MS = 150
+_FADE_IN_MS = 150
+
 
 class SolutionStartWindow(QMainWindow):
     """Two-step Visual-Studio-style solution start window.
@@ -61,6 +64,8 @@ class SolutionStartWindow(QMainWindow):
         self._project_items: list[QListWidgetItem] = []
         self._selected_project_entry: dict = {}
         self._theme_mode = "dark"
+        self._page_anim: QPropertyAnimation | None = None
+        self._pending_page: int = -1
 
         self.setObjectName("SolutionStartWindow")
         self.setWindowTitle(_START_WINDOW_TITLE)
@@ -425,17 +430,120 @@ class SolutionStartWindow(QMainWindow):
         self._theme_mode = "light" if self._theme_mode == "dark" else "dark"
         self._apply_local_theme()
 
-    def show_welcome(self) -> None:
-        """Show the Visual-Studio-like first screen."""
-        self._stack.setCurrentIndex(0)
-        self._back_btn.setVisible(False)
-        self._recent_list.setFocus()
+    def show_welcome(self, _checked: bool = False, animated: bool = True) -> None:
+        """Show the Visual-Studio-like first screen.
 
-    def show_create(self) -> None:
-        """Show the filterable template picker page."""
-        self._stack.setCurrentIndex(1)
+        Args:
+            _checked: Absorbs ``QPushButton.clicked``'s checked flag.
+            animated: Fade out the current page and fade in welcome.
+        """
+        self._switch_page(0, animated=animated)
+        self._back_btn.setVisible(False)
+        if not animated or self._stack.currentIndex() == 0:
+            self._recent_list.setFocus()
+
+    def show_create(self, _checked: bool = False, animated: bool = True) -> None:
+        """Show the filterable template picker page.
+
+        Args:
+            _checked: Absorbs ``QPushButton.clicked``'s checked flag.
+            animated: Fade out the current page and fade in create.
+        """
+        self._switch_page(1, animated=animated)
         self._back_btn.setVisible(True)
-        self._search_box.setFocus()
+        if not animated or self._stack.currentIndex() == 1:
+            self._search_box.setFocus()
+
+    def _switch_page(self, index: int, animated: bool = True) -> None:
+        """Cross-fade the stack to *index* via fade-out then fade-in.
+
+        Args:
+            index: Target page inside the stacked widget.
+            animated: Run the opacity animation; otherwise switch instantly.
+        """
+        if self._stack.currentIndex() == index:
+            self._stop_page_animation()
+            return
+        if not animated:
+            self._stop_page_animation()
+            self._stack.setCurrentIndex(index)
+            return
+        current = self._stack.currentWidget()
+        if current is None:
+            self._stack.setCurrentIndex(index)
+            return
+        self._stop_page_animation()
+        self._pending_page = index
+        effect = QGraphicsOpacityEffect(current)
+        effect.setOpacity(1.0)
+        current.setGraphicsEffect(effect)
+        anim = QPropertyAnimation(effect, b"opacity", self)
+        anim.setDuration(_FADE_OUT_MS)
+        anim.setStartValue(1.0)
+        anim.setEndValue(0.0)
+        anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        anim.finished.connect(self._finish_fade_out)
+        self._page_anim = anim
+        anim.start()
+
+    def _finish_fade_out(self) -> None:
+        """Swap to the pending page and fade it in from transparent."""
+        anim = self._page_anim
+        self._page_anim = None
+        target = self._pending_page
+        self._pending_page = -1
+        current = self._stack.currentWidget()
+        if current is not None:
+            current.setGraphicsEffect(None)
+        if target < 0 or target >= self._stack.count():
+            return
+        self._stack.setCurrentIndex(target)
+        nxt = self._stack.widget(target)
+        if nxt is None:
+            return
+        effect = QGraphicsOpacityEffect(nxt)
+        effect.setOpacity(0.0)
+        nxt.setGraphicsEffect(effect)
+        fade_in = QPropertyAnimation(effect, b"opacity", self)
+        fade_in.setDuration(_FADE_IN_MS)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
+        fade_in.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        fade_in.finished.connect(self._finish_fade_in)
+        self._page_anim = fade_in
+        fade_in.start()
+        if target == 0:
+            self._recent_list.setFocus()
+        else:
+            self._search_box.setFocus()
+
+    def _finish_fade_in(self) -> None:
+        """Clear the fade-in effect once the new page is fully opaque."""
+        anim = self._page_anim
+        self._page_anim = None
+        widget = self._stack.currentWidget()
+        if widget is not None:
+            widget.setGraphicsEffect(None)
+        if anim is not None:
+            anim.deleteLater()
+
+    def _stop_page_animation(self) -> None:
+        """Stop any running page fade and clear leftover opacity effects."""
+        anim = self._page_anim
+        self._page_anim = None
+        self._pending_page = -1
+        if anim is not None:
+            try:
+                anim.stop()
+            except Exception:
+                pass
+            anim.deleteLater()
+        for page in (
+            getattr(self, "_welcome_page", None),
+            getattr(self, "_create_page", None),
+        ):
+            if page is not None:
+                page.setGraphicsEffect(None)
 
     def _all_languages(self) -> list:
         """Collect sorted unique languages across manifest entries.

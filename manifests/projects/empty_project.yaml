@@ -1,6 +1,6 @@
 # Project Type: Empty Project
 # COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
-languages: ["python", "clang"]
+languages: ["python", "cpp"]
 version: "studio_default_version"
 interpreter_location: "studio_interpreter_defined_location"
 

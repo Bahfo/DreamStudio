@@ -13,6 +13,7 @@ from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import (
     QFont,
     QColor,
+    QImage,
     QPainter,
     QPixmap,
     QPainterPath,
@@ -28,6 +29,8 @@ _SPLASH_WIDTH = 690
 _SPLASH_HEIGHT = 450
 _CORNER_RADIUS = 0.0
 _MIN_VISIBLE_SECONDS = 5.0
+_FADE_IN_MS = 550
+_FADE_FRAME_MS = 16
 
 
 def _get_icon_src_path() -> str:
@@ -122,6 +125,63 @@ def _render_pixmap(status_text: str, progress: float) -> QPixmap:
     return pixmap
 
 
+def _with_opacity(source: QPixmap, opacity: float) -> QPixmap:
+    """Return *source* with its overall alpha scaled by *opacity*.
+
+    Paints through an explicit ARGB image so the result carries a real
+    alpha channel on every platform (a plain ``QPixmap`` may be
+    allocated without one, which would fade from black instead).
+
+    Args:
+        source: Fully rendered splash pixmap.
+        opacity: 0.0 (fully transparent) to 1.0 (unchanged).
+
+    Returns:
+        New pixmap with the same size and device pixel ratio.
+    """
+    clamped = max(0.0, min(1.0, opacity))
+    image = source.toImage().convertToFormat(
+        QImage.Format.Format_ARGB32_Premultiplied
+    )
+    painter = QPainter(image)
+    painter.setCompositionMode(
+        QPainter.CompositionMode.CompositionMode_DestinationIn
+    )
+    painter.fillRect(image.rect(), QColor(0, 0, 0, round(255 * clamped)))
+    painter.end()
+    faded = QPixmap.fromImage(image)
+    faded.setDevicePixelRatio(source.devicePixelRatio())
+    return faded
+
+
+class _ClickThroughSplash(QSplashScreen):
+    """Splash screen that ignores mouse clicks.
+
+    ``QSplashScreen`` hides itself when clicked, which would leave the
+    boot running in the background with no visible feedback. Swallowing
+    the press/double-click events keeps the splash up until the
+    controller closes it programmatically.
+    """
+
+    def mousePressEvent(self, event) -> None:
+        """Ignore mouse presses so a click cannot dismiss the splash.
+
+        Args:
+            event: The incoming mouse-press event.
+        """
+        if event is not None:
+            event.ignore()
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        """Ignore double-clicks for the same reason as single clicks.
+
+        Args:
+            event: The incoming mouse double-click event.
+        """
+        if event is not None:
+            event.ignore()
+
+
 class SplashController:
     """Thin wrapper around QSplashScreen for startup progress."""
 
@@ -139,18 +199,70 @@ class SplashController:
         self._step_count = count
 
     def show(self) -> None:
-        """Display the splash screen."""
-        progress = 0.0
-        pixmap = _render_pixmap(self._status_text, progress)
+        """Display the splash screen with a fade-in animation."""
+        base = _render_pixmap(self._status_text, 0.0)
 
-        self._splash = QSplashScreen(pixmap)
+        self._splash = _ClickThroughSplash(_with_opacity(base, 0.0))
         self._splash.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
         )
         self._splash.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._splash.show()
+        self._start_fade_in(base)
         self._shown_at = time.monotonic()
         logger.info("Splash screen shown")
+
+    def _start_fade_in(self, base: QPixmap) -> None:
+        """Fade the splash pixmap from transparent to *base*.
+
+        The fade is painted into the pixmap itself (rather than using
+        window opacity), so it renders identically with or without a
+        compositing window manager. It runs to completion inside
+        ``show()`` via a short nested event loop, since boot phases
+        after ``show()`` perform long blocking work that would
+        otherwise freeze the fade mid-flight.
+
+        Args:
+            base: Fully opaque target pixmap to fade towards.
+        """
+        from PyQt6.QtCore import QElapsedTimer, QEventLoop, QTimer
+
+        if self._splash is None:
+            return
+        clock = QElapsedTimer()
+        clock.start()
+        loop = QEventLoop()
+        ticker = QTimer()
+        ticker.setInterval(_FADE_FRAME_MS)
+        state = {"done": False}
+
+        def _paint_frame() -> None:
+            if self._splash is None:
+                return
+            raw = clock.elapsed() / _FADE_IN_MS
+            progress = 1.0 if raw >= 1.0 else raw
+            eased = progress * progress * (3.0 - 2.0 * progress)
+            self._splash.setPixmap(_with_opacity(base, eased))
+            self._splash.repaint()
+            if progress >= 1.0:
+                _finish()
+
+        def _finish() -> None:
+            if state["done"]:
+                return
+            state["done"] = True
+            ticker.stop()
+            if self._splash is not None:
+                self._splash.setPixmap(base)
+                self._splash.repaint()
+            loop.quit()
+
+        ticker.timeout.connect(_paint_frame)
+        QTimer.singleShot(_FADE_IN_MS + 800, _finish)
+        _paint_frame()
+        ticker.start()
+        loop.exec()
+        _finish()
 
     def update_status(self, message: str, step: int | None = None) -> None:
         """Update displayed status text and optionally advance step."""
