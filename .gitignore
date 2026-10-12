@@ -20,3 +20,5 @@ config.json
 
 publish/
 plans/
+
+.ds/
