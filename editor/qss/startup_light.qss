@@ -120,6 +120,30 @@ QPushButton#SolutionActionCard:hover {
     border-color: #4F46E5;
 }
 
+QPushButton#SolutionCloseBtn {
+    background: transparent;
+    text-align: center;
+    border: none;
+    width: 30px;
+    height: 35px;
+}
+
+QPushButton#SolutionCloseBtn:hover {
+    background: #b12828;
+}
+
+QPushButton#SolutionMinBtn {
+    background: transparent;
+    text-align: center;
+    border: none;
+    width: 30px;
+    height: 35px;
+}
+
+QPushButton#SolutionMinBtn:hover {
+    background: #17639d;
+}
+
 QLabel#SolutionActionDesc {
     color: #666666;
     font-size: 12px;

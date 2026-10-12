@@ -26,8 +26,8 @@ from editor.utils.solution.theme import center_on_screen, load_startup_qss
 
 _START_WINDOW_TITLE = "Welcome to DreamStudio"
 
-_WINDOW_WIDTH = 920
-_WINDOW_HEIGHT = 600
+_WINDOW_WIDTH = 900
+_WINDOW_HEIGHT = 650
 
 _ALL_LANGUAGES = "All languages"
 _ALL_PLATFORMS = "All platforms"
@@ -64,15 +64,16 @@ class SolutionStartWindow(QMainWindow):
 
         self.setObjectName("SolutionStartWindow")
         self.setWindowTitle(_START_WINDOW_TITLE)
-        self.setFixedSize(_WINDOW_WIDTH, _WINDOW_HEIGHT)
 
         self.setWindowFlags(
             Qt.WindowType.Window
-            | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowSystemMenuHint
             | Qt.WindowType.WindowCloseButtonHint
-            | Qt.WindowType.MSWindowsFixedSizeDialogHint
         )
+
+        self.resize(_WINDOW_WIDTH, _WINDOW_HEIGHT)
+        self.setFixedSize(_WINDOW_WIDTH, _WINDOW_HEIGHT)
 
         self._build_ui()
         self._load_intro_settings()
@@ -135,6 +136,18 @@ class SolutionStartWindow(QMainWindow):
         self._theme_toggle.clicked.connect(self.toggle_theme)
         layout.addWidget(self._theme_toggle)
 
+        layout.addSpacing(50)
+
+        self._minimize_btn = QPushButton("—")
+        self._minimize_btn.setObjectName("SolutionMinBtn")
+        self._minimize_btn.clicked.connect(self.showMinimized)
+        layout.addWidget(self._minimize_btn)
+
+        self._close_btn = QPushButton("✕")
+        self._close_btn.setObjectName("SolutionCloseBtn")
+        self._close_btn.clicked.connect(self.close)
+        layout.addWidget(self._close_btn)
+
         return bar
 
     def _build_welcome_page(self) -> QWidget:
@@ -175,9 +188,7 @@ class SolutionStartWindow(QMainWindow):
         self._create_action_btn.setMinimumHeight(56)
         self._create_action_btn.clicked.connect(self.show_create)
 
-        create_desc = QLabel(
-            "Start from a DreamStudio project template.", left
-        )
+        create_desc = QLabel("Start from a DreamStudio project template.", left)
         create_desc.setObjectName("SolutionActionDesc")
 
         self._open_action_btn = QPushButton("⧉  Open Existing Solution", left)
@@ -211,9 +222,7 @@ class SolutionStartWindow(QMainWindow):
         recent_title = QLabel("Recent Solutions", right)
         recent_title.setObjectName("SolutionSectionTitle")
 
-        recent_hint = QLabel(
-            "Double-click to open. Right-click to dismiss.", right
-        )
+        recent_hint = QLabel("Double-click to open. Right-click to dismiss.", right)
         recent_hint.setObjectName("SolutionHint")
         recent_hint.setWordWrap(True)
 
@@ -229,9 +238,7 @@ class SolutionStartWindow(QMainWindow):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._recent_list.setSpacing(6)
-        self._recent_list.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu
-        )
+        self._recent_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._recent_list.customContextMenuRequested.connect(
             self._show_recent_context_menu
         )
@@ -348,9 +355,7 @@ class SolutionStartWindow(QMainWindow):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._recent_templates_list.setSpacing(4)
-        self._recent_templates_list.itemClicked.connect(
-            self._open_recent_template_item
-        )
+        self._recent_templates_list.itemClicked.connect(self._open_recent_template_item)
         self._recent_templates_list.itemActivated.connect(
             self._open_recent_template_item
         )
@@ -411,7 +416,9 @@ class SolutionStartWindow(QMainWindow):
             self._theme_toggle.setText("◐ Light theme")
 
         for card in self._project_cards:
-            card.refresh_text(self._search_box.text() if hasattr(self, "_search_box") else "")
+            card.refresh_text(
+                self._search_box.text() if hasattr(self, "_search_box") else ""
+            )
 
     def toggle_theme(self) -> None:
         """Toggle between the dark and light start-window themes."""

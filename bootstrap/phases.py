@@ -450,8 +450,22 @@ def _run_start_window(window, ctx: PhaseContext):
         lambda selection: _complete_selection(result, selection, loop)
     )
     window.prompt_cancelled.connect(loop.quit)
-    window.showMaximized()
     window.setEnabled(True)
+    try:
+        force_normal = getattr(window, "_force_normal_window_state", None)
+        if callable(force_normal):
+            force_normal()
+    except Exception:
+        pass
+    window.show()
+    window.raise_()
+    window.activateWindow()
+    try:
+        from editor.utils.solution.theme import center_on_screen
+
+        center_on_screen(window)
+    except Exception:
+        pass
     loop.exec()
     try:
         window.close()
