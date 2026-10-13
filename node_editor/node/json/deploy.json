@@ -1,0 +1,39 @@
+{
+    "name": "deploy",
+    "color": "#4A2E4D",
+    "properties": {
+        "nodes": {
+            "input": 1,
+            "output": 1
+        },
+        "host": {
+            "type": "QLineEdit",
+            "name": "Target Host",
+            "value": ""
+        },
+        "port": {
+            "type": "QLineEdit",
+            "name": "Port",
+            "value": "22"
+        },
+        "remote-path": {
+            "type": "QLineEdit",
+            "name": "Remote Path",
+            "value": "/opt/app"
+        },
+        "method": {
+            "type": "QComboBox",
+            "name": "Transfer Method",
+            "values": [
+                "scp",
+                "rsync",
+                "sftp"
+            ]
+        },
+        "dry-run": {
+            "type": "QCheckBox",
+            "name": "Dry run (no changes)",
+            "value": true
+        }
+    }
+}

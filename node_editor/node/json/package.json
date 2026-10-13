@@ -1,0 +1,47 @@
+{
+    "name": "package",
+    "color": "#2E3D4D",
+    "properties": {
+        "nodes": {
+            "input": 1,
+            "output": 1
+        },
+        "format": {
+            "type": "QComboBox",
+            "name": "Package Format",
+            "values": [
+                "zip",
+                "tar.gz",
+                "deb"
+            ]
+        },
+        "output-dir": {
+            "type": "QLineEdit",
+            "name": "Output Directory",
+            "value": "dist"
+        },
+        "include": {
+            "type": "QListWidget",
+            "name": "Include",
+            "values": [
+                "binaries",
+                "assets",
+                "docs",
+                "licenses"
+            ],
+            "checked": [
+                "binaries"
+            ]
+        },
+        "version": {
+            "type": "QLineEdit",
+            "name": "Version",
+            "value": "1.0.0"
+        },
+        "clean-build": {
+            "type": "QCheckBox",
+            "name": "Clean before packaging",
+            "value": true
+        }
+    }
+}

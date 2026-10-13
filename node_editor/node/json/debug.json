@@ -1,0 +1,38 @@
+{
+    "name": "debug",
+    "color": "#26494D",
+    "properties": {
+        "nodes": {
+            "input": 1,
+            "output": 2
+        },
+        "executable": {
+            "type": "QLineEdit",
+            "name": "Executable (-g build)",
+            "value": "build/main"
+        },
+        "arguments": {
+            "type": "QLineEdit",
+            "name": "Program Arguments",
+            "value": ""
+        },
+        "backend": {
+            "type": "QComboBox",
+            "name": "Debugger Backend",
+            "values": [
+                "gdb",
+                "lldb"
+            ]
+        },
+        "stop-at-entry": {
+            "type": "QCheckBox",
+            "name": "Stop at main on launch",
+            "value": true
+        },
+        "pretty-print": {
+            "type": "QCheckBox",
+            "name": "Pretty print STL containers",
+            "value": true
+        }
+    }
+}

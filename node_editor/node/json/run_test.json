@@ -1,0 +1,49 @@
+{
+    "name": "run_test",
+    "color": "#2E4D33",
+    "properties": {
+        "nodes": {
+            "input": 1,
+            "output": 1
+        },
+        "test-binary": {
+            "type": "QLineEdit",
+            "name": "Test Binary",
+            "value": "build/tests/run_tests"
+        },
+        "framework": {
+            "type": "QComboBox",
+            "name": "Test Framework",
+            "values": [
+                "CTest",
+                "GoogleTest",
+                "Catch2",
+                "Custom Executable"
+            ]
+        },
+        "filter": {
+            "type": "QLineEdit",
+            "name": "Test Filter",
+            "value": ""
+        },
+        "verbosity": {
+            "type": "QComboBox",
+            "name": "Verbosity",
+            "values": [
+                "normal",
+                "quiet",
+                "verbose"
+            ]
+        },
+        "coverage": {
+            "type": "QCheckBox",
+            "name": "Collect coverage (gcov)",
+            "value": false
+        },
+        "stop-on-failure": {
+            "type": "QCheckBox",
+            "name": "Stop on first failure",
+            "value": false
+        }
+    }
+}

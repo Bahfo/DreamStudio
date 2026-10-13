@@ -1,0 +1,62 @@
+{
+    "name": "compile",
+    "color": "#4D2E2E",
+    "properties": {
+        "nodes": {
+            "input": 0,
+            "output": 1
+        },
+        "file-path": {
+            "type": "QLineEdit",
+            "name": "File Path",
+            "value": ""
+        },
+        "output-name": {
+            "type": "QLineEdit",
+            "name": "Output name",
+            "value": "main"
+        },
+        "compile-to-object": {
+            "type": "QCheckBox",
+            "name": "Compile to Object",
+            "value": false
+        },
+        "standard-cpp": {
+            "type": "QComboBox",
+            "name": "Standard C++",
+            "values": [
+                "c++17",
+                "c++20",
+                "c++23"
+            ]
+        },
+        "optimizaiton": {
+            "type": "QComboBox",
+            "name": "Compiler Optimizations",
+            "values": [
+                "None",
+                "O0", 
+                "O1", 
+                "O2", 
+                "O3", 
+                "Os"
+            ]
+        },
+        "warnings": {
+            "type": "QListWidget",
+            "name": "Warnings",
+            "values": [
+                "Wall",
+                "Wextra",
+                "Werror",
+                "Wpedantic"
+            ],
+            "checked": []
+        },
+        "Debugging": {
+            "type": "QCheckBox",
+            "name": "Enable extra debugging features",
+            "value": true
+        }
+    }
+}

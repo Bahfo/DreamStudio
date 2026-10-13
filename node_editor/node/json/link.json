@@ -1,0 +1,46 @@
+{
+    "name": "link",
+    "color": "#4D442E",
+    "properties": {
+        "nodes": {
+            "input": 2,
+            "output": 1
+        },
+        "objects": {
+            "type": "QLineEdit",
+            "name": "Object Files",
+            "value": "build/*.o"
+        },
+        "libraries": {
+            "type": "QListWidget",
+            "name": "Link Libraries",
+            "values": [
+                "m",
+                "pthread",
+                "dl",
+                "stdc++fs"
+            ],
+            "checked": []
+        },
+        "library-path": {
+            "type": "QLineEdit",
+            "name": "Library Path (-L)",
+            "value": ""
+        },
+        "output": {
+            "type": "QLineEdit",
+            "name": "Output Binary (-o)",
+            "value": "main"
+        },
+        "shared": {
+            "type": "QCheckBox",
+            "name": "Build shared library (-shared)",
+            "value": false
+        },
+        "strip": {
+            "type": "QCheckBox",
+            "name": "Strip symbols (-s)",
+            "value": false
+        }
+    }
+}
