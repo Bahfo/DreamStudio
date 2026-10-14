@@ -1,0 +1,169 @@
+# Project Type: Python Machine Learning
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+
+languages: ["python"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "python_machine_learning"
+display_name: "Machine Learning Project with Python"
+description: |
+  Create a machine learning project using scikit-learn, NumPy, and pandas.
+  Include dataset handling, model training, evaluation, and tests.
+  Use a lightweight CPU-compatible baseline by default.
+
+initialization:
+  directories:
+    - "src"
+    - "data/raw"
+    - "data/processed"
+    - "models"
+    - "notebooks"
+    - "tests"
+    - "build"
+
+  files:
+    - ".gitignore"
+    - ".gitattributes"
+    - "LICENSE.md"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+    - "src/__init__.py"
+    - "src/train.py"
+    - "tests/test_train.py"
+
+  templates:
+    - target: "requirements.txt"
+      contents: |
+        numpy
+        pandas
+        scikit-learn
+        joblib
+        pytest
+
+    - target: "main.py"
+      contents: |
+        from src.train import train_model
+
+
+        def main():
+            model, accuracy = train_model()
+
+            print(f"Model accuracy: {accuracy:.2f}")
+            print(f"Model type: {type(model).__name__}")
+
+
+        if __name__ == "__main__":
+            main()
+
+    - target: "src/train.py"
+      contents: |
+        from sklearn.datasets import load_iris
+        from sklearn.metrics import accuracy_score
+        from sklearn.model_selection import train_test_split
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.linear_model import LogisticRegression
+
+
+        def train_model():
+            dataset = load_iris()
+            features = dataset.data
+            labels = dataset.target
+
+            x_train, x_test, y_train, y_test = train_test_split(
+                features,
+                labels,
+                test_size=0.2,
+                random_state=42,
+                stratify=labels,
+            )
+
+            model = make_pipeline(
+                StandardScaler(),
+                LogisticRegression(max_iter=1000),
+            )
+
+            model.fit(x_train, y_train)
+            predictions = model.predict(x_test)
+            accuracy = accuracy_score(y_test, predictions)
+
+            return model, accuracy
+
+    - target: "tests/test_train.py"
+      contents: |
+        from src.train import train_model
+
+
+        def test_model_training():
+            model, accuracy = train_model()
+
+            assert hasattr(model, "predict")
+            assert 0.0 <= accuracy <= 1.0
+
+    - target: ".gitignore"
+      contents: |
+        venv/
+        .venv/
+        __pycache__/
+        *.py[cod]
+        .pytest_cache/
+        build/
+        dist/
+        data/raw/*
+        !data/raw/.gitkeep
+        data/processed/*
+        !data/processed/.gitkeep
+        models/*
+        !models/.gitkeep
+        *.pkl
+        *.joblib
+        .ipynb_checkpoints/
+        .ds/
+
+    - target: ".gitattributes"
+      contents: |
+        * text=auto
+        *.py text eol=lf
+
+    - target: "README.md"
+      contents: |
+        # Python Machine Learning
+
+        ## Setup
+        python -m venv venv
+
+        Linux:
+        ./venv/bin/python -m pip install -r requirements.txt
+
+        Windows:
+        .\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+        ## Train
+        python main.py
+
+        ## Test
+        python -m pytest
+
+        The starter model uses scikit-learn's Iris dataset and logistic
+        regression. Replace the example dataset and model as needed.
+
+        Only load serialized models from trusted sources.
+
+    - target: "LICENSE.md"
+      contents: |
+        # License
+
+        Specify the applicable license terms for this project before
+        distributing or publishing it.
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Create an isolated Python environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Install machine learning and testing libraries"
+    unix: "./venv/bin/python -m pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\python.exe -m pip install -r requirements.txt"

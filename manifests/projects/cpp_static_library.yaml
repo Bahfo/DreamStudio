@@ -1,0 +1,153 @@
+# Project Type: C++ Static Library
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+
+languages: ["cpp"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "cpp_static_library"
+display_name: "C++ Static Library (Linux)"
+description: |
+  Create a reusable C++ static library for Linux using CMake.
+  Separate public headers from implementation and provide a basic test target.
+
+initialization:
+  directories:
+    - "include"
+    - "src"
+    - "tests"
+    - "build"
+
+  files:
+    - ".gitignore"
+    - ".gitattributes"
+    - "LICENSE.md"
+    - "README.md"
+    - "CMakeLists.txt"
+    - "include/Library.hpp"
+    - "src/Library.cpp"
+    - "tests/CMakeLists.txt"
+    - "tests/test_library.cpp"
+
+  templates:
+    - target: "include/Library.hpp"
+      contents: |
+        #pragma once
+
+        namespace Example {
+            int add(int first, int second);
+        }
+
+    - target: "src/Library.cpp"
+      contents: |
+        #include "Library.hpp"
+
+        namespace Example {
+            int add(int first, int second) {
+                return first + second;
+            }
+        }
+
+    - target: "tests/test_library.cpp"
+      contents: |
+        #include "Library.hpp"
+        #include <cassert>
+
+        int main() {
+            assert(Example::add(2, 3) == 5);
+            assert(Example::add(-2, 2) == 0);
+            return 0;
+        }
+
+    - target: "tests/CMakeLists.txt"
+      contents: |
+        add_executable(LibraryTests test_library.cpp)
+        target_link_libraries(LibraryTests PRIVATE ExampleLibrary)
+        add_test(NAME LibraryTests COMMAND LibraryTests)
+
+    - target: "CMakeLists.txt"
+      contents: |
+        cmake_minimum_required(VERSION 3.20)
+
+        project(ExampleLibrary VERSION 1.0 LANGUAGES CXX)
+
+        set(CMAKE_CXX_STANDARD 20)
+        set(CMAKE_CXX_STANDARD_REQUIRED ON)
+        set(CMAKE_CXX_EXTENSIONS OFF)
+
+        add_library(ExampleLibrary STATIC
+            src/Library.cpp
+        )
+
+        target_include_directories(ExampleLibrary
+            PUBLIC
+                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                $<INSTALL_INTERFACE:include>
+        )
+
+        include(CTest)
+
+        if(BUILD_TESTING)
+            add_subdirectory(tests)
+        endif()
+
+        include(GNUInstallDirs)
+        install(TARGETS ExampleLibrary
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        )
+        install(DIRECTORY include/
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
+
+    - target: ".gitignore"
+      contents: |
+        build/
+        cmake-build-*/
+        *.o
+        *.a
+        *.so
+        .vscode/
+        .idea/
+        .ds/
+
+    - target: ".gitattributes"
+      contents: |
+        * text=auto
+        *.cpp text eol=lf
+        *.hpp text eol=lf
+
+    - target: "README.md"
+      contents: |
+        # ExampleLibrary
+
+        A reusable C++20 static library for Linux.
+
+        ## Build
+        cmake -S . -B build
+        cmake --build build
+
+        ## Test
+        ctest --test-dir build --output-on-failure
+
+        ## Install
+        cmake --install build --prefix ./install
+
+        Public headers are located in include/. The generated static archive
+        is available in build/ after compilation.
+
+    - target: "LICENSE.md"
+      contents: |
+        # License
+
+        Specify the applicable license terms for this project before
+        distributing or publishing it.
+
+post_lifecycle:
+  - step: "configure_build"
+    desc: "Configure and compile the static library"
+    unix: "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build"
+    wind: "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release"
+  - step: "run_tests"
+    desc: "Execute library tests"
+    unix: "ctest --test-dir build --output-on-failure"
+    wind: "ctest --test-dir build -C Release --output-on-failure"

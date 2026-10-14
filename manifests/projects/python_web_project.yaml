@@ -1,0 +1,197 @@
+# Project Type: Python Flask Web Project
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+
+languages: ["python", "html", "css"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "python_flask_web_project"
+display_name: "Server Project Using Python and Flask"
+description: |
+  Create a Flask web application with templates, static assets, routes,
+  isolated dependencies, and a basic automated test suite.
+
+initialization:
+  directories:
+    - "src"
+    - "src/templates"
+    - "src/static/css"
+    - "src/static/js"
+    - "tests"
+    - "instance"
+    - "build"
+
+  files:
+    - ".gitignore"
+    - ".gitattributes"
+    - "LICENSE.md"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+    - "src/__init__.py"
+    - "src/routes.py"
+    - "src/templates/index.html"
+    - "src/static/css/style.css"
+    - "tests/test_app.py"
+
+  templates:
+    - target: "requirements.txt"
+      contents: |
+        Flask
+        pytest
+
+    - target: "main.py"
+      contents: |
+        from src import create_app
+
+
+        app = create_app()
+
+
+        if __name__ == "__main__":
+            app.run(debug=True)
+
+    - target: "src/__init__.py"
+      contents: |
+        from flask import Flask
+
+
+        def create_app(test_config=None):
+            app = Flask(
+                __name__,
+                instance_relative_config=True,
+            )
+
+            app.config.from_mapping(
+                SECRET_KEY="development-only-change-me",
+            )
+
+            if test_config is not None:
+                app.config.update(test_config)
+
+            from src.routes import main_bp
+            app.register_blueprint(main_bp)
+
+            return app
+
+    - target: "src/routes.py"
+      contents: |
+        from flask import Blueprint, render_template
+
+
+        main_bp = Blueprint("main", __name__)
+
+
+        @main_bp.route("/")
+        def index():
+            return render_template("index.html")
+
+    - target: "src/templates/index.html"
+      contents: |
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>DreamStudio Flask Application</title>
+            <link rel="stylesheet"
+                  href="{{ url_for('static', filename='css/style.css') }}">
+        </head>
+        <body>
+            <main>
+                <h1>Hello, DreamStudio!</h1>
+                <p>Your Flask application is running.</p>
+            </main>
+        </body>
+        </html>
+
+    - target: "src/static/css/style.css"
+      contents: |
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 3rem;
+        }
+
+        main {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+    - target: "tests/test_app.py"
+      contents: |
+        from src import create_app
+
+
+        def test_home_page():
+            app = create_app({"TESTING": True})
+            client = app.test_client()
+
+            response = client.get("/")
+
+            assert response.status_code == 200
+            assert b"Hello, DreamStudio!" in response.data
+
+    - target: ".gitignore"
+      contents: |
+        venv/
+        .venv/
+        __pycache__/
+        *.py[cod]
+        .pytest_cache/
+        instance/
+        build/
+        dist/
+        .env
+        .ds/
+
+    - target: ".gitattributes"
+      contents: |
+        * text=auto
+        *.py text eol=lf
+        *.html text eol=lf
+        *.css text eol=lf
+        *.js text eol=lf
+
+    - target: "README.md"
+      contents: |
+        # Flask Web Project
+
+        ## Setup
+        python -m venv venv
+
+        Linux:
+        ./venv/bin/python -m pip install -r requirements.txt
+
+        Windows:
+        .\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+        ## Development
+        Linux:
+        ./venv/bin/python -m flask --app main run --debug
+
+        Windows:
+        .\venv\Scripts\python.exe -m flask --app main run --debug
+
+        ## Test
+        python -m pytest
+
+        Do not use Flask's development server as a production server.
+        Replace the development secret key before deployment.
+
+    - target: "LICENSE.md"
+      contents: |
+        # License
+
+        Specify the applicable license terms for this project before
+        distributing or publishing it.
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Create an isolated Python environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Install Flask and testing dependencies"
+    unix: "./venv/bin/python -m pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\python.exe -m pip install -r requirements.txt"

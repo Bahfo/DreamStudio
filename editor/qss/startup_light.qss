@@ -1,17 +1,17 @@
 /* DreamStudio solution start window - light theme. */
 
 QMainWindow#SolutionStartWindow {
-    background: #F3F3F3;
+    background: #DFDFDF;
 }
 
 QWidget#SolutionStartCentral {
-    background: #F3F3F3;
+    background: #DFDFDF;
 }
 
 QFrame#SolutionTopBar {
-    background: #F3F3F3;
+    background: #DFDFDF;
     border: none;
-    border-bottom: 1px solid #DDDDDD;
+    border-bottom: 1px solid #bcbcbc;
 }
 
 QLabel#SolutionBrandLabel {
@@ -55,7 +55,7 @@ QFrame#SolutionWelcomeActions {
 
 QFrame#SolutionRecentPanel,
 QFrame#SolutionLeftPanel {
-    background: #F3F3F3;
+    background: #DFDFDF;
     border: none;
 }
 
@@ -122,26 +122,32 @@ QPushButton#SolutionActionCard:hover {
 
 QPushButton#SolutionCloseBtn {
     background: transparent;
+    color: #1E1E1E;
     text-align: center;
     border: none;
     width: 30px;
     height: 35px;
+    font-size: 14px;
 }
 
 QPushButton#SolutionCloseBtn:hover {
     background: #b12828;
+    color: white;
 }
 
 QPushButton#SolutionMinBtn {
     background: transparent;
+    color: #1E1E1E;
     text-align: center;
     border: none;
     width: 30px;
     height: 35px;
+    font-size: 14px;
 }
 
 QPushButton#SolutionMinBtn:hover {
     background: #17639d;
+    color: white;
 }
 
 QLabel#SolutionActionDesc {
@@ -150,7 +156,7 @@ QLabel#SolutionActionDesc {
 }
 
 QLineEdit#SolutionSearchBox {
-    background: #FFFFFF;
+    background: #DFDFDF;
     color: #1E1E1E;
     border: 1px solid #CCCCCC;
     border-radius: 4px;
@@ -163,7 +169,7 @@ QLineEdit#SolutionSearchBox:focus {
 }
 
 QComboBox {
-    background: #FFFFFF;
+    background: #DFDFDF;
     color: #1E1E1E;
     border: 1px solid #CCCCCC;
     border-radius: 4px;
@@ -177,7 +183,7 @@ QComboBox:hover {
 }
 
 QComboBox QAbstractItemView {
-    background: #FFFFFF;
+    background: #DFDFDF;
     color: #1E1E1E;
     selection-background-color: #4F46E5;
     selection-color: white;
@@ -193,6 +199,29 @@ QListWidget {
 QListWidget::item {
     background: transparent;
     border: none;
+}
+
+QListWidget::item:hover {
+    background: #EAEAEA;
+}
+
+QListWidget::item:selected {
+    background: #E0E0F0;
+    color: #1E1E1E;
+}
+
+QWidget#SolutionRecentTemplateRow {
+    background: transparent;
+}
+
+QLabel#SolutionRecentTemplateIcon {
+    background: transparent;
+}
+
+QLabel#SolutionRecentTemplateName {
+    background: transparent;
+    color: #1E1E1E;
+    font-size: 13px;
 }
 
 QFrame#SolutionProjectCard {
@@ -249,7 +278,7 @@ QFrame#SolutionProjectIconFrame {
 }
 
 QMenu {
-    background: #FFFFFF;
+    background: #DFDFDF;
     color: #1E1E1E;
     border: 1px solid #CCCCCC;
 }
@@ -262,4 +291,135 @@ QMenu::item {
 QMenu::item:selected {
     background: #4F46E5;
     color: white;
+}
+
+QScrollBar:vertical,
+QScrollBar:horizontal {
+    background: transparent;
+    margin: 0;
+    border: none;
+}
+
+QScrollBar:vertical {
+    width: 10px;
+}
+
+QScrollBar:horizontal {
+    height: 10px;
+}
+
+QScrollBar::handle:vertical,
+QScrollBar::handle:horizontal {
+    background-color: rgba(160, 160, 160, 0.50);
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical {
+    min-height: 24px;
+}
+
+QScrollBar::handle:horizontal {
+    min-width: 24px;
+}
+
+QScrollBar::handle:vertical:hover,
+QScrollBar::handle:horizontal:hover {
+    background-color: #A0A0A0;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    height: 0;
+    width: 0;
+    border: none;
+    background: none;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: none;
+    border: none;
+}
+
+QDialog {
+    background: #DFDFDF;
+    color: #1E1E1E;
+    border: 1px solid #CCCCCC;
+}
+
+QMessageBox QLabel {
+    color: #1E1E1E;
+    background: transparent;
+}
+
+QLabel#HeadingLabel {
+    color: #1E1E1E;
+    font-size: 18px;
+    font-weight: bold;
+    background: transparent;
+}
+
+QLabel#FieldLabel {
+    color: #444444;
+    font-size: 12px;
+    background: transparent;
+}
+
+QLabel#ProjectTypeLabel {
+    color: #1E1E1E;
+    font-size: 14px;
+    font-weight: bold;
+    background: transparent;
+}
+
+QLabel#DescriptionLabel {
+    color: #666666;
+    font-size: 12px;
+    background: transparent;
+}
+
+QDialog QLineEdit {
+    background: #DFDFDF;
+    color: #1E1E1E;
+    border: 1px solid #CCCCCC;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+QDialog QLineEdit:focus {
+    border: 1px solid #4F46E5;
+}
+
+QDialog QLineEdit::placeholder {
+    color: #8A8A8A;
+}
+
+QDialog QPushButton {
+    background: #FFFFFF;
+    color: #1E1E1E;
+    border: 1px solid #CCCCCC;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+}
+
+QDialog QPushButton:hover {
+    background: #EAEAEA;
+    border-color: #999999;
+}
+
+QDialog QPushButton#PrimaryButton {
+    background: #4F46E5;
+    color: white;
+    border: none;
+    font-weight: bold;
+}
+
+QDialog QPushButton#PrimaryButton:hover {
+    background: #5B5BD6;
 }

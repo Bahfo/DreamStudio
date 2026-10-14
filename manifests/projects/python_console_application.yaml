@@ -1,0 +1,105 @@
+# Project Type: Python Console Application
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+
+languages: ["python"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "python_console_app"
+display_name: "Python Console Application"
+description: |
+  Create a Python console application with an isolated virtual environment,
+  dependency management, a main entry point, and a basic test suite.
+
+initialization:
+  directories:
+    - "src"
+    - "tests"
+    - "build"
+
+  files:
+    - ".gitignore"
+    - ".gitattributes"
+    - "LICENSE.md"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+    - "src/__init__.py"
+    - "tests/test_main.py"
+
+  templates:
+    - target: "main.py"
+      contents: |
+        def main():
+            print("Hello, DreamStudio!")
+
+
+        if __name__ == "__main__":
+            main()
+
+    - target: "requirements.txt"
+      contents: |
+        # Add project dependencies here.
+
+    - target: "tests/test_main.py"
+      contents: |
+        from main import main
+
+
+        def test_main_exists():
+            assert callable(main)
+
+    - target: ".gitignore"
+      contents: |
+        venv/
+        .venv/
+        env/
+        __pycache__/
+        *.py[cod]
+        .pytest_cache/
+        build/
+        dist/
+        *.egg-info/
+        .ds/
+
+    - target: ".gitattributes"
+      contents: |
+        * text=auto
+        *.py text eol=lf
+        *.txt text eol=lf
+
+    - target: "README.md"
+      contents: |
+        # Python Console Application
+
+        ## Setup
+        python -m venv venv
+
+        Linux:
+        ./venv/bin/python -m pip install -r requirements.txt
+
+        Windows:
+        .\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+        ## Run
+        python main.py
+
+        ## Test
+        python -m pytest
+
+    - target: "LICENSE.md"
+      contents: |
+        # License
+
+        Specify the applicable license terms for this project before
+        distributing or publishing it.
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Create an isolated Python environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Install project dependencies"
+    unix: "./venv/bin/python -m pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\python.exe -m pip install -r requirements.txt"

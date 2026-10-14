@@ -1,0 +1,147 @@
+# Project Type: Python Desktop Application
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+
+languages: ["python"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "python_desktop_application"
+display_name: "Python Desktop Application Using PyQt6"
+description: |
+  Create a desktop application using PyQt6 and a modular Python structure.
+  Include a main window, requirements, isolated environment, and tests.
+
+initialization:
+  directories:
+    - "src"
+    - "src/ui"
+    - "resources"
+    - "tests"
+    - "build"
+
+  files:
+    - ".gitignore"
+    - ".gitattributes"
+    - "LICENSE.md"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+    - "src/__init__.py"
+    - "src/main_window.py"
+    - "tests/test_main_window.py"
+
+  templates:
+    - target: "requirements.txt"
+      contents: |
+        PyQt6
+        pytest
+
+    - target: "main.py"
+      contents: |
+        import sys
+
+        from PyQt6.QtWidgets import QApplication
+        from src.main_window import MainWindow
+
+
+        def main():
+            app = QApplication(sys.argv)
+
+            window = MainWindow()
+            window.show()
+
+            return app.exec()
+
+
+        if __name__ == "__main__":
+            sys.exit(main())
+
+    - target: "src/main_window.py"
+      contents: |
+        from PyQt6.QtWidgets import QLabel, QMainWindow
+
+
+        class MainWindow(QMainWindow):
+            def __init__(self):
+                super().__init__()
+
+                self.setWindowTitle("DreamStudio Python Application")
+                self.resize(900, 600)
+
+                label = QLabel("Hello, DreamStudio!")
+                label.setStyleSheet("font-size: 20px;")
+                label.setMargin(20)
+
+                self.setCentralWidget(label)
+
+    - target: "tests/test_main_window.py"
+      contents: |
+        from PyQt6.QtWidgets import QApplication
+        from src.main_window import MainWindow
+
+
+        def test_main_window():
+            app = QApplication.instance() or QApplication([])
+
+            window = MainWindow()
+
+            assert window.windowTitle() == "DreamStudio Python Application"
+            assert window.centralWidget() is not None
+
+            window.close()
+
+    - target: ".gitignore"
+      contents: |
+        venv/
+        .venv/
+        __pycache__/
+        *.py[cod]
+        .pytest_cache/
+        build/
+        dist/
+        *.spec
+        .ds/
+
+    - target: ".gitattributes"
+      contents: |
+        * text=auto
+        *.py text eol=lf
+
+    - target: "README.md"
+      contents: |
+        # PyQt6 Desktop Application
+
+        ## Setup
+        python -m venv venv
+
+        Linux:
+        ./venv/bin/python -m pip install -r requirements.txt
+
+        Windows:
+        .\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+        ## Run
+        python main.py
+
+        ## Test
+        python -m pytest
+
+        On headless Linux systems, GUI tests may require a display server
+        or the Qt offscreen platform plugin.
+
+    - target: "LICENSE.md"
+      contents: |
+        # License
+
+        Specify the applicable license terms for this project before
+        distributing or publishing it.
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Create an isolated Python environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Install PyQt6 and test dependencies"
+    unix: "./venv/bin/python -m pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\python.exe -m pip install -r requirements.txt"

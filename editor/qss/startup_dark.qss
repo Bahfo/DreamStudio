@@ -122,26 +122,32 @@ QPushButton#SolutionActionCard:hover {
 
 QPushButton#SolutionCloseBtn {
     background: transparent;
+    color: #FFFFFF;
     text-align: center;
     border: none;
     width: 30px;
     height: 35px;
+    font-size: 14px;
 }
 
 QPushButton#SolutionCloseBtn:hover {
     background: #7e2727;
+    color: white;
 }
 
 QPushButton#SolutionMinBtn {
     background: transparent;
+    color: #FFFFFF;
     text-align: center;
     border: none;
     width: 30px;
     height: 35px;
+    font-size: 14px;
 }
 
 QPushButton#SolutionMinBtn:hover {
     background: #004c86;
+    color: white;
 }
 
 QLabel#SolutionActionDesc {
@@ -192,6 +198,29 @@ QListWidget {
 QListWidget::item {
     background: transparent;
     border: none;
+}
+
+QListWidget::item:hover {
+    background: #2D2D2D;
+}
+
+QListWidget::item:selected {
+    background: #333333;
+    color: #FFFFFF;
+}
+
+QWidget#SolutionRecentTemplateRow {
+    background: transparent;
+}
+
+QLabel#SolutionRecentTemplateIcon {
+    background: transparent;
+}
+
+QLabel#SolutionRecentTemplateName {
+    background: transparent;
+    color: #FFFFFF;
+    font-size: 13px;
 }
 
 QFrame#SolutionProjectCard {
@@ -261,4 +290,135 @@ QMenu::item {
 QMenu::item:selected {
     background: #4F46E5;
     color: white;
+}
+
+QScrollBar:vertical,
+QScrollBar:horizontal {
+    background: transparent;
+    margin: 0;
+    border: none;
+}
+
+QScrollBar:vertical {
+    width: 10px;
+}
+
+QScrollBar:horizontal {
+    height: 10px;
+}
+
+QScrollBar::handle:vertical,
+QScrollBar::handle:horizontal {
+    background-color: rgba(78, 81, 87, 0.65);
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical {
+    min-height: 24px;
+}
+
+QScrollBar::handle:horizontal {
+    min-width: 24px;
+}
+
+QScrollBar::handle:vertical:hover,
+QScrollBar::handle:horizontal:hover {
+    background-color: #4E5157;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    height: 0;
+    width: 0;
+    border: none;
+    background: none;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: none;
+    border: none;
+}
+
+QDialog {
+    background: #252526;
+    color: #FFFFFF;
+    border: 1px solid #3E3E3E;
+}
+
+QMessageBox QLabel {
+    color: #FFFFFF;
+    background: transparent;
+}
+
+QLabel#HeadingLabel {
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: bold;
+    background: transparent;
+}
+
+QLabel#FieldLabel {
+    color: #CCCCCC;
+    font-size: 12px;
+    background: transparent;
+}
+
+QLabel#ProjectTypeLabel {
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: bold;
+    background: transparent;
+}
+
+QLabel#DescriptionLabel {
+    color: #CCCCCC;
+    font-size: 12px;
+    background: transparent;
+}
+
+QDialog QLineEdit {
+    background: #1E1E1E;
+    color: #FFFFFF;
+    border: 1px solid #3E3E3E;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+QDialog QLineEdit:focus {
+    border: 1px solid #6EA8FE;
+}
+
+QDialog QLineEdit::placeholder {
+    color: #9D9D9D;
+}
+
+QDialog QPushButton {
+    background: #2D2D2D;
+    color: #FFFFFF;
+    border: 1px solid #3E3E3E;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+}
+
+QDialog QPushButton:hover {
+    background: #3E3E3E;
+    border-color: #6B6B6B;
+}
+
+QDialog QPushButton#PrimaryButton {
+    background: #4F46E5;
+    color: white;
+    border: none;
+    font-weight: bold;
+}
+
+QDialog QPushButton#PrimaryButton:hover {
+    background: #5B5BD6;
 }

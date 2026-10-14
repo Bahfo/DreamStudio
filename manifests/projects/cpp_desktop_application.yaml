@@ -1,0 +1,158 @@
+# Project Type: C++ Desktop Application
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+
+languages: ["cpp"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "cpp_desktop_application"
+display_name: "C++ Desktop Application (Qt)"
+description: |
+  Create a cross-platform C++ desktop application using Qt 6 and CMake.
+  Support Qt Widgets, a clean source structure, and standard native builds.
+
+initialization:
+  directories:
+    - "include"
+    - "src"
+    - "ui"
+    - "resources"
+    - "tests"
+    - "build"
+
+  files:
+    - ".gitignore"
+    - ".gitattributes"
+    - "LICENSE.md"
+    - "README.md"
+    - "CMakeLists.txt"
+    - "src/main.cpp"
+    - "src/MainWindow.hpp"
+    - "src/MainWindow.cpp"
+
+  templates:
+    - target: "src/main.cpp"
+      contents: |
+        #include <QApplication>
+        #include "MainWindow.hpp"
+
+        int main(int argc, char *argv[]) {
+            QApplication app(argc, argv);
+
+            MainWindow window;
+            window.show();
+
+            return app.exec();
+        }
+
+    - target: "src/MainWindow.hpp"
+      contents: |
+        #pragma once
+
+        #include <QMainWindow>
+
+        class MainWindow : public QMainWindow {
+            Q_OBJECT
+
+        public:
+            explicit MainWindow(QWidget *parent = nullptr);
+        };
+
+    - target: "src/MainWindow.cpp"
+      contents: |
+        #include "MainWindow.hpp"
+        #include <QLabel>
+
+        MainWindow::MainWindow(QWidget *parent)
+            : QMainWindow(parent) {
+            setWindowTitle("DreamStudio Qt Application");
+            resize(900, 600);
+
+            auto *label = new QLabel("Hello, DreamStudio!", this);
+            label->setAlignment(Qt::AlignCenter);
+            setCentralWidget(label);
+        }
+
+    - target: "CMakeLists.txt"
+      contents: |
+        cmake_minimum_required(VERSION 3.21)
+
+        project(QtDesktopApplication VERSION 1.0 LANGUAGES CXX)
+
+        set(CMAKE_CXX_STANDARD 20)
+        set(CMAKE_CXX_STANDARD_REQUIRED ON)
+        set(CMAKE_AUTOMOC ON)
+        set(CMAKE_AUTOUIC ON)
+        set(CMAKE_AUTORCC ON)
+
+        find_package(Qt6 REQUIRED COMPONENTS Widgets)
+
+        qt_add_executable(QtDesktopApplication
+            src/main.cpp
+            src/MainWindow.hpp
+            src/MainWindow.cpp
+        )
+
+        target_link_libraries(QtDesktopApplication
+            PRIVATE Qt6::Widgets
+        )
+
+        target_include_directories(QtDesktopApplication
+            PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        )
+
+    - target: ".gitignore"
+      contents: |
+        build/
+        cmake-build-*/
+        *.o
+        *.a
+        *.so
+        *.dll
+        *.exe
+        .vscode/
+        .idea/
+        .ds/
+
+    - target: ".gitattributes"
+      contents: |
+        * text=auto
+        *.cpp text eol=lf
+        *.hpp text eol=lf
+        *.ui text eol=lf
+        CMakeLists.txt text eol=lf
+
+    - target: "README.md"
+      contents: |
+        # Qt Desktop Application
+
+        ## Requirements
+        - C++20 compiler
+        - CMake 3.21+
+        - Qt 6 Widgets development package
+
+        ## Build
+        cmake -S . -B build
+        cmake --build build
+
+        ## Run
+        ./build/QtDesktopApplication
+
+        Qt must be installed and discoverable by CMake.
+
+    - target: "LICENSE.md"
+      contents: |
+        # License
+
+        Specify the applicable license terms for this project before
+        distributing or publishing it.
+
+post_lifecycle:
+  - step: "validate_qt"
+    desc: "Verify that Qt 6 Widgets and CMake are available"
+    unix: "cmake --find-package -DNAME=Qt6 -DCOMPILER_ID=GNU -DLANGUAGE=CXX -DMODE=EXIST"
+    wind: "cmake --find-package -DNAME=Qt6 -DCOMPILER_ID=MSVC -DLANGUAGE=CXX -DMODE=EXIST"
+  - step: "configure_build"
+    desc: "Configure and compile the Qt application"
+    unix: "cmake -S . -B build && cmake --build build"
+    wind: "cmake -S . -B build && cmake --build build --config Release"

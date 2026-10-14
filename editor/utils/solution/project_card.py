@@ -14,6 +14,29 @@ from editor import *
 
 from editor.utils.solution.theme import startup_highlight
 
+_DESCRIPTION_MAX_CHARS = 140
+
+
+def shorten_description(text: str, limit: int = _DESCRIPTION_MAX_CHARS) -> str:
+    """Collapse whitespace and truncate *text* at a word boundary.
+
+    Cards have a fixed height that fits roughly two wrapped lines, so
+    longer descriptions are cut at *limit* characters without splitting
+    a word and suffixed with an ellipsis.
+
+    Args:
+        text: Raw description which may contain newlines or long runs.
+        limit: Maximum characters to keep before truncating.
+
+    Returns:
+        Shortened plain text safe for card display.
+    """
+    cleaned = " ".join(str(text).split())
+    if len(cleaned) <= limit:
+        return cleaned
+    cut = cleaned[:limit].rsplit(" ", 1)[0] or cleaned[:limit]
+    return cut + "..."
+
 
 def highlight_html(text: str, query: str, color: str) -> str:
     """Return *text* as HTML with *query* matches wrapped in a highlight span.
@@ -189,7 +212,7 @@ class ProjectCard(QFrame):
 
         self._name_label = QLabel(self)
         self._name_label.setObjectName("SolutionProjectName")
-        self._name_label.setWordWrap(True)
+        self._name_label.setWordWrap(False)
         self._name_label.setTextFormat(Qt.TextFormat.RichText)
 
         self._description_label = QLabel(self)
@@ -244,8 +267,11 @@ class ProjectCard(QFrame):
             )
         )
         self._name_label.setText(highlight_html(name, self._query, color))
-        short = description if len(description) <= 220 else description[:217] + "..."
+        self._name_label.setToolTip(name)
+        full_description = " ".join(description.split())
+        short = shorten_description(full_description)
         self._description_label.setText(highlight_html(short, self._query, color))
+        self._description_label.setToolTip(full_description)
 
         while self._tags_row.count():
             item = self._tags_row.takeAt(0)

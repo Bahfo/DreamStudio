@@ -1,0 +1,146 @@
+# Project Type: Python Data Project
+# COPYRIGHT 2026 - EXcellent TechStacks Projects Initializers
+
+languages: ["python"]
+version: "studio_default_version"
+interpreter_location: "studio_interpreter_defined_location"
+
+project_type: "python_data_project"
+display_name: "Python Data Project"
+description: |
+  Create a Python data analysis project with pandas, NumPy, Matplotlib,
+  a dedicated data directory, reusable analysis modules, and tests.
+
+initialization:
+  directories:
+    - "src"
+    - "data/raw"
+    - "data/processed"
+    - "notebooks"
+    - "reports"
+    - "tests"
+    - "build"
+
+  files:
+    - ".gitignore"
+    - ".gitattributes"
+    - "LICENSE.md"
+    - "README.md"
+    - "requirements.txt"
+    - "main.py"
+    - "src/__init__.py"
+    - "src/analysis.py"
+    - "tests/test_analysis.py"
+
+  templates:
+    - target: "requirements.txt"
+      contents: |
+        numpy
+        pandas
+        matplotlib
+        pytest
+
+    - target: "main.py"
+      contents: |
+        from src.analysis import summarize_data
+
+
+        def main():
+            print(summarize_data([10, 20, 30, 40, 50]))
+
+
+        if __name__ == "__main__":
+            main()
+
+    - target: "src/analysis.py"
+      contents: |
+        import pandas as pd
+
+
+        def summarize_data(values):
+            series = pd.Series(values, dtype="float64")
+
+            return {
+                "count": int(series.count()),
+                "mean": float(series.mean()),
+                "minimum": float(series.min()),
+                "maximum": float(series.max()),
+            }
+
+    - target: "tests/test_analysis.py"
+      contents: |
+        from src.analysis import summarize_data
+
+
+        def test_summarize_data():
+            result = summarize_data([10, 20, 30])
+
+            assert result["count"] == 3
+            assert result["mean"] == 20.0
+            assert result["minimum"] == 10.0
+            assert result["maximum"] == 30.0
+
+    - target: ".gitignore"
+      contents: |
+        venv/
+        .venv/
+        __pycache__/
+        *.py[cod]
+        .pytest_cache/
+        build/
+        dist/
+        .ipynb_checkpoints/
+        data/raw/*
+        !data/raw/.gitkeep
+        data/processed/*
+        !data/processed/.gitkeep
+        reports/*
+        !reports/.gitkeep
+        .ds/
+
+    - target: ".gitattributes"
+      contents: |
+        * text=auto
+        *.py text eol=lf
+        *.ipynb text eol=lf
+
+    - target: "README.md"
+      contents: |
+        # Python Data Project
+
+        ## Setup
+        python -m venv venv
+
+        Linux:
+        ./venv/bin/python -m pip install -r requirements.txt
+
+        Windows:
+        .\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+        ## Run
+        python main.py
+
+        ## Project Layout
+        - data/raw/: Original datasets
+        - data/processed/: Cleaned and transformed datasets
+        - notebooks/: Exploratory analysis notebooks
+        - src/: Reusable analysis modules
+        - reports/: Exported reports and visualizations
+        - tests/: Automated tests
+
+    - target: "LICENSE.md"
+      contents: |
+        # License
+
+        Specify the applicable license terms for this project before
+        distributing or publishing it.
+
+post_lifecycle:
+  - step: "create_venv"
+    desc: "Create an isolated Python environment"
+    unix: "python3 -m venv venv"
+    wind: "python -m venv venv"
+  - step: "install_dependencies"
+    desc: "Install data analysis and testing libraries"
+    unix: "./venv/bin/python -m pip install -r requirements.txt"
+    wind: ".\\venv\\Scripts\\python.exe -m pip install -r requirements.txt"

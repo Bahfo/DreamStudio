@@ -250,16 +250,10 @@ class SolutionStartWindow(QMainWindow):
         self._recent_list.itemDoubleClicked.connect(self._open_recent_item)
         self._recent_list.itemActivated.connect(self._open_recent_item)
 
-        self._browse_btn = QPushButton("Open Existing Solution...", right)
-        self._browse_btn.setObjectName("SolutionGhostButton")
-        self._browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._browse_btn.clicked.connect(self._browse_open)
-
         right_layout.addWidget(recent_title)
         right_layout.addWidget(recent_hint)
         right_layout.addSpacing(4)
         right_layout.addWidget(self._recent_list, 1)
-        right_layout.addWidget(self._browse_btn)
 
         layout.addWidget(left, 1)
         layout.addWidget(right, 1)
@@ -844,17 +838,20 @@ class SolutionStartWindow(QMainWindow):
 
         for entry in ordered:
             widget = QWidget(self._recent_templates_list)
+            widget.setObjectName("SolutionRecentTemplateRow")
             row = QHBoxLayout(widget)
             row.setContentsMargins(8, 6, 8, 6)
             row.setSpacing(8)
 
             icon_label = QLabel(widget)
+            icon_label.setObjectName("SolutionRecentTemplateIcon")
             icon_label.setFixedSize(22, 22)
             icon = resolve_entry_icon(entry)
             if not icon.isNull():
                 icon_label.setPixmap(icon.pixmap(QSize(20, 20)))
 
             name_label = QLabel(str(entry.get("display_name", "Project")), widget)
+            name_label.setObjectName("SolutionRecentTemplateName")
             name_label.setWordWrap(True)
 
             manifest = entry.get("manifest") or {}
