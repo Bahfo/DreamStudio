@@ -1,20 +1,16 @@
-"""
-DreamStudio application entry point.
-
-This is the only file that should be executed to start the IDE.
-It delegates all startup orchestration to BootstrapManager.
-
-Usage:
-    python startup.py
-"""
+# DreamStudio application entry point.
+#
+# This is the only file that should be executed to start the IDE.
+# It delegates all startup orchestration to BootstrapManager.
+#
+# Usage:
+#     python startup.py
 
 import os
 import sys
 
-# Ensure the project root is on sys.path so bootstrap/ and editor/ are importable.
-# Frozen (PyInstaller) compatibility: sys._MEIPASS is the bundle dir when frozen.
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-    _PROJECT_ROOT = sys._MEIPASS  # type: ignore[attr-defined]
+    _PROJECT_ROOT = sys._MEIPASS
 else:
     _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if _PROJECT_ROOT not in sys.path:
@@ -22,7 +18,8 @@ if _PROJECT_ROOT not in sys.path:
 
 
 def _parse_project_arg(argv: list) -> str | None:
-    """Extract a project/solution path from command-line arguments.
+    """
+    Extract a project/solution path from command-line arguments.
 
     Supports ``--project <path>``, ``--solution <path>`` and ``-p <path>``.
     Returns ``None`` when no path was supplied.
@@ -36,7 +33,8 @@ def _parse_project_arg(argv: list) -> str | None:
 
 
 def _run_post_reveal_scaffold(window, scaffold: dict) -> None:
-    """Scaffold a just-created solution over the revealed main window.
+    """
+    Scaffold a just-created solution over the revealed main window.
 
     The scaffolding runs with a blocking modal progress dialog so the user
     cannot interact with the IDE until it finishes or is cancelled.
@@ -70,7 +68,9 @@ def _run_post_reveal_scaffold(window, scaffold: dict) -> None:
 
 
 def _reveal_result(result, splash) -> None:
-    """Reveal a successful bootstrap result (shared by initial and retry)."""
+    """
+    Reveal a successful bootstrap result (shared by initial and retry).
+    """
     from PyQt6.QtCore import QTimer
 
     if getattr(result, "cancelled", False):

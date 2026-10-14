@@ -339,13 +339,20 @@ def load() -> dict:
     return memory
 
 
-def search(memory: dict, prefix: str, limit: int = 50) -> list:
+def search(
+    memory: dict,
+    prefix: str,
+    limit: int = 50,
+    exclude_kinds: frozenset | set | None = None,
+) -> list:
     """Return index rows from *memory* matching *prefix*.
 
     Args:
         memory: Preloaded ``{key: [symbol dicts]}`` map.
         prefix: Case-insensitive name prefix.
         limit: Maximum rows returned.
+        exclude_kinds: Kinds skipped as never valid bare identifiers.
+            Defaults to the shared non-global set from ``index``.
 
     Returns:
         List of ``CppCompletion`` rows (possibly empty).
@@ -355,19 +362,36 @@ def search(memory: dict, prefix: str, limit: int = 50) -> list:
     needle = (prefix or "").strip().lower()
     if not needle or not memory:
         return []
+    if exclude_kinds is None:
+        try:
+            from .index import NON_GLOBAL_COMPLETION_KINDS as _excluded
+        except Exception:
+            _excluded = frozenset({"field", "method", "parameter"})
+        excluded = _excluded
+    else:
+        excluded = frozenset(exclude_kinds)
     rows: list = []
+    seen: set = set()
     for symbols in memory.values():
         for symbol in symbols:
             name = str(symbol.get("name", ""))
-            if name.lower().startswith(needle):
-                rows.append(
-                    CppCompletion(
-                        text=name,
-                        insert_text=name,
-                        kind=str(symbol.get("kind", "text")),
-                        signature=str(symbol.get("detail", "")),
-                    )
+            if not name.lower().startswith(needle):
+                continue
+            kind = str(symbol.get("kind", "text"))
+            if kind in excluded:
+                continue
+            key = name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(
+                CppCompletion(
+                    text=name,
+                    insert_text=name,
+                    kind=kind,
+                    signature=str(symbol.get("detail", "")),
                 )
+            )
             if len(rows) >= limit:
                 break
         if len(rows) >= limit:

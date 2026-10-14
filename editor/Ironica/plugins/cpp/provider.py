@@ -233,10 +233,14 @@ class CppProvider(BaseLanguageProvider):
             return []
         if not items:
             try:
-                from .intellisense.index import search_for_file
+                from .intellisense.index import (
+                    NON_GLOBAL_COMPLETION_KINDS,
+                    search_for_file,
+                )
 
                 items = search_for_file(
-                    file_path or self._file_path, prefix or ""
+                    file_path or self._file_path, prefix or "",
+                    exclude_kinds=NON_GLOBAL_COMPLETION_KINDS,
                 )
             except Exception:
                 pass

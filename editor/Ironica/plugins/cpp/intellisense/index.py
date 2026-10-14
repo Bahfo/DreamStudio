@@ -63,6 +63,14 @@ _KIND_BY_CURSOR = {
     "MACRO_INSTANTIATION": "macro",
 }
 
+#: Completion kinds that are never valid as a bare identifier.
+#: ``field``/``method``/``parameter`` require a member or call scope
+#: (``obj.``/``::``/``(...)``), so serving them for plain naming
+#: contexts only produces flash-then-vanish rows.
+NON_GLOBAL_COMPLETION_KINDS: frozenset = frozenset(
+    {"field", "method", "parameter"}
+)
+
 _indexer_instance = None
 
 
@@ -164,13 +172,21 @@ class CppIndexer(QObject):
         )
         thread.start()
 
-    def search(self, root: str, prefix: str, limit: int = 50) -> list:
+    def search(
+        self,
+        root: str,
+        prefix: str,
+        limit: int = 50,
+        exclude_kinds: frozenset | set | None = None,
+    ) -> list:
         """Return cached index symbols under *root* matching *prefix*.
 
         Args:
             root: Solution root whose memory cache is searched.
             prefix: Case-insensitive name prefix.
             limit: Maximum rows returned.
+            exclude_kinds: Kinds skipped as never valid bare identifiers.
+                Defaults to :data:`NON_GLOBAL_COMPLETION_KINDS`.
 
         Returns:
             List of ``CppCompletion`` rows (possibly empty).
@@ -180,19 +196,33 @@ class CppIndexer(QObject):
         needle = (prefix or "").strip().lower()
         if not needle or not root:
             return []
+        excluded = (
+            NON_GLOBAL_COMPLETION_KINDS
+            if exclude_kinds is None
+            else frozenset(exclude_kinds)
+        )
         rows: list = []
+        seen: set = set()
         for symbols in (self._memory.get(os.path.abspath(root)) or {}).values():
             for symbol in symbols:
                 name = str(symbol.get("name", ""))
-                if name.lower().startswith(needle):
-                    rows.append(
-                        CppCompletion(
-                            text=name,
-                            insert_text=name,
-                            kind=str(symbol.get("kind", "text")),
-                            signature=str(symbol.get("detail", "")),
-                        )
+                if not name.lower().startswith(needle):
+                    continue
+                kind = str(symbol.get("kind", "text"))
+                if kind in excluded:
+                    continue
+                key = name.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append(
+                    CppCompletion(
+                        text=name,
+                        insert_text=name,
+                        kind=kind,
+                        signature=str(symbol.get("detail", "")),
                     )
+                )
                 if len(rows) >= limit:
                     break
             if len(rows) >= limit:
@@ -200,12 +230,19 @@ class CppIndexer(QObject):
         rows.sort(key=lambda row: row.text.lower())
         return rows[:limit]
 
-    def search_sys(self, prefix: str, limit: int = 50) -> list:
+    def search_sys(
+        self,
+        prefix: str,
+        limit: int = 50,
+        exclude_kinds: frozenset | set | None = None,
+    ) -> list:
         """Return preloaded system-index rows matching *prefix*.
 
         Args:
             prefix: Case-insensitive name prefix.
             limit: Maximum rows returned.
+            exclude_kinds: Kinds skipped as never valid bare identifiers.
+                Defaults to :data:`NON_GLOBAL_COMPLETION_KINDS`.
 
         Returns:
             List of ``CppCompletion`` rows (possibly empty).
@@ -213,7 +250,10 @@ class CppIndexer(QObject):
         try:
             from . import sysindex as sysindex_support
 
-            return sysindex_support.search(self._sysmemory, prefix, limit)
+            return sysindex_support.search(
+                self._sysmemory, prefix, limit,
+                exclude_kinds=exclude_kinds,
+            )
         except Exception as exc:
             logger.debug("sysindex search failed: %s", exc)
             return []
@@ -530,13 +570,20 @@ class CppIndexer(QObject):
         return symbols
 
 
-def search_for_file(file_path: str | None, prefix: str, limit: int = 50) -> list:
+def search_for_file(
+    file_path: str | None,
+    prefix: str,
+    limit: int = 50,
+    exclude_kinds: frozenset | set | None = None,
+) -> list:
     """Search the owning solution's index for *prefix* matches.
 
     Args:
         file_path: File requesting completion (locates the solution).
         prefix: Case-insensitive name prefix.
         limit: Maximum rows returned.
+        exclude_kinds: Kinds skipped as never valid bare identifiers.
+            Defaults to :data:`NON_GLOBAL_COMPLETION_KINDS`.
 
     Returns:
         List of ``CppCompletion`` rows (possibly empty) — never raises.
@@ -547,9 +594,16 @@ def search_for_file(file_path: str | None, prefix: str, limit: int = 50) -> list
         root = _solution_root_for(file_path)
         if root is None:
             return []
-        return get_cpp_indexer().search(root, prefix, limit)
+        return get_cpp_indexer().search(
+            root, prefix, limit, exclude_kinds=exclude_kinds
+        )
     except Exception:
         return []
 
 
-__all__ = ["CppIndexer", "get_cpp_indexer", "search_for_file"]
+__all__ = [
+    "CppIndexer",
+    "NON_GLOBAL_COMPLETION_KINDS",
+    "get_cpp_indexer",
+    "search_for_file",
+]

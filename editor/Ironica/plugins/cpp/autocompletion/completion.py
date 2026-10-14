@@ -180,7 +180,10 @@ class _CppCompletionWorker(threading.Thread):
         """Return preloaded system-index rows for the request prefix.
 
         Served under workspace rows; the semantic result replaces the
-        merged batch through the normal latest-wins path.
+        merged batch through the normal latest-wins path. Member-only
+        kinds (fields/methods/parameters) are excluded: they are never
+        valid bare identifiers, so serving them only produces
+        flash-then-vanish rows.
 
         Args:
             request: The completion request carrying file and prefix.
@@ -189,15 +192,24 @@ class _CppCompletionWorker(threading.Thread):
             System rows (possibly empty) — never raises.
         """
         try:
-            from ..intellisense.index import get_cpp_indexer
+            from ..intellisense.index import (
+                NON_GLOBAL_COMPLETION_KINDS,
+                get_cpp_indexer,
+            )
 
-            return get_cpp_indexer().search_sys(request.context.prefix or "")
+            return get_cpp_indexer().search_sys(
+                request.context.prefix or "",
+                exclude_kinds=NON_GLOBAL_COMPLETION_KINDS,
+            )
         except Exception as exc:
             logger.debug("sysindex fast path failed: %s", exc)
             return []
 
     def _index_fallback(self, request: _CompletionRequest) -> list:
         """Search workspace and system indexes when the TU yields nothing.
+
+        Member-only kinds stay excluded here as well so the fallback
+        cannot surface the same invalid bare-identifier rows.
 
         Args:
             request: The finished completion request.
@@ -206,10 +218,14 @@ class _CppCompletionWorker(threading.Thread):
             Index rows (possibly empty) — never raises.
         """
         try:
-            from ..intellisense.index import search_for_file
+            from ..intellisense.index import (
+                NON_GLOBAL_COMPLETION_KINDS,
+                search_for_file,
+            )
 
             rows = search_for_file(
-                request.context.file_path, request.context.prefix or ""
+                request.context.file_path, request.context.prefix or "",
+                exclude_kinds=NON_GLOBAL_COMPLETION_KINDS,
             )
             return list(rows) + self._sysindex_rows(request)
         except Exception as exc:
