@@ -144,7 +144,7 @@ post_lifecycle:
   - step: "prepare_environment"
     desc: "Create the local environment configuration"
     unix: "cp -n .env.example .env"
-    wind: "if (-not (Test-Path .env)) { Copy-Item .env.example .env }"
+    wind: "if not exist .env copy .env.example .env"
   - step: "start_database"
     desc: "Start the PostgreSQL database server"
     unix: "docker compose up -d"

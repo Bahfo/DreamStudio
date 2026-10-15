@@ -25,7 +25,7 @@ initialization:
     - ".gitattributes"
     - "LICENSE.md"
     - "README.md"
-    - "main.cpp"
+    - "src/main.cpp"
     - "CMakeLists.txt"
 
   templates:
@@ -77,7 +77,7 @@ initialization:
         set(CMAKE_CXX_EXTENSIONS OFF)
 
         add_executable(EmptyProject
-            main.cpp
+            src/main.cpp
         )
 
         target_include_directories(EmptyProject

@@ -150,8 +150,8 @@ initialization:
 post_lifecycle:
   - step: "validate_qt"
     desc: "Verify that Qt 6 Widgets and CMake are available"
-    unix: "cmake --find-package -DNAME=Qt6 -DCOMPILER_ID=GNU -DLANGUAGE=CXX -DMODE=EXIST"
-    wind: "cmake --find-package -DNAME=Qt6 -DCOMPILER_ID=MSVC -DLANGUAGE=CXX -DMODE=EXIST"
+    unix: "python3 -c \"import pathlib, subprocess, sys, tempfile; d=tempfile.mkdtemp(prefix='qtcheck_'); p=pathlib.Path(d)/'CMakeLists.txt'; p.write_text('cmake_minimum_required(VERSION 3.21)\\nproject(QtCheck LANGUAGES CXX)\\nfind_package(Qt6 REQUIRED COMPONENTS Widgets)\\n'); b=str(pathlib.Path(d)/'build'); r=subprocess.run(['cmake','-S',d,'-B',b], capture_output=True, text=True); print(r.stdout); print(r.stderr, file=sys.stderr); sys.exit(r.returncode)\""
+    wind: "python -c \"import pathlib, subprocess, sys, tempfile; d=tempfile.mkdtemp(prefix='qtcheck_'); p=pathlib.Path(d)/'CMakeLists.txt'; p.write_text('cmake_minimum_required(VERSION 3.21)\\nproject(QtCheck LANGUAGES CXX)\\nfind_package(Qt6 REQUIRED COMPONENTS Widgets)\\n'); b=str(pathlib.Path(d)/'build'); r=subprocess.run(['cmake','-S',d,'-B',b], capture_output=True, text=True); print(r.stdout); print(r.stderr, file=sys.stderr); sys.exit(r.returncode)\""
   - step: "configure_build"
     desc: "Configure and compile the Qt application"
     unix: "cmake -S . -B build && cmake --build build"

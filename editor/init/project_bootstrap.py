@@ -301,7 +301,13 @@ class ProjectBootstrapWorker(QObject):
                 raise
 
             if returncode != 0:
-                detail = (stderr or "").strip() or (stdout or "").strip() or "no output"
+                parts = [
+                    (stderr or "").strip(),
+                    (stdout or "").strip(),
+                ]
+                detail = "\n".join(p for p in parts if p) or "no output"
+                if len(detail) > 2000:
+                    detail = detail[-2000:]
                 raise RuntimeError(
                     f"Step '{step_name}' failed (exit {returncode}): {detail}"
                 )

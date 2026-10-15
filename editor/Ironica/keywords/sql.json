@@ -1,0 +1,60 @@
+{
+    "lang": "sql",
+    "display_name": "SQL",
+    "badge_color": "#e38c00",
+    "extensions": ["sql"],
+    "styles": {
+        "keyword": "KEYWORD_COLOR",
+        "function": "FUNCTION_COLOR",
+        "type": "TYPE_COLOR",
+        "string": "STRING_COLOR",
+        "number": "NUMBER_COLOR",
+        "comment": "COMMENT_COLOR",
+        "operator": "OPERATOR_COLOR"
+    },
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "FUNCTION_COLOR": "#DCDCAA",
+        "TYPE_COLOR": "#4EC9B0",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "OPERATOR_COLOR": "#D4D4D4"
+    },
+    "keywords": {
+        "keyword": [
+            "select", "from", "where", "and", "or", "not", "as", "distinct",
+            "join", "inner", "left", "right", "full", "outer", "cross", "on",
+            "group", "by", "order", "having", "limit", "offset", "union",
+            "except", "intersect", "all", "insert", "into", "values", "update",
+            "set", "delete", "create", "table", "if", "exists", "primary",
+            "key", "foreign", "references", "unique", "check", "default",
+            "null", "constraint", "index", "view", "alter", "add", "column",
+            "drop", "database", "schema", "sequence", "trigger", "grant",
+            "revoke", "begin", "commit", "rollback", "transaction", "with",
+            "returning", "conflict", "do", "nothing", "case", "when", "then",
+            "else", "end", "between", "like", "ilike", "in", "is", "asc",
+            "desc", "over", "partition", "rows", "range"
+        ],
+        "function": [
+            "count", "sum", "avg", "min", "max", "now", "current_timestamp",
+            "current_date", "current_time", "coalesce", "nullif", "cast",
+            "extract", "substring", "upper", "lower", "trim", "length",
+            "abs", "round", "floor", "ceil", "pg_isready", "generate_series"
+        ],
+        "type": [
+            "bigint", "int", "integer", "smallint", "serial", "bigserial",
+            "numeric", "decimal", "real", "double", "precision", "boolean",
+            "bool", "char", "varchar", "character", "varying", "text",
+            "date", "time", "timestamp", "timestamptz", "timetz", "interval",
+            "uuid", "json", "jsonb", "bytea", "identity"
+        ],
+        "operator": [
+            "=", "<>", "!=", "<", ">", "<=", ">=", "+", "-", "*", "/",
+            "%", "||", "::"
+        ]
+    },
+    "snippets": [
+        "/Select", "/CreateTable", "/Insert"
+    ]
+}
