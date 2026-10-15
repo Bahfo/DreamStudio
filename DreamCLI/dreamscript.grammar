@@ -1,0 +1,19 @@
+program     -> separator* (statement separator*)* EOF
+
+statement   -> assignemnt
+             | ifStatement
+             | whileStatement
+             | block
+             | command
+
+ifStatement -> "if" expression "then" block
+               ("else" block) ?
+
+whileStatement
+            -> "while" expression "then" block
+
+block       -> "{" separator* statement* "}"
+
+command     -> commandName argument*
+
+separator   -> NEWLINE | ";"
