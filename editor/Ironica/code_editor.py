@@ -127,6 +127,8 @@ class CodeEditor(QsciScintilla):
         self._hover_band = None
         self._hover_line: int = -1
 
+        self.SendScintilla(QsciScintilla.SCI_SETENDATLASTLINE, 0)
+
         ###############################################
         # Right-click menu
         ###############################################
@@ -211,9 +213,6 @@ class CodeEditor(QsciScintilla):
         self._analysis_manager = AnalysisManager(self)
         self._analysis_deferrals = 0
 
-        # Fold-display-text lines already sent to Scintilla, keyed by
-        # line number → import count, so repeated analysis applies skip
-        # the expensive fold-toggle round-trip.
         self._fold_display_text_cache: dict = {}
 
         self._font = Fonts.cascadia_code(10)
@@ -1124,9 +1123,7 @@ class CodeEditor(QsciScintilla):
                     self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, p, 1)
                 self._bracket_hl_ranges = [(active, 1), (match, 1)]
                 return
-        self.SendScintilla(
-            QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT
-        )
+        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT)
         self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, active, 1)
         self._bracket_hl_ranges = [(active, 1)]
 
@@ -3592,9 +3589,7 @@ class CodeEditor(QsciScintilla):
         except Exception:
             paper = None
         if paper is not None:
-            self.SendScintilla(
-                QsciScintilla.SCI_STYLESETBACK, style_id, paper
-            )
+            self.SendScintilla(QsciScintilla.SCI_STYLESETBACK, style_id, paper)
 
         if hasattr(self._font, "family"):
             self.SendScintilla(
@@ -3607,13 +3602,13 @@ class CodeEditor(QsciScintilla):
         )
 
         self.SendScintilla(
-            QsciScintilla.SCI_ANNOTATIONSETTEXT, line, text.encode("utf-8"))
-        self.SendScintilla(
-            QsciScintilla.SCI_ANNOTATIONSETSTYLE, line, style_id)
+            QsciScintilla.SCI_ANNOTATIONSETTEXT, line, text.encode("utf-8")
+        )
+        self.SendScintilla(QsciScintilla.SCI_ANNOTATIONSETSTYLE, line, style_id)
 
         self.SendScintilla(
-            QsciScintilla.SCI_ANNOTATIONSETVISIBLE,
-            QsciScintilla.ANNOTATION_STANDARD)
+            QsciScintilla.SCI_ANNOTATIONSETVISIBLE, QsciScintilla.ANNOTATION_STANDARD
+        )
 
     def clear_ghost_text(self, line: int) -> None:
         """Clear custom ghost text rendered on a specific line index."""

@@ -1,8 +1,11 @@
 from editor import *
 from editor.utils.resource_path import resource_path
-from editor.utils.icons import get_qicon
 
 from editor.utils.tools.commands_window import CommandWindow
+
+import logging
+
+logger = logging.getLogger("[TitleBar]")
 
 
 class DreamStudioTitleBar(QWidget):
@@ -14,6 +17,58 @@ class DreamStudioTitleBar(QWidget):
         "light": QColor("#0081F2"),
         "material_dark": QColor("#6E1F24"),
         "material_light": QColor("#D64545"),
+    }
+
+    _EDITOR_MENU_ACTIONS = frozenset(
+        {
+            "set_save_current_file",
+            "set_save_file_as",
+            "set_save_all_files",
+            "set_save_all_and_close",
+            "set_close_editor",
+        }
+    )
+
+    # Single title-bar action responsible for the options bar; its label
+    # flips between the two texts below while staying the same QAction.
+    _OPTIONS_BAR_ACTION = "set_toggle_options_bar"
+    _OPTIONS_BAR_HIDE_TEXT = "Hide Options Bar"
+    _OPTIONS_BAR_SHOW_TEXT = "Show Options Bar"
+
+    # Editor-dependent actions declared in ``menus.json`` mapped to the
+    # capability they require from the active editor.  Every entry is
+    # resolved by :meth:`refresh_action_states`.
+    _ACTION_REQUIREMENTS = {
+        # Edit
+        "set_undo": "undo",
+        "set_redo": "redo",
+        "set_cut": "selection",
+        "set_copy": "copy",
+        "set_copy_as_plain_text": "copy",
+        "set_paste": "paste",
+        "set_delete_selection": "selection",
+        "set_select_all": "editor",
+        "set_unselect_all": "editor",
+        "set_indent_selection": "selection",
+        "set_unindent_selection": "selection",
+        # View
+        _OPTIONS_BAR_ACTION: "always",
+        # Code
+        "set_format_code": "editable",
+        "set_comment_current_line": "editable",
+        "set_comment_current_selection": "selection",
+        "set_uncomment_current_line": "editable",
+        "set_uncomment_current_selection": "selection",
+        "set_duplicate_current_line": "editable",
+        "set_duplicate_current_selection": "selection",
+        "set_goto_definition": "provider",
+        "set_goto_declaration": "provider",
+        "set_goto_implementation": "provider",
+        "set_expand_current_fold": "folds",
+        "set_expand_all_folds": "folds",
+        "set_collapse_current_fold": "folds",
+        "set_collapse_all_folds": "folds",
+        "set_collapse_includes": "folds",
     }
 
     def __init__(self, parent, directory):
@@ -42,13 +97,14 @@ class DreamStudioTitleBar(QWidget):
         except Exception:
             pass
 
-        self.icon_btn = QPushButton("DreamStudio")
+        self.icon_btn = QPushButton("    DreamStudio")
         self.icon_btn.setObjectName("iconButton")
+        self.icon_btn.setIcon(QIcon(resource_path("assets/dreamStudio_icon.png")))
+        self.icon_btn.setIconSize(QSize(26, 26))
         self.icon_btn.setFixedSize(120, 30)
         self.icon_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(self.icon_btn)
 
-        # Dynamic MenuBar placed on the left side right after the icon button
         self.menubar = QMenuBar(self)
         layout.addWidget(self.menubar)
         layout.addSpacing(30)
@@ -58,7 +114,6 @@ class DreamStudioTitleBar(QWidget):
         self._ide_search.setPlaceholderText("Search Anywhere in DreamStudio")
         layout.addWidget(self._ide_search)
 
-        # The hanging widgets that will show under the QLineEdit if any is triggered.
         self._commands_window = CommandWindow(self._ide_search)
         self._ide_search.mousePressEvent = self._commands_window._show
 
@@ -132,58 +187,6 @@ class DreamStudioTitleBar(QWidget):
                 menu.aboutToShow.connect(self.refresh_action_states)
             except (TypeError, RuntimeError):
                 pass
-
-    _EDITOR_MENU_ACTIONS = frozenset(
-        {
-            "set_save_current_file",
-            "set_save_file_as",
-            "set_save_all_files",
-            "set_save_all_and_close",
-            "set_close_editor",
-        }
-    )
-
-    # Single title-bar action responsible for the options bar; its label
-    # flips between the two texts below while staying the same QAction.
-    _OPTIONS_BAR_ACTION = "set_toggle_options_bar"
-    _OPTIONS_BAR_HIDE_TEXT = "Hide Options Bar"
-    _OPTIONS_BAR_SHOW_TEXT = "Show Options Bar"
-
-    # Editor-dependent actions declared in ``menus.json`` mapped to the
-    # capability they require from the active editor.  Every entry is
-    # resolved by :meth:`refresh_action_states`.
-    _ACTION_REQUIREMENTS = {
-        # Edit
-        "set_undo": "undo",
-        "set_redo": "redo",
-        "set_cut": "selection",
-        "set_copy": "copy",
-        "set_copy_as_plain_text": "copy",
-        "set_paste": "paste",
-        "set_delete_selection": "selection",
-        "set_select_all": "editor",
-        "set_unselect_all": "editor",
-        "set_indent_selection": "selection",
-        "set_unindent_selection": "selection",
-        # View
-        _OPTIONS_BAR_ACTION: "always",
-        # Code
-        "set_format_code": "editable",
-        "set_comment_current_line": "editable",
-        "set_comment_current_selection": "selection",
-        "set_uncomment_current_line": "editable",
-        "set_uncomment_current_selection": "selection",
-        "set_duplicate_current_line": "editable",
-        "set_duplicate_current_selection": "selection",
-        "set_goto_definition": "provider",
-        "set_goto_declaration": "provider",
-        "set_goto_implementation": "provider",
-        "set_expand_current_fold": "folds",
-        "set_expand_all_folds": "folds",
-        "set_collapse_current_fold": "folds",
-        "set_collapse_all_folds": "folds",
-        "set_collapse_includes": "folds",
-    }
 
     def _build_menu_items(self, parent_menu, items):
         """Recursively populates submenus, actions, and separators."""

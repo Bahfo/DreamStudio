@@ -14,10 +14,6 @@ from editor.base.optionsBar import OptionsMenu
 from editor.base.verticalBar import VerticalSidebar
 from editor.base.titleBar import DreamStudioTitleBar
 
-# Quiet period after the last keystroke before the file outline is
-# rebuilt.  The outline rebuild parses the whole buffer (ast.parse) and
-# recreates the entire symbol tree, so it must never run synchronously
-# inside ``textChanged``.
 OUTLINE_REFRESH_DEBOUNCE_MS = 600
 
 
@@ -80,15 +76,21 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _build_title_bar(self, main_layout: QVBoxLayout) -> None:
         self.title_bar = DreamStudioTitleBar(self, self.currentDirectory)
-        self.options_menu = OptionsMenu(self, resource_path("editor/base/json/optionbar.json"))
+        self.options_menu = OptionsMenu(
+            self, resource_path("editor/base/json/optionbar.json")
+        )
 
         main_layout.insertWidget(0, self.title_bar)
         main_layout.insertWidget(1, self.options_menu)
 
     def _build_hero(self) -> None:
-        self.left_sidebar = VerticalSidebar(self, resource_path("editor/base/json/leftbar.json"))
+        self.left_sidebar = VerticalSidebar(
+            self, resource_path("editor/base/json/leftbar.json")
+        )
         self.hero_window = WorkspaceContainer(self)
-        self.right_sidebar = VerticalSidebar(self, resource_path("editor/base/json/rightbar.json"))
+        self.right_sidebar = VerticalSidebar(
+            self, resource_path("editor/base/json/rightbar.json")
+        )
 
         self.tab_editors = self.hero_window._text_editor_center.tabs
         self.tab_editors.currentChanged.connect(self._sync_menu_state)
@@ -136,7 +138,9 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         except Exception:
             pass
         try:
-            if getattr(self, "status_bar", None) is not None and hasattr(self.status_bar, "set_workspace"):
+            if getattr(self, "status_bar", None) is not None and hasattr(
+                self.status_bar, "set_workspace"
+            ):
                 self.status_bar.set_workspace(root)
         except Exception:
             pass
@@ -191,7 +195,9 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self._outline_refresh_timer = QTimer(self)
         self._outline_refresh_timer.setSingleShot(True)
         self._outline_refresh_timer.setInterval(OUTLINE_REFRESH_DEBOUNCE_MS)
-        self._outline_refresh_timer.timeout.connect(self._refresh_outline_for_current_editor)
+        self._outline_refresh_timer.timeout.connect(
+            self._refresh_outline_for_current_editor
+        )
 
         # Also refresh outline when the panel becomes visible (e.g. first
         # activation — currentChanged won't fire for an already-open tab).
@@ -228,7 +234,9 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         # return, so even an empty buffer keeps tracking text changes.
         if self._outline_text_connection is not None:
             try:
-                self._outline_text_connection[0].textChanged.disconnect(self._outline_text_connection[1])
+                self._outline_text_connection[0].textChanged.disconnect(
+                    self._outline_text_connection[1]
+                )
             except (TypeError, RuntimeError):
                 pass
             self._outline_text_connection = None
