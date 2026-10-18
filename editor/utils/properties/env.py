@@ -41,48 +41,6 @@ def get_interpreter_info() -> dict:
     }
 
 
-def get_interpreter_path(workspace_dir: str | None = None) -> dict:
-    """
-    Returns the interpreter path information.
-
-    Distinguishes IDE runtime from workspace venv so callers do not
-    mistake one for the other.
-    """
-    executable = sys.executable
-    prefix = sys.prefix
-    stdlib_dir = sysconfig.get_path("stdlib")
-    purelib_dir = sysconfig.get_path("purelib")
-    sys_path = sys.prefix
-    workspace_python = ""
-    try:
-        if workspace_dir and os.path.isdir(workspace_dir):
-            from editor.debugger.run.python_resolver import find_venv_python
-
-            workspace_python = find_venv_python(workspace_dir) or ""
-    except Exception:
-        workspace_python = ""
-
-    return {
-        "executable": executable,
-        "prefix": prefix,
-        "stdlib_dir": stdlib_dir,
-        "purelib_dir": purelib_dir,
-        "sys_path": sys_path,
-        "workspace_python": workspace_python,
-        "note": "executable/prefix are the IDE runtime; workspace_python is the project venv when present.",
-    }
-
-
-def get_env_variables() -> dict:
-    """
-    Returns environment variables.
-    """
-    return {
-        "vevn_path": os.environ.get("VIRTUAL_ENV"),
-        "python_path": os.environ.get("PYTHONPATH"),
-    }
-
-
 class LanguageBadge(QWidget):
     def __init__(self, name: str, percentage: float, color_hex: str, parent=None):
         super().__init__(parent)

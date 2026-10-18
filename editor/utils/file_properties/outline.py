@@ -98,11 +98,6 @@ def get_parser(language: str) -> Optional[Callable[[str], OutlineResult]]:
     return _PARSERS.get(language)
 
 
-def supported_languages() -> list[str]:
-    """Return language identifiers that have outline parsers."""
-    return list(_PARSERS.keys())
-
-
 def build_outline(
     source_code: str, language: str, filename: str = ""
 ) -> Optional[OutlineResult]:

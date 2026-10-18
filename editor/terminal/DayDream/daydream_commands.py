@@ -58,13 +58,4 @@ def copy_file(name: str, source: str, dest: str) -> str:
     return "Copied"
 
 
-def move_file(name: str, source: str, dest: str) -> str:
-    """Move file helper without UI dependency."""
-    if not name or not source or not dest:
-        raise ValueError("name, source and dest are required.")
-    full = os.path.join(source, name)
-    if not os.path.isfile(full) and not os.path.isdir(full):
-        raise FileNotFoundError(f"Source not found: {full}")
-    os.makedirs(dest, exist_ok=True)
-    shutil.move(full, os.path.join(dest, name))
-    return "Moved"
+

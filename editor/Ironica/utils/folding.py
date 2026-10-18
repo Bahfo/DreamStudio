@@ -26,38 +26,6 @@ class FoldRegion:
             self.uid = f"{self.kind}:{self.start_line}:{self.end_line}"
 
 
-class FoldMarginMarker(QWidget):
-    """Custom-painted JetBrains-style fold marker."""
-
-    def __init__(self, expanded: bool = True, parent: QWidget | None = None):
-        super().__init__(parent)
-        self._expanded = expanded
-        self.setFixedSize(16, 16)
-
-    def set_expanded(self, expanded: bool) -> None:
-        self._expanded = expanded
-        self.update()
-
-    def paintEvent(self, event) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        bg = QColor(100, 100, 100, 60)
-        painter.setBrush(QBrush(bg))
-        painter.setPen(Qt.PenStyle.NoPen)
-        r = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawEllipse(r)
-
-        painter.setPen(QPen(QColor(200, 200, 200), 1.5))
-        cx, cy = r.center().x(), r.center().y()
-        half = 3
-        painter.drawLine(cx - half, cy, cx + half, cy)
-        if not self._expanded:
-            painter.drawLine(cx, cy - half, cx, cy + half)
-
-        painter.end()
-
-
 class FoldManager:
     """Language-agnostic fold region manager for a QsciScintilla editor."""
 

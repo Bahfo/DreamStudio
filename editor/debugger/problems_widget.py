@@ -126,19 +126,6 @@ _PROJECT_ROOT = Path(resource_path("."))
 _ASSETS_SYSTEM = Path(resource_path("assets/system"))
 
 
-def _severity_icon_name(severity: ProblemSeverity) -> str:
-    """Return the asset filename for *severity*."""
-    if severity == ProblemSeverity.WARNING:
-        return "warning.png"
-    if severity == ProblemSeverity.CHECK:
-        return "bug.png"
-    if severity == ProblemSeverity.TYPO:
-        return "spell_check.png"
-    if severity == ProblemSeverity.INFO:
-        return "info.png"
-    return "problem.png"
-
-
 def _load_icon(filename: str) -> QIcon:
     """Load a ``QIcon`` from ``assets/system``.
 

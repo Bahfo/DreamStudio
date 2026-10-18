@@ -651,18 +651,6 @@ def attach_minimap(
     return MiniMapHostWidget(editor, parent=parent, minimap_width=minimap_width)
 
 
-def ensure_minimap(editor_or_host):
-    """Return the ``MiniMapHostWidget`` for *editor_or_host*.
-
-    If *editor_or_host* is already a ``MiniMapHostWidget`` it is
-    returned as-is.  If it is a bare ``CodeEditor`` it is wrapped
-    in a new host.
-    """
-    if isinstance(editor_or_host, MiniMapHostWidget):
-        return editor_or_host
-    return attach_minimap(editor_or_host)
-
-
 def ensure_inner(widget):
     """Return underlying CodeEditor for host or plain widget."""
     try:

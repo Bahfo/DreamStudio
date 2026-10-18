@@ -698,17 +698,3 @@ class IronicaLexer(QsciLexerCustom):
             elif ch in _CLOSE_PARENS:
                 if depth_stack and _BRACKET_PAIRS.get(depth_stack[-1]) == ch:
                     depth_stack.pop()
-
-
-# ------------------------------------------------------------------
-# Public factory (kept for backward compatibility)
-# ------------------------------------------------------------------
-
-
-def create_bracket_lexer(editor, config: Optional[dict] = None) -> IronicaLexer:
-    """Create and return an ``IronicaLexer`` attached to *editor*.
-
-    If *config* is ``None``, uses an empty config (no keyword highlighting,
-    default colours for brackets).
-    """
-    return IronicaLexer(editor, config or {})

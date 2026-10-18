@@ -121,10 +121,3 @@ def load_yaml(path: str, default: Any = None) -> Any:
         logger.warning("Config parse failed %s: %s", path, exc)
         backup_corrupt_file(path)
         return default
-
-
-def save_yaml(path: str, data: Any) -> None:
-    """Persist *data* as YAML atomically."""
-    import yaml as _yaml
-
-    _atomic_write_text(path, _yaml.safe_dump(data, default_flow_style=False))

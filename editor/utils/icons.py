@@ -41,8 +41,3 @@ def get_qicon(icon: str):
     qicon = QIcon(resolved) if resolved else QIcon()
     _ICON_CACHE[icon] = qicon
     return qicon
-
-
-def clear_icon_cache() -> None:
-    """Drop cached QIcons, mainly for tests."""
-    _ICON_CACHE.clear()

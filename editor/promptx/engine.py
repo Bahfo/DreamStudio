@@ -62,23 +62,6 @@ import psutil
 import datetime
 
 
-class BridgeInterpreter:
-    """
-    Redirects the standard output of the command line interface into
-    custom-tkinter's textbox. Works by writing the text into the
-    textbox, and moving the cursor's position into the end of the line.
-    The other method `flush` is an empty method for instantly flushing
-    the textbox.
-    """
-
-    def __init__(self, engine):
-        self.engine = engine  # CommandLine instance
-
-    def __call__(self, source):
-        result = self.engine.onecmd(source)
-        return str(result) if result is not None else ""
-
-
 # ---------------- Command Line Logic ----------------
 class CommandLine(cmd.Cmd):
     """
