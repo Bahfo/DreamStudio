@@ -463,9 +463,6 @@ class TerminalPanel(QWidget):
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self.system_shell_tab.set_theme(bg, fg, sel)
 
-    def append_output(self, text):
-        self.output_tab.append_text(text)
-
     # ------------------------------------------------------------------
     # Cleanup (Step 7)
     # ------------------------------------------------------------------

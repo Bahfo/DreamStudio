@@ -164,20 +164,6 @@ class ProjectDataEngine:
         except Exception:
             return False
 
-    def _read_root_doc(self, filenames: list[str]) -> str:
-        """Helper to scan root workspace for the first matching doc variation."""
-        if not self.project_dir:
-            return ""
-        for name in filenames:
-            target_path = self.project_dir / name
-            if target_path.exists():
-                try:
-                    with open(target_path, "r", encoding="utf-8") as f:
-                        return f.read()
-                except Exception:
-                    pass
-        return ""
-
     def _root_doc_status(self, filenames: list[str]) -> str:
         """Report whether an accompanying root doc exists, without its content."""
         if not self.project_dir:
@@ -189,26 +175,3 @@ class ProjectDataEngine:
             except Exception:
                 pass
         return "Not found"
-
-    def _write_root_doc(self, filenames: list[str], content: str) -> None:
-        """
-        Helper to write documents to an existing match or create a preferred
-        default filename.
-        """
-        if not self.project_dir or content is None:
-            return
-
-        for name in filenames:
-            target_path = self.project_dir / name
-            if target_path.exists():
-                try:
-                    self._atomic_write(target_path, content)
-                except Exception:
-                    pass
-                return
-
-        default_path = self.project_dir / filenames[0]
-        try:
-            self._atomic_write(default_path, content)
-        except Exception:
-            pass

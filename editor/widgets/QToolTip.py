@@ -35,28 +35,6 @@ class ToolTip(QFrame):
         self.hide_timer.start()
         super().leaveEvent(event)
 
-    def show_at_widget(self, target_widget):
-        self.hide_timer.stop()
-        global_target_pos = target_widget.mapToGlobal(
-            QPoint(0, target_widget.height() + 4)
-        )
-        self.adjustSize()
-        tooltip_width = self.width()
-
-        screen = QGuiApplication.screenAt(global_target_pos)
-        if not screen:
-            screen = QGuiApplication.primaryScreen()
-        screen_geo = screen.availableGeometry()
-
-        target_x = global_target_pos.x()
-        target_y = global_target_pos.y()
-
-        if target_x + tooltip_width > screen_geo.right():
-            target_x = screen_geo.right() - tooltip_width - 8
-
-        self.move(target_x, target_y)
-        self.show()
-
     def start_hide_sequence(self):
         self.hide_timer.start()
 

@@ -302,18 +302,6 @@ class Node(QWidget):
         except Exception:
             return ""
 
-    def setTool(self, name: str) -> None:
-        """Select *name* in the tool combo when it is a valid option.
-
-        Args:
-            name: One of :attr:`TOOL_OPTIONS`. Unknown values are ignored.
-        """
-        try:
-            index = list(self.TOOL_OPTIONS).index(name)
-        except ValueError:
-            return
-        self.tool_combo.setCurrentIndex(index)
-
     def _on_tool_changed(self, name: str) -> None:
         """Handle tool selection changes and build the matching node body.
 
@@ -504,31 +492,6 @@ class Node(QWidget):
         self._animate_expand()
         return dict(self._option_widgets)
 
-    def get_option_values(self) -> dict:
-        """Return the current values of the built option widgets.
-
-        Returns:
-            Mapping of property key to its value: text for line edits,
-            checked state for checkboxes, current text for combos, and
-            the list of checked entries for checkable lists.
-        """
-        values: dict = {}
-        for key, widget in self._option_widgets.items():
-            if isinstance(widget, QLineEdit):
-                values[key] = widget.text()
-            elif isinstance(widget, QCheckBox):
-                values[key] = widget.isChecked()
-            elif isinstance(widget, QComboBox):
-                values[key] = widget.currentText()
-            elif isinstance(widget, QListWidget):
-                checked_items = []
-                for row in range(widget.count()):
-                    item = widget.item(row)
-                    if item.checkState() == Qt.CheckState.Checked:
-                        checked_items.append(item.text())
-                values[key] = checked_items
-        return values
-
     def _clear_options(self) -> None:
         """Remove built option rows and shrink the node back down.
 
@@ -576,13 +539,6 @@ class Node(QWidget):
         self._options_layout.addWidget(widget)
         widget.setVisible(True)
 
-    def plug_counts(self) -> tuple[int, int]:
-        """Return the number of rendered input and output plugs.
-
-        Returns:
-            ``(input_count, output_count)`` pair.
-        """
-        return (len(self._input_plugs), len(self._output_plugs))
 
     def _parse_plug_count(self, raw: object) -> int:
         """Normalize a plug count from JSON into a safe integer.

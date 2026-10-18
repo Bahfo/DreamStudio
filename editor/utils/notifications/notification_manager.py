@@ -175,20 +175,6 @@ class NotificationManager(QObject):
         """Return the count of non-dismissed notifications."""
         return len(self.get_notifications())
 
-    def has_errors(self) -> bool:
-        """Check if there are any error notifications."""
-        return any(
-            n.notification_type == NotificationType.ERROR
-            for n in self.get_notifications()
-        )
-
-    def has_warnings(self) -> bool:
-        """Check if there are any warning notifications."""
-        return any(
-            n.notification_type == NotificationType.WARNING
-            for n in self.get_notifications()
-        )
-
 
 # Module-level singleton instance (managed outside QObject to avoid __new__ segfault)
 _instance: Optional["NotificationManager"] = None

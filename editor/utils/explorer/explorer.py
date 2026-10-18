@@ -809,14 +809,6 @@ class SolutionExplorer(PanelShell):
         self._update_status_label()
         self._notify_vcs_activity()
 
-    def go_to_parent_workspace(self) -> None:
-        """
-        Ascends standard path tracks to process parent storage workspace tiers.
-        """
-        parent = os.path.dirname(self._root_path.rstrip(os.sep))
-        if parent and parent != self._root_path:
-            self.set_workspace(parent)
-
     def set_show_hidden(self, show_hidden: bool) -> None:
         """
         Toggles system node filtering configs for operating system hidden
@@ -825,12 +817,6 @@ class SolutionExplorer(PanelShell):
         self.proxy_model.set_show_hidden(show_hidden)
         self._ensure_root_visible()
         self._update_status_label()
-
-    def toggle_show_hidden(self) -> None:
-        self.set_show_hidden(not self.proxy_model.show_hidden())
-
-    def is_show_hidden_enabled(self) -> bool:
-        return self.proxy_model.show_hidden()
 
     def _ensure_root_visible(self) -> None:
         """
@@ -906,77 +892,14 @@ class SolutionExplorer(PanelShell):
                 callback=callback,
             )
 
-    def selected_path(self) -> Optional[str]:
-        return self._selected_path()
-
     def workspace_root(self) -> str:
         return self._root_path
-
-    def set_current_path(self, path: str) -> None:
-        """
-        Focuses and centers project view tracking nodes over explicit
-        target files.
-        """
-        if not path:
-            return
-
-        resolved = os.path.abspath(os.path.expanduser(path))
-        if not os.path.exists(resolved):
-            return
-
-        self.set_workspace(
-            os.path.dirname(resolved) if os.path.isfile(resolved) else resolved
-        )
-
-        source_index = self.base_model.index(resolved)
-        if not source_index.isValid():
-            return
-
-        proxy_index = self.proxy_model.mapFromSource(source_index)
-        if proxy_index.isValid():
-            self.tree_view.setCurrentIndex(proxy_index)
-            self.tree_view.scrollTo(
-                proxy_index, QAbstractItemView.ScrollHint.PositionAtCenter
-            )
-            self._update_status_label()
 
     def open_workspace(self, root_path: str) -> None:
         self.set_workspace(root_path)
 
-    def expand_workspace(self) -> None:
-        ExplorerAPI.expand_all(self.tree_view)
-
-    def collapse_workspace(self) -> None:
-        ExplorerAPI.collapse_all(self.tree_view)
-
-    def focus_search(self) -> None:
-        self.search_bar.setFocus(Qt.FocusReason.OtherFocusReason)
-        self.search_bar.selectAll()
-
-    def clear_search(self) -> None:
-        self.search_bar.clear()
-
     def selected_directory(self) -> str:
         return self._current_directory() or self._root_path
-
-    def create_file_here(self) -> None:
-        target = self.selected_directory()
-        ExplorerAPI.new_file(self, target)
-        self._notify_vcs_activity()
-
-    def create_folder_here(self) -> None:
-        target = self.selected_directory()
-        result = ExplorerAPI.new_folder(self, target)
-        self._notify_vcs_activity()
-
-    def copy_selected_path(self) -> None:
-        self._menu_copy_path()
-
-    def rename_selected(self) -> None:
-        self._menu_rename()
-
-    def delete_selected(self) -> None:
-        self._menu_delete()
 
     def open_in_system_explorer(self) -> None:
         self._menu_open_explorer()

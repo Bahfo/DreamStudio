@@ -112,34 +112,13 @@ class UtilityTabManager(QWidget):
                 lambda pid=panel_id: self.panel_close_requested.emit(pid)
             )
 
-    def remove_panel(self, panel_id: str) -> None:
-        if panel_id not in self._panel_ids:
-            return
-        idx = self._panel_ids.index(panel_id)
-        self._panel_ids.pop(idx)
-        self._tab_bar.removeTab(idx)
-        w = self._stack.widget(idx)
-        if w is not None:
-            self._stack.removeWidget(w)
-            w.deleteLater()
-
     def set_current_panel(self, panel_id: str) -> None:
         if panel_id not in self._panel_ids:
             return
         idx = self._panel_ids.index(panel_id)
         self._tab_bar.setCurrentIndex(idx)
 
-    def current_panel_id(self) -> Optional[str]:
-        idx = self._tab_bar.currentIndex()
-        if 0 <= idx < len(self._panel_ids):
-            return self._panel_ids[idx]
-        return None
-
     def _on_tab_changed(self, index: int) -> None:
         self._stack.setCurrentIndex(index)
         if 0 <= index < len(self._panel_ids):
             self.panel_changed.emit(self._panel_ids[index])
-
-    def _on_tab_close_requested(self, index: int) -> None:
-        if 0 <= index < len(self._panel_ids):
-            self.panel_close_requested.emit(self._panel_ids[index])

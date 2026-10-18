@@ -4,15 +4,14 @@
 Dynamic IDE theme engine for DreamStudio.
 
 This module is the single runtime hook that keeps the code editors in
-sync with the active IDE theme.  It discovers every theme shipped under
-``editor/qss`` and ``editor/Ironica/themes``, resolves symbolic
-syntax-highlight colours (e.g. ``KEYWORD_COLOR``) to concrete hex values
-for the active theme, and re-colours every open editor on demand.
+sync with the active IDE theme.  It resolves symbolic syntax-highlight
+colours (e.g. ``KEYWORD_COLOR``) to concrete hex values for the active
+theme, and re-colours every open editor on demand.
 
 Public entry points:
 
 - ``RethemeEngine`` — class-level facade used by the IDE.  Callers use
-  ``set_theme``, ``toggle`` or ``apply_current`` and never instantiate it.
+  ``apply_current`` and never instantiate it.
 - ``resolve_language_config`` — used by the lexer pipeline to turn a
   language config's symbolic ``styles`` into concrete hex colours.
 - ``editor_colors`` — extracts the base editor colours (background,
@@ -34,19 +33,6 @@ _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$")
 def is_hex_color(value: object) -> bool:
     """Return ``True`` if *value* is a hex colour string like ``#RRGGBB``."""
     return isinstance(value, str) and bool(_HEX_COLOR_RE.match(value.strip()))
-
-
-def available_themes() -> List[str]:
-    """Return the sorted names of all shipped IDE themes (no extension)."""
-    try:
-        names = [
-            f[:-4]
-            for f in os.listdir(_QSS_DIR)
-            if f.endswith(".qss") and f != "resource_manager.qss"
-        ]
-    except OSError:
-        names = []
-    return sorted(names)
 
 
 def theme_palette(theme_name: str = _DEFAULT_THEME) -> Dict[str, str]:
@@ -204,78 +190,26 @@ def active_theme_name() -> str:
     return _ACTIVE_THEME
 
 
-@dataclass(frozen=True)
-class ThemePalette:
-    """Immutable view of one theme's syntax-colour palette."""
-
-    theme: str
-    name: str
-    palette: Dict[str, str]
-
-
 class RethemeEngine:
-    """Class-level engine that applies and toggles the IDE theme.
+    """Class-level engine that applies the active IDE theme.
 
-    The engine discovers every theme shipped with DreamStudio, exposes
-    them in sorted order, and re-colours all open code editors so the
-    base editor surface and the syntax lexer both follow the active
-    theme.  It is stateless apart from the module-level active theme
-    name used by the resolution helpers.
+    Re-colours all open code editors so the base editor surface and the
+    syntax lexer both follow the active theme.  It is stateless apart
+    from the module-level active theme name used by the resolution
+    helpers.
 
     **Usage** (from the main window)::
 
         from editor.Ironica.retheme import RethemeEngine
 
         RethemeEngine.apply_current(window)
-        next_theme = RethemeEngine.toggle(window)
     """
-
-    @classmethod
-    def themes(cls) -> List[str]:
-        """Return the sorted names of all available themes."""
-        return available_themes()
 
     @classmethod
     def current_theme(cls, window) -> str:
         """Return the active theme name reported by *window*."""
         name = getattr(window, "_current_theme_name", None)
         return name if name else active_theme_name()
-
-    @classmethod
-    def set_theme(cls, window, theme_name: str) -> str:
-        """Apply *theme_name* through *window* and re-colour all editors.
-
-        Args:
-            window: The ``DreamStudio`` main window (or a compatible stub).
-            theme_name: A theme name from ``themes()``.
-
-        Returns:
-            The theme name that was applied.
-        """
-        setter = getattr(window, "_set_theme_by_name", None)
-        if setter is None:
-            set_active_theme(theme_name)
-            return theme_name
-        setter(theme_name)
-        cls.apply_current(window)
-        return theme_name
-
-    @classmethod
-    def toggle(cls, window) -> str:
-        """Cycle to the next theme and apply it.
-
-        Returns:
-            The newly applied theme name.
-        """
-        themes = cls.themes()
-        if not themes:
-            return active_theme_name()
-        current = cls.current_theme(window)
-        if current in themes:
-            next_theme = themes[(themes.index(current) + 1) % len(themes)]
-        else:
-            next_theme = themes[0]
-        return cls.set_theme(window, next_theme)
 
     @classmethod
     def apply_current(cls, window) -> None:

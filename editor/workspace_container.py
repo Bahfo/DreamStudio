@@ -316,11 +316,3 @@ class WorkspaceContainer(QWidget):
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self._left_utils_manager.set_theme(bg, fg, sel)
         self._right_utils_manager.set_theme(bg, fg, sel)
-
-    def _create_placeholder_panel(self, text: str):
-        frame = QFrame()
-        layout = QVBoxLayout(frame)
-        label = QLabel(text)
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(label)
-        return frame

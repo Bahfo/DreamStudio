@@ -418,9 +418,6 @@ class TerminalWorkspace(QWidget):
         if len(self._sessions) == 0:
             self._stack.setCurrentWidget(self._empty_placeholder)
 
-    def active_session_id(self) -> int | None:
-        return self._active_id
-
     def open_command_session(
         self, argv: list[str], cwd: str | None = None, name: str | None = None
     ) -> bool:
@@ -483,9 +480,6 @@ class TerminalWorkspace(QWidget):
 
         QTimer.singleShot(_RUN_COMMAND_DELAY_MS, lambda: _submit(0))
         return True
-
-    def active_count(self) -> int:
-        return len(self._sessions)
 
     def _fallback_workspace_cwd(self) -> str | None:
         """Return workspace CWD without falling back to install dir."""

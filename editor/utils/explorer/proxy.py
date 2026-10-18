@@ -77,9 +77,6 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
         self._sort_mode = mode
         self.invalidate()
 
-    def sort_mode(self) -> SortMode:
-        return self._sort_mode
-
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
         """Serve VCS foreground and gitignore faded-gray text colors."""
         if role == Qt.ItemDataRole.ForegroundRole:
@@ -180,20 +177,6 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
             pass
         self.invalidate()
 
-    def apply_vcs_theme(self, background: str) -> None:
-        """Re-resolve VCS colors against the themed background color."""
-        parsed = QColor(background)
-        lightness = parsed.lightness() if parsed.isValid() else 30
-        self._vcs_colors = resolve_vcs_colors(lightness)
-        try:
-            top = self.index(0, 0, QModelIndex())
-            bottom = self.index(self.rowCount() - 1, 0, QModelIndex())
-            if top.isValid() and bottom.isValid():
-                self.dataChanged.emit(top, bottom, [Qt.ItemDataRole.ForegroundRole])
-        except Exception:
-            pass
-        self.invalidate()
-
     def vcs_color_for_path(self, path: str) -> Optional[QColor]:
         """Resolve a display color for one path, or None when unchanged."""
         kind = self._vcs_index.get(os.path.normpath(path))
@@ -222,10 +205,6 @@ class ExplorerFilterProxy(QSortFilterProxyModel):
             pass
         self.invalidate()
         self.invalidateFilter()
-
-    def gitignore_patterns(self) -> list[str]:
-        """Return a copy of the current gitignore patterns."""
-        return list(self._gitignore_patterns)
 
     def is_gitignored(self, abs_path: str, is_dir: bool = False) -> bool:
         """Return ``True`` when *abs_path* matches the gitignore patterns.

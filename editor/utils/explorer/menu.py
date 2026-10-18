@@ -232,32 +232,6 @@ class ExplorerClickMenu(QMenu):
         self._action_map: dict[str, Callable] = {}
         self._tree_shortcuts: list[QAction] = []
 
-    def register_action(
-        self,
-        action_id: str,
-        callback: Callable,
-        *,
-        text: str = "",
-        shortcut: str = "",
-        icon: str = "",
-        category: str = "edit",
-        show_for: str = "all",
-        checked: bool | Callable = False,
-    ) -> None:
-        self._action_map[action_id] = callback
-        self.registry.add_action(
-            MenuItem(
-                item_id=action_id,
-                text=text or action_id,
-                shortcut=shortcut,
-                icon=icon,
-                category=category,
-                show_for=show_for,
-                callback=callback,
-                checked=checked,
-            )
-        )
-
     def register_callback(self, action_id: str, callback: Callable) -> None:
         self._action_map[action_id] = callback
 
@@ -390,5 +364,3 @@ class ExplorerClickMenu(QMenu):
     def _fallback_cb(self, action_id: str) -> Callable:
         return lambda: print(f"No handler for '{action_id}'")
 
-    def _make_callback(self, cb: Callable) -> Callable:
-        return lambda: cb()
