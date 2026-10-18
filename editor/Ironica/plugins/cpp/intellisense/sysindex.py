@@ -18,7 +18,7 @@ import json
 import logging
 import os
 
-from editor import *
+from pathlib import Path
 
 logger = logging.getLogger("DreamStudio.Cpp.SysIndex")
 

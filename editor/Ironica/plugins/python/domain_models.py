@@ -6,9 +6,10 @@ support system. These models are completely decoupled from any providers
 such as Jedi, Qt, or the filesystem.
 """
 
-from editor import *
+import dataclasses
+from typing import List, Optional
 
-@dataclass
+@dataclasses.dataclass
 class PythonContext:
     """
     An immutable snapshot of the editor's state at the moment of a request.
@@ -22,7 +23,7 @@ class PythonContext:
     project_root: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class ParameterInfo:
     """
     Represents a single parameter of a function or method signature.
@@ -33,7 +34,7 @@ class ParameterInfo:
     default_value: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class HoverDetails:
     """
     Rich documentation details for hover tooltips, separated from GUI rendering.
@@ -42,15 +43,15 @@ class HoverDetails:
     name: str
     kind: str
     signature: str
-    parameters: List[ParameterInfo] = field(default_factory=list)
+    parameters: List[ParameterInfo] = dataclasses.field(default_factory=list)
     return_type: Optional[str] = None
     docstring: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class DefinitionLocation:
-    """T
-    arget location details for GoTo Definition and Find References requests.
+    """
+    Target location details for GoTo Definition and Find References requests.
     """
 
     file_path: Optional[str]
@@ -59,7 +60,7 @@ class DefinitionLocation:
     context_line: Optional[str] = None
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class ReferenceLocation:
     """
     Represents an occurrence of a symbol somewhere in the codebase.
@@ -73,28 +74,7 @@ class ReferenceLocation:
     symbol_length: int  # Width of the symbol for code highlighting
 
 
-@dataclass(frozen=True)
-class FunctionComplexity:
-    """Complexity metrics computed for a specific function/method."""
-
-    name: str
-    line: int
-    cyclomatic_complexity: int
-    nesting_depth: int
-
-
-@dataclass(frozen=True)
-class ComplexityReport:
-    """Comprehensive AST complexity metrics for a single source file."""
-
-    total_loc: int
-    class_count: int
-    function_count: int
-    max_cyclomatic_complexity: int
-    functions: List[FunctionComplexity] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class CompletionDetails:
     """One autocompletion suggestion from the language plugin.
 

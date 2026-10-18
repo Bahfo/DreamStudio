@@ -70,6 +70,14 @@ def scan_symbols(source: str) -> List[Symbol]:
     seen: set = set()
 
     def add(name: str, kind: str, line: int, scope: str = "") -> None:
+        """Record one declaration, skipping duplicates.
+
+        Args:
+            name: Identifier being declared.
+            kind: Declaration category (function, field, type, ...).
+            line: One-indexed source line of the declaration.
+            scope: Enclosing record or namespace, empty for globals.
+        """
         key = (name, kind, scope)
         if name and key not in seen:
             seen.add(key)

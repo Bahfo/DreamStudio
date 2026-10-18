@@ -18,6 +18,7 @@ class QErrorMessage(QWidget):
     ARROW_HEIGHT = 10
     ARROW_WIDTH = 14
     ARROW_INSET = 9
+    ARROW_MIN_PAD = 22
 
     MIN_WIDTH = 460
     MIN_HEIGHT = 66
@@ -75,11 +76,34 @@ class QErrorMessage(QWidget):
 
     def set_arrow_x_position(self, x: int) -> None:
         """Pin the arrow tip to *x* pixels from the bubble's left edge."""
+        pad = int(self.ARROW_MIN_PAD)
         self._arrow_x = max(
-            self.ARROW_INSET,
-            min(x, max(self.ARROW_INSET, self.width() - self.ARROW_INSET)),
+            pad,
+            min(int(x), max(pad, self.width() - pad)),
         )
         self.update()
+
+    def fitted_size(self, width: int) -> QSize:
+        """Return the bubble size that fits the message at *width*.
+
+        Args:
+            width: Outer bubble width the text must wrap inside.
+
+        Returns:
+            Size whose height grows with the wrapped message text.
+        """
+        metrics = QFontMetrics(self.font())
+        text_width = max(40, int(width) - 32)
+        bounds = metrics.boundingRect(
+            QRect(0, 0, text_width, 100000),
+            int(Qt.AlignmentFlag.AlignLeft)
+            | int(Qt.AlignmentFlag.AlignTop)
+            | int(Qt.TextFlag.TextWordWrap),
+            self.message or "",
+        )
+        text_height = max(metrics.lineSpacing(), int(bounds.height()))
+        total = 30.0 + 6.0 + float(text_height) + 12.0 + float(self.ARROW_HEIGHT)
+        return QSize(int(width), max(int(self.MIN_HEIGHT), int(total + 0.5)))
 
     def set_arrow_up(self, up: bool) -> None:
         """Point the arrow up (``True``) or down (``False``)."""
@@ -149,7 +173,7 @@ class QErrorMessage(QWidget):
     ###############################################
 
     def sizeHint(self):
-        return QSize(520, 78)
+        return self.fitted_size(520)
 
     def body_rect(self) -> QRectF:
         """Return the rounded body rect, excluding the arrow strip."""

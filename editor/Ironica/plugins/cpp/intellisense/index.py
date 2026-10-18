@@ -23,7 +23,7 @@ import logging
 import os
 import threading
 
-from editor import *
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from editor.utils.solution.paths import (
     DEFAULT_EXCLUDES,

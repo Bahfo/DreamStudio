@@ -4,7 +4,9 @@
 Jedi integration adapter for DreamStudio.
 """
 
-from editor import *
+import logging
+from typing import List, Optional
+
 import jedi
 
 from .domain_models import (

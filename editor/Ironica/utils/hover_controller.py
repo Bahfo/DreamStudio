@@ -410,6 +410,17 @@ class HoverController(QObject):
     # Documentation resolution / display
     # ------------------------------------------------------------------
 
+    def cancel_pending_hover(self) -> None:
+        """Drop a pending hover so a stale timer can't fire after navigation."""
+        try:
+            self._hover_timer.stop()
+        except Exception:
+            pass
+        self._target_line = -1
+        self._target_col = -1
+        self._target_position = -1
+        self._token_rect_global = QRect()
+
     def _on_hover_timeout(self) -> None:
         if self._shutdown:
             return
@@ -430,6 +441,21 @@ class HoverController(QObject):
         if not text:
             return
 
+        try:
+            total_lines = int(self.editor.lines())
+        except Exception:
+            total_lines = -1
+        if total_lines >= 0 and self._target_line >= total_lines:
+            self.cancel_pending_hover()
+            return
+
+        anchor = self._position_flyout_anchor(
+            self._target_line,
+            self._target_col,
+        )
+        if anchor is None:
+            return
+
         result = self._resolve_hover_content(
             text,
             self._target_line,
@@ -446,21 +472,12 @@ class HoverController(QObject):
         if not title_markdown and not body_markdown:
             return
 
-        # Replace content before positioning so width/height are final before
-        # hit-testing begins.
         try:
             self.flyout.set_documentation(
                 title_markdown or "Documentation",
                 body_markdown or "",
             )
         except Exception:
-            return
-
-        anchor = self._position_flyout_anchor(
-            self._target_line,
-            self._target_col,
-        )
-        if anchor is None:
             return
 
         self._update_target_token_rect()

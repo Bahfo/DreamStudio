@@ -263,6 +263,19 @@ class BaseLanguageProvider(ABC):
         Return `None` to indicate that the provider does not supply
         semantic highlights (the editor falls back to its built-in
         highlighting, if any).
+
+        Providers whose result depends on *which* buffer the text came
+        from (C++ resolves compile flags per file, and the provider
+        instance is a process singleton shared by every open tab) should
+        also set the class flag ``wants_file_path = True`` and accept an
+        extra ``file_path`` argument::
+
+            def get_semantic_highlights(self, text, theme_name=None,
+                                        file_path=None): ...
+
+        The analysis worker (:mod:`editor.Ironica.analysis_worker`) passes
+        ``file_path`` only to providers that opt in, so providers that do
+        not need it keep the one-argument signature above.
         """
         return None
 
@@ -286,6 +299,10 @@ class BaseLanguageProvider(ABC):
         collapsed (e.g. ``"def foo"`` or ``"import ..."``).
 
         Called by the editor when ``has_folding()`` returns ``True``.
+
+        Opting into ``wants_file_path = True`` adds a second
+        ``file_path`` argument here, exactly as documented on
+        :meth:`get_semantic_highlights`.
         """
         return []
 

@@ -10,11 +10,12 @@ presentation, scrolling, pinning and positioning.
 
 from __future__ import annotations
 
+import html
 import re
 from typing import Optional
 
-from PyQt6.QtCore import QPoint, QTimer, Qt, QSize, pyqtSignal
-from PyQt6.QtGui import QPalette
+from PyQt6.QtCore import QEvent, QPoint, QTimer, Qt, QSize, pyqtSignal
+from PyQt6.QtGui import QPalette, QTextDocument
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -51,6 +52,17 @@ def _plain_title_from_markdown(value: str) -> str:
     return " ".join(text.split())
 
 
+def _split_name_kind(title: str) -> tuple:
+    """Split a ``Name (Kind)`` header into its parts for badge rendering."""
+    text = (title or "").strip()
+    match = re.match(r"^(.*?)\s*\(([^()]*)\)\s*$", text)
+    if match:
+        name, kind = match.group(1).strip(), match.group(2).strip()
+        if name and kind and len(kind) <= 24:
+            return name, kind
+    return text, ""
+
+
 class DocumentationFlyout(QFrame):
     """Scrollable documentation card with optional pinned mode."""
 
@@ -74,9 +86,11 @@ class DocumentationFlyout(QFrame):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._width = 520
-        self._min_height = 110
+        self._min_height = 64
         self._max_height = 460
         self._is_pinned = False
+        self._in_change_event = False
+        self._last_body = ""
 
         self._layout_timer = QTimer(self)
         self._layout_timer.setSingleShot(True)
@@ -152,6 +166,34 @@ class DocumentationFlyout(QFrame):
         shadow.setOffset(0, 3)
         shadow.setColor(self.palette().color(QPalette.ColorRole.Shadow))
         self.setGraphicsEffect(shadow)
+        self._apply_card_style()
+
+    def _apply_card_style(self) -> None:
+        """Give the card a themed background, hairline border, small radius."""
+        pal = self.palette()
+        bg = pal.color(QPalette.ColorRole.Window)
+        border = pal.color(QPalette.ColorRole.Mid)
+        is_dark = bg.lightness() < 128
+        card = bg.lighter(108).name() if is_dark else "#FFFFFF"
+        self.setStyleSheet(
+            "QFrame#documentationFlyout {"
+            f" background-color: {card};"
+            f" border: 1px solid {border.name()};"
+            " border-radius: 6px;"
+            "}"
+        )
+
+    def changeEvent(self, event) -> None:
+        if event.type() in (QEvent.Type.PaletteChange, QEvent.Type.StyleChange):
+            if not getattr(self, "_in_change_event", False):
+                self._in_change_event = True
+                try:
+                    self._apply_card_style()
+                except Exception:
+                    pass
+                finally:
+                    self._in_change_event = False
+        super().changeEvent(event)
 
     # ------------------------------------------------------------------
     # Content
@@ -167,7 +209,12 @@ class DocumentationFlyout(QFrame):
         title = _plain_title_from_markdown(title_markdown)
         body = body_markdown or ""
 
-        self._title_label.setText(title or "Documentation")
+        name, kind = _split_name_kind(title or "Documentation")
+        header = f'<span style="font-size:13px; font-weight:600;">{html.escape(name)}</span>'
+        if kind:
+            header += f' <span style="color:#8b9099;">&#183; {html.escape(kind)}</span>'
+        self._title_label.setText(header)
+        self._last_body = body
 
         document = self.browser.document()
         document.clear()
@@ -288,14 +335,15 @@ class DocumentationFlyout(QFrame):
         self.setFixedWidth(width)
 
         try:
-            margin = int(self.browser.document().documentMargin())
-            self.browser.document().setTextWidth(
-                max(100, width - (2 * margin))
-            )
-            doc_height = self.browser.document().documentLayout().documentSize().height()
+            measure = QTextDocument()
+            measure.setDefaultStyleSheet(self._markdown_stylesheet())
+            measure.setMarkdown(self._last_body or "")
+            measure.setDocumentMargin(14)
+            measure.setTextWidth(max(100, width - 28))
+            doc_height = measure.documentLayout().documentSize().height()
             doc_height = int(doc_height)
         except Exception:
-            doc_height = 180
+            doc_height = 120
 
         header_height = self._header.sizeHint().height()
         target = header_height + 1 + doc_height

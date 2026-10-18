@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import logging
 import re
+import weakref
 from typing import Dict, List, Optional, Tuple
 
 from ..models import CppCompletion
+from .callsite import _identity_matches
 
 logger = logging.getLogger("DreamStudio.Cpp.Macros")
 
@@ -25,7 +27,7 @@ _CACHE_BOUND = 16
 _DEFINE_LINE = re.compile(r"^[ \t]*#[ \t]*define[ \t]+([A-Za-z_]\w*)",
                           re.MULTILINE)
 
-_macro_cache: Dict[Tuple[str, int], List[str]] = {}
+_macro_cache: Dict[Tuple[str, int], Tuple[Optional[object], List[str]]] = {}
 
 
 def buffer_macros(source: str) -> List[str]:
@@ -124,12 +126,18 @@ def complete_guards(
     lowered = (prefix or "").lower()
     tu_tag = id(tu) if tu is not None else hash(source)
     cache_key = (main_path or "", tu_tag)
+    try:
+        tu_ref = weakref.ref(tu) if tu is not None else None
+    except TypeError:
+        tu_ref = None
     cached = _macro_cache.get(cache_key)
-    if cached is None:
+    if cached is not None and _identity_matches(cached[0], tu):
+        cached = cached[1]
+    else:
         cached = collect_macros(tu, main_path)
         if len(_macro_cache) >= _CACHE_BOUND:
             _macro_cache.pop(next(iter(_macro_cache)))
-        _macro_cache[cache_key] = cached
+        _macro_cache[cache_key] = (tu_ref, cached)
     names = list(cached)
     for name in buffer_macros(source):
         if name not in names:

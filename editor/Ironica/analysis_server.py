@@ -338,8 +338,111 @@ def _handle_c_analysis(
     return ("c_analysis", request_id, highlights, fold_regions)
 
 
+_MAX_DIAGNOSTICS = 200
+_SYNTAX_COLOR = "#F14C4C"
+
+
+def _syntax_diagnostics(source: str):
+    """Return syntax diagnostics for *source* as plain wire dicts.
+
+    NOTE: ``jedi.Script.get_diagnostics`` was removed in jedi 0.19, so
+    diagnostics come from ``parso``'s error-recovery parse instead (the
+    same parser jedi itself uses).  That covers *syntax* errors only —
+    semantic/lint diagnostics such as undefined names are not
+    implemented.  Keep this in sync with the identical helper in
+    ``editor.Ironica.plugins.python.jedi_worker``; the two cannot share
+    a module because this process stubs out the whole ``Ironica``
+    subtree.
+
+    Args:
+        source: Full buffer content.
+
+    Returns:
+        List of ``{line, start_col, end_line, end_col, color, message}``
+        dicts with 1-based lines — capped, never raises.
+    """
+    try:
+        import parso
+
+        message = "Syntax error"
+        try:
+            compile(source, "<buffer>", "exec")
+        except SyntaxError as exc:
+            if exc.msg:
+                message = exc.msg
+        except Exception:
+            pass
+
+        lines = source.split("\n")
+        module = parso.parse(source, error_recovery=True)
+        found = []
+        stack = [module]
+        while stack and len(found) < _MAX_DIAGNOSTICS:
+            node = stack.pop()
+            children = getattr(node, "children", None) or ()
+            for child in children:
+                if getattr(child, "type", "") in ("error_node", "error_leaf"):
+                    start_line, start_col = child.start_pos
+                    end_line, end_col = child.end_pos
+                    for row in range(start_line, end_line + 1):
+                        if len(found) >= _MAX_DIAGNOSTICS:
+                            break
+                        text = lines[row - 1] if 0 < row <= len(lines) else ""
+                        first_col = start_col if row == start_line else 0
+                        last_col = end_col if row == end_line else len(text)
+                        found.append(
+                            {
+                                "line": row,
+                                "start_col": first_col,
+                                "end_line": row,
+                                "end_col": last_col,
+                                "color": _SYNTAX_COLOR,
+                                "message": message,
+                            }
+                        )
+                stack.append(child)
+        return _merge_spans(found)
+    except Exception as exc:
+        logger.warning("Python diagnostics failed: %s", exc)
+        return []
+
+
+def _merge_spans(diagnostics):
+    """Merge overlapping/adjacent spans that share a line.
+
+    parso reports nested error nodes (an ``error_node`` wrapping an
+    ``error_leaf``), which would otherwise paint two squiggles over the
+    same characters.
+
+    Args:
+        diagnostics: Collected wire dicts, in walk order.
+
+    Returns:
+        New list with at most one entry per merged span.
+    """
+    by_line: dict = {}
+    for entry in diagnostics:
+        by_line.setdefault(entry["line"], []).append(entry)
+    merged = []
+    for line in sorted(by_line):
+        group = sorted(by_line[line], key=lambda e: e["start_col"])
+        current = None
+        for entry in group:
+            if current is None:
+                current = dict(entry)
+                continue
+            if entry["start_col"] <= current["end_col"]:
+                current["end_col"] = max(current["end_col"], entry["end_col"])
+                continue
+            merged.append(current)
+            current = dict(entry)
+        if current is not None:
+            merged.append(current)
+    return merged
+
+
 def _handle_diagnostics(request_id: int, source: str, file_path):
-    return ("diagnostics", request_id, [])
+    return ("diagnostics", request_id, _syntax_diagnostics(source))
 
 
 _MAX_COMPLETION_ITEMS = 50

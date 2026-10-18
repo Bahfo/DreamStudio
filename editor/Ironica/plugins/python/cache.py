@@ -5,7 +5,9 @@ An independent, generic caching engine for editor requests.
 Tracks, stores, and invalidates lookups based on immutable contexts.
 """
 
-from editor import *
+import hashlib
+from typing import Any, Dict, Optional
+
 from .domain_models import PythonContext
 
 

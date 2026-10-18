@@ -14,25 +14,8 @@ import subprocess
 from typing import List, Optional
 
 logger = logging.getLogger("DreamStudio.CPP.Args")
-_CPP_EXTS = frozenset({".cpp", ".hpp", ".hh", ".cc", ".cxx", ".c++", ".ixx"})
 _DEFAULTS: tuple[str, ...] = ("-x", "c++", "-std=c++20")
 _RESOURCE_DIR: Optional[List[str]] = None
-
-
-def is_cpp(path: str | None, source: str = "") -> bool:
-    """
-    Checks whether the path is a C++ buffer.
-    """
-    if path:
-        _, ext = os.path.splitext(path)
-        if ext.lower() in _CPP_EXTS:
-            return True
-        if ext.lower() == ".h":
-            for tok in ("class ", "template<", "namespace ", "concpet "):
-                if tok in source:
-                    return True
-
-    return False
 
 
 def unsaved_name(hint_cpp: bool = True) -> str:
@@ -43,6 +26,14 @@ def unsaved_name(hint_cpp: bool = True) -> str:
 
 
 def _find_db(start: str) -> str | None:
+    """Walk upward from *start* looking for a ``compile_commands.json``.
+
+    Args:
+        start: Directory to start searching from.
+
+    Returns:
+        Absolute database path, or ``None`` when none is found.
+    """
     cur = os.path.abspath(start)
     while True:
         cand = os.path.join(cur, "compile_commands.json")

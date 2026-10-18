@@ -11,9 +11,6 @@ import re
 import time
 from typing import List, Tuple
 
-import clang.cindex as C
-
-# Local Imports and CLang Extension
 from clang.cindex import CursorKind, Index, TranslationUnit
 from ..models import CppContext, CppCompletion
 from . import args as cpp_args
@@ -74,17 +71,29 @@ def _build_kind_map() -> dict:
 
 _KIND = _build_kind_map()
 
+#: Parse options every translation unit is built with. Sharing one mask keeps
+#: the completion and fold/highlight cache entries interchangeable.
+_PARSE_OPTIONS = (
+    TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
+    | TranslationUnit.PARSE_INCOMPLETE
+    | TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
+)
+
 _KIND_RANK = {
     "method": 0,
     "field": 1,
     "function": 2,
+    "path": 2,
     "type": 3,
     "enum": 3,
+    "keyword": 3,
     "constant": 4,
     "variable": 5,
     "parameter": 6,
     "namespace": 7,
     "macro": 8,
+    "decorator": 8,
+    "import": 8,
     "text": 9,
 }
 
@@ -443,6 +452,35 @@ class CppEngine:
         )
         return tuple(list(flags) + header_resolution.extra_flags_for(ctx.file_path))
 
+    def _store_tu(
+        self, key: str, tu, source: str, flags: tuple, opts: int
+    ) -> None:
+        """Insert *tu* into the bounded cache, evicting the oldest entry.
+
+        Both the completion and the fold/highlight paths land here so they
+        share one key space; if they ever disagreed on the flag tuple the
+        two would invalidate each other's unit on every request.
+
+        Args:
+            key: Cache key the unit belongs to.
+            tu: Parsed translation unit to cache.
+            source: Buffer text the unit was parsed from.
+            flags: Flag tuple the unit was parsed with.
+            opts: Parse options the unit was parsed with.
+        """
+        # NOTE: prune first — if _order ever drifts from _cache, evicting
+        # _order[0] alone would pop a key with no entry and let _cache
+        # grow past _CACHE_SIZE without bound.
+        self._order = [k for k in self._order if k in self._cache and k != key]
+        while len(self._cache) >= _CACHE_SIZE:
+            evicted = self._order.pop(0) if self._order else None
+            if evicted is None:
+                self._cache.clear()
+                break
+            self._cache.pop(evicted, None)
+        self._cache[key] = (tu, source, flags, opts)
+        self._order.append(key)
+
     def _tu_for_completion(self, ctx: CppContext):
         """Return a TU for completion without reparsing (fast path).
 
@@ -452,79 +490,63 @@ class CppEngine:
         """
         key = self._cache_key(ctx)
         clang_path = ctx.file_path or cpp_args.unsaved_name()
-        flags = list(self.flags_for(ctx))
+        flags = tuple(self.flags_for(ctx))
         hit = self._cache.get(key)
-        if hit and hit[2] == tuple(flags):
+        if hit and hit[2] == flags:
             return hit[0]
         try:
             tu = self._index.parse(
                 clang_path,
-                args=flags,
+                args=list(flags),
                 unsaved_files=[(clang_path, ctx.source_code)],
-                options=(
-                    TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
-                    | TranslationUnit.PARSE_INCOMPLETE
-                    | TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
-                ),
+                options=_PARSE_OPTIONS,
             )
         except Exception as exc:
             logger.warning("parse failed: %s", exc)
             return None
-        if key in self._cache:
-            try:
-                self._order.remove(key)
-            except ValueError:
-                pass
-        elif len(self._cache) >= _CACHE_SIZE:
-            self._cache.pop(self._order.pop(0), None)
-        self._cache[key] = (
-            tu,
-            ctx.source_code,
-            tuple(flags),
-            TranslationUnit.PARSE_INCOMPLETE,
-        )
-        self._order.append(key)
+        self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
         return tu
 
     def _tu(self, ctx: CppContext):
+        """Return a TU matching *ctx*'s current buffer, reparsing if needed.
+
+        Unlike :meth:`_tu_for_completion` this reuses the cached unit only
+        when the buffer text is unchanged; an edit triggers ``reparse``
+        before falling back to a full parse. Flags come from
+        :meth:`flags_for` — the same computation the completion path uses
+        — so the two share cache entries instead of evicting each other.
+
+        Args:
+            ctx: Context carrying the source, position and file identity.
+
+        Returns:
+            Parsed translation unit, or ``None`` when parsing failed.
+        """
         key = self._cache_key(ctx)
         clang_path = ctx.file_path or cpp_args.unsaved_name()
-        flags = ctx.compile_args or cpp_args.args_for_file(
-            ctx.file_path, ctx.source_code
-        )
-        opts = (
-            TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
-            | TranslationUnit.PARSE_INCOMPLETE
-            | TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
-        )
+        flags = tuple(self.flags_for(ctx))
         hit = self._cache.get(key)
-        if hit and hit[2] == tuple(flags):
+        if hit and hit[2] == flags:
             tu, src, _, _ = hit
             if src == ctx.source_code:
                 return tu
             try:
                 tu.reparse(unsaved_files=[(clang_path, ctx.source_code)])
-                self._cache[key] = (tu, ctx.source_code, tuple(flags), opts)
+                self._store_tu(
+                    key, tu, ctx.source_code, flags, _PARSE_OPTIONS
+                )
                 return tu
             except Exception:
                 pass
         try:
             tu = self._index.parse(
                 clang_path,
-                args=flags,
+                args=list(flags),
                 unsaved_files=[(clang_path, ctx.source_code)],
-                options=opts,
+                options=_PARSE_OPTIONS,
             )
         except Exception as exc:
             logger.warning("parse failed: %s", exc)
             return None
-        if key in self._cache:
-            try:
-                self._order.remove(key)
-            except ValueError:
-                pass
-        elif len(self._cache) >= _CACHE_SIZE:
-            self._cache.pop(self._order.pop(0), None)
-        self._cache[key] = (tu, ctx.source_code, tuple(flags), opts)
-        self._order.append(key)
+        self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
         return tu

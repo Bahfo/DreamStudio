@@ -10,7 +10,9 @@ them into the core :class:`FoldManager` API.
 
 from __future__ import annotations
 
-from editor import *
+import logging
+import re
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -260,19 +262,3 @@ def _apply_import_fold_text(editor, regions: List[FoldRegion]) -> None:
             continue
         import_count = region.end_line - region.start_line + 1
         set_text(region.start_line, import_count)
-
-
-def compute_folds_for_editor(editor) -> None:
-    """Compute fold regions from editor buffer and update FoldManager."""
-    text = editor.text()
-    if not text:
-        return
-
-    regions = compute_fold_regions(text)
-    fm = getattr(editor, "_fold_manager", None)
-    if fm is not None:
-        # Display text first (fast without active fold levels), then levels.
-        _apply_import_fold_text(editor, regions)
-        fm.set_fold_regions(regions)
-    else:
-        _apply_import_fold_text(editor, regions)

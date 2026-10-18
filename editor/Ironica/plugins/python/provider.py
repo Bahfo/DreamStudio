@@ -14,32 +14,14 @@ coordinate convention.
 """
 
 import html as _html
+import keyword
+import logging
+import re
+from typing import Optional, Tuple
 
-from editor import *
+from editor.Ironica.language_engine import BaseLanguageProvider
 
-try:
-    from editor.Ironica.language_engine import BaseLanguageProvider
-except ImportError:
-    # Fallback stub when running outside the editor context (e.g. standalone tests).
-    from abc import ABC, abstractmethod
-
-    class BaseLanguageProvider(ABC):
-        @abstractmethod
-        def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
-            return None
-
-        @abstractmethod
-        def get_definition_location(
-            self, text: str, line: int, col: int
-        ) -> Optional[Tuple[Optional[str], int, int]]:
-            return None
-
-        @abstractmethod
-        def format_source(self, source_code: str) -> str:
-            return source_code
-
-
-from .domain_models import PythonContext, HoverDetails, CompletionDetails
+from .domain_models import HoverDetails, PythonContext
 from .interfaces import IJediAdapter
 from .cache import LanguageCache
 
@@ -163,21 +145,64 @@ def _format_qt_tooltip(details: HoverDetails) -> str:
     return "".join(parts)
 
 
-def _format_hover_markdown(details: HoverDetails) -> str:
-    """Rich Markdown suitable for ``QTextBrowser.setMarkdown()``.
+def _signature_is_redundant(signature: str, name: str, kind: str) -> bool:
+    """Check whether *signature* adds nothing beyond ``name`` and ``kind``."""
+    sig = (signature or "").strip().lower()
+    label = (name or "").strip().lower()
+    klabel = (kind or "").strip().lower()
+    if not sig or not label:
+        return False
+    bare = sig[:-2].strip() if sig.endswith("()") else sig
+    return bare in (label, f"{klabel} {label}".strip())
 
-    Qt's Markdown engine renders headings, code fences, bullet lists,
-    horizontal rules and tables.  The output deliberately avoids raw HTML
-    so the flyout can render it through ``QTextDocument.setMarkdown()``
-    using the IDE-controlled stylesheet.
-    """
+
+def _strip_signature_echo(docstring: str, name: str, kind: str, signature: str) -> str:
+    """Drop a leading docstring line that only repeats the signature."""
+    lines = (docstring or "").splitlines()
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if not lines:
+        return ""
+    first = lines[0].strip()
+    folded = first.lower()
+    candidates = set()
+    for raw in (signature, name):
+        text = (raw or "").strip().lower()
+        if text:
+            candidates.add(text)
+            if text.endswith("()"):
+                candidates.add(text[:-2].strip())
+    label = (name or "").strip()
+    klabel = (kind or "").strip().lower()
+    if label and klabel:
+        candidates.add(f"{klabel} {label.lower()}")
+        candidates.add(f"{klabel} {label.lower()}()")
+    is_echo = folded in candidates or bool(
+        label and re.match(rf"^{re.escape(label)}\s*\(.*\)\s*$", first)
+    )
+    if is_echo:
+        lines.pop(0)
+        while lines and not lines[0].strip():
+            lines.pop(0)
+    return "\n".join(lines).strip()
+
+
+def _format_hover_markdown(details: HoverDetails) -> str:
+    """Rich Markdown suitable for ``QTextBrowser.setMarkdown()``."""
     parts: list[str] = []
+    doc = _strip_signature_echo(
+        _clean_docstring(details.docstring or "") if details.docstring else "",
+        details.name,
+        details.kind,
+        details.signature,
+    )
 
     if details.signature:
-        sig = details.signature.strip()
-        # Use fenced code block; escape triple-backticks inside signature.
-        sig = sig.replace("```", "\\`\\`\\`")
-        parts.append(f"```python\n{sig}\n```")
+        sig = details.signature.strip().replace("```", "\\`\\`\\`")
+        if sig and not _signature_is_redundant(sig, details.name, details.kind):
+            parts.append(f"```python\n{sig}\n```")
 
     if details.parameters:
         parts.append(f"### Parameters ({len(details.parameters)})")
@@ -192,14 +217,12 @@ def _format_hover_markdown(details: HoverDetails) -> str:
     if details.return_type:
         parts.append(f"**Returns:** `{details.return_type}`")
 
-    if details.docstring:
-        cleaned = _clean_docstring(details.docstring)
-        # Keep docstring as blockquote/italic paragraph; escape not needed
-        # because Markdown renders plain text naturally.
-        parts.append(f"---\n\n{cleaned}")
+    if doc:
+        parts.append(f"---\n\n{doc}" if parts else doc)
 
     if not parts:
-        parts.append("*No additional documentation available.*")
+        kind = (details.kind or "symbol").strip() or "symbol"
+        parts.append(f"*{kind} — no documentation available.*")
 
     return "\n\n".join(parts)
 
@@ -235,18 +258,22 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
     @property
     def project_root(self) -> Optional[str]:
+        """Get or set the project root handed to the Jedi adapter."""
         return self._project_root
 
     @project_root.setter
     def project_root(self, value: Optional[str]) -> None:
+        """Get or set the project root handed to the Jedi adapter."""
         self._project_root = value
 
     @property
     def file_path(self) -> Optional[str]:
+        """Get or set the buffer path handed to the Jedi adapter."""
         return self._file_path
 
     @file_path.setter
     def file_path(self, value: Optional[str]) -> None:
+        """Get or set the buffer path handed to the Jedi adapter."""
         self._file_path = value
 
     # ------------------------------------------------------------------
@@ -261,6 +288,10 @@ class PythonLanguageProvider(BaseLanguageProvider):
         file_path: Optional[str] = None,
         project_root: Optional[str] = None,
     ) -> PythonContext:
+        """Build an immutable adapter context for a caret position.
+
+        Translates the editor's 0-indexed line to Jedi's 1-indexed
+        convention; columns stay 0-indexed."""
         effective_path = file_path or self._file_path
         effective_root = project_root or getattr(self, "_project_root", None)
         return PythonContext(
@@ -295,6 +326,10 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return self._adapter.get_hover(context)
 
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
+        """Return an HTML tooltip for the symbol under the cursor.
+
+        Returns:
+            Qt tooltip markup, or ``None`` when there is no symbol."""
         if not text:
             return None
 
@@ -367,7 +402,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         # Markdown heading — the flyout strips heading syntax for the header
         # label but keeps the structure for rendering.
         if details.kind:
-            title_markdown = f"## {details.name} ({details.kind})"
+            title_markdown = f"## {details.name} ({details.kind.strip().capitalize()})"
         else:
             title_markdown = f"## {details.name}"
         body_markdown = _format_hover_markdown(details)
@@ -381,6 +416,11 @@ class PythonLanguageProvider(BaseLanguageProvider):
         file_path: Optional[str] = None,
         project_root: Optional[str] = None,
     ) -> Optional[Tuple[str, int, int]]:
+        """Return ``(file_path, line, col)`` for the symbol under the cursor.
+
+        Returns:
+            Target location with 0-indexed line, or ``None`` when the
+            definition cannot be resolved."""
         context = self._build_context(text, line, col, file_path, project_root)
 
         cached_result = self._cache.get(context, "definition")
@@ -467,6 +507,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
             return source_code
 
     def get_semantic_highlights(self, text: str):
+        """Return ``(start, length, color)`` overlay ranges for *text*."""
         from .semantic_highlights import get_semantic_highlights
 
         return get_semantic_highlights(text)
@@ -566,6 +607,10 @@ class PythonLanguageProvider(BaseLanguageProvider):
         """
         from .jedi_worker import CompletionManager
 
+        # NOTE: assign unconditionally — keeping the previous value for a
+        # path-less tab would resolve that buffer's jedi script against
+        # another tab's directory.
+        self._file_path = file_path or None
         self._completion_manager = CompletionManager(
             editor=editor, file_path=file_path, parent=parent
         )

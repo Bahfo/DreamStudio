@@ -1205,7 +1205,11 @@ class CompletionController(QObject):
                 accepted = completion_manager.request(
                     self.editor.text(),
                     *self.editor.getCursorPosition(),
-                    getattr(provider, "file_path", None),
+                    # The provider is a process singleton shared by every
+                    # open tab, so its ``file_path`` is only the most
+                    # recently opened one; the editor's own path is the
+                    # authoritative per-tab identity.
+                    getattr(self.editor, "current_file_path", None) or None,
                     self._current_prefix,
                 )
             except RuntimeError:

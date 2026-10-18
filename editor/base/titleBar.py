@@ -29,15 +29,10 @@ class DreamStudioTitleBar(QWidget):
         }
     )
 
-    # Single title-bar action responsible for the options bar; its label
-    # flips between the two texts below while staying the same QAction.
     _OPTIONS_BAR_ACTION = "set_toggle_options_bar"
     _OPTIONS_BAR_HIDE_TEXT = "Hide Options Bar"
     _OPTIONS_BAR_SHOW_TEXT = "Show Options Bar"
 
-    # Editor-dependent actions declared in ``menus.json`` mapped to the
-    # capability they require from the active editor.  Every entry is
-    # resolved by :meth:`refresh_action_states`.
     _ACTION_REQUIREMENTS = {
         # Edit
         "set_undo": "undo",
@@ -180,8 +175,6 @@ class DreamStudioTitleBar(QWidget):
             menu.setObjectName("TitleBarMenu")
             self._build_menu_items(menu, items)
 
-        # Safety net: an editor-dependent menu carries the freshest possible
-        # state the moment it opens, even if no other signal fired meanwhile.
         for menu in self._refresh_menus:
             try:
                 menu.aboutToShow.connect(self.refresh_action_states)
@@ -219,7 +212,6 @@ class DreamStudioTitleBar(QWidget):
                     action = QAction(text, self)
 
                 if action_str:
-                    # Dynamically look up local functions or parent methods
                     target = getattr(
                         self,
                         action_str,

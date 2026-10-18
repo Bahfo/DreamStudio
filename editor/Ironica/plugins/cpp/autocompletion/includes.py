@@ -120,11 +120,11 @@ def complete_include(
     """
     if '"' in partial or ">" in partial:
         return []
-    if open_char == '"':
-        search_dirs = project_include_dirs(file_path, compile_args)
-    else:
-        search_dirs = project_include_dirs(file_path, compile_args)
-        search_dirs.extend(d for d in system_include_dirs() if d not in search_dirs)
+    search_dirs = project_include_dirs(file_path, compile_args)
+    if open_char != '"':
+        search_dirs.extend(
+            d for d in system_include_dirs() if d not in search_dirs
+        )
     head, _, base = partial.rpartition("/")
     seen: set[str] = set()
     out: List[CppCompletion] = []

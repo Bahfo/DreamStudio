@@ -23,7 +23,11 @@ The provider exposes two independent output paths:
   caused by multi-byte characters or non-breaking spaces.
 """
 
-from editor import *
+import ast
+import io
+import keyword
+import tokenize
+from typing import Dict, List, Tuple
 
 from editor.Ironica.utils.highlighting_api import (
     ITokenProvider,
@@ -134,38 +138,8 @@ def _build_exclusions_from_stream(
     return exclude
 
 
-def _build_exclusions(text: str, line_offsets: List[int]) -> List[Tuple[int, int]]:
-    """Build comment/string exclusion ranges by tokenizing *text*.
-
-    Args:
-        text: Full source buffer.
-        line_offsets: Cumulative UTF-8 byte offsets per line.
-
-    Returns:
-        Sorted ``(start, end)`` byte ranges covering non-code spans.
-    """
-    exclude: List[Tuple[int, int]] = []
-    try:
-        for tok in tokenize.generate_tokens(io.StringIO(text).readline):
-            if (
-                tok.type in (tokenize.COMMENT, tokenize.STRING)
-                or tok.type in _FSTRING_TOKEN_TYPES
-            ):
-                start_byte = _tokenize_char_to_byte(
-                    line_offsets, tok.line, tok.start[0], tok.start[1]
-                )
-                end_byte = _tokenize_char_to_byte(
-                    line_offsets, tok.line, tok.end[0], tok.end[1]
-                )
-                if start_byte >= 0 and end_byte >= start_byte:
-                    exclude.append((start_byte, end_byte))
-    except Exception:
-        pass
-    exclude.sort()
-    return exclude
-
-
 def _in_exclusion(pos: int, length: int, exclude: List[Tuple[int, int]]) -> bool:
+    """Return whether ``[pos, pos+length)`` overlaps an excluded span."""
     end = pos + length
     lo, hi = 0, len(exclude) - 1
     while lo <= hi:
@@ -186,6 +160,7 @@ def _in_exclusion(pos: int, length: int, exclude: List[Tuple[int, int]]) -> bool
 
 
 def _iter_param_args(args: ast.arguments):
+    """Yield every parameter argument node of a function signature."""
     yield from args.posonlyargs
     yield from args.args
     if args.vararg is not None:
@@ -201,6 +176,11 @@ def _iter_param_args(args: ast.arguments):
 
 
 class PythonSemanticProvider(ITokenProvider):
+    """Two-path Python token provider.
+
+    The lexer path emits authoritative ``tokenize`` output; the overlay
+    path adds a small whitelist of AST-derived identifier spans.  Both
+    use UTF-8 byte offsets so they line up with QScintilla's buffer."""
     def __init__(self) -> None:
         self._cache_text: str = ""
         self._cache_lexical: List[Token] = []
@@ -208,6 +188,7 @@ class PythonSemanticProvider(ITokenProvider):
         self._styles: Dict[str, TokenStyle] = {}
 
     def _get_styles(self) -> Dict[str, TokenStyle]:
+        """Return the cached token styles, resolving the theme once."""
         if not self._styles:
             config = LanguageRegistry.get_config("python")
             if config:
@@ -218,6 +199,7 @@ class PythonSemanticProvider(ITokenProvider):
         return self._styles
 
     def invalidate_cache(self) -> None:
+        """Drop cached tokens and styles (theme switch)."""
         self._cache_text = ""
         self._cache_lexical = []
         self._cache_semantic = []
@@ -250,12 +232,14 @@ class PythonSemanticProvider(ITokenProvider):
         )
 
     def get_tokens(self, text: str) -> List[Token]:
+        """Return the cached lexical token stream for *text*."""
         if not text.strip():
             return []
         self._compute(text)
         return self._cache_lexical
 
     def _lex(self, tok_stream, line_offsets: List[int]) -> List[Token]:
+        """Turn a tokenize stream into styled lexer tokens."""
         tokens: List[Token] = []
         for tok in tok_stream:
             start_byte = _tokenize_char_to_byte(
@@ -314,6 +298,7 @@ class PythonSemanticProvider(ITokenProvider):
         tok_stream,
         line_index: Dict[int, List],
     ) -> List[Token]:
+        """Return AST-derived overlay tokens, falling back when unparsable."""
         try:
             tree = ast.parse(text)
         except SyntaxError:
@@ -330,6 +315,7 @@ class PythonSemanticProvider(ITokenProvider):
     def _semantic_lexical_fallback(
         self, line_offsets: List[int], exclude: List[Tuple[int, int]], tok_stream
     ) -> List[Token]:
+        """Derive overlay tokens lexically when ``ast.parse`` fails."""
         tokens: List[Token] = []
         state = None
         paren_depth = 0
@@ -408,6 +394,7 @@ class PythonSemanticProvider(ITokenProvider):
         return self._dedupe(tokens)
 
     def _dedupe(self, tokens: List[Token]) -> List[Token]:
+        """Sort tokens and drop any that overlap an earlier span."""
         if not tokens:
             return []
         ordered = sorted(tokens, key=lambda t: (t.start, -(t.start + t.length)))
@@ -427,6 +414,7 @@ class PythonSemanticProvider(ITokenProvider):
         exclude: List[Tuple[int, int]],
         tokens: List[Token],
     ) -> None:
+        """Emit a variable token for a ``self.attr`` / ``cls.attr`` target."""
         if isinstance(target.value, ast.Name) and target.value.id in ("self", "cls"):
             attr_start = (
                 line_offsets[target.lineno - 1]
@@ -443,6 +431,7 @@ class PythonSemanticProvider(ITokenProvider):
                 )
 
     def _find_next_name_after_token(self, line_index, lineno: int, keyword_text: str):
+        """Return the first NAME token following *keyword_text* on a line."""
         seen_keyword = False
         for tok in line_index.get(lineno, []):
             if tok.type == tokenize.NAME and tok.string == keyword_text:
@@ -453,6 +442,7 @@ class PythonSemanticProvider(ITokenProvider):
         return None
 
     def _find_importfrom_module_span(self, line_index, lineno: int):
+        """Return the (start, end) tokens of a ``from X import`` module path."""
         seen_from = False
         module_start_tok = None
         module_end_tok = None
@@ -492,6 +482,9 @@ class PythonSemanticProvider(ITokenProvider):
         line_index,
         tokens: List[Token],
     ) -> None:
+        """Emit overlay tokens for one AST node.
+
+        Each branch is guarded so a partially-typed file never raises."""
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             if not isinstance(node, ast.Lambda):
                 name_tok = self._find_next_name_after_token(
@@ -681,6 +674,7 @@ class PythonSemanticProvider(ITokenProvider):
                 tokens.append(Token(start, length, self._get_styles()["self"], "self"))
 
     def get_semantic_ranges(self, text: str) -> List[Tuple[int, int, str]]:
+        """Return ``(start, length, color)`` overlay ranges for *text*."""
         if not text.strip():
             return []
         self._compute(text)
@@ -693,6 +687,7 @@ _legacy_provider = PythonSemanticProvider()
 
 
 def get_semantic_highlights(text: str) -> List[Tuple[int, int, str]]:
+    """Module-level entry point used by the language provider."""
     return _legacy_provider.get_semantic_ranges(text)
 
 

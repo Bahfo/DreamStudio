@@ -6,9 +6,15 @@ All editor features must depend on these interfaces, never concrete
 implementations.
 """
 
-from .domain_models import *
+from abc import ABC, abstractmethod
+from typing import List, Optional
 
-from editor import *
+from .domain_models import (
+    CompletionDetails,
+    DefinitionLocation,
+    HoverDetails,
+    PythonContext,
+)
 
 class IJediAdapter(ABC):
     """
@@ -44,13 +50,4 @@ class IJediAdapter(ABC):
             A list of ``CompletionDetails`` objects.  May be empty when
             no completions are available.
         """
-        pass
-
-
-class IComplexityService(ABC):
-    """Parses files to analyze code quality metrics without execution."""
-
-    @abstractmethod
-    def analyze_source(self, source_code: str) -> ComplexityReport:
-        """Parses source code into an AST and extracts complex code paths."""
         pass

@@ -32,6 +32,7 @@ class CppProvider(BaseLanguageProvider):
     slash_snippets_only: bool = True
     cpp_member_triggers: bool = True
     suppress_token_fallback: bool = True
+    wants_file_path: bool = True
 
     def __init__(self) -> None:
         super().__init__()
@@ -41,12 +42,19 @@ class CppProvider(BaseLanguageProvider):
         self._fold_engine = None
         self._highlight_cache = None
 
-    def get_semantic_highlights(self, text: str, theme_name: str | None = None):
+    def get_semantic_highlights(
+        self, text: str, theme_name: str | None = None,
+        file_path: str | None = None,
+    ):
         """Return libclang identifier overlays for the buffer.
 
         Args:
             text: Full editor buffer content.
             theme_name: Active IDE theme; resolved automatically when omitted.
+            file_path: Buffer's own path. The analysis worker supplies it
+                (``wants_file_path = True``) because this provider is a
+                process singleton shared by every open C++ tab; without it
+                the last-opened tab's path would be used instead.
 
         Returns:
             List of ``(start, length, "#RRGGBB")`` overlay ranges.
@@ -66,8 +74,9 @@ class CppProvider(BaseLanguageProvider):
         except Exception:
             config = {}
             theme = theme_name or "dark"
+        file_path = file_path or self._file_path
         digest = hashlib.sha1(text.encode("utf-8")).hexdigest()
-        key = (digest, theme, self._file_path)
+        key = (digest, theme, file_path)
         cached = self._highlight_cache
         if cached is not None and cached[0] == key:
             return list(cached[1])
@@ -75,7 +84,6 @@ class CppProvider(BaseLanguageProvider):
             if self._fold_engine is None:
                 self._fold_engine = self._make_engine()
             engine = self._fold_engine
-            file_path = self._file_path
             context = CppContext(
                 source_code=text,
                 line=1,
@@ -105,31 +113,81 @@ class CppProvider(BaseLanguageProvider):
         self._highlight_cache = None
 
     def get_hover_hint(self, text, line, col):
+        """Return an HTML hover tooltip for the symbol at the cursor.
+
+        Args:
+            text: Full editor buffer content.
+            line: Zero-indexed cursor line.
+            col: Zero-indexed cursor column.
+
+        Returns:
+            Always ``None`` — hover is not implemented for C++ yet.
+        """
         return None
 
     def get_definition_location(self, text, line, col):
+        """Return ``(file_path, line, col)`` for the symbol at the cursor.
+
+        Args:
+            text: Full editor buffer content.
+            line: Zero-indexed cursor line.
+            col: Zero-indexed cursor column.
+
+        Returns:
+            Always ``None`` — go-to-definition is not implemented for C++ yet.
+        """
         return None
 
     def format_source(self, source_code):
+        """Return *source_code* formatted in place.
+
+        Args:
+            source_code: Full editor buffer content.
+
+        Returns:
+            The buffer unchanged — no C++ formatter is wired up yet.
+        """
         return source_code
 
     def has_diagnostics(self):
+        """Return whether this provider supplies a diagnostics manager.
+
+        Returns:
+            ``False`` — C++ diagnostics are not implemented yet.
+        """
         return False
 
     def has_folding(self) -> bool:
+        """Return whether this provider supplies fold regions.
+
+        Returns:
+            ``True`` — regions come from :mod:`.folding.regions`.
+        """
         return True
 
-    def get_fold_regions(self, text: str) -> list:
-        """Return AST-accurate fold regions for the buffer."""
+    def get_fold_regions(self, text: str, file_path: str | None = None) -> list:
+        """Return AST-accurate fold regions for the buffer.
+
+        Args:
+            text: Full editor buffer content.
+            file_path: Buffer's own path, supplied by the analysis worker
+                via ``wants_file_path``. Falls back to the most recently
+                opened C++ tab, then to an unsaved-buffer placeholder.
+
+        Returns:
+            List of ``FoldRegion`` objects. Never raises: a libclang
+            failure falls back to brace matching, and a failure of that
+            too yields an empty list.
+        """
         from .folding.regions import compute_fold_regions
 
         if not text or not text.strip():
             return []
+        file_path = file_path or self._file_path
         try:
             if self._fold_engine is None:
                 self._fold_engine = self._make_engine()
             engine = self._fold_engine
-            file_path = self._file_path
             context = CppContext(
                 source_code=text,
                 line=1,
@@ -145,9 +203,10 @@ class CppProvider(BaseLanguageProvider):
                 text, tu,
                 file_path or cpp_args.unsaved_name())
         except Exception:
-            from .folding.regions import compute_fold_regions as fallback
-
-            regions = fallback(text)
+            try:
+                regions = compute_fold_regions(text)
+            except Exception:
+                return []
         return regions
 
     def post_fold_setup(self, editor, regions) -> None:
@@ -260,8 +319,10 @@ class CppProvider(BaseLanguageProvider):
         Called by tab_editor.py:597. Editor-scoped, never singleton.
         """
 
-        if file_path:
-            self._file_path = file_path
+        # NOTE: assign unconditionally — keeping the previous value for a
+        # path-less tab would resolve its compile flags against another
+        # buffer's directory.
+        self._file_path = file_path or None
         engine = CppEngine(
             shared_index=self._shared_index,
             owner_id=id(editor),
@@ -273,8 +334,13 @@ class CppProvider(BaseLanguageProvider):
         )
         return self._completion_manager
 
-    @property
-    def completion_manager(self):
+@property
+def completion_manager(self):
+        """Return the most recently created per-editor completion manager.
+
+        Returns:
+            The manager, or ``None`` when no C++ tab has been opened yet.
+        """
         return self._completion_manager
 
 

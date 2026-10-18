@@ -31,6 +31,7 @@ class _AnalysisRequest:
     provider: object
     config: Optional[dict] = None
     theme_name: Optional[str] = None
+    file_path: Optional[str] = None
 
 
 class _AnalysisWorker(threading.Thread):
@@ -57,6 +58,7 @@ class _AnalysisWorker(threading.Thread):
         provider: object,
         config: Optional[dict] = None,
         theme_name: Optional[str] = None,
+        file_path: Optional[str] = None,
     ) -> None:
         """Enqueue the newest request, replacing any pending one."""
         if self._is_shutting_down:
@@ -67,6 +69,7 @@ class _AnalysisWorker(threading.Thread):
             provider=provider,
             config=config,
             theme_name=theme_name,
+            file_path=file_path,
         )
         self._wake.set()
         if not self._started_once:
@@ -74,16 +77,40 @@ class _AnalysisWorker(threading.Thread):
             self.start()
 
     @staticmethod
-    def _analyze(provider: object, source: str):
-        """Compute semantic highlights + fold regions for *source*."""
+    def _analyze(provider: object, source: str, file_path: Optional[str] = None):
+        """Compute semantic highlights + fold regions for *source*.
+
+        Args:
+            provider: Language provider queried for overlays.
+            source: Full editor buffer content.
+            file_path: Path of the buffer being analyzed. Passed through
+                only to providers that opt in via ``wants_file_path``;
+                every other provider keeps the one-argument call.
+
+        Returns:
+            ``(highlights, fold_regions)``, or ``(None, None)`` on failure.
+        """
         highlights = None
         fold_regions = None
         try:
             get_semantic = getattr(provider, "get_semantic_highlights", None)
+            # NOTE: an explicit capability flag, not a TypeError fallback —
+            # a TypeError raised *inside* a correct call would otherwise be
+            # silently retried with fewer arguments. file_path goes by
+            # keyword because get_semantic_highlights() takes theme_name
+            # as its second parameter.
+            scoped = bool(getattr(provider, "wants_file_path", False))
             if callable(get_semantic):
-                highlights = get_semantic(source)
+                highlights = (
+                    get_semantic(source, file_path=file_path) if scoped
+                    else get_semantic(source)
+                )
             if getattr(provider, "has_folding", lambda: False)():
-                fold_regions = provider.get_fold_regions(source)
+                fold_regions = (
+                    provider.get_fold_regions(source, file_path=file_path)
+                    if scoped
+                    else provider.get_fold_regions(source)
+                )
         except Exception as exc:
             logger.error("Whole-document analysis failed: %s", exc)
             return None, None
@@ -181,11 +208,15 @@ class _AnalysisWorker(threading.Thread):
                         logger.error("Analysis subprocess failed: %s", exc)
                         # Graceful degradation: compute in-process instead.
                         highlights, fold_regions = self._analyze(
-                            request.provider, request.source
+                            request.provider,
+                            request.source,
+                            request.file_path,
                         )
                 else:
                     highlights, fold_regions = self._analyze(
-                        request.provider, request.source
+                        request.provider,
+                        request.source,
+                        request.file_path,
                     )
             except Exception as exc:
                 logger.error("Analysis failed: %s", exc)
@@ -281,10 +312,15 @@ class AnalysisManager(QObject):
             except Exception as exc:
                 logger.debug("Unable to resolve language config: %s", exc)
         theme_name = getattr(editor, "_theme_name", None)
+        # Providers that resolve compile flags per buffer (C++) need to
+        # know *which* file this text came from; the provider instance is
+        # a process singleton shared by every open tab.
+        file_path = getattr(editor, "current_file_path", None) or None
 
         self._request_counter += 1
         self._worker.process(
-            self._request_counter, source, provider, config, theme_name
+            self._request_counter, source, provider, config, theme_name,
+            file_path,
         )
 
     @pyqtSlot(int, object, object)

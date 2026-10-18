@@ -229,11 +229,6 @@ def _resolve_colors(
     return colors
 
 
-def invalidate_semantic_cache() -> None:
-    """Drop cached highlight state (colors resolve per call)."""
-    return None
-
-
 def _token_kind_name(token) -> str:
     """Return the token-kind name for enum members and int codes."""
     kind = getattr(token, "kind", None)
@@ -409,6 +404,14 @@ def _fallback_ranges(
     raw_lines = source.split("\n")
 
     def _emit(line_no: int, char_col: int, text: str, category: str) -> None:
+        """Append one overlay range unless it is empty or excluded.
+
+        Args:
+            line_no: Zero-indexed source line.
+            char_col: Zero-indexed character column of *text* on the line.
+            text: Exact source substring to paint.
+            category: Category name whose colour should be applied.
+        """
         color = colors.get(category)
         if not color or not text:
             return

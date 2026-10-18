@@ -1977,6 +1977,12 @@ class CodeEditor(QsciScintilla):
         # must close it; the mouse is inside the flyout so a normal
         # ``dismiss()`` would keep it visible.
         self._dismiss_hover_flyout(force=True)
+        try:
+            controller = getattr(self, "_hover_controller", None)
+            if controller is not None:
+                controller.cancel_pending_hover()
+        except Exception:
+            pass
 
         if not self.current_provider:
             return
@@ -3379,12 +3385,16 @@ class CodeEditor(QsciScintilla):
                 max(int(popup.sizeHint().width()), int(popup.minimumWidth())),
                 room_w,
             )
+            try:
+                fitted_height = int(popup.fitted_size(width).height())
+            except Exception:
+                fitted_height = int(popup.sizeHint().height())
             height = min(
-                max(int(popup.sizeHint().height()), int(popup.minimumHeight())),
+                max(fitted_height, int(popup.minimumHeight())),
                 room_h,
             )
 
-            arrow_inset = int(popup.BORDER_RADIUS) + 6
+            arrow_inset = int(getattr(popup, "ARROW_MIN_PAD", 22))
             lo = margin
             hi = max(margin, self.width() - width - margin)
             left = start_x - arrow_inset
@@ -3401,14 +3411,28 @@ class CodeEditor(QsciScintilla):
             top = min(max(top, margin), max(margin, self.height() - height - margin))
 
             popup.set_arrow_up(arrow_up)
-            popup.set_arrow_x_position(start_x - left)
             popup.setGeometry(left, top, width, height)
+            popup.set_arrow_x_position(start_x - left)
             popup._anchor = (line, column, end_line, end_column)
             popup.show()
             popup.raise_()
             return True
         except Exception:
             return False
+
+    def _text_start_x(self) -> int:
+        """Return the pixel width of the gutter (line numbers + markers)."""
+        total = 0
+        get_width = getattr(QsciScintilla, "SCI_GETMARGINWIDTHN", 2242)
+        try:
+            for margin in range(5):
+                try:
+                    total += int(self.SendScintilla(get_width, margin))
+                except Exception:
+                    break
+        except Exception:
+            pass
+        return max(0, total + 20)
 
     def _token_pixel_x(self, position: int, y: int) -> int:
         """Return the left pixel of *position* on the screen line at *y*.
@@ -3418,7 +3442,9 @@ class CodeEditor(QsciScintilla):
         binary search over ``SCI_POSITIONFROMPOINT``, which honours the left
         margin, indentation and tabs.
         """
-        low, high = 0, max(1, self.width())
+        width = max(1, self.width())
+        low = min(self._text_start_x(), width - 1)
+        high = width
         while low < high:
             middle = (low + high) // 2
             probed = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, middle, y)

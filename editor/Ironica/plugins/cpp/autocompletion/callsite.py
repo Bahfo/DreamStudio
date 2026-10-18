@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
+import weakref
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -91,7 +92,35 @@ _STRINGY = frozenset(
 )
 
 _OVERLOAD_CACHE_BOUND = 16
-_overload_cache: Dict[Tuple[str, int, str], List[List[str]]] = {}
+_overload_cache: Dict[Tuple[str, int, str], Tuple[Optional[object], List[List[str]]]] = {}
+
+
+def _identity_matches(entry_ref, tu) -> bool:
+    """Return whether a cache entry was really built from *tu*.
+
+    Cache keys embed ``id(tu)``, which CPython recycles as soon as the
+    unit is freed — a later unit can land on a dead address and inherit
+    another file's parameter types. Storing a weak reference alongside
+    each payload lets a lookup prove ownership before trusting it. The
+    cache holds only a weak reference, so it never keeps a stale unit
+    alive (which is what made ``id()`` attractive in the first place).
+
+    Args:
+        entry_ref: Weak reference stored with the payload, or ``None``
+            for entries keyed on a buffer hash rather than a live unit.
+        tu: Translation unit being queried, or ``None``.
+
+    Returns:
+        ``True`` only when the entry provably belongs to this same unit.
+    """
+    if entry_ref is None:
+        return tu is None
+    if tu is None:
+        return False
+    try:
+        return entry_ref() is tu
+    except TypeError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -345,14 +374,20 @@ def overload_param_types(
     Keyed by translation-unit identity rather than buffer hash: a
     reparse mutates the TU in place, so the entry survives keystrokes
     and rescans happen only after a full reparse mints a new unit.
-    Declaration edits between reparses keep slightly stale ranks;
-    rows are never hidden by this cache.
+    Identity is confirmed through a weak reference rather than ``id()``
+    alone — see :func:`_identity_matches`. Declaration edits between
+    reparses keep slightly stale ranks; rows are never hidden by this
+    cache.
     """
     tu_tag = id(tu) if tu is not None else source_hash
     key = (cache_tag, tu_tag, callee)
+    try:
+        tu_ref = weakref.ref(tu) if tu is not None else None
+    except TypeError:
+        tu_ref = None
     cached = _overload_cache.get(key)
-    if cached is not None:
-        return [list(params) for params in cached]
+    if cached is not None and _identity_matches(cached[0], tu):
+        return [list(params) for params in cached[1]]
     collected: List[List[str]] = []
     wanted = _callable_codes()
     if tu is not None and callee and wanted:
@@ -391,7 +426,7 @@ def overload_param_types(
             logger.debug("overload scan unavailable: %s", exc)
     if len(_overload_cache) >= _OVERLOAD_CACHE_BOUND:
         _overload_cache.pop(next(iter(_overload_cache)))
-    _overload_cache[key] = [list(params) for params in collected]
+    _overload_cache[key] = (tu_ref, [list(params) for params in collected])
     return collected
 
 
