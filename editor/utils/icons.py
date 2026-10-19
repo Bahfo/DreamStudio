@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Single QIcon resolution path with cache and missing-asset warnings.
 """
 

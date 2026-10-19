@@ -2,15 +2,11 @@ from __future__ import annotations
 
 from editor import *
 
-# Local Imports
 from editor.widgets.QDreamTabEditor import DreamStudioIDETabBar
 
 
 class UtilityTabBar(DreamStudioIDETabBar):
-    """
-    Inherits cleanly from DreamStudioIDETabBar.
-    Overrides structural data lookups to point to the QStackedWidget.
-    """
+    """Inherits cleanly from DreamStudioIDETabBar."""
 
     def __init__(self, _parent=None):
         super().__init__(_parent)
@@ -31,10 +27,7 @@ class UtilityTabBar(DreamStudioIDETabBar):
         text_inactive: str,
         border_color: str = "#CCCEDB",
     ) -> None:
-        """
-        Dynamically re-theme color tokens at runtime.
-        Defined locally to guarantee functionality even if the base class lacks it.
-        """
+        """Dynamically re-theme color tokens at runtime."""
         self.selected_bg = QColor(selected_bg)
         self.hover_bg = QColor(hover_bg)
         self.inactive_bg = QColor(inactive_bg)
@@ -67,10 +60,7 @@ class UtilityTabBar(DreamStudioIDETabBar):
 
 
 class UtilityTabManager(QWidget):
-    """
-    Tabbed side-panel layout with tabs rendered safely underneath the panel
-    contents.
-    """
+    """Tabbed side-panel layout with tabs rendered safely underneath the panel contents."""
 
     panel_changed = pyqtSignal(str)
     panel_close_requested = pyqtSignal(str)

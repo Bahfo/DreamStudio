@@ -11,7 +11,6 @@ logger = logging.getLogger("[TitleBar]")
 class DreamStudioTitleBar(QWidget):
     maximize_requested = pyqtSignal()
 
-    # Blue gradient endpoints for the built-in dark and light themes.
     _TITLE_BAR_BLUE_ENDS = {
         "dark": QColor("#004E98"),
         "light": QColor("#0081F2"),
@@ -34,7 +33,6 @@ class DreamStudioTitleBar(QWidget):
     _OPTIONS_BAR_SHOW_TEXT = "Show Options Bar"
 
     _ACTION_REQUIREMENTS = {
-        # Edit
         "set_undo": "undo",
         "set_redo": "redo",
         "set_cut": "selection",
@@ -46,9 +44,7 @@ class DreamStudioTitleBar(QWidget):
         "set_unselect_all": "editor",
         "set_indent_selection": "selection",
         "set_unindent_selection": "selection",
-        # View
         _OPTIONS_BAR_ACTION: "always",
-        # Code
         "set_format_code": "editable",
         "set_comment_current_line": "editable",
         "set_comment_current_selection": "selection",
@@ -145,7 +141,6 @@ class DreamStudioTitleBar(QWidget):
         self.load_menus_from_json(resource_path("editor/base/json/menus.json"))
         self._update_menu_state(False)
 
-        # The clipboard availability decides whether Paste can run.
         try:
             QApplication.clipboard().dataChanged.connect(self.refresh_action_states)
         except (TypeError, RuntimeError):
@@ -230,30 +225,16 @@ class DreamStudioTitleBar(QWidget):
                 parent_menu.addAction(action)
 
     def _update_menu_state(self, has_tabs: bool) -> None:
-        """Enable or disable editor-dependent menu actions.
-
-        Kept as the entry point the main window already calls whenever the
-        tab set changes; the per-action states below are always recomputed
-        from the live editor instead of the passed hint.
-        """
+        """Enable or disable editor-dependent menu actions."""
         for action_str in self._EDITOR_MENU_ACTIONS:
             action = self._menu_actions.get(action_str)
             if action is not None:
                 action.setEnabled(has_tabs)
         self.refresh_action_states()
 
-    # ------------------------------------------------------------------
-    # Action state synchronization
-    # ------------------------------------------------------------------
 
     def refresh_action_states(self) -> None:
-        """Synchronize every editor-dependent menu action with the live state.
-
-        Single entry point for the Edit/Code/View actions: the states are
-        derived from the active editor and its selection, then the selection
-        tracking and the options-bar label are refreshed.  It is called on
-        tab changes, editor open/close, menu opening and clipboard changes.
-        """
+        """Synchronize every editor-dependent menu action with the live state."""
         flags = self._editor_action_flags()
         for action_str, requirement in self._ACTION_REQUIREMENTS.items():
             action = self._menu_actions.get(action_str)
@@ -265,13 +246,7 @@ class DreamStudioTitleBar(QWidget):
         self._sync_options_bar_action()
 
     def _editor_action_flags(self) -> dict[str, bool]:
-        """Return the live capability flags of the active editor.
-
-        Returns:
-            A requirement-name to availability mapping; every requirement
-            named in ``_ACTION_REQUIREMENTS`` is present, and all of them are
-            ``False`` when no code editor is active.
-        """
+        """Return the live capability flags of the active editor."""
         flags = {
             "always": True,
             "editor": False,
@@ -304,11 +279,7 @@ class DreamStudioTitleBar(QWidget):
         return flags
 
     def _active_code_editor(self):
-        """Return the ``CodeEditor`` of the active tab, or ``None``.
-
-        Uses the tab model's own unwrapping helper so a mini-map host tab
-        resolves to the same editor every other consumer sees.
-        """
+        """Return the ``CodeEditor`` of the active tab, or ``None``."""
         tabs = getattr(self._title_parent, "tab_editors", None)
         if tabs is None:
             return None
@@ -358,9 +329,6 @@ class DreamStudioTitleBar(QWidget):
         except RuntimeError:
             return ""
 
-    # ------------------------------------------------------------------
-    # Options bar
-    # ------------------------------------------------------------------
 
     def set_toggle_options_bar(self) -> None:
         """Toggle the options bar and keep this action's label in sync."""
@@ -368,13 +336,7 @@ class DreamStudioTitleBar(QWidget):
         self._sync_options_bar_action(visible)
 
     def _sync_options_bar_action(self, visible: Optional[bool] = None) -> None:
-        """Make the options-bar action label match the real bar visibility.
-
-        Args:
-            visible: Known visibility of the options bar.  When omitted it is
-                read from the widget; when the widget does not exist yet the
-                label is left untouched.
-        """
+        """Make the options-bar action label match the real bar visibility."""
         action = self._menu_actions.get(self._OPTIONS_BAR_ACTION)
         if action is None:
             return
@@ -464,13 +426,7 @@ class DreamStudioTitleBar(QWidget):
         return super().eventFilter(obj, event)
 
     def paintEvent(self, event):
-        """Draw the title bar with a horizontal gradient derived from the stylesheet.
-
-        For the built-in dark/light themes the left colour is anchored to the
-        vertical sidebar colour and the right-hand end blends toward the theme's
-        blue.  Every other theme reads its base colour from the active
-        ``QWidget#DreamStudioTitleBar`` rule and blends toward white.
-        """
+        """Draw the title bar with a horizontal gradient derived from the stylesheet."""
         base = self._title_bar_base_color()
         end = self._title_bar_gradient_end(base)
 
@@ -527,9 +483,6 @@ class DreamStudioTitleBar(QWidget):
         blue = base.blue() + int((255 - base.blue()) * amount)
         return QColor(red, green, blue)
 
-    # ------------------------------------------------------------------
-    # Help menu actions
-    # ------------------------------------------------------------------
 
     def show_welcome(self) -> None:
         """Open the IDE welcome / start page window."""

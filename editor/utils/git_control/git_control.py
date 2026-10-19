@@ -37,7 +37,6 @@ def check_last_commits(git_repo, count: int):
 def get_changed_files(repo: Repo) -> list[dict]:
     changed = {}
 
-    # Unstaged changes (working tree vs index)
     try:
         diff = repo.index.diff(None)
         for d in diff:
@@ -74,7 +73,6 @@ def get_changed_files(repo: Repo) -> list[dict]:
     except Exception:
         pass
 
-    # Untracked files
     try:
         for ut in repo.untracked_files:
             changed[ut] = {
@@ -86,7 +84,6 @@ def get_changed_files(repo: Repo) -> list[dict]:
     except Exception:
         pass
 
-    # Staged changes (HEAD vs index)
     try:
         staged = repo.index.diff("HEAD")
         for d in staged:
@@ -310,21 +307,7 @@ def switch_branch(
 
 
 def get_status_map(repo: Repo) -> dict[str, str]:
-    """
-    Collect a name-only working-tree status map for fast VCS coloring.
-
-    Unlike ``get_changed_files``, no numstat or content diffs are computed,
-    keeping scans cheap enough for operation-triggered refreshes.
-
-    Args:
-        repo: An open GitPython repository handle.
-
-    Returns:
-        Mapping of repository-relative paths to single-letter statuses:
-        ``M`` modified, ``U`` untracked, ``A`` staged-added. Renames are
-        reported as additions; deletions are omitted because deleted files
-        never render in the filesystem tree.
-    """
+    """Collect a name-only working-tree status map for fast VCS coloring."""
     status_map: dict[str, str] = {}
 
     try:

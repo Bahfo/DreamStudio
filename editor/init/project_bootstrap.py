@@ -67,11 +67,7 @@ class ProjectBootstrapWorker(QObject):
             self._events.append((kind, args))
 
     def request_cancel(self) -> None:
-        """Ask the worker to stop as soon as it reaches the next safe point.
-
-        Cancelling is safe: already-created files and directories are left in
-        place (no rollback) so the IDE opens with the partial project structure.
-        """
+        """Ask the worker to stop as soon as it reaches the next safe point."""
         self._cancel_event.set()
 
     def _cancellation_requested(self) -> bool:
@@ -128,11 +124,7 @@ class ProjectBootstrapWorker(QObject):
         self._manifest = data
 
     def _check_languages(self) -> None:
-        """Accept only languages supplied by an installed plugin.
-
-        Raises:
-            ValueError: If the manifest names an unregistered language.
-        """
+        """Accept only languages supplied by an installed plugin."""
         langs = self._manifest.get("languages", "")
         if isinstance(langs, str):
             langs = [langs] if langs else []
@@ -468,13 +460,7 @@ class ProjectBootstrap:
         self._worker._poll_timer.stop()
 
     def wait(self, timeout: float = 600.0, unit: str = "s") -> bool:
-        """Join worker thread.
-
-        Args:
-            timeout: Duration in *unit*.
-            unit: ``"s"`` for seconds (default) or ``"ms"`` for legacy
-                millisecond callers.
-        """
+        """Join worker thread."""
         if unit == "ms":
             timeout = timeout / 1000.0
         elif timeout > 1000:

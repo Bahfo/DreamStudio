@@ -11,8 +11,8 @@ try:
 
     _JUPYTER_AVAILABLE = True
 except ImportError:
-    QtKernelManager = None  # type: ignore
-    RichJupyterWidget = None  # type: ignore
+    QtKernelManager = None
+    RichJupyterWidget = None
     _JUPYTER_AVAILABLE = False
 
 try:
@@ -20,18 +20,12 @@ try:
 
     _INPROCESS_AVAILABLE = True
 except ImportError:
-    QtInProcessKernelManager = None  # type: ignore
+    QtInProcessKernelManager = None
     _INPROCESS_AVAILABLE = False
 
 
 def _is_frozen() -> bool:
-    """Return ``True`` when running inside the packaged executable.
-
-    Frozen builds ship no Python interpreter, so an out-of-process kernel
-    can neither be provisioned (missing entry-point metadata) nor spawned
-    (``sys.executable`` is the IDE binary itself). The console therefore
-    uses an in-process kernel when frozen.
-    """
+    """Return ``True`` when running inside the packaged executable."""
     return bool(getattr(sys, "frozen", False))
 
 
@@ -68,9 +62,6 @@ class PythonShell(QWidget):
         if resolved_cwd and os.path.isdir(resolved_cwd):
             self._workspace_dir = os.path.abspath(resolved_cwd)
 
-        # A kernel that fails to start must degrade to an inline error, never
-        # raise out of __init__: an exception here escapes through the Qt
-        # slot that opened the console and aborts the whole IDE.
         try:
             self._start_kernel()
         except Exception as exc:
@@ -131,17 +122,7 @@ class PythonShell(QWidget):
         return ""
 
     def _start_kernel(self) -> None:
-        """Create the kernel manager/client and start kernel channels.
-
-        Frozen builds use an in-process kernel: the bundle ships no
-        interpreter, so an out-of-process kernel can be neither
-        provisioned nor spawned. Development builds keep the standard
-        out-of-process kernel.
-
-        Raises:
-            Exception: Whatever the kernel backend raises. The caller
-                degrades to an inline error instead of propagating.
-        """
+        """Create the kernel manager/client and start kernel channels."""
         if _is_frozen():
             if not _INPROCESS_AVAILABLE:
                 raise RuntimeError("in-process Jupyter kernel support is missing")
@@ -161,11 +142,7 @@ class PythonShell(QWidget):
         self.kernel_client.start_channels()
 
     def _show_kernel_error(self, message: str) -> None:
-        """Replace the console with an inline error notice.
-
-        Args:
-            message: Human-readable reason the kernel is unavailable.
-        """
+        """Replace the console with an inline error notice."""
         self._unavailable = True
         self.kernel_manager = None
         self.kernel_client = None
@@ -262,9 +239,6 @@ class PythonShell(QWidget):
         self._status_label.setStyleSheet("font-size: 13px;")
         toolbar_layout.addWidget(self._status_label)
 
-    # ------------------------------------------------------------------
-    # Signal wiring
-    # ------------------------------------------------------------------
 
     def _connect_signals(self):
         self.console.executing.connect(self._on_executing)
@@ -310,9 +284,6 @@ class PythonShell(QWidget):
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # Kernel lifecycle
-    # ------------------------------------------------------------------
 
     def _quote(self, path: str) -> str:
         """Platform-aware shell quoting for Jupyter magics."""
@@ -389,9 +360,6 @@ class PythonShell(QWidget):
                 pass
             self.console.execute(f"%run -i {self._quote(path)}")
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _on_run_file(self):
         start = self._workspace_dir if self._workspace_dir else os.path.expanduser("~")
@@ -404,9 +372,6 @@ class PythonShell(QWidget):
         if path:
             self.run_file(path)
 
-    # ------------------------------------------------------------------
-    # Theme
-    # ------------------------------------------------------------------
 
     def _apply_theme(self):
         if getattr(self, "_unavailable", False) or self.console is None:

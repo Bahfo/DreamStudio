@@ -1,13 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Create-solution dialog used by the DreamStudio start window.
-
-The dialog collects a solution name, a project location and confirms the
-chosen project type read from the manifest scan. It only writes the folder
-structure and the ``.ds/solution.yaml`` marker; actual scaffolding is deferred
-until the main window is revealed so the IDE can show a blocking progress box
-over the running application.
 """
 
 import datetime
@@ -27,19 +20,10 @@ _DIALOG_MIN_WIDTH = 520
 
 
 class CreateSolutionDialog(QDialog):
-    """Collect a solution name and location for the chosen template.
-
-    Attributes:
-        result_data: Creation result dict after an accepted dialog.
-    """
+    """Collect a solution name and location for the chosen template."""
 
     def __init__(self, parent=None, project_entry=None) -> None:
-        """Build the dialog for *project_entry*.
-
-        Args:
-            parent: Parent widget to inherit the theme from.
-            project_entry: Manifest entry the solution is created from.
-        """
+        """Build the dialog for *project_entry*."""
         super().__init__(parent)
         self._project_entry = project_entry or {}
         self.result_data: dict = {}
@@ -107,27 +91,13 @@ class CreateSolutionDialog(QDialog):
         layout.addLayout(buttons)
 
     def _heading(self, text: str) -> QLabel:
-        """Build a heading label for *text*.
-
-        Args:
-            text: Heading content.
-
-        Returns:
-            Configured label.
-        """
+        """Build a heading label for *text*."""
         label = QLabel(text)
         label.setObjectName("HeadingLabel")
         return label
 
     def _label(self, text: str) -> QLabel:
-        """Build a field label for *text*.
-
-        Args:
-            text: Label content.
-
-        Returns:
-            Configured label.
-        """
+        """Build a field label for *text*."""
         label = QLabel(text)
         label.setObjectName("FieldLabel")
         return label
@@ -216,14 +186,7 @@ class CreateSolutionDialog(QDialog):
         self.accept()
 
     def _resolve_location(self, location: str) -> str:
-        """Ensure *location* exists and return it, warning when empty.
-
-        Args:
-            location: Raw location text from the input field.
-
-        Returns:
-            The ensured directory, or ``""`` when no location was given.
-        """
+        """Ensure *location* exists and return it, warning when empty."""
         if not location:
             themed_box(
                 self,

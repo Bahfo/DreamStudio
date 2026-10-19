@@ -1,14 +1,10 @@
 from editor import *
 
-# Local Imports
 from editor.widgets.QToolButton import ToolbarButton
 
 
 class VerticalSidebar(QFrame):
-    """
-    A vertical sidebar that houses multiple buttons configured to a certain task.
-    Displays buttons stacked vertically with fixed width.
-    """
+    """A vertical sidebar that houses multiple buttons configured to a certain task."""
 
     BAR_POLICIES = {
         "compact": {
@@ -39,10 +35,7 @@ class VerticalSidebar(QFrame):
             self._build_bar(json_file)
 
     def _validate_config(self, menu_data: list) -> None:
-        """
-        Validates the entire JSON structure against the selected bar_type rules
-        before any UI widgets are instantiated.
-        """
+        """Validates the entire JSON structure against the selected bar_type rules before any UI widgets are instantiated."""
         policy = self.BAR_POLICIES[self.bar_type]
 
         present_ids = [item.get("id") for item in menu_data if "id" in item]

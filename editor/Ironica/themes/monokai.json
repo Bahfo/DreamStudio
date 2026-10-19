@@ -19,6 +19,11 @@
         "IMPORT_COLOR": "#66D9EF",
         "VARIABLE_COLOR": "#F8F8F2",
         "HEADER_COLOR": "#66D9EF",
-        "PREPROC_COLOR": "#A6E22E"
+        "PREPROC_COLOR": "#A6E22E",
+        "ERROR_COLOR": "#F92672",
+        "WARNING_COLOR": "#E6DB74",
+        "CHECK_COLOR": "#FF2D79",
+        "TYPO_COLOR": "#66D9EF",
+        "INFO_COLOR": "#A6E22E"
     }
 }

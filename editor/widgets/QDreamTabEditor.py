@@ -33,7 +33,6 @@ class DreamStudioIDETabBar(QTabBar):
 
         self.currentChanged.connect(self._on_current_changed)
 
-    # -- Q_PROPERTY: background colors -----------------------------------
 
     def get_selected_bg(self):
         return self._selected_bg
@@ -229,7 +228,6 @@ class DreamStudioIDETabBar(QTabBar):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # Draw the solid unified tab bar background row first
         painter.fillRect(self.rect(), self.inactive_bg)
 
         selected_index = self.currentIndex()

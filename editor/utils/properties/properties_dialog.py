@@ -1,14 +1,10 @@
 from editor import *
 
-# Local Imports
 from editor.Ironica.code_editor import CodeEditor
 
 
 class PropertyGridDelegate(QStyledItemDelegate):
-    """
-    Custom delegate providing themed editors tailored to field data
-    length.
-    """
+    """Custom delegate providing themed editors tailored to field data length."""
 
     def createEditor(self, parent, option, index):
         if index.column() != 1:
@@ -124,7 +120,6 @@ class SolutionPropertiesGrid(QTreeWidget):
         child = QTreeWidgetItem(parent)
         child.setText(0, label)
         child.setText(1, "")
-        # Store the internal key token inside the UserRole data slot
         child.setData(0, Qt.ItemDataRole.UserRole, internal_key)
         child.setData(1, Qt.ItemDataRole.UserRole, internal_key)
         child.setFlags(
@@ -147,10 +142,7 @@ class SolutionPropertiesGrid(QTreeWidget):
         return child
 
     def load_grid_data(self, data: dict) -> None:
-        """
-        Populates the grid fields using incoming file property
-        structures.
-        """
+        """Populates the grid fields using incoming file property structures."""
         self.item_name.setText(1, data.get("name", ""))
         self.item_authors.setText(1, data.get("authors", ""))
         self.item_details.setText(1, data.get("details", ""))
@@ -159,7 +151,6 @@ class SolutionPropertiesGrid(QTreeWidget):
         self.item_license.setText(1, data.get("license", "Not found"))
         self.item_contrib.setText(1, data.get("contributing", "Not found"))
 
-        # Force tooltips to easily preview long values
         for item in (
             self.item_name,
             self.item_authors,
@@ -173,10 +164,7 @@ class SolutionPropertiesGrid(QTreeWidget):
             item.setToolTip(1, val if val else "--")
 
     def save_grid_data(self) -> dict:
-        """
-        Harvests updated input strings from fields to compile into update
-        blocks.
-        """
+        """Harvests updated input strings from fields to compile into update blocks."""
         return {
             "name": self.item_name.text(1),
             "authors": self.item_authors.text(1),
@@ -283,12 +271,7 @@ class FilePropertiesGrid(QTreeWidget):
             return []
 
     def refresh_choices(self) -> None:
-        """Rebuild language and extension combos from the registry.
-
-        Safe to call any time; preserves the current selection when
-        possible. Used when language plugins register after this grid
-        was constructed.
-        """
+        """Rebuild language and extension combos from the registry."""
         self._refresh_language_choices()
         self._refresh_extension_choices()
 
@@ -346,7 +329,6 @@ class FilePropertiesGrid(QTreeWidget):
         self._refresh_extension_choices()
         self.combo_ext.currentTextChanged.connect(self._on_extension_selected)
 
-        # 3. Editable Policy Switcher
         self.combo_editable = QComboBox()
         self.combo_editable.addItems(["True", "False"])
         self.combo_editable.setStyleSheet(combo_style)
@@ -354,10 +336,7 @@ class FilePropertiesGrid(QTreeWidget):
         self.combo_editable.currentTextChanged.connect(self._on_editable_selected)
 
     def set_active_editor(self, editor: CodeEditor | None) -> None:
-        """
-        Binds tracking event loops directly to the chosen active editor target
-        instance.
-        """
+        """Binds tracking event loops directly to the chosen active editor target instance."""
         if self._active_editor:
             for signal_name in ("cursorPositionChanged", "textChanged"):
                 try:
@@ -383,10 +362,7 @@ class FilePropertiesGrid(QTreeWidget):
             self.clear_grid()
 
     def refresh_static_file_info(self) -> None:
-        """
-        Extracts fixed file system history attributes and matches configuration
-        profiles.
-        """
+        """Extracts fixed file system history attributes and matches configuration profiles."""
         if not self._active_editor:
             return
 
@@ -497,11 +473,7 @@ class FilePropertiesGrid(QTreeWidget):
         self.item_cursor.setText(1, f"Ln {line + 1}, Col {col + 1}")
 
     def _on_language_selected(self, language: str) -> None:
-        """Preview highlighting temporarily; reopening restores the default.
-
-        Display names are mapped to registry ids; unregistered languages
-        leave the current lexer untouched so highlighting never breaks.
-        """
+        """Preview highlighting temporarily; reopening restores the default."""
         if not language or language == "--":
             return
         editor = self._active_editor
@@ -614,7 +586,7 @@ class FilePropertiesGrid(QTreeWidget):
             try:
                 from editor.Ironica.tab_editor import DreamTabbedEditor
             except Exception:
-                DreamTabbedEditor = None  # type: ignore
+                DreamTabbedEditor = None
             old_key = None
             new_key = None
             if DreamTabbedEditor is not None and hasattr(

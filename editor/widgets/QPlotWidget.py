@@ -21,7 +21,6 @@ class PlotWidget(QWidget):
         self.preferences = self.create_btn(resource_path("assets/menus/settings.png"))
         self.save_graph = self.create_btn(resource_path("assets/menus/save.png"))
 
-        # Add buttons to menu
         self.options_menu.addWidget(self.zoom_to_fit)
         self.options_menu.addSpacing(4)
         self.options_menu.addWidget(self.zoom_in_out)
@@ -32,7 +31,7 @@ class PlotWidget(QWidget):
 
         self.options_menu.addStretch()
         self.central_frame.addLayout(self.options_menu)
-        
+
         self._plot_graph = PyGr.PlotWidget()
         self._plot_graph.setBackground("#1E1E1E")
         internal_layout = self._plot_graph.plotItem.layout

@@ -135,15 +135,6 @@ _KEY_IGNORE = {
     Qt.Key.Key_Menu,
 }
 
-# -----------------------------------------------------------------------
-# Ctrl+key → control character mapping.
-#
-# Replaces the old raw arithmetic ``key - Qt.Key.Key_A + 1`` which broke
-# on non-QWERTY / international keyboard layouts where the Qt key code
-# for the physical "A" key might not correspond to the letter 'A' in the
-# active keymap.  This table maps every Qt.Key.Key_A..Key_Z value to the
-# corresponding ASCII control code (0x01–0x1A) independently of layout.
-# -----------------------------------------------------------------------
 _CTRL_KEY_MAP = {
     Qt.Key.Key_A: 0x01, Qt.Key.Key_B: 0x02, Qt.Key.Key_C: 0x03,
     Qt.Key.Key_D: 0x04, Qt.Key.Key_E: 0x05, Qt.Key.Key_F: 0x06,
@@ -202,10 +193,6 @@ class TerminalDisplay(QWidget):
         self._pending_rows = 0
         self._resizing = False
 
-        # Selection state — stores ABSOLUTE indices (absolute line number
-        # in the history+buffer space, column index) rather than relative
-        # visible-window indices.  This ensures highlights stay correct
-        # when the user scrolls after selecting text.
         self._sel_active = False
         self._sel_start: tuple[int, int] | None = None
         self._sel_end: tuple[int, int] | None = None
@@ -229,29 +216,14 @@ class TerminalDisplay(QWidget):
             cy = self._screen.cursor.y * self._ch
             self.update(cx, cy, self._cw, self._ch)
 
-    # ------------------------------------------------------------------
-    # History line access — O(1) via pyte's internal top/bottom deques
-    # ------------------------------------------------------------------
 
     def _count_history_lines(self) -> int:
-        """O(1) total history line count.
-
-        pyte's HistoryScreen stores individual lines (not full-screen
-        pages) in two deques: ``history.top`` (lines that scrolled off
-        the top) and ``history.bottom`` (lines that scrolled off the
-        bottom during pagination).  The total is simply the sum of both
-        deque lengths — no sequential iteration required.
-        """
+        """O(1) total history line count."""
         history = self._screen.history
         return len(history.top) + len(history.bottom)
 
     def _get_history_line(self, abs_idx: int):
-        """O(1) access to a history line by absolute index.
-
-        Lines are ordered chronologically: ``top[0]`` is the oldest line
-        that scrolled off the top, ``top[-1]`` is the newest.  ``bottom``
-        follows ``top`` in the flat index space.
-        """
+        """O(1) access to a history line by absolute index."""
         history = self._screen.history
         top_len = len(history.top)
         if abs_idx < top_len:
@@ -261,24 +233,15 @@ class TerminalDisplay(QWidget):
             return history.bottom[bottom_idx]
         return None
 
-    # ------------------------------------------------------------------
-    # Absolute ↔ visible row mapping (Step 6)
-    # ------------------------------------------------------------------
 
     def _visible_start_index(self) -> int:
-        """Compute the absolute index of the topmost visible line.
-
-        When ``_scroll_offset == 0`` the window sits at the bottom of the
-        buffer — all visible rows come from the live screen buffer.  As
-        the offset increases, the window slides back into history.
-        """
+        """Compute the absolute index of the topmost visible line."""
         total_hist = self._count_history_lines()
         total = total_hist + self._rows
         return max(0, total - self._rows - self._scroll_offset)
 
     def _absolute_to_visible_row(self, abs_idx: int) -> int | None:
-        """Map an absolute line index to a visible-row index, or ``None``
-        if the line falls outside the current viewport."""
+        """Map an absolute line index to a visible-row index, or ``None`` if the line falls outside the current viewport."""
         start = self._visible_start_index()
         vis_row = abs_idx - start
         if vis_row < 0 or vis_row >= self._rows:
@@ -289,48 +252,22 @@ class TerminalDisplay(QWidget):
         """Map a visible-row index to an absolute line index."""
         return self._visible_start_index() + vis_row
 
-    # ------------------------------------------------------------------
-    # Selection helpers (Step 6 — absolute tracing)
-    # ------------------------------------------------------------------
 
     def _get_selection_bounds(self):
-        """Return selection bounds as visible coordinates
-        ``((vis_r1, c1), (vis_r2, c2))`` or ``None``.
-
-        Performs direct absolute-index comparisons against the current
-        viewport window rather than relying on per-boundary ``None``
-        checks from ``_absolute_to_visible_row``.  This prevents the
-        bug where a boundary below the viewport was erroneously forced
-        to row 0 (flipping the selection logic) and where a selection
-        spanning the entire viewport returned ``None`` because both
-        individual boundaries fell outside.
-
-        Clamping rules per boundary:
-        * abs < viewport start → visible row 0, col 0
-        * abs >= viewport end  → visible row (rows-1), col (columns-1)
-        * otherwise            → direct subtraction from start
-
-        Returns ``None`` only if the *entire* absolute selection block
-        is fully above the viewport (both < start) or fully below it
-        (both >= end).
-        """
+        """Return selection bounds as visible coordinates ``((vis_r1, c1), (vis_r2, c2))`` or ``None``."""
         if self._sel_start is None or self._sel_end is None:
             return None
         abs_r1, c1 = self._sel_start
         abs_r2, c2 = self._sel_end
 
-        # Absolute viewport window: [start, end).
         start = self._visible_start_index()
         end = start + self._rows
 
-        # Entire selection is above the viewport — nothing visible.
         if abs_r1 < start and abs_r2 < start:
             return None
-        # Entire selection is below the viewport — nothing visible.
         if abs_r1 >= end and abs_r2 >= end:
             return None
 
-        # Clamp abs_r1 boundary against the viewport window.
         if abs_r1 < start:
             vis_r1 = 0
             c1 = 0
@@ -340,7 +277,6 @@ class TerminalDisplay(QWidget):
         else:
             vis_r1 = abs_r1 - start
 
-        # Clamp abs_r2 boundary against the viewport window.
         if abs_r2 < start:
             vis_r2 = 0
             c2 = 0
@@ -350,7 +286,6 @@ class TerminalDisplay(QWidget):
         else:
             vis_r2 = abs_r2 - start
 
-        # Normalise so (vis_r1, c1) is always the top-left corner.
         if vis_r1 < vis_r2 or (vis_r1 == vis_r2 and c1 <= c2):
             return ((vis_r1, c1), (vis_r2, c2))
         return ((vis_r2, c2), (vis_r1, c1))
@@ -375,7 +310,6 @@ class TerminalDisplay(QWidget):
             return ""
         abs_r1, c1 = self._sel_start
         abs_r2, c2 = self._sel_end
-        # Normalise so abs_r1 ≤ abs_r2.
         if abs_r1 > abs_r2 or (abs_r1 == abs_r2 and c1 > c2):
             abs_r1, c1, abs_r2, c2 = abs_r2, c2, abs_r1, c1
 
@@ -399,9 +333,6 @@ class TerminalDisplay(QWidget):
             parts.append(text.rstrip())
         return "\n".join(parts)
 
-    # ------------------------------------------------------------------
-    # Mouse events — store absolute indices
-    # ------------------------------------------------------------------
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -499,7 +430,6 @@ class TerminalDisplay(QWidget):
                 self._emulator.resize(rows, cols)
         finally:
             self._resizing = False
-        # Drain any feeds buffered while resizing
         if self._pending_feed:
             pending = "".join(self._pending_feed)
             self._pending_feed.clear()
@@ -526,7 +456,6 @@ class TerminalDisplay(QWidget):
     def feed(self, text: str) -> None:
         if self._resizing or not self.isVisible():
             self._pending_feed.append(text)
-            # Prevent unbounded growth – join and truncate if too large
             if len(self._pending_feed) > 1000:
                 self._pending_feed = ["".join(self._pending_feed)]
             return
@@ -539,18 +468,9 @@ class TerminalDisplay(QWidget):
         self.update()
         self.history_changed.emit(0, self._count_history_lines())
 
-    # ------------------------------------------------------------------
-    # Visible cache — O(1) history indexing (Step 3)
-    # ------------------------------------------------------------------
 
     def _build_visible_cache(self):
-        """Build the visible-line cache using O(1) direct indexing into
-        pyte's ``history.top`` / ``history.bottom`` deques instead of
-        iterating through every history line sequentially.
-
-        Complexity: O(rows) — only the currently-visible rows are
-        resolved; total history size is irrelevant.
-        """
+        """Build the visible-line cache using O(1) direct indexing into pyte's ``history.top`` / ``history.bottom`` deques instead of iterating through every history line sequentially."""
         total_hist = self._count_history_lines()
         total = total_hist + self._rows
         start = max(0, total - self._rows - self._scroll_offset)
@@ -559,14 +479,12 @@ class TerminalDisplay(QWidget):
         for vis_row in range(self._rows):
             abs_idx = start + vis_row
             if abs_idx < total_hist:
-                # O(1) direct access into pyte's internal history deques.
                 line = self._get_history_line(abs_idx)
                 if line is not None and isinstance(line, dict):
                     lines.append(line)
                 else:
                     lines.append(self._EMPTY)
             else:
-                # Live screen buffer row — direct dictionary lookup.
                 buf_row = abs_idx - total_hist
                 row_buf = self._screen.buffer.get(buf_row, {})
                 line = {}
@@ -599,9 +517,6 @@ class TerminalDisplay(QWidget):
             qbg = _resolve_color(bg, self._bg)
         return qfg, qbg, bold, italics, underscore, blink
 
-    # ------------------------------------------------------------------
-    # Paint — event-rect clipping (Step 2)
-    # ------------------------------------------------------------------
 
     def paintEvent(self, event):
         if self._cw < 1 or self._ch < 1:
@@ -615,11 +530,6 @@ class TerminalDisplay(QWidget):
         h = self.height()
 
         # Use the damaged region from the event to clip all drawing
-        # operations.  Qt coalesces multiple update() calls into a single
-        # paint event whose rect is the bounding box of all pending
-        # changes.  By computing the row/column slice that intersects
-        # this rect we avoid redrawing the entire terminal on every
-        # keystroke or streaming stdout burst.
         damaged = event.rect()
         painter.fillRect(damaged, self._bg)
 
@@ -634,13 +544,8 @@ class TerminalDisplay(QWidget):
         visible_cols = min(self._columns, w // cell_w)
 
         # Clip the painter to the damaged region so that text drawn via
-        # drawText can never overflow outside the repaint viewport.  This
-        # is a native QPainter clip — it does not affect any external
-        # widget layouts or margins.
         painter.setClipRect(damaged)
 
-        # Compute the exact row and column slices that intersect the
-        # damaged area.  Only these cells are redrawn.
         start_row = max(0, damaged.top() // cell_h)
         end_row = min(visible_rows, (damaged.bottom() + cell_h) // cell_h)
         start_col = max(0, damaged.left() // cell_w)
@@ -729,9 +634,6 @@ class TerminalDisplay(QWidget):
 
         painter.end()
 
-    # ------------------------------------------------------------------
-    # Keyboard — safe Ctrl+key translation matrix (Step 10)
-    # ------------------------------------------------------------------
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -763,12 +665,6 @@ class TerminalDisplay(QWidget):
             return
 
         if mods & Qt.KeyboardModifier.ControlModifier:
-            # Use the pre-computed control-key translation table instead of
-            # raw ``key - Qt.Key.Key_A + 1`` arithmetic.  The table maps
-            # each Qt.Key.Key_A..Key_Z value to its ASCII control code
-            # (0x01–0x1A) regardless of keyboard layout, preventing crashes
-            # and incorrect mappings on AZERTY, Dvorak, Colemak, Cyrillic,
-            # and other non-QWERTY layers.
             if key in _CTRL_KEY_MAP:
                 self.send_data.emit(bytes([_CTRL_KEY_MAP[key]]))
                 event.accept()

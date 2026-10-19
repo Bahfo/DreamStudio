@@ -131,7 +131,6 @@ class SystemMonitor(QWidget):
         self.tabs.addTab(perf_scroll, "Performance")
         self.tabs.addTab(self.proc_tab, "Processes")
 
-        # Prime cpu_percent to avoid 0.0 on first tick
         try:
             psutil.cpu_percent(interval=None)
             psutil.cpu_percent(interval=None, percpu=True)
@@ -303,10 +302,8 @@ class SystemMonitor(QWidget):
                 self._process_items.pop(pid, None)
                 continue
             try:
-                # Validate row still contains expected pid before removal
                 item_pid = self.process_table.item(row, 0)
                 if item_pid is None or int(item_pid.text()) != pid:
-                    # Row mapping stale – find correct row by scanning
                     found = -1
                     for r in range(self.process_table.rowCount()):
                         it = self.process_table.item(r, 0)
@@ -331,16 +328,7 @@ class SystemMonitor(QWidget):
         self.process_table.setSortingEnabled(True)
 
     def _format_internet(self, port_entries) -> str:
-        """Render a process's listening ports for the Internet column.
-
-        Args:
-            port_entries: Set of ``(port, proto)`` tuples from
-                ``fetch_pid_to_ports``, or None when the process owns no
-                listening sockets.
-
-        Returns:
-            Comma-joined ``port (service)`` labels, or ``"-"``.
-        """
+        """Render a process's listening ports for the Internet column."""
         if not port_entries:
             return "-"
         ordered = sorted(port_entries, key=lambda e: int(e[0]))

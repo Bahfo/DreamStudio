@@ -1,12 +1,4 @@
-"""
-ConfigurationService: JSON-based configuration management.
-
-Responsibilities:
-- load / save / validate / repair / default / migrate
-- never crash on missing or corrupt config
-- recreate invalid config automatically when possible
-- preserve user settings whenever safe
-"""
+"""ConfigurationService:"""
 
 import os
 import json
@@ -55,9 +47,6 @@ class ConfigurationService:
         self._data: dict[str, Any] = {}
         logger.info("ConfigurationService initialized for %s", self._config_dir)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def load(self) -> dict[str, Any]:
         """Load configuration, repairing or regenerating as needed."""
@@ -139,9 +128,6 @@ class ConfigurationService:
     def data(self) -> dict[str, Any]:
         return self._data
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _ensure_config_dir(self) -> None:
         try:
@@ -151,7 +137,7 @@ class ConfigurationService:
             raise
 
     def _migrate(self, raw: dict[str, Any]) -> dict[str, Any]:
-        """Apply version migrations. Returns merged dict."""
+        """Apply version migrations."""
         version = raw.get("version", 1)
         if version < 2:
             logger.info(
@@ -167,11 +153,7 @@ class ConfigurationService:
         return raw
 
     def _validate(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Ensure required sections exist with correct types.
-
-        Preserves unknown top-level keys so user additions survive.
-        Wrong-typed sections are replaced by defaults to prevent later crashes.
-        """
+        """Ensure required sections exist with correct types."""
         if not isinstance(data, dict):
             return copy.deepcopy(DEFAULT_CONFIG)
         merged = copy.deepcopy(data)

@@ -1,34 +1,20 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Find/Replace Widget for Global Solution Find and Replace.
 """
 
 from editor import *
 
-# Local Imports
 from editor.utils.find_replace.search_engine import SearchWorker, DEFAULT_IGNORED_DIRS
 
 logger = logging.getLogger(__name__)
 
 
 class FindReplace(QFrame):
-    """
-    A global find and replace popup resembling modern IDE structure.
-
-    Attributes:
-        _parent: The parent widget.
-        _hang_widget (QWidget): The widget this popup visually hangs from.
-    """
+    """A global find and replace popup resembling modern IDE structure."""
 
     def __init__(self, hanging_widget, current_directory, parent=None):
-        """
-        Initializes the FindReplace popup.
-
-        Args:
-            hanging_widget: The widget that anchors the popup.
-            parent: The parent widget for memory management.
-        """
+        """Initializes the FindReplace popup."""
         super().__init__(parent=parent)
 
         # NOTE: Popup flag makes it act like a menu (auto-closes on click away)
@@ -158,12 +144,7 @@ class FindReplace(QFrame):
         main_layout.addWidget(self.results_list)
 
     def _on_filters_toggled(self, checked: bool):
-        """
-        Handles the expansion of the filter UI and resizes the popup window.
-
-        Args:
-            checked: True if the filters should be visible, False otherwise.
-        """
+        """Handles the expansion of the filter UI and resizes the popup window."""
         self.filters_container.setVisible(checked)
         self.btn_toggle_filters.setText(
             "▴ File Filters" if checked else "▾ File Filters"
@@ -214,7 +195,6 @@ class FindReplace(QFrame):
         self.searchWorker.finished.connect(self.on_search_finished)
         self.searchWorker.error.connect(self.on_search_error)
 
-        # Start the thread
         self.searchWorker.start()
 
     def on_match_found(self, filepath, line_num, line_content):
@@ -318,23 +298,12 @@ class FindReplace(QFrame):
         return any(fnmatch.fnmatch(filename, inc) for inc in includes)
 
     def _do_replace_all(self) -> int:
-        """Replace all occurrences of search term with replace term across folder.
-
-        Covers requirement 4: modifications inside a folder when find and replace
-        widgets trigger replace successfully. On any successful file write, a
-        VCS rescan is requested.
-
-        Returns:
-            Number of replacements made.
-        """
+        """Replace all occurrences of search term with replace term across folder."""
         search_term = self.search_input.text()
         if not search_term:
             self.tip_label.setText("Enter a search term to replace.")
             return 0
         replace_term = self.replace_input.text() or ""
-        # Guard: identical strings would loop or do nothing
-        # Allow empty replace (deletion); only skip if pattern would not change
-        # content is handled per file.
         directory = self.current_directory
         if not directory or not os.path.isdir(directory):
             self.tip_label.setText("Invalid search directory.")
@@ -438,8 +407,6 @@ class FindReplace(QFrame):
                     total_replacements += count
                     modified_files += 1
 
-                    # If file is open in an editor, refresh its buffer
-                    # only when clean (dirty buffers were skipped above).
                     try:
                         if editor is not None:
                             try:
@@ -470,7 +437,6 @@ class FindReplace(QFrame):
                 get_status_service().request_scan("find_replace:replace_all")
             except Exception:
                 pass
-            # Refresh search view to reflect new state
             self.results_list.clear()
             self.results_list.addItem(
                 f"Replaced {total_replacements} in {modified_files} files."

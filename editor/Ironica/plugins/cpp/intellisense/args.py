@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Compile-argument resolution for C++ plugin.
 """
 
@@ -26,14 +25,7 @@ def unsaved_name(hint_cpp: bool = True) -> str:
 
 
 def _find_db(start: str) -> str | None:
-    """Walk upward from *start* looking for a ``compile_commands.json``.
-
-    Args:
-        start: Directory to start searching from.
-
-    Returns:
-        Absolute database path, or ``None`` when none is found.
-    """
+    """Walk upward from *start* looking for a ``compile_commands.json``."""
     cur = os.path.abspath(start)
     while True:
         cand = os.path.join(cur, "compile_commands.json")
@@ -48,14 +40,7 @@ def _find_db(start: str) -> str | None:
 
 
 def _find_solution_root(start: str) -> str | None:
-    """Walk upward from *start* looking for a ``.ds/solution.yaml`` marker.
-
-    Args:
-        start: File or directory to start searching from.
-
-    Returns:
-        Solution root directory, or ``None`` when outside a solution.
-    """
+    """Walk upward from *start* looking for a ``.ds/solution.yaml`` marker."""
     try:
         from editor.utils.solution.paths import is_solution
     except Exception:
@@ -73,15 +58,7 @@ def _find_solution_root(start: str) -> str | None:
 
 
 def _db_args_for_file(db_path: str, file_path: str) -> list[str]:
-    """Extract this file's arguments from the compile database at *db_path*.
-
-    Args:
-        db_path: Absolute ``compile_commands.json`` path.
-        file_path: Absolute source path to match.
-
-    Returns:
-        Argument list (possibly empty) — never raises.
-    """
+    """Extract this file's arguments from the compile database at *db_path*."""
     try:
         with open(db_path, encoding="utf-8") as fh:
             raw = json.load(fh)
@@ -98,8 +75,6 @@ def _db_args_for_file(db_path: str, file_path: str) -> list[str]:
                     else shlex.split(e.get("command", ""))[1:]
                 )
                 # NOTE: database entries name the source file itself (and
-                # the -o object output). Passing either back into
-                # libclang's parse args fails the whole TU, so strip them.
                 target = os.path.abspath(file_path)
                 entry_dir = e.get("directory", os.path.dirname(db_path))
                 cleaned = []
@@ -130,14 +105,7 @@ def _db_args_for_file(db_path: str, file_path: str) -> list[str]:
 
 
 def _flags_file_args(flags_path: str) -> list[str]:
-    """Read bare flags from a ``compile_flags.txt`` file.
-
-    Args:
-        flags_path: Absolute flags-file path.
-
-    Returns:
-        Flag list (possibly empty) — never raises.
-    """
+    """Read bare flags from a ``compile_flags.txt`` file."""
     try:
         with open(flags_path, encoding="utf-8") as fh:
             return [
@@ -151,11 +119,7 @@ def _flags_file_args(flags_path: str) -> list[str]:
 
 
 def _env_include_args() -> list[str]:
-    """Expand ``CPATH``-style environment include paths into ``-I`` flags.
-
-    Returns:
-        Flag list (possibly empty) — never raises.
-    """
+    """Expand ``CPATH``-style environment include paths into ``-I`` flags."""
     args: list[str] = []
     for variable in ("CPATH", "CPLUS_INCLUDE_PATH", "C_INCLUDE_PATH", "INCLUDE"):
         raw = os.environ.get(variable, "")
@@ -169,11 +133,7 @@ def _env_include_args() -> list[str]:
 
 
 def resource_args() -> List[str]:
-    """Return ``-resource-dir`` flags so libclang finds its builtin headers.
-
-    Without this, every system header fails (``'stddef.h' file not found``)
-    and all ``std::`` completion is empty. Result is probed once and cached.
-    """
+    """Return ``-resource-dir`` flags so libclang finds its builtin headers."""
     global _RESOURCE_DIR
     if _RESOURCE_DIR is not None:
         return list(_RESOURCE_DIR)
@@ -208,22 +168,7 @@ def args_for_file(
     source: str = "",
     solution_root: str | None = None,
 ) -> list[str]:
-    """Build deterministic args: defaults + DB overlays + env + ``-I`` roots.
-
-    Lookup order after the defaults: nearest upward
-    ``compile_commands.json``, the solution's generated
-    ``.ds/cpp/compile_commands.json`` (+ ``compile_flags.txt`` fallback),
-    ``CPATH``-style environment includes, then ``-I <buffer-dir>``.
-
-    Args:
-        file_path: Source file the TU is built for (``None`` = unsaved).
-        source: Buffer content (used for ``.h`` language detection).
-        solution_root: Explicit solution root for ``.ds`` lookups; when
-            omitted it is discovered via the ``.ds`` marker walk.
-
-    Returns:
-        Ordered clang argument list.
-    """
+    """Build deterministic args:"""
     args = list(_DEFAULTS) + resource_args()
     if file_path and os.path.isfile(file_path):
         absolute = os.path.abspath(file_path)

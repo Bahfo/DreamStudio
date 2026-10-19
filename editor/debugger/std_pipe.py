@@ -1,13 +1,10 @@
 """
 (C) COPYRIGHT 2026 - EXcellent TechStacks, All Rights Reserved.
-
-Python Debugger Module: Helper script to communicate with C++ debugging utilities
-for the debugger monitor.
+Python Debugger Module:
 """
 
 from editor import *
 
-# Local Imports
 from editor.widgets.QExitDialog import ErrorDialog
 
 
@@ -32,10 +29,7 @@ def handle_metrics(metrics: dict):
 
 
 def launch_monitor(executable_path: str, process_id: int) -> None:
-    """
-    Python API to launch DreamStudioProcessManager given the executable path and
-    PID to launch the monitor by.
-    """
+    """Python API to launch DreamStudioProcessManager given the executable path and PID to launch the monitor by."""
     buffer = ""
 
     if not os.path.exists(executable_path):
@@ -51,7 +45,7 @@ def launch_monitor(executable_path: str, process_id: int) -> None:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=1,  # Line buffered
+            bufsize=1,
             cwd=os.path.dirname(executable_path) or None,
         )
     except (OSError, FileNotFoundError) as exc:
@@ -68,7 +62,6 @@ def launch_monitor(executable_path: str, process_id: int) -> None:
         started = False
         in_string = False
         escape_next = False
-        # Non-blocking readline with poll timeout to avoid hanging forever
         while True:
             if process.poll() is not None:
                 try:

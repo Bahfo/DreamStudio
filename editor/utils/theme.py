@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Central theme application shared by main window and dialogs.
 """
 

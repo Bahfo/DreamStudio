@@ -1,12 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Call-site and expected-type resolution for context-aware completion.
-
-Cursor-based resolution fails on incomplete code (the AST node being
-typed does not exist yet), so contexts resolve lexically against the
-current buffer. The translation unit is consulted only for callee
-parameter lists, via the same pruned walk used for macro collection.
 """
 
 from __future__ import annotations
@@ -96,23 +90,7 @@ _overload_cache: Dict[Tuple[str, int, str], Tuple[Optional[object], List[List[st
 
 
 def _identity_matches(entry_ref, tu) -> bool:
-    """Return whether a cache entry was really built from *tu*.
-
-    Cache keys embed ``id(tu)``, which CPython recycles as soon as the
-    unit is freed — a later unit can land on a dead address and inherit
-    another file's parameter types. Storing a weak reference alongside
-    each payload lets a lookup prove ownership before trusting it. The
-    cache holds only a weak reference, so it never keeps a stale unit
-    alive (which is what made ``id()`` attractive in the first place).
-
-    Args:
-        entry_ref: Weak reference stored with the payload, or ``None``
-            for entries keyed on a buffer hash rather than a live unit.
-        tu: Translation unit being queried, or ``None``.
-
-    Returns:
-        ``True`` only when the entry provably belongs to this same unit.
-    """
+    """Return whether a cache entry was really built from *tu*."""
     if entry_ref is None:
         return tu is None
     if tu is None:
@@ -165,7 +143,7 @@ def _type_family(normalized: str) -> str:
 
 
 def type_tier(expected: Tuple[str, ...], candidate: str) -> int:
-    """Rank a candidate type: 0 exact, 1 family-or-unknown, 2 mismatch."""
+    """Rank a candidate type:"""
     if not expected:
         return 0
     norm_candidate = normalize_type(candidate)
@@ -182,13 +160,7 @@ def type_tier(expected: Tuple[str, ...], candidate: str) -> int:
 
 
 def find_call(lines: List[str], line0: int, col0: int) -> Optional[Tuple[str, int]]:
-    """Find the enclosing call ``(name, arg_index)`` scanning backwards.
-
-    Balances ``()`` (and ``[]`` inside them) best-effort — incomplete
-    code is unbalanced by nature. A ``{``/``[``/``;`` at nesting depth
-    zero ends the search: braced initializers spanning backwards are a
-    documented non-goal (clang's own results still apply). Bounded.
-    """
+    """Find the enclosing call ``(name, arg_index)`` scanning backwards."""
     pairs = {")": "(", "]": "[", "}": "{"}
     stack: List[str] = []
     commas = 0
@@ -224,7 +196,6 @@ def find_call(lines: List[str], line0: int, col0: int) -> Optional[Tuple[str, in
                     if not match:
                         return None
                     return (match.group(0)[::-1], commas)
-                # Mismatched opener inside nesting: ignore and continue.
             elif char == "," and not stack:
                 commas += 1
             elif char == ";" and not stack:
@@ -307,12 +278,7 @@ def in_condition(line_text: str, col0: int) -> bool:
 
 
 def buffer_declared_types(source: str) -> Dict[str, str]:
-    """Map declared variable names to their lexical types in *source*.
-
-    Completion rows for variables carry no type chunks, so ranking
-    consults this map. Only unambiguous ``<type> <name> [=;{]`` shapes
-    match — call followers (``f(x)``) are skipped outright.
-    """
+    """Map declared variable names to their lexical types in *source*."""
     found: Dict[str, str] = {}
     if not source:
         return found
@@ -369,16 +335,7 @@ def _callable_codes() -> set:
 def overload_param_types(
     tu, main_path: Optional[str], callee: str, source_hash: int, cache_tag: str
 ) -> List[List[str]]:
-    """Collect parameter-type lists for same-named callables (cached).
-
-    Keyed by translation-unit identity rather than buffer hash: a
-    reparse mutates the TU in place, so the entry survives keystrokes
-    and rescans happen only after a full reparse mints a new unit.
-    Identity is confirmed through a weak reference rather than ``id()``
-    alone — see :func:`_identity_matches`. Declaration edits between
-    reparses keep slightly stale ranks; rows are never hidden by this
-    cache.
-    """
+    """Collect parameter-type lists for same-named callables (cached)."""
     tu_tag = id(tu) if tu is not None else source_hash
     key = (cache_tag, tu_tag, callee)
     try:

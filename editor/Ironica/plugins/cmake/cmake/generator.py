@@ -1,12 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Compile database generator for the DreamStudio CMake plugin.
-
-Turns a scanned :class:`CmakeModel` into ``.ds/cpp/compile_commands.json``
-and ``.ds/cpp/compile_flags.txt`` so the C++ plugin's flag resolution can
-index third-party dependencies without the user hand-writing a compile
-database. Writes are atomic and skipped when content is unchanged.
 """
 
 from __future__ import annotations
@@ -32,16 +26,7 @@ _pkg_cache: dict = {}
 
 
 def _pkg_cflags(package: str) -> list:
-    """Query ``pkg-config --cflags`` for *package*, cached per process.
-
-    The package name is used verbatim — no name mapping is assumed.
-
-    Args:
-        package: Package name as discovered by the scanner.
-
-    Returns:
-        Flag list (possibly empty) — never raises.
-    """
+    """Query ``pkg-config --cflags`` for *package*, cached per process."""
     key = str(package).strip()
     if not key:
         return []
@@ -64,11 +49,7 @@ def _pkg_cflags(package: str) -> list:
 
 
 def _probe_compiler() -> str:
-    """Return the first available C++ compiler driver name.
-
-    Returns:
-        Driver name (``"c++"`` fallback, never empty).
-    """
+    """Return the first available C++ compiler driver name."""
     for candidate in ("c++", "clang++", "g++"):
         if shutil.which(candidate):
             return candidate
@@ -76,14 +57,7 @@ def _probe_compiler() -> str:
 
 
 def _model_flags(model: CmakeModel) -> tuple[list, list, list]:
-    """Derive ``(std_flags, include_flags, define_flags)`` for *model*.
-
-    Args:
-        model: Scanned CMake model.
-
-    Returns:
-        Tuple of flag lists ready for splicing into commands.
-    """
+    """Derive ``(std_flags, include_flags, define_flags)`` for *model*."""
     std_flags: list = []
     standard = (model.cxx_standard or "").strip()
     if standard and standard[0].isdigit():
@@ -108,15 +82,7 @@ def _model_flags(model: CmakeModel) -> tuple[list, list, list]:
 
 
 def _atomic_write_text(path: str, content: str) -> bool:
-    """Write *content* to *path* atomically; skip when unchanged.
-
-    Args:
-        path: Destination file path.
-        content: Text content to persist.
-
-    Returns:
-        ``True`` when the file was written, ``False`` when skipped/failed.
-    """
+    """Write *content* to *path* atomically; skip when unchanged."""
     try:
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as handle:
@@ -133,15 +99,7 @@ def _atomic_write_text(path: str, content: str) -> bool:
 
 
 def generate(root: str, model: CmakeModel) -> dict:
-    """Write the compile database and flags file for *model*.
-
-    Args:
-        root: Solution root receiving ``.ds/cpp/`` artefacts.
-        model: Scanned CMake model.
-
-    Returns:
-        Dict with ``compile_commands``, ``compile_flags`` and ``entries``.
-    """
+    """Write the compile database and flags file for *model*."""
     directory = cpp_dir(root, ensure=True)
     commands_path = os.path.join(directory, COMPILE_COMMANDS_FILENAME)
     flags_path = os.path.join(directory, COMPILE_FLAGS_FILENAME)

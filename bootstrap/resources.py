@@ -1,9 +1,4 @@
-"""
-ResourceManager: theme, icon, font, and static asset loading.
-
-Uses fallbacks for missing resources. Never terminates startup
-because an optional asset is unavailable.
-"""
+"""ResourceManager:"""
 
 import os
 import sys
@@ -15,18 +10,13 @@ logger = logging.getLogger(__name__)
 
 _FALLBACK_THEME = "dark.qss"
 
-# Frozen builds: cache the _MEIPASS root for QSS url() rewriting.
 _FROZEN_ASSETS_ROOT: Optional[str] = None
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-    _FROZEN_ASSETS_ROOT = sys._MEIPASS  # type: ignore[attr-defined]
+    _FROZEN_ASSETS_ROOT = sys._MEIPASS
 
 
 def _rewrite_qss_urls(content: str, base_dir: str | None = None) -> str:
-    """Rewrite relative ``url(assets/...)`` to absolute paths.
-
-    In frozen builds uses ``sys._MEIPASS``; in dev uses the project root
-    so Qt resolves them regardless of process CWD.
-    """
+    """Rewrite relative ``url(assets/...)`` to absolute paths."""
     root = _FROZEN_ASSETS_ROOT
     if root is None and base_dir:
         root = base_dir
@@ -60,12 +50,9 @@ class ResourceManager:
         self._missing: list[str] = []
         logger.info("ResourceManager initialized for %s", base_dir)
 
-    # ------------------------------------------------------------------
-    # Theme loading
-    # ------------------------------------------------------------------
 
     def load_theme(self, theme_name: str = "dark") -> str:
-        """Load a QSS theme by name. Falls back to dark.qss on failure."""
+        """Load a QSS theme by name."""
         qss_file = f"{theme_name}.qss"
         qss_path = os.path.join(self._qss_dir, qss_file)
 
@@ -97,12 +84,9 @@ class ResourceManager:
             return []
         return sorted(f.replace(".qss", "") for f in files if f.endswith(".qss"))
 
-    # ------------------------------------------------------------------
-    # Icon loading
-    # ------------------------------------------------------------------
 
     def get_icon_path(self, icon_name: str, category: str = "system") -> Optional[str]:
-        """Resolve an icon path. Returns None if missing (never crashes)."""
+        """Resolve an icon path."""
         dir_map = {
             "system": self._system_icons_dir,
             "menus": self._menu_icons_dir,
@@ -113,7 +97,6 @@ class ResourceManager:
         path = os.path.join(base, icon_name)
         if os.path.isfile(path):
             return path
-        # Handle names without extension or with different extension
         name_without_ext, ext = os.path.splitext(icon_name)
         if ext.lower() != ".png":
             path_png = os.path.join(base, name_without_ext + ".png")
@@ -123,9 +106,6 @@ class ResourceManager:
         logger.warning("Icon not found: %s/%s", category, icon_name)
         return None
 
-    # ------------------------------------------------------------------
-    # Asset verification
-    # ------------------------------------------------------------------
 
     def verify_assets(self) -> dict[str, bool]:
         """Verify that key asset directories exist."""
@@ -146,9 +126,6 @@ class ResourceManager:
         """Return list of resources that were requested but not found."""
         return list(self._missing)
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     def _read_file(self, path: str) -> Optional[str]:
         try:

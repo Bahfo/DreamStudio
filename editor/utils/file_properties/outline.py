@@ -1,13 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Language-agnostic file outline backend.  Parses source code into a tree of
-``OutlineNode`` objects that the GUI renders.  The outliner knows nothing
-about who supplies the source — it only receives text and produces structure.
-
-Language plugins register their own parsers via :func:`register_parser`.
-When a file is opened the IDE calls :func:`build_outline` which dispatches
-to the registered parser for the file's language.
+Language-agnostic file outline backend.
 """
 
 from __future__ import annotations
@@ -18,11 +11,6 @@ from enum import Enum
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
-
-
-# ------------------------------------------------------------------
-# Data models
-# ------------------------------------------------------------------
 
 
 class SymbolKind(Enum):
@@ -42,17 +30,7 @@ class SymbolKind(Enum):
 
 @dataclass
 class OutlineNode:
-    """A single node in the file outline tree.
-
-    Attributes:
-        name: Display name (e.g. ``"MyClass"``).
-        kind: Symbol category.
-        line_start: 0-indexed line where the symbol begins.
-        line_end: 0-indexed line where the symbol ends (inclusive).
-        col_start: 0-indexed column offset.
-        children: Nested symbols (methods inside a class, etc.).
-        detail: Optional extra text (e.g. type annotation, signature).
-    """
+    """A single node in the file outline tree."""
 
     name: str
     kind: SymbolKind
@@ -65,31 +43,17 @@ class OutlineNode:
 
 @dataclass
 class OutlineResult:
-    """Result of parsing a source file for outline symbols.
-
-    Attributes:
-        root: Top-level ``OutlineNode`` representing the file itself.
-        language: Language identifier (e.g. ``"python"``).
-    """
+    """Result of parsing a source file for outline symbols."""
 
     root: OutlineNode
     language: str = ""
 
 
-# ------------------------------------------------------------------
-# Parser registry
-# ------------------------------------------------------------------
-
 _PARSERS: dict[str, Callable[[str], OutlineResult]] = {}
 
 
 def register_parser(language: str, parser: Callable[[str], OutlineResult]) -> None:
-    """Register an outline parser for *language*.
-
-    Args:
-        language: Language identifier matching the editor's ``current_lang``.
-        parser: Callable that takes source code and returns ``OutlineResult``.
-    """
+    """Register an outline parser for *language*."""
     _PARSERS[language] = parser
 
 
@@ -101,17 +65,7 @@ def get_parser(language: str) -> Optional[Callable[[str], OutlineResult]]:
 def build_outline(
     source_code: str, language: str, filename: str = ""
 ) -> Optional[OutlineResult]:
-    """Build an outline tree from *source_code*.
-
-    Args:
-        source_code: Raw source text.
-        language: Language identifier.
-        filename: Optional filename for the root node label.
-
-    Returns:
-        ``OutlineResult`` if a parser is registered and parsing succeeds,
-        or ``None`` if no parser is available or parsing fails.
-    """
+    """Build an outline tree from *source_code*."""
     parser = get_parser(language)
     if parser is None:
         return None
@@ -127,12 +81,5 @@ def build_outline(
 
 
 def unregister_parser(language: str) -> bool:
-    """Remove the outline parser for *language*.
-
-    Args:
-        language: Language identifier whose parser should be removed.
-
-    Returns:
-        ``True`` when a parser was registered and has been removed.
-    """
+    """Remove the outline parser for *language*."""
     return _PARSERS.pop(language, None) is not None

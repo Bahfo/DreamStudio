@@ -1,28 +1,6 @@
 """
 (C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-
 Language support infrastructure for DreamStudio.
-
-This module provides:
-
-- `LanguageLexer` — a generic keyword-based QScintilla lexer driven
-  by a JSON configuration dictionary.
-- `BaseLanguageProvider` — the abstract contract that every language
-  intelligence backend must implement.  Future LSP providers will
-  subclass this.
-- `LanguageRegistry` — a central, class-level registry that maps file
-  extensions to language identifiers, stores parsed JSON configurations,
-  and associates provider instances.
-
-**LSP Integration Plan (not yet implemented):**
-
-A future `LSPProvider(BaseLanguageProvider)` subclass will wrap a
-language-server process and implement all four abstract methods using
-the Language Server Protocol.  `LanguageRegistry.register_language`
-already accepts an optional `provider_instance` — an LSP provider
-would simply be passed in at registration time.
-
-No changes to the public API are required to add LSP support.
 """
 
 from editor import *
@@ -35,15 +13,7 @@ _RE_WORD = re.compile(rb"[A-Za-z0-9_]+")
 
 
 class LanguageLexer(QsciLexerCustom):
-    """A generic keyword-based syntax highlighter driven by a JSON config.
-
-    The *config* dictionary must contain:
-
-    - `"styles"`: `{style_name: "#RRGGBB", ...}`
-    - `"keywords"`: `{style_name: ["word1", ...], ...}`
-
-    Each `style_name` in `"keywords"` must also appear in `"styles"`.
-    """
+    """A generic keyword-based syntax highlighter driven by a JSON config."""
 
     def __init__(self, parent, config: dict):
         super().__init__(parent)
@@ -194,193 +164,66 @@ class LanguageLexer(QsciLexerCustom):
 
 
 class BaseLanguageProvider(ABC):
-    """Abstract base class for language intelligence providers.
-
-    Every language that wants autocomplete, hover, go-to-definition,
-    or formatting must implement all four methods.  Future LSP
-    providers will subclass this and delegate to a language server
-    process.
-
-    **Contract:**
-
-    - Methods must never raise exceptions.  Callers catch broadly, so
-      any internal failure should be logged and a safe default returned.
-    - All text parameters use the raw editor buffer content.
-    - Line and column numbers are 0-indexed.
-    """
+    """Abstract base class for language intelligence providers."""
 
     @abstractmethod
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
-        """Return a documentation / signature string for the symbol under the cursor.
-
-        Args:
-            text: The full editor buffer content.
-            line: 0-indexed cursor line.
-            col: 0-indexed cursor column.
-        """
+        """Return a documentation / signature string for the symbol under the cursor."""
         return None
 
     @abstractmethod
     def get_definition_location(
         self, text: str, line: int, col: int
     ) -> Optional[tuple]:
-        """Return `(file_path, line, col)` for the symbol's definition.
-
-        Args:
-            text: The full editor buffer content.
-            line: 0-indexed cursor line.
-            col: 0-indexed cursor column.
-        """
+        """Return `(file_path, line, col)` for the symbol's definition."""
         return None
 
     @abstractmethod
     def format_source(self, source_code: str) -> str:
-        """Format *source_code* and return the formatted text.
-
-        If formatting is not supported, return the input unchanged.
-        """
+        """Format *source_code* and return the formatted text."""
         return source_code
 
     def get_hover_display(self, text: str, line: int, col: int) -> Optional[tuple]:
-        """Return `(title_markdown, body_markdown)` for the symbol under the cursor.
-
-        The *title_markdown* is a short Markdown fragment (typically a
-        heading) shown in the flyout header.  The *body_markdown* is the
-        full documentation body rendered via ``QTextDocument.setMarkdown()``.
-
-        Optional method — return `None` when hover documentation is
-        unavailable or the provider does not support it.
-        """
+        """Return `(title_markdown, body_markdown)` for the symbol under the cursor."""
         return None
 
     def get_semantic_highlights(self, text: str):
-        """Return colour ranges for semantic tokens, or `None`.
-
-        Optional method — providers that implement it return a list of
-        `(start_offset, length, "#RRGGBB")` tuples.  The editor uses
-        these to paint Scintilla indicators on top of the lexer.
-
-        Return `None` to indicate that the provider does not supply
-        semantic highlights (the editor falls back to its built-in
-        highlighting, if any).
-
-        Providers whose result depends on *which* buffer the text came
-        from (C++ resolves compile flags per file, and the provider
-        instance is a process singleton shared by every open tab) should
-        also set the class flag ``wants_file_path = True`` and accept an
-        extra ``file_path`` argument::
-
-            def get_semantic_highlights(self, text, theme_name=None,
-                                        file_path=None): ...
-
-        The analysis worker (:mod:`editor.Ironica.analysis_worker`) passes
-        ``file_path`` only to providers that opt in, so providers that do
-        not need it keep the one-argument signature above.
-        """
+        """Return colour ranges for semantic tokens, or `None`."""
         return None
 
-    # ------------------------------------------------------------------
-    # Capability flags (optional features)
-    # ------------------------------------------------------------------
 
     def has_folding(self) -> bool:
-        """Return ``True`` if this provider supplies code fold regions.
-
-        Providers that override ``get_fold_regions`` should return
-        ``True`` here so the editor calls them on text changes.
-        """
+        """Return ``True`` if this provider supplies code fold regions."""
         return False
 
     def get_fold_regions(self, text: str) -> list:
-        """Return fold regions as ``(start_line, end_line, header)`` tuples.
-
-        *start_line* and *end_line* are 0-indexed line numbers.
-        *header* is a short display string shown when the region is
-        collapsed (e.g. ``"def foo"`` or ``"import ..."``).
-
-        Called by the editor when ``has_folding()`` returns ``True``.
-
-        Opting into ``wants_file_path = True`` adds a second
-        ``file_path`` argument here, exactly as documented on
-        :meth:`get_semantic_highlights`.
-        """
+        """Return fold regions as ``(start_line, end_line, header)`` tuples."""
         return []
 
     def has_diagnostics(self) -> bool:
-        """Return ``True`` if this provider supplies background diagnostics.
-
-        Providers that override ``create_diagnostic_manager`` should
-        return ``True`` here so the editor attaches a diagnostic
-        worker when a file is opened.
-        """
+        """Return ``True`` if this provider supplies background diagnostics."""
         return False
 
     def create_diagnostic_manager(self, editor, file_path, parent):
-        """Create and return a diagnostic manager for *editor*.
-
-        Called by the tab editor when ``has_diagnostics()`` returns
-        ``True`` and a file is opened.  The manager should connect
-        to the editor's ``textChanged`` signal and call
-        ``editor.add_diagnostic_underline()`` / ``clear_diagnostic_underlines()``.
-
-        Returns ``None`` by default.
-        """
+        """Create and return a diagnostic manager for *editor*."""
         return None
 
-    # ------------------------------------------------------------------
-    # Outline support (optional)
-    # ------------------------------------------------------------------
 
     def has_outline(self) -> bool:
-        """Return ``True`` if this provider supplies file outline data.
-
-        Providers that override ``get_outline`` should return ``True``
-        here so the IDE wires up the outline panel automatically.
-        """
+        """Return ``True`` if this provider supplies file outline data."""
         return False
 
     def get_outline(self, source_code: str) -> Optional["OutlineResult"]:
-        """Return an outline tree for *source_code*.
-
-        Called by the IDE when the outline panel is visible and the
-        active editor changes or the source text is modified.
-
-        Args:
-            source_code: The full editor buffer content.
-
-        Returns:
-            An ``OutlineResult`` or ``None`` if outline is unavailable.
-        """
+        """Return an outline tree for *source_code*."""
         return None
 
     def post_fold_setup(self, editor, regions) -> None:
-        """Called after fold regions are pushed to FoldManager.
-
-        Override for language-specific fold display text or other
-        post-processing (e.g. Python's ``(... +N imports)`` ghost text).
-
-        Args:
-            editor: The ``CodeEditor`` instance.
-            regions: The fold regions that were just applied.
-        """
+        """Called after fold regions are pushed to FoldManager."""
         pass
 
 
-# ------------------------------------------------------------------
-# Registry
-# ------------------------------------------------------------------
-
-
 class LanguageRegistry:
-    """Central, class-level registry for DreamStudio language support.
-
-    Maps file extensions to language identifiers, stores parsed JSON
-    configuration dictionaries, and associates `BaseLanguageProvider`
-    instances with languages.
-
-    All methods are `@classmethod` — no instantiation is required.
-    Internal state is shared across the entire process.
-    """
+    """Central, class-level registry for DreamStudio language support."""
 
     _configs: Dict[str, dict] = {}
     _providers: Dict[str, BaseLanguageProvider] = {}
@@ -388,19 +231,12 @@ class LanguageRegistry:
     _filename_map: Dict[str, str] = {}
     _snippet_paths: Dict[str, str] = {}
 
-    # ------------------------------------------------------------------
-    # Registration
-    # ------------------------------------------------------------------
 
     @classmethod
     def _store_language(
         cls, config: dict, provider_instance: Optional[BaseLanguageProvider]
     ) -> bool:
-        """Persist a validated config and provider into the registry.
-
-        Handles duplicate-language warnings, extension-map warnings and
-        provider type checking. Returns False only on provider type mismatch.
-        """
+        """Persist a validated config and provider into the registry."""
         lang_name = config["lang"]
         if lang_name in cls._configs:
             logger.warning("Language %r already registered — overwriting", lang_name)
@@ -444,30 +280,7 @@ class LanguageRegistry:
     def register_language(
         cls, json_path: str, provider_instance: Optional[BaseLanguageProvider] = None
     ) -> bool:
-        """Read a language configuration JSON file and bind its provider.
-
-        Args:
-            json_path: Path to the JSON configuration file.
-            provider_instance: Optional intelligence provider.
-
-        Returns:
-            `True` on success, `False` on any validation or I/O error.
-
-        Raises nothing — all errors are logged and `False` is returned.
-
-        **JSON format (canonical)::**
-            ```
-            {
-                "lang": "python",
-                "extensions": ["py", "pyw"],
-                "styles": {"keyword": "#C586C0", "definition": "#4FC1FF"},
-                "keywords": {"keyword": ["if", "else"], "definition": ["def", "class"]}
-            }
-            ```
-
-        Alternatively, the legacy `"words"` / `"colors_schema"` format
-        from older config files is auto-converted via `_normalize_config`.
-        """
+        """Read a language configuration JSON file and bind its provider."""
         try:
             config = cls._load_json(json_path)
             if config is None:
@@ -492,15 +305,7 @@ class LanguageRegistry:
         config: dict,
         provider_instance: Optional[BaseLanguageProvider] = None,
     ) -> bool:
-        """Register a language from an already-parsed config dictionary.
-
-        Args:
-            config: Language configuration dictionary.
-            provider_instance: Optional intelligence provider.
-
-        Returns:
-            `True` on success, `False` on validation error.
-        """
+        """Register a language from an already-parsed config dictionary."""
         try:
             config = cls._normalize_config(config)
             errors = cls._validate_config(config)
@@ -518,14 +323,7 @@ class LanguageRegistry:
 
     @classmethod
     def unregister_language(cls, lang_name: str) -> bool:
-        """Remove a language and all its associated state.
-
-        Args:
-            lang_name: The language identifier to remove.
-
-        Returns:
-            `True` if the language was found and removed.
-        """
+        """Remove a language and all its associated state."""
         if lang_name not in cls._configs:
             return False
 
@@ -533,7 +331,6 @@ class LanguageRegistry:
         cls._providers.pop(lang_name, None)
         cls._snippet_paths.pop(lang_name, None)
 
-        # Remove extensions and filenames that point to this language.
         to_remove = [
             ext for ext, name in cls._extension_map.items() if name == lang_name
         ]
@@ -548,17 +345,10 @@ class LanguageRegistry:
         logger.info("Unregistered language: %s", lang_name)
         return True
 
-    # ------------------------------------------------------------------
-    # Lookup
-    # ------------------------------------------------------------------
 
     @classmethod
     def get_language_by_extension(cls, ext: str) -> Optional[str]:
-        """Resolve a file extension to its language identifier.
-
-        Args:
-            ext: File extension including the leading dot (e.g. `".py"`).
-        """
+        """Resolve a file extension to its language identifier."""
         if not isinstance(ext, str) or not ext:
             return None
         normalized = f".{ext.lstrip('.').lower()}"
@@ -566,18 +356,7 @@ class LanguageRegistry:
 
     @classmethod
     def get_language_for_file(cls, file_path: str) -> Optional[str]:
-        """Resolve a file path to its language identifier.
-
-        Exact filename matches (e.g. ``"CMakeLists.txt"``) take precedence
-        over the extension mapping, so extensionless or misleadingly
-        suffixed files still resolve correctly.
-
-        Args:
-            file_path: Absolute or relative file path.
-
-        Returns:
-            Language identifier, or ``None`` when unmapped.
-        """
+        """Resolve a file path to its language identifier."""
         if not isinstance(file_path, str) or not file_path:
             return None
         basename = os.path.basename(file_path).strip().lower()
@@ -595,15 +374,7 @@ class LanguageRegistry:
 
     @classmethod
     def get_snippets(cls, lang: str) -> List[str]:
-        """Return the snippet identifiers for *lang*.
-
-        Args:
-            lang: The language identifier (e.g. ``"python"``).
-
-        Returns:
-            A list of snippet name strings (e.g. ``["/Class", "/Main"]``).
-            Returns an empty list when the language has no snippets defined.
-        """
+        """Return the snippet identifiers for *lang*."""
         config = cls._configs.get(lang)
         if config is None:
             return []
@@ -611,15 +382,7 @@ class LanguageRegistry:
 
     @classmethod
     def register_snippet_path(cls, lang: str, snippets_path: str) -> bool:
-        """Remember where a language's snippet bodies live.
-
-        Args:
-            lang: Registered language identifier.
-            snippets_path: Path to a JSON file with snippet bodies.
-
-        Returns:
-            ``True`` when the language is registered and the file exists.
-        """
+        """Remember where a language's snippet bodies live."""
         if lang not in cls._configs:
             logger.warning("Cannot attach snippets to unregistered language %r", lang)
             return False
@@ -631,24 +394,12 @@ class LanguageRegistry:
 
     @classmethod
     def get_snippet_path(cls, lang: str) -> Optional[str]:
-        """Return the snippet-body file for *lang*, or ``None``.
-
-        Args:
-            lang: Registered language identifier.
-        """
+        """Return the snippet-body file for *lang*, or ``None``."""
         return cls._snippet_paths.get(lang)
 
     @classmethod
     def get_display_name(cls, lang: str) -> str:
-        """Return the human-readable name for a language identifier.
-
-        Args:
-            lang: Language identifier from the registry.
-
-        Returns:
-            The ``display_name`` from the language config when present,
-            otherwise a title generated from the identifier.
-        """
+        """Return the human-readable name for a language identifier."""
         config = cls._configs.get(lang) or {}
         display_name = config.get("display_name")
         if isinstance(display_name, str) and display_name.strip():
@@ -680,22 +431,16 @@ class LanguageRegistry:
         """Return a copy of the exact-filename → language mapping."""
         return dict(cls._filename_map)
 
-    # ------------------------------------------------------------------
-    # Reset (for testing)
-    # ------------------------------------------------------------------
 
     @classmethod
     def reset(cls) -> None:
-        """Clear all registrations.  Primarily used in tests."""
+        """Clear all registrations."""
         cls._configs.clear()
         cls._providers.clear()
         cls._extension_map.clear()
         cls._filename_map.clear()
         cls._snippet_paths.clear()
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     @classmethod
     def _load_json(cls, json_path: str) -> Optional[dict]:
@@ -715,13 +460,7 @@ class LanguageRegistry:
 
     @classmethod
     def _normalize_config(cls, config: dict) -> dict:
-        """Convert legacy config formats to the canonical format.
-
-        Supports the `words` / `colors_schema` format used by
-        older language JSON files (e.g. `python.json`).
-
-        The canonical format uses `"styles"` and `"keywords"` keys.
-        """
+        """Convert legacy config formats to the canonical format."""
         if "styles" in config and "keywords" in config:
             return config
 
@@ -739,18 +478,14 @@ class LanguageRegistry:
         words = config.get("words", {})
         colors = config.get("colors_schema", {})
 
-        # Build reverse mapping: word → category, then category → [words].
         category_words: Dict[str, List[str]] = {}
         for word, category in words.items():
             category_words.setdefault(category, []).append(word)
 
-        # Build styles from colors_schema.
         styles = {cat: hex_color for cat, hex_color in colors.items()}
 
-        # Collect extensions if present.
         extensions = config.get("extensions", [])
 
-        # Derive language name.
         lang_name = config.get("lang")
         if not lang_name:
             meta = config.get("meta", {})
@@ -766,11 +501,7 @@ class LanguageRegistry:
 
     @classmethod
     def _validate_config(cls, config: dict) -> List[str]:
-        """Validate a (possibly normalised) config dict.
-
-        Returns a list of error message strings.  An empty list means
-        the config is valid.
-        """
+        """Validate a (possibly normalised) config dict."""
         errors: List[str] = []
 
         lang_name = config.get("lang")

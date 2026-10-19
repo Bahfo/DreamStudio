@@ -1,36 +1,17 @@
 """
 (C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-
 Public API for the DreamStudio text editor.
-
-This module exposes a clean, minimal interface for all editor
-operations.  The rest of the IDE should never manipulate the
-editor widget directly.
-
-``EditorAPI`` is a thin, stateless facade that wraps a ``CodeEditor``
-instance and validates every operation before forwarding it.
-
-Folding data models (``FoldRegion``) and the ``FoldManager`` are
-defined in ``editor.Ironica.folding`` and re-exported here for
-backward compatibility.
 """
 
 from editor import *
 
-from editor.Ironica.utils.folding import FoldRegion, FoldManager  # noqa: F401
+from editor.Ironica.utils.folding import FoldRegion, FoldManager
 
 logger = logging.getLogger(__name__)
 
 
 class EditorAPI:
-    """Facade that wraps a ``CodeEditor`` instance and exposes every
-    editor operation through clean Python methods.
-
-    The rest of the IDE depends **only** on this public interface.
-
-    Lifetime: one ``EditorAPI`` instance per open editor.  The wrapper
-    is lightweight and carries no state beyond the ``_editor`` reference.
-    """
+    """Facade that wraps a ``CodeEditor`` instance and exposes every editor operation through clean Python methods."""
 
     def __init__(self, editor: QsciScintilla) -> None:
         if editor is None:
@@ -42,9 +23,6 @@ class EditorAPI:
         """Return the underlying ``QsciScintilla`` widget (escape hatch)."""
         return self._editor
 
-    # ------------------------------------------------------------------
-    # Clipboard
-    # ------------------------------------------------------------------
 
     def cut(self) -> None:
         """Cut the current selection to the clipboard."""
@@ -86,7 +64,6 @@ class EditorAPI:
         text = self._editor.text(line)
         self._editor.insertAt(f"{text}\n", line + 1, 0)
 
-    # ------------------------------------------------------------------
 
     def duplicate_selection(self) -> None:
         """Duplicate the current selection on the line below it."""
@@ -100,8 +77,6 @@ class EditorAPI:
         self._editor.insertAt(text + "\n", line_to + 1, 0)
         self._editor.endUndoAction()
 
-    # Selection
-    # ------------------------------------------------------------------
 
     def select_all(self) -> None:
         """Select all text in the editor."""
@@ -109,11 +84,7 @@ class EditorAPI:
 
 
     def select_none(self) -> None:
-        """Clear the current selection without moving the cursor.
-
-        QScintilla exposes no public ``selectNone``; collapsing the selection
-        to the caret via an empty range clears the highlight in-place.
-        """
+        """Clear the current selection without moving the cursor."""
         line, col = self._editor.getCursorPosition()
         self._editor.setSelection(line, col, line, col)
 
@@ -133,9 +104,6 @@ class EditorAPI:
             end = len(line_text)
         self._editor.setSelection(line, start, line, end)
 
-    # ------------------------------------------------------------------
-    # Cursor movement
-    # ------------------------------------------------------------------
 
     def move_up(self) -> None:
         """Move the cursor one line up, preserving column."""
@@ -168,11 +136,7 @@ class EditorAPI:
             self._editor.setCursorPosition(line + 1, 0)
 
     def goto_line(self, line: int) -> None:
-        """Jump to *line* (0-indexed), clamped to valid range.
-
-        Args:
-            line: Target line number (0-indexed).
-        """
+        """Jump to *line* (0-indexed), clamped to valid range."""
         if not isinstance(line, int):
             logger.warning("goto_line: expected int, got %s", type(line).__name__)
             return
@@ -181,12 +145,7 @@ class EditorAPI:
         self._editor.ensureLineVisible(clamped)
 
     def goto_position(self, line: int, col: int) -> None:
-        """Jump to *line*/*col* (both 0-indexed), clamped to valid range.
-
-        Args:
-            line: Target line number (0-indexed).
-            col: Target column number (0-indexed).
-        """
+        """Jump to *line*/*col* (both 0-indexed), clamped to valid range."""
         if not isinstance(line, int) or not isinstance(col, int):
             logger.warning(
                 "goto_position: expected (int, int), got (%s, %s)",
@@ -200,13 +159,6 @@ class EditorAPI:
         self._editor.setCursorPosition(clamped_line, clamped_col)
         self._editor.ensureLineVisible(clamped_line)
 
-    # ------------------------------------------------------------------
-    # Navigation
-    # ------------------------------------------------------------------
-    #
-    # The bundled language providers expose go-to-definition only.  A
-    # declaration/implementation request therefore resolves through the same
-    # definition lookup rather than going silently unhandled or fabricating.
 
     def goto_definition(self, line: int = None, col: int = None) -> None:
         """Resolve the symbol under the cursor and jump to its definition."""
@@ -223,8 +175,6 @@ class EditorAPI:
         if hasattr(self._editor, "execute_goto_definition"):
             self._editor.execute_goto_definition(line, col)
 
-    # Editing
-    # ------------------------------------------------------------------
 
     def undo(self) -> None:
         """Undo the last editing action, if available."""
@@ -332,80 +282,39 @@ class EditorAPI:
             text = self._editor.selectedText()
             self._editor.replaceSelectedText(text.lower())
 
-    # ------------------------------------------------------------------
-    # File
-    # ------------------------------------------------------------------
 
     def load_file(self, file_path: str) -> None:
-        """Load a file into the editor.
-
-        Args:
-            file_path: Absolute path to the file.
-
-        Raises:
-            ``FileNotFoundError``, ``PermissionError``, or
-            ``UnicodeDecodeError`` on failure.
-        """
+        """Load a file into the editor."""
         if not file_path or not isinstance(file_path, str):
             raise ValueError("load_file requires a non-empty file path string")
         self._editor.load_from_file(file_path)
 
     def save(self) -> bool:
-        """Save the editor buffer to its current file path.
-
-        Returns:
-            ``True`` on success, ``False`` on failure or cancellation.
-        """
+        """Save the editor buffer to its current file path."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
             return False
         return self._editor.save()
 
     def save_as(self) -> bool:
-        """Prompt for a new path and save the editor buffer.
-
-        Returns:
-            ``True`` on success, ``False`` on failure or cancellation.
-        """
+        """Prompt for a new path and save the editor buffer."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
             return False
         return self._editor.save_as()
 
     def reload(self) -> None:
-        """Re-read the file from disk, discarding unsaved changes.
-
-        Raises:
-            Same exceptions as ``load_from_file``.
-        """
+        """Re-read the file from disk, discarding unsaved changes."""
         if self._editor.current_file_path:
             self._editor.load_from_file(self._editor.current_file_path)
 
-    # ------------------------------------------------------------------
-    # Search & Replace
-    # ------------------------------------------------------------------
 
     def find(self, text: str) -> bool:
-        """Find the first occurrence of *text* from the current position.
-
-        Args:
-            text: The string to search for.
-
-        Returns:
-            ``True`` if a match was found.
-        """
+        """Find the first occurrence of *text* from the current position."""
         if not text:
             return False
         return self._editor.findFirst(text, False, False, False, False)
 
     def replace(self, find_text: str, replace_text: str) -> bool:
-        """Find and replace the first occurrence of *find_text*.
-
-        Args:
-            find_text: The string to search for.
-            replace_text: The replacement string.
-
-        Returns:
-            ``True`` if a match was found and replaced.
-        """
+        """Find and replace the first occurrence of *find_text*."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
             return False
         if not find_text:
@@ -417,18 +326,7 @@ class EditorAPI:
         return False
 
     def replace_all(self, find_text: str, replace_text: str) -> int:
-        """Replace every occurrence of *find_text* with *replace_text*.
-
-        Guards against infinite loops when the replacement text contains
-        the search text by tracking cursor advancement.
-
-        Args:
-            find_text: The string to search for.
-            replace_text: The replacement string.
-
-        Returns:
-            The number of replacements made.
-        """
+        """Replace every occurrence of *find_text* with *replace_text*."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
             return 0
         if not find_text:
@@ -443,15 +341,11 @@ class EditorAPI:
         while count < safety_limit:
             if not self._editor.findFirst(find_text, False, False, False, False):
                 break
-            # Read the match position before replacing so we can detect
-            # stalls where the cursor does not advance.
             match_pos = self._editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
             self._editor.replace(replace_text)
             count += 1
             after_pos = self._editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
             if after_pos <= match_pos:
-                # Cursor did not advance — force it forward one character
-                # to break a potential infinite loop.
                 self._editor.SendScintilla(QsciScintilla.SCI_CHARRIGHT)
 
         if count >= safety_limit:
@@ -466,9 +360,6 @@ class EditorAPI:
         """Placeholder for future find-widget integration."""
         pass
 
-    # ------------------------------------------------------------------
-    # View
-    # ------------------------------------------------------------------
 
     def zoom_in(self) -> None:
         """Increase the editor zoom level."""
@@ -482,20 +373,13 @@ class EditorAPI:
         """Reset the editor zoom to the default level."""
         self._editor.zoomTo(0)
 
-    # ------------------------------------------------------------------
-    # Text access
-    # ------------------------------------------------------------------
 
     def get_text(self) -> str:
         """Return the full text buffer as a string."""
         return self._editor.text()
 
     def set_text(self, text: str) -> None:
-        """Replace the entire text buffer.
-
-        Args:
-            text: The new text content.
-        """
+        """Replace the entire text buffer."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
             return
         self._editor.setText(text)
@@ -519,20 +403,13 @@ class EditorAPI:
             return
         self._editor.clear()
 
-    # ------------------------------------------------------------------
-    # State
-    # ------------------------------------------------------------------
 
     def is_dirty(self) -> bool:
         """Return ``True`` if the buffer has been modified since last save."""
         return self._editor.isModified()
 
     def set_dirty(self, dirty: bool) -> None:
-        """Manually set the dirty (modified) flag.
-
-        Args:
-            dirty: ``True`` to mark the editor as modified.
-        """
+        """Manually set the dirty (modified) flag."""
         self._editor.setModified(dirty)
 
     def file_path(self) -> Optional[str]:
@@ -540,16 +417,9 @@ class EditorAPI:
         return getattr(self._editor, "current_file_path", None)
 
     def set_file_path(self, path: str) -> None:
-        """Update the canonical file path.
-
-        Args:
-            path: New file path string.
-        """
+        """Update the canonical file path."""
         self._editor.current_file_path = path
 
-    # ------------------------------------------------------------------
-    # Editor Properties (read-only introspection)
-    # ------------------------------------------------------------------
 
     def eol_mode(self) -> int:
         """Return the end-of-line mode constant."""
@@ -567,9 +437,6 @@ class EditorAPI:
         """Return the total number of lines in the buffer."""
         return self._editor.lines()
 
-    # ------------------------------------------------------------------
-    # Code Tools
-    # ------------------------------------------------------------------
 
     def format_code(self) -> None:
         """Delegate formatting to the active language provider."""
@@ -578,9 +445,6 @@ class EditorAPI:
         if hasattr(self._editor, "format_current_file"):
             self._editor.format_current_file()
 
-    # ------------------------------------------------------------------
-    # Folding
-    # ------------------------------------------------------------------
 
     def fold_region(
         self,
@@ -588,12 +452,7 @@ class EditorAPI:
         end_line: int,
         kind: str = "block",
     ) -> Optional[FoldRegion]:
-        """Register a single fold region on this editor.
-
-        Delegates to :meth:`FoldManager.register_fold_region`.
-        Returns the created ``FoldRegion``, or ``None`` if the
-        editor has no ``FoldManager`` attached.
-        """
+        """Register a single fold region on this editor."""
         fm = getattr(self._editor, "_fold_manager", None)
         if fm is None:
             logger.debug("fold_region: no FoldManager on editor")
@@ -601,10 +460,7 @@ class EditorAPI:
         return fm.register_fold_region(start_line, end_line, kind)
 
     def apply_folds(self, regions: List[FoldRegion]) -> None:
-        """Bulk-apply fold regions and update the margin.
-
-        Language plugins call this after parsing the buffer.
-        """
+        """Bulk-apply fold regions and update the margin."""
         fm = getattr(self._editor, "_fold_manager", None)
         if fm is not None:
             fm.set_fold_regions(regions)
@@ -616,12 +472,7 @@ class EditorAPI:
             fm.collapse_all()
 
     def smart_collapse(self) -> None:
-        """Collapse boilerplate first, everything on a second press.
-
-        First press collapses ``include``/``import``/``namespace``
-        regions and leaves code open; when nothing smart remains open,
-        falls through to a full collapse.
-        """
+        """Collapse boilerplate first, everything on a second press."""
         fm = getattr(self._editor, "_fold_manager", None)
         if fm is None:
             return
@@ -664,9 +515,7 @@ class EditorAPI:
         if fm is not None:
             fm.collapse_kind("function")
 
-    # ------------------------------------------------------------------
     # Folding (current region)
-    # ------------------------------------------------------------------
 
     def expand_current(self) -> None:
         """Expand the fold region at the cursor, or all regions if none."""

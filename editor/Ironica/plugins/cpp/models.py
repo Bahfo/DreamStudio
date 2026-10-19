@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Domain models for C++ Plugin.
 """
 
@@ -24,18 +23,7 @@ class CppContext:
 
 @dataclass(frozen=True)
 class CppCompletion:
-    """One completion row offered to the editor popup.
-
-    Attributes:
-        text: Identifier shown and matched against the typed prefix.
-        insert_text: Text actually inserted on acceptance. Defaults to
-            empty so callers that omit it get a row that inserts nothing
-            rather than a silent duplicate of ``text``.
-        kind: Icon/metadata category (``method``, ``function``, ``path``…).
-            Drives the popup icon and completion ranking.
-        signature: Right-hand detail text; for callables this is the
-            rendered parameter list.
-    """
+    """One completion row offered to the editor popup."""
 
     text: str
     insert_text: str = ""

@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Python outline parser for the Python language plugin.
 """
 
@@ -10,17 +9,7 @@ from editor.utils.file_properties.outline import OutlineNode, OutlineResult, Sym
 
 
 def parse_python_outline(source_code: str) -> OutlineResult:
-    """Parse Python source into an outline tree using the ``ast`` module.
-
-    Produces nodes for top-level and nested classes, functions, async
-    functions, and module-level assignments.
-
-    Args:
-        source_code: Raw Python source text.
-
-    Returns:
-        ``OutlineResult`` with a file-level root node.
-    """
+    """Parse Python source into an outline tree using the ``ast`` module."""
     root = OutlineNode(name="", kind=SymbolKind.FILE)
 
     if not source_code or not source_code.strip():
@@ -155,14 +144,7 @@ def parse_python_outline(source_code: str) -> OutlineResult:
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         is_class_method: bool = True,
     ) -> OutlineNode:
-        """Process a function/method definition into an OutlineNode.
-
-        Args:
-            node: The AST function node.
-            is_class_method: ``True`` when the function is inside a class
-                body (displayed as METHOD), ``False`` for top-level
-                functions (displayed as FUNCTION).
-        """
+        """Process a function/method definition into an OutlineNode."""
         end = _get_end_line(node)
         sig = _build_signature(node)
 

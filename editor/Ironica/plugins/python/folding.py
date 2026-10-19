@@ -1,11 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Python-specific folding logic for DreamStudio.
-
-Parses Python source code to detect collapsible regions based on
-indentation depth (Python's native scope mechanism) and feeds
-them into the core :class:`FoldManager` API.
 """
 
 from __future__ import annotations
@@ -18,9 +13,6 @@ logger = logging.getLogger(__name__)
 
 from editor.Ironica.utils.folding import FoldRegion
 
-# ------------------------------------------------------------------
-# Regex patterns for Python block headers
-# ------------------------------------------------------------------
 _RE_IMPORT = re.compile(r"^\s*(?:from\s+\S+\s+)?import\s+")
 _RE_CLASS = re.compile(r"^\s*class\s+\w+")
 _RE_DEF = re.compile(r"^\s*(?:async\s+)?def\s+\w+")
@@ -54,14 +46,7 @@ def _is_block_header(line: str) -> str | None:
 
 
 def compute_fold_regions(text: str) -> List[FoldRegion]:
-    """Parse Python source *text* and return a list of fold regions.
-
-    Args:
-        text: Full editor buffer content.
-
-    Returns:
-        Fold regions sorted by start line; runs in linear time.
-    """
+    """Parse Python source *text* and return a list of fold regions."""
     if not text:
         return []
     if "def " not in text and "class " not in text and "import " not in text:
@@ -71,13 +56,11 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
     total = len(lines)
     regions: List[FoldRegion] = []
 
-    # ── Step 1: Pre-calculate lines located within multi-line triple-quotes ──
     is_inside_string = [False] * total
     in_triple_double = False
     in_triple_single = False
 
     for idx, line in enumerate(lines):
-        # Disregard comments when calculating triple-quote entry boundaries
         line_code = (
             line if (in_triple_double or in_triple_single) else line.split("#")[0]
         )
@@ -100,7 +83,6 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
                 if line_code.count("'''") % 2 != 0:
                     in_triple_single = True
 
-    # ── Step 2: Precompute per-line layout for linear-time scans ──
     indents = [0] * total
     is_blank = [False] * total
     is_comment = [False] * total
@@ -115,7 +97,6 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
         indents[idx] = _indent_level(line)
 
     # NOTE: Next significant (non-blank/comment) line per index; string
-    # lines count as significant so bodies spanning docstrings stay open.
     next_significant = [-1] * total
     nxt = -1
     for idx in range(total - 1, -1, -1):
@@ -137,7 +118,6 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
             i += 1
             continue
 
-        # Check for decorators preceding def/class blocks
         decorator_start = i
         k = i - 1
         while k >= 0:
@@ -184,7 +164,6 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
             i = j
 
         elif header_kind in ("class", "function"):
-            # Robust scan forward across multi-line method signatures targeting trailing colon
             colon_line = i
             for idx in range(i, total):
                 if is_inside_string[idx]:
@@ -210,13 +189,11 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
                 next_line = lines[j]
                 next_indent = _indent_level(next_line)
 
-                # Lines containing nested code matching scope limits
                 if next_indent > header_indent:
                     end_line = j
                     j += 1
                     continue
 
-                # Empty whitespace structural evaluation check
                 if is_blank[j] or is_comment[j]:
                     sig = next_significant[j]
                     has_more_body = sig != -1 and (
@@ -243,12 +220,7 @@ def compute_fold_regions(text: str) -> List[FoldRegion]:
 
 
 def _apply_import_fold_text(editor, regions: List[FoldRegion]) -> None:
-    """Enable the fold display-text feature and tag import folds with a count.
-
-    Uses the ``CodeEditor`` APIs ``_setup_folding_display_text`` and
-    ``set_custom_import_fold_text`` so a collapsed import block renders a
-    gray ``( ... +N imports)`` label beside its header line.
-    """
+    """Enable the fold display-text feature and tag import folds with a count."""
     setup = getattr(editor, "_setup_folding_display_text", None)
     if setup is not None:
         setup()

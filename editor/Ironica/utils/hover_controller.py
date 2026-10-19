@@ -1,27 +1,13 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-HoverController: deterministic documentation-hover manager for DreamStudio.
-
-The controller owns the lifetime of DocumentationFlyout.  The important rule
-is that a visible flyout is kept alive only while the cursor is over either:
-
-    1. the symbol that produced the documentation, or
-    2. the flyout itself.
-
-When the cursor leaves both regions a short grace timer is started.  This
-allows the user to move from the editor into the flyout without losing it.
-
-The editor's Leave event is intercepted here because the parent CodeEditor
-must not run an independent 50 ms dismissal timer.  Having two independent
-lifetime controllers was the source of the editor -> flyout race.
+HoverController:
 """
 
 from __future__ import annotations
 
 from typing import Optional, Tuple
 
-from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QTimer
+from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QTimer, Qt
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -29,14 +15,10 @@ from PyQt6.QtWidgets import QApplication, QWidget
 _HOVER_DELAY_MS = 500
 _HOVER_MOVE_THRESHOLD = 3
 
-# Time allowed to cross the gap from the symbol/editor to the flyout.
 _FLYOUT_BRIDGE_MS = 350
 
-# Time allowed after the cursor leaves the active symbol before the card closes.
 _FLYOUT_CLOSE_MS = 180
 
-# The cursor is sampled while the documentation is visible.  This deliberately
-# uses the desktop/global cursor position rather than Qt child enter/leave state.
 _CURSOR_TRACK_MS = 16
 
 
@@ -77,32 +59,21 @@ class HoverController(QObject):
         if self._viewport is not None:
             self._editor_watchers.add(self._viewport)
 
-        # Watch the flyout itself so clicks / hover inside the docs card
-        # never destroy it.  This is the hook that lets users embed
-        # interactive widgets (buttons, links, custom controls) inside the
-        # flyout without losing it on interaction.
         try:
             self.flyout.installEventFilter(self)
         except Exception:
             pass
-        # The browser and header are children of the flyout – clicks there
-        # would otherwise bypass the flyout filter because the watched
-        # object is the child widget itself.
         for _child_name in ("browser", "_header"):
             try:
                 child = getattr(self.flyout, _child_name, None)
                 if child is not None:
                     child.installEventFilter(self)
-                    # QTextBrowser viewport is the actual hit-test widget
                     vp = getattr(child, "viewport", None)
                     if callable(vp):
-                        vp().installEventFilter(self)  # type: ignore[operator]
+                        vp().installEventFilter(self)
             except Exception:
                 pass
 
-        # The controller deliberately watches both the editor and the whole
-        # application.  The application filter is only used for cursor state;
-        # it never tries to resolve symbols from widgets outside the editor.
         for watched in self._editor_watchers:
             watched.installEventFilter(self)
         if self._app is not None:
@@ -125,14 +96,10 @@ class HoverController(QObject):
             except Exception:
                 pass
 
-    # ------------------------------------------------------------------
-    # Event filtering
-    # ------------------------------------------------------------------
 
     def _event_global_pos(self, event: QEvent) -> Optional[QPoint]:
         """Best-effort extraction of a global cursor position from *event*."""
         try:
-            # QMouseEvent / QWheelEvent
             gp = getattr(event, "globalPosition", None)
             if callable(gp):
                 return gp().toPoint()
@@ -141,20 +108,13 @@ class HoverController(QObject):
                 return gp2()
             pos = getattr(event, "pos", None)
             if callable(pos):
-                # Fallback: map local pos via watched widget if possible
                 return None
         except Exception:
             pass
         return None
 
     def _is_editor_watched(self, watched: QObject) -> bool:
-        """Identity check against editor/viewport without hashing *watched*.
-
-        The controller is installed as an application-wide event filter,
-        so ``watched`` can be any QObject — including unhashable ones such
-        as ``QInputDevice``. Identity comparison avoids the ``TypeError``
-        raised by ``in`` on a set.
-        """
+        """Identity check against editor/viewport without hashing *watched*."""
         try:
             if watched is self.editor:
                 return True
@@ -169,14 +129,25 @@ class HoverController(QObject):
 
         event_type = event.type()
 
-        # ------------------------------------------------------------------
-        # Flyout interaction – clicks / hover inside the docs card must never
-        # destroy it.  This keeps the card alive for complex embedded widgets.
-        # Any mouse interaction whose global position is inside the flyout
-        # (even if the watched object is a deep child not directly filtered,
-        # e.g. QToolButton, QScrollBar) must reset the close timer and never
-        # hide the card.
-        # ------------------------------------------------------------------
+        if self.flyout.isVisible() and not self._flyout_is_pinned():
+            if event_type == QEvent.Type.KeyPress:
+                try:
+                    if event.key() == Qt.Key.Key_Escape:
+                        self._hide_unpinned()
+                        return False
+                except (AttributeError, TypeError):
+                    pass
+
+            if event_type == QEvent.Type.MouseButtonPress:
+                gpos = self._event_global_pos(event)
+                if gpos is None:
+                    try:
+                        gpos = QCursor.pos()
+                    except Exception:
+                        gpos = None
+                if gpos is not None and not self._is_point_in_flyout(gpos):
+                    self._hide_unpinned()
+
         if self.flyout.isVisible() and event_type in (
             QEvent.Type.MouseButtonPress,
             QEvent.Type.MouseButtonRelease,
@@ -193,7 +164,6 @@ class HoverController(QObject):
                 self._flyout_close_timer.stop()
                 self._cursor_timer.start()
                 return False
-            # Also cover hover without event pos (e.g. child not filtered)
             try:
                 if self._is_cursor_over_flyout():
                     self._flyout_close_timer.stop()
@@ -201,12 +171,11 @@ class HoverController(QObject):
             except Exception:
                 pass
 
-        # Safe ancestor check – only QWidgets have isAncestorOf
         is_flyout_related = False
         try:
             if watched is self.flyout:
                 is_flyout_related = True
-            elif isinstance(watched, QWidget) and self.flyout.isAncestorOf(watched):  # type: ignore[arg-type]
+            elif isinstance(watched, QWidget) and self.flyout.isAncestorOf(watched):
                 is_flyout_related = True
         except Exception:
             is_flyout_related = False
@@ -219,17 +188,14 @@ class HoverController(QObject):
                 QEvent.Type.Enter,
                 QEvent.Type.HoverEnter,
             ):
-                # Any interaction inside the flyout resets the close countdown.
                 self._flyout_close_timer.stop()
                 if self.flyout.isVisible():
                     self._cursor_timer.start()
                 return False
             if event_type == QEvent.Type.Leave:
-                # Let the global cursor tracker decide; do not hide immediately.
                 self._track_cursor()
                 return False
             if event_type == QEvent.Type.Wheel:
-                # Scrolling inside the docs should not dismiss it.
                 self._flyout_close_timer.stop()
                 return False
             if event_type == QEvent.Type.FocusIn:
@@ -241,9 +207,6 @@ class HoverController(QObject):
             self._track_cursor()
 
             if self._is_editor_watched(watched):
-                # Once the flyout exists, a mouse move in the editor is no
-                # longer a reason to blindly keep it open.  The current symbol
-                # rectangle decides whether it remains open.
                 if not self._mouse_down:
                     self._handle_editor_mouse_move(watched, event)
             return False
@@ -268,9 +231,6 @@ class HoverController(QObject):
 
             if event_type == QEvent.Type.Leave:
                 self._on_editor_leave(watched)
-                # Crucial: stop CodeEditor's independent leaveEvent dismissal.
-                # The parent currently has a QTimer.singleShot(50, ...); that
-                # race can hide the flyout while the pointer is entering it.
                 if watched is self.editor:
                     return True
                 return False
@@ -288,13 +248,8 @@ class HoverController(QObject):
                 self._cursor_timer.stop()
                 return False
 
-        # Do not use WindowDeactivate/ApplicationDeactivate at all.  The flyout
-        # is a separate Tool window and activating it is a valid interaction.
         return False
 
-    # ------------------------------------------------------------------
-    # Editor hover handling
-    # ------------------------------------------------------------------
 
     def _handle_editor_mouse_move(self, watched: QObject, event: QEvent) -> None:
         try:
@@ -317,16 +272,12 @@ class HoverController(QObject):
             self._hover_timer.stop()
             return
 
-        # If a flyout is already visible, moving away from its symbol starts
-        # the short close countdown.  A new symbol can still start the normal
-        # 500 ms hover resolution timer.
         if self.flyout.isVisible() and not self._flyout_is_pinned():
             if self._is_cursor_over_flyout() or self._is_cursor_over_target_token():
                 self._flyout_close_timer.stop()
             else:
                 self._flyout_close_timer.start(_FLYOUT_CLOSE_MS)
 
-        # Resolve the currently hovered symbol normally.
         self._target_line = line
         self._target_col = col
         self._update_target_position(viewport_pos)
@@ -340,8 +291,6 @@ class HoverController(QObject):
         if not self.flyout.isVisible() or self._flyout_is_pinned():
             return
 
-        # Do not call hide() here.  The next global cursor sample determines
-        # whether the pointer reached the flyout during this bridge window.
         self._flyout_close_timer.start(_FLYOUT_BRIDGE_MS)
         self._cursor_timer.start()
         self._track_cursor()
@@ -352,9 +301,6 @@ class HoverController(QObject):
         self._token_rect_global = QRect()
         self._hide_unpinned()
 
-    # ------------------------------------------------------------------
-    # Cursor state machine
-    # ------------------------------------------------------------------
 
     def _track_cursor(self) -> None:
         if self._shutdown:
@@ -372,21 +318,14 @@ class HoverController(QObject):
 
         cursor = QCursor.pos()
 
-        # Highest priority: being over the documentation itself always keeps
-        # it alive, including every child of the QTextBrowser.
         if self._is_point_in_flyout(cursor):
             self._flyout_close_timer.stop()
             return
 
-        # Being over the symbol that produced the card also keeps it alive.
-        # This is what allows small cursor movements on a token.
         if self._is_point_in_target_token(cursor):
             self._flyout_close_timer.stop()
             return
 
-        # Anywhere else is a departure.  The short close period is the bridge
-        # window when crossing toward the flyout and the normal close grace when
-        # the pointer has simply moved elsewhere in the editor/application.
         if not self._flyout_close_timer.isActive():
             self._flyout_close_timer.start(_FLYOUT_CLOSE_MS)
 
@@ -406,9 +345,6 @@ class HoverController(QObject):
         self._hide_unpinned()
         self._cursor_timer.stop()
 
-    # ------------------------------------------------------------------
-    # Documentation resolution / display
-    # ------------------------------------------------------------------
 
     def cancel_pending_hover(self) -> None:
         """Drop a pending hover so a stale timer can't fire after navigation."""
@@ -428,9 +364,6 @@ class HoverController(QObject):
         if self._target_line < 0 or self._target_col < 0:
             return
 
-        # A delayed hover result is valid only while the pointer is still in
-        # the editor.  This prevents a stale result from appearing after the
-        # user has already moved into the flyout or elsewhere.
         if not self._point_inside_editor(QCursor.pos()):
             return
 
@@ -499,9 +432,6 @@ class HoverController(QObject):
         except Exception:
             return None
 
-    # ------------------------------------------------------------------
-    # QScintilla coordinates
-    # ------------------------------------------------------------------
 
     def _to_viewport_pos(self, watched: QObject, pos: QPoint) -> QPoint:
         if self._viewport is None or watched is self._viewport:
@@ -673,9 +603,6 @@ class HoverController(QObject):
         except Exception:
             self._token_rect_global = QRect()
 
-    # ------------------------------------------------------------------
-    # Hit testing
-    # ------------------------------------------------------------------
 
     def _is_point_in_flyout(self, global_pos: QPoint) -> bool:
         try:
@@ -712,9 +639,6 @@ class HoverController(QObject):
         except Exception:
             return False
 
-    # ------------------------------------------------------------------
-    # Flyout lifetime
-    # ------------------------------------------------------------------
 
     def _hide_unpinned(self, force: bool = False) -> None:
         self._flyout_close_timer.stop()
@@ -741,9 +665,6 @@ class HoverController(QObject):
         except Exception:
             return False
 
-    # ------------------------------------------------------------------
-    # Misc
-    # ------------------------------------------------------------------
 
     def _get_viewport(self) -> Optional[QWidget]:
         try:
@@ -781,7 +702,7 @@ class HoverController(QObject):
                     vp = getattr(child, "viewport", None)
                     if callable(vp):
                         try:
-                            vp().removeEventFilter(self)  # type: ignore[operator]
+                            vp().removeEventFilter(self)
                         except Exception:
                             pass
             except Exception:

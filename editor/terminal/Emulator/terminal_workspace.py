@@ -14,21 +14,11 @@ import subprocess
 
 logger = logging.getLogger(__name__)
 
-# Grace period (ms) between spawning the interactive shell and submitting
-# a programmatic command line, so the prompt is initialized first.
 _RUN_COMMAND_DELAY_MS = 250
 
 
 def format_command_line(argv: list[str]) -> str:
-    """Render an argv sequence as a single safely-quoted shell command line.
-
-    Args:
-        argv: The argument sequence (interpreter, file path, parameters).
-
-    Returns:
-        A string safe to paste into an interactive shell — arguments with
-        spaces or shell-sensitive characters remain single arguments.
-    """
+    """Render an argv sequence as a single safely-quoted shell command line."""
     if sys.platform == "win32":
         return subprocess.list2cmdline(argv)
     return shlex.join(argv)
@@ -149,14 +139,6 @@ class TerminalWorkspace(QWidget):
 
         self._build_ui()
 
-        # ------------------------------------------------------------------
-        # Zero-orphan cleanup (Step 7)
-        #
-        # Connect to QApplication.aboutToQuit so that every PTY, child
-        # process, and reader thread is forcibly terminated when the
-        # application exits — even if the workspace widget was hidden (the
-        # normal close button merely toggles visibility via closeEvent).
-        # ------------------------------------------------------------------
         app = QApplication.instance()
         if app is not None:
             app.aboutToQuit.connect(self.cleanup)
@@ -267,7 +249,7 @@ class TerminalWorkspace(QWidget):
             try:
                 from editor.terminal.Emulator.emulator import _default_shell
             except Exception:
-                _default_shell = None  # type: ignore
+                _default_shell = None
             if _default_shell is not None:
                 shell = _default_shell()
             else:
@@ -290,12 +272,8 @@ class TerminalWorkspace(QWidget):
         display.resized.connect(emulator.resize)
         display.set_emulator(emulator)
 
-        # Query the display widget's current geometry and pass it to the
-        # emulator so the PTY is spawned at the correct size from the
-        # very first frame (Step 5 — dynamic WinPty spawn dimensions).
         init_cols = display._columns
         init_rows = display._rows
-        # If the widget already has a real size, recompute from metrics.
         if display._cw > 0 and display._ch > 0 and display.width() > 0:
             init_cols = max(20, display.width() // max(1, display._cw))
             init_rows = max(5, display.height() // max(1, display._ch))
@@ -355,24 +333,9 @@ class TerminalWorkspace(QWidget):
 
         self._active_id = session_id
 
-    # ------------------------------------------------------------------
-    # Session removal (Step 9 — boundary-safe)
-    # ------------------------------------------------------------------
 
     def kill_session(self, session_id: int) -> None:
-        """Remove and forcibly terminate a single terminal session.
-
-        Boundary-safety guarantees:
-        * When the *last* session is closed (``remaining == 0``), all
-          selection highlights are cleared and focus is redirected to the
-          ``_empty_placeholder`` widget — the ``-1`` index pitfall is
-          completely avoided by bypassing ``setCurrentRow`` entirely.
-        * ``setCurrentRow`` is wrapped in ``blockSignals`` so the
-          ``currentRowChanged`` signal cannot fire with a stale session
-          that was just removed from ``_sessions``.
-        * ``max(0, ...)`` clamping prevents negative row indices even if
-          the item was already removed from the list.
-        """
+        """Remove and forcibly terminate a single terminal session."""
         session = self._sessions.pop(session_id, None)
         if session is None:
             return
@@ -395,20 +358,12 @@ class TerminalWorkspace(QWidget):
             self._active_id = None
             remaining = self._list.count()
             if remaining > 0:
-                # Clamp to valid range — can never be negative.
                 new_row = max(0, min(row, remaining - 1))
-                # Block signals to prevent re-entrant row changes while
-                # the session dict is in a partially-updated state.
                 self._list.blockSignals(True)
                 self._list.setCurrentRow(new_row)
                 self._list.blockSignals(False)
-                # Manually trigger the view switch now that signals are
-                # unblocked and the session map is consistent.
                 self._on_list_row_changed(new_row)
             else:
-                # Zero sessions remain — clear any stale selection
-                # highlight in the list widget and reset focus to the
-                # empty-state placeholder.
                 self._list.clearSelection()
                 self._stack.setCurrentWidget(self._empty_placeholder)
                 QTimer.singleShot(0, self._empty_placeholder.setFocus)
@@ -421,27 +376,7 @@ class TerminalWorkspace(QWidget):
     def open_command_session(
         self, argv: list[str], cwd: str | None = None, name: str | None = None
     ) -> bool:
-        """Create a new interactive terminal session and submit a command
-        line to it.
-
-        The session is created through the exact same path as a
-        user-initiated terminal (``_on_add_session``) — a real PTY-backed
-        interactive shell — and the command is then written to the PTY as
-        if typed at the prompt, so stdout/stderr stream directly into the
-        integrated terminal.
-
-        Args:
-            argv: The argument sequence to execute (must be non-empty).
-            cwd: Working directory for the new session.
-            name: Optional display name override for the session tab.
-
-        Returns:
-            True when the session was created and the command submitted,
-            False when no session could be located afterwards.
-
-        Raises:
-            RuntimeError: If the PTY backend fails to spawn the shell.
-        """
+        """Create a new interactive terminal session and submit a command line to it."""
         if not argv:
             return False
 
@@ -497,15 +432,7 @@ class TerminalWorkspace(QWidget):
         return None
 
     def set_default_cwd(self, cwd: str | None) -> None:
-        """Set the working directory used for newly-created terminal sessions.
-
-        Existing sessions are not re-rooted (a shell cannot migrate its
-        directory mid-run), but every session opened after the workspace
-        switch will start inside *cwd*.
-
-        Args:
-            cwd: Absolute path of the active workspace/folder.
-        """
+        """Set the working directory used for newly-created terminal sessions."""
         if cwd:
             self._default_cwd = os.path.abspath(cwd)
 
@@ -516,35 +443,13 @@ class TerminalWorkspace(QWidget):
         for session in self._sessions.values():
             session["view"].display.set_theme(bg, fg, sel)
 
-    # ------------------------------------------------------------------
-    # Zero-orphan cleanup (Step 7)
-    # ------------------------------------------------------------------
 
     def cleanup(self) -> None:
-        """Aggressively terminate every session and release all PTY
-        resources.
-
-        Iterates over a snapshot of the session keys (via
-        ``list(self._sessions.keys())``) so that the dict can be safely
-        mutated during iteration by ``kill_session``.  Each session's
-        ``emulator.kill()`` closes the PTY master fd (unblocking any
-        reader thread), sends SIGKILL to the process group, and joins
-        the reader thread with a timeout — no zombie processes or leaked
-        file descriptors are left behind.
-        """
+        """Aggressively terminate every session and release all PTY resources."""
         for session_id in list(self._sessions.keys()):
             self.kill_session(session_id)
 
     def closeEvent(self, event) -> None:
-        """Intercept close to hide the workspace rather than destroy it.
-
-        The close button in the terminal panel toggles visibility via the
-        ``close_requested`` signal, so ``closeEvent`` merely hides the
-        widget and rejects the event.  Actual resource cleanup is handled
-        by ``cleanup()`` which is connected to
-        ``QApplication.aboutToQuit`` — this guarantees teardown runs
-        exactly once when the IDE shuts down, regardless of whether the
-        workspace was visible at that moment.
-        """
+        """Intercept close to hide the workspace rather than destroy it."""
         self.hide()
         event.ignore()

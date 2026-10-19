@@ -15,16 +15,13 @@ def regex_compile_query(query, is_regex=False, is_ignore_case=False):
         if is_regex:
             return re.compile(query, flags)
         elif "*" in query or "?" in query:
-            # fnmatch.translate adds \Z anchor for full-string match; we want substring search
             pat = fnmatch.translate(query)
-            # Strip trailing \Z anchor to allow substring matching via search()
             if pat.endswith(r"\Z"):
                 pat = pat[:-2]
             return re.compile(pat, flags)
         else:
             return re.compile(re.escape(query), flags)
     except re.error:
-        # Fallback to literal search on invalid regex
         return re.compile(re.escape(query), flags)
 
 
@@ -42,19 +39,14 @@ def search_file(file_path, compiled_regex):
                         {"file": str(file_path), "line": line_num, "text": line.strip()}
                     )
     except (OSError, PermissionError):
-        pass  # Ignore
+        pass
     return matches
 
 
 def execute_search(
     root_dir, query, scope_dirs=None, is_regex=False, is_ignore_case=False
 ):
-    """
-    DreamStudio search executor.
-
-    Searches files across the given path. `scope_dirs` is a list of subdirectories to
-    restrict the search.
-    """
+    """DreamStudio search executor."""
     compiled_pattern = regex_compile_query(query, is_regex, is_ignore_case)
     target_files = []
     from editor.utils.solution.paths import DEFAULT_EXCLUDES
@@ -64,7 +56,6 @@ def execute_search(
     if scope_dirs:
         for sd in scope_dirs:
             p = Path(sd)
-            # If sd is absolute, don't join with root_dir (Path handles this, but be explicit)
             if p.is_absolute():
                 search_roots.append(p)
             else:
@@ -82,32 +73,31 @@ def execute_search(
             for file in files:
                 if file.endswith(
                     (
-                        ".py",  # Python
+                        ".py",
                         ".pyi",
-                        ".js",  # JavaScript
-                        ".ts",  # TypeScript
+                        ".js",
+                        ".ts",
                         ".c",
-                        ".cpp",  # C-Plus-Plus
-                        ".h",  # C/C++ Headers
-                        ".java",  # Java
-                        ".go",  # Go
+                        ".cpp",
+                        ".h",
+                        ".java",
+                        ".go",
                         ".rs",
-                        ".json",  # JSON files
+                        ".json",
                         ".yaml",
                         ".yml",
                         ".toml",
                         ".ini",
                         ".md",
                         ".txt",
-                        ".html",  # HTML files
-                        ".css",  # Cascadia SS files
+                        ".html",
+                        ".css",
                     )
                 ):
                     target_files.append(Path(root) / file)
 
     results = []
 
-    # Use ThreadPool since search_file is IO-bound and avoids Windows spawn issues
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(search_file, f, compiled_pattern) for f in target_files

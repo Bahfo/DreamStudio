@@ -1,8 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Intellisense mission: libclang completion engine and compile-flag
-resolution backing every semantic query of the plugin.
+Intellisense mission:
 """
 
 from editor.Ironica.plugins.cpp.intellisense.args import (

@@ -1,12 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Missing-header resolution for the C++ plugin.
-
-When a translation unit reports ``'X' file not found``, the header is
-located empirically: the compiler's own include list, the enclosing
-project tree, and the ``-I`` flags already in effect are searched for
-that exact filename.
 """
 
 from __future__ import annotations
@@ -24,11 +18,7 @@ _resolved: dict = {}
 
 
 def _project_root_for(file_path: str | None) -> str:
-    """Return the best search anchor for *file_path*.
-
-    Prefers the nearest ancestor holding a ``CMakeLists.txt``, else the
-    file's own directory. Never raises.
-    """
+    """Return the best search anchor for *file_path*."""
     if not file_path:
         try:
             return os.path.abspath(os.sep)
@@ -79,30 +69,12 @@ def _known_include_dirs(compile_args: list) -> list:
 
 
 def _find_in_system(header: str) -> list:
-    """Search system roots for directories holding *header*.
-
-    Covers ``<pkg>/<header>`` layouts via one subdir level without
-    assuming any package name.
-
-    Args:
-        header: Header filename or qualified path (``a/b.h``).
-
-    Returns:
-        Absolute directories (possibly empty).
-    """
+    """Search system roots for directories holding *header*."""
     return _find_in_dirs(header, _system_roots())
 
 
 def _find_in_dirs(header: str, dirs: list) -> list:
-    """Search explicit *dirs* (plus one level) for *header*.
-
-    Args:
-        header: Header filename or qualified path.
-        dirs: Directories already on the include path.
-
-    Returns:
-        Absolute directories (possibly empty).
-    """
+    """Search explicit *dirs* (plus one level) for *header*."""
     found: list = []
     for root in dirs:
         if os.path.isfile(os.path.join(root, header)):
@@ -124,15 +96,7 @@ def _find_in_dirs(header: str, dirs: list) -> list:
 
 
 def _find_in_project(header: str, anchor: str) -> list:
-    """Walk the project tree under *anchor* for *header* (bounded).
-
-    Args:
-        header: Header filename (basename match).
-        anchor: Project root to walk.
-
-    Returns:
-        Absolute directories (possibly empty).
-    """
+    """Walk the project tree under *anchor* for *header* (bounded)."""
     name = os.path.basename(header)
     if not name or not anchor or not os.path.isdir(anchor):
         return []
@@ -159,19 +123,7 @@ def _find_in_project(header: str, anchor: str) -> list:
 
 
 def locate_header(header: str, search_dirs: list, anchor: str) -> list:
-    """Locate *header* across known dirs, system roots and the project.
-
-    Shared by missing-header resolution and transitive include-graph
-    collection so both agree on where a header lives.
-
-    Args:
-        header: Header filename or qualified path (``a/b.h``).
-        search_dirs: Explicit include directories to try first.
-        anchor: Project root for the bounded tree walk.
-
-    Returns:
-        Ordered absolute directories holding *header* — never raises.
-    """
+    """Locate *header* across known dirs, system roots and the project."""
     try:
         name = str(header).strip()
         if not name:
@@ -188,14 +140,7 @@ def locate_header(header: str, search_dirs: list, anchor: str) -> list:
 
 
 def extra_flags_for(file_path: str | None) -> list:
-    """Return previously resolved ``-I`` flags for *file_path*'s project.
-
-    Args:
-        file_path: Source file requesting completion.
-
-    Returns:
-        Cached flags (possibly empty) — never raises.
-    """
+    """Return previously resolved ``-I`` flags for *file_path*'s project."""
     try:
         if not file_path:
             return []
@@ -207,17 +152,7 @@ def extra_flags_for(file_path: str | None) -> list:
 def resolve_missing(
     missing: list, file_path: str | None, compile_args: list | None = None
 ) -> bool:
-    """Locate missing headers and cache their ``-I`` dirs for the project.
-
-    Args:
-        missing: Header names from TU ``file not found`` diagnostics.
-        file_path: Source file requesting completion.
-        compile_args: Flags already in effect (their ``-I`` dirs are
-            searched first, so nested third-party trees resolve).
-
-    Returns:
-        ``True`` when at least one new flag was cached — never raises.
-    """
+    """Locate missing headers and cache their ``-I`` dirs for the project."""
     try:
         headers = [str(item).strip() for item in missing or [] if str(item).strip()]
         if not headers or not file_path:

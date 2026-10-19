@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Diagnostics overview ruler for DreamStudio.
 """
 
@@ -39,8 +38,6 @@ class DiagnosticsRuler(QWidget):
     TOP_PADDING = 2
     BOTTOM_PADDING = 2
 
-    #: Emitted with the hovered 0-based line, or ``-1`` when the pointer
-    #: leaves the lane.
     line_hovered = pyqtSignal(int)
 
     def __init__(self, source, parent=None, width=None):
@@ -59,14 +56,7 @@ class DiagnosticsRuler(QWidget):
         self.hide()
 
     def set_ticks(self, ticks) -> None:
-        """
-        Replace the lane contents with *ticks*.
-
-        Args:
-            ticks: Iterable of ``(line0, color_hex, severity)`` tuples.
-                *line0* is a 0-based line index and *severity* may be
-                ``None`` when the producer does not know it.
-        """
+        """Replace the lane contents with *ticks*."""
         payload = []
         for item in ticks or ():
             try:
@@ -132,22 +122,13 @@ class DiagnosticsRuler(QWidget):
         return int(round(top + (position / length) * track))
 
     def line_for_y(self, y: int) -> int:
-        """
-        Return the 0-based line closest to lane coordinate *y*.
-
-        Returns:
-            A line index in ``[0, lines() - 1]``, or ``-1`` when the source
-            document is empty.
-        """
+        """Return the 0-based line closest to lane coordinate *y*."""
         length = self._doc_length()
         if length <= 0:
             return -1
         top, track = self._track()
         ratio = max(0.0, min(1.0, (int(y) - top) / float(track)))
         try:
-            # The forward map rounds to whole pixels, so the inverse has to
-            # round to whole bytes as well: truncating here would drop clicks
-            # onto the previous line whenever a boundary sits next to a pixel.
             position = int(round(ratio * length))
             position = max(0, min(position, length - 1))
             line = self._source.SendScintilla(

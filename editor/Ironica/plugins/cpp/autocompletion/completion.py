@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 The Completion Manager and Object for C++ Extension - DreamStudio.
 """
 
@@ -17,12 +16,11 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from editor.Ironica import completion_profile as _profile
 
-# Local Imports
 from ..models import CppContext
 
 logger = logging.getLogger("DreamStudio.Cpp.CompletionManager")
-COMPLETION_DEBOUNCE_MS: int = 30  # Thirty milliseconds
-IDLE_PREQUERY_MS: int = 1500  # Pause before a speculative warm query
+COMPLETION_DEBOUNCE_MS: int = 30
+IDLE_PREQUERY_MS: int = 1500
 
 
 @dataclass(frozen=True)
@@ -108,7 +106,7 @@ class _CppCompletionWorker(threading.Thread):
                 if not items and not request.warmup:
                     items = self._index_fallback(request)
                 _profile.mark(self._owner._editor, "engine-done")
-            except Exception as exc:  # Bad input doesn't kill worker
+            except Exception as exc:
                 logger.warning("C++ completion engine failed: %s", exc)
                 items = []
             if self._shutting_down or self._current is not None:
@@ -122,19 +120,11 @@ class _CppCompletionWorker(threading.Thread):
                 _profile.mark(self._owner._editor, "emit")
                 self._owner.completions_ready.emit(request.request_id, list(items))
             except RuntimeError:
-                pass  # owner deleted with its editor
+                pass
             self._running = False
 
     def _prefetch(self, request: _CompletionRequest) -> None:
-        """Warm TU and completion caches without presenting anything.
-
-        Runs :meth:`prime` plus one discarded :meth:`complete` so the
-        next keystroke at this caret finds warm caches. Never emits,
-        never raises.
-
-        Args:
-            request: The prefetch request carrying the caret context.
-        """
+        """Warm TU and completion caches without presenting anything."""
         try:
             self._engine.prime(request.context)
             self._engine.complete(request.context)
@@ -142,14 +132,7 @@ class _CppCompletionWorker(threading.Thread):
             logger.debug("prefetch failed: %s", exc)
 
     def _emit_symbol_rows(self, request: _CompletionRequest) -> None:
-        """Emit instant buffer-name rows ahead of the semantic result.
-
-        The symbol cache refreshes on every new buffer version (~1ms),
-        so names being defined right now are included. Only plain naming
-        contexts qualify — member scopes and preprocessor lines keep
-        their dedicated engines. The full result replaces this batch
-        through the normal latest-wins path.
-        """
+        """Emit instant buffer-name rows ahead of the semantic result."""
         try:
             from .context import classify
 
@@ -177,20 +160,7 @@ class _CppCompletionWorker(threading.Thread):
             logger.debug("symbol fast path failed: %s", exc)
 
     def _sysindex_rows(self, request: _CompletionRequest) -> list:
-        """Return preloaded system-index rows for the request prefix.
-
-        Served under workspace rows; the semantic result replaces the
-        merged batch through the normal latest-wins path. Member-only
-        kinds (fields/methods/parameters) are excluded: they are never
-        valid bare identifiers, so serving them only produces
-        flash-then-vanish rows.
-
-        Args:
-            request: The completion request carrying file and prefix.
-
-        Returns:
-            System rows (possibly empty) — never raises.
-        """
+        """Return preloaded system-index rows for the request prefix."""
         try:
             from ..intellisense.index import (
                 NON_GLOBAL_COMPLETION_KINDS,
@@ -206,17 +176,7 @@ class _CppCompletionWorker(threading.Thread):
             return []
 
     def _index_fallback(self, request: _CompletionRequest) -> list:
-        """Search workspace and system indexes when the TU yields nothing.
-
-        Member-only kinds stay excluded here as well so the fallback
-        cannot surface the same invalid bare-identifier rows.
-
-        Args:
-            request: The finished completion request.
-
-        Returns:
-            Index rows (possibly empty) — never raises.
-        """
+        """Search workspace and system indexes when the TU yields nothing."""
         try:
             from ..intellisense.index import (
                 NON_GLOBAL_COMPLETION_KINDS,
@@ -233,16 +193,7 @@ class _CppCompletionWorker(threading.Thread):
             return []
 
     def _maybe_hint(self, request: _CompletionRequest, items: list) -> None:
-        """Emit a missing-include hint when semantic completion is empty.
-
-        Fires at most once per ``(file, headers)`` combination so typing
-        does not spam notifications. Runs on the worker thread; delivery
-        to the GUI thread happens through the ``completion_hint`` signal.
-
-        Args:
-            request: The finished completion request.
-            items: Semantic items produced for it (possibly empty).
-        """
+        """Emit a missing-include hint when semantic completion is empty."""
         try:
             if request.warmup or items:
                 return
@@ -261,7 +212,7 @@ class _CppCompletionWorker(threading.Thread):
                 shown += f", +{len(missing) - 4} more"
             self._owner.completion_hint.emit(request.request_id, shown)
         except RuntimeError:
-            pass  # owner deleted with its editor
+            pass
         except Exception as exc:
             logger.debug("completion hint failed: %s", exc)
 
@@ -275,10 +226,7 @@ class _CppCompletionWorker(threading.Thread):
 
 
 class CppCompletionManager(QObject):
-    """
-    Per-editor debounced completion bridge (editor-scoped,
-    never singleton).
-    """
+    """Per-editor debounced completion bridge (editor-scoped, never singleton)."""
 
     completions_ready = pyqtSignal(int, list)
     completion_hint = pyqtSignal(int, str)
@@ -292,10 +240,7 @@ class CppCompletionManager(QObject):
         debounce_ms: int = COMPLETION_DEBOUNCE_MS,
         parent: Optional[QObject] = None,
     ) -> None:
-        """
-        Wire debounce timer, worker thread, and editor teardown
-        guard.
-        """
+        """Wire debounce timer, worker thread, and editor teardown guard."""
 
         super().__init__(parent)
         self._editor = editor
@@ -326,13 +271,7 @@ class CppCompletionManager(QObject):
         self._compile_args = list(args or [])
 
     def query_cost_ms(self) -> float:
-        """Return the engine's smoothed parse+complete cost in milliseconds.
-
-        Used by the cost-scaled debounce. Never raises.
-
-        Returns:
-            Smoothed cost (``0.0`` when unknown).
-        """
+        """Return the engine's smoothed parse+complete cost in milliseconds."""
         try:
             getter = getattr(self._engine, "query_cost_ms", None)
             if getter is None:
@@ -349,21 +288,7 @@ class CppCompletionManager(QObject):
         file_path: Optional[str] = None,
         prefix: str = "",
     ) -> tuple:
-        """Return the TU flags the engine would use for this position.
-
-        Pure computation (no parsing) so the controller can detect flag
-        changes without submitting a query. Never raises.
-
-        Args:
-            source: Full buffer content.
-            line: 0-indexed cursor line.
-            col: 0-indexed cursor column.
-            file_path: File being edited.
-            prefix: Current completion prefix.
-
-        Returns:
-            Ordered flag tuple (possibly empty on any failure).
-        """
+        """Return the TU flags the engine would use for this position."""
         try:
             context = CppContext(
                 source_code=source,
@@ -406,7 +331,7 @@ class CppCompletionManager(QObject):
         self._request_counter += 1
         self._pending = CppContext(
             source_code=source,
-            line=line + 1,  # editor 0-indexed -> clang 1-indexed
+            line=line + 1,
             col=col + 1,
             file_path=file_path or self._file_path,
             compile_args=list(self._compile_args),
@@ -440,12 +365,7 @@ class CppCompletionManager(QObject):
         col: int,
         file_path: Optional[str] = None,
     ) -> None:
-        """Prime engine caches off the typing path; results are discarded.
-
-        Safe to call once per editor while idle: a real request always
-        supersedes the queued warmup, and a running warmup costs no more
-        than the cold parse the first keystroke would pay anyway.
-        """
+        """Prime engine caches off the typing path; results are discarded."""
         if self._dead or not self._enabled or not source:
             return
         try:
@@ -461,12 +381,7 @@ class CppCompletionManager(QObject):
             logger.debug("C++ completion warmup failed: %s", exc)
 
     def invalidate(self) -> None:
-        """Retire in-flight and armed requests without emitting.
-
-        Used when the user commits a completion: any background result
-        still computing belongs to the pre-commit buffer and must never
-        repaint the popup.
-        """
+        """Retire in-flight and armed requests without emitting."""
         self._request_counter += 1
         self._pending = None
         try:
@@ -494,12 +409,7 @@ class CppCompletionManager(QObject):
 
     @pyqtSlot()
     def _on_idle_fired(self) -> None:
-        """Speculatively warm caches at the idle caret; never presents.
-
-        Fires after a typing pause. Skipped while the worker is busy or
-        the caret sits outside a completable context — a real keystroke
-        always supersedes the prefetch through latest-wins numbering.
-        """
+        """Speculatively warm caches at the idle caret; never presents."""
         if not self._enabled or self._dead:
             return
         if self._worker.is_busy():

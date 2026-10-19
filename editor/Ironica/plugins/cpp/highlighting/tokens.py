@@ -1,15 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 libclang semantic overlay for C++ buffers.
-
-The JSON lexer keeps keywords, strings, comments, numbers, and
-operators; this module adds identifier intelligence on top via
-Scintilla indicator ranges: every ``IDENTIFIER`` token resolves its
-declaration through ``token.cursor`` and paints in that symbol's
-theme color (VSCode-style semantic tokens). Offsets are absolute
-UTF-8 bytes, self-validated against token spellings so libclang
-column units can never shift highlights.
 """
 
 from __future__ import annotations
@@ -140,15 +131,7 @@ def _kind_name(cursor) -> str:
 
 
 def _resolve_decl(cursor):
-    """Follow references to the declaration behind a use-site cursor.
-
-    Args:
-        cursor: libclang cursor attached to an identifier token.
-
-    Returns:
-        The resolved declaration cursor, or the original cursor when
-        it already is a declaration or cannot be followed further.
-    """
+    """Follow references to the declaration behind a use-site cursor."""
     node = cursor
     for _ in range(4):
         if node is None or isinstance(node, str):
@@ -182,15 +165,7 @@ def _line_byte_offsets(source: str) -> List[int]:
 def _resolve_colors(
     config: Optional[dict], theme_name: Optional[str] = None
 ) -> Dict[str, str]:
-    """Resolve theme colors for categories from a language config.
-
-    Args:
-        config: Raw language config with ``styles``/``palette`` sections.
-        theme_name: Active IDE theme; resolved automatically when omitted.
-
-    Returns:
-        Category-to-hex mapping with hard fallbacks for missing keys.
-    """
+    """Resolve theme colors for categories from a language config."""
     colors = dict(_RICH_FALLBACK)
     if isinstance(config, dict):
         try:
@@ -244,12 +219,7 @@ def _token_kind_name(token) -> str:
 
 
 def _locate(line_bytes: bytes, spelling: bytes, hint: int) -> int:
-    """Locate *spelling* in *line_bytes* nearest the hinted column.
-
-    Only word-boundary matches count, so earlier same-word prefixes
-    can never collide regardless of libclang column units. Returns
-    the byte column or ``-1``.
-    """
+    """Locate *spelling* in *line_bytes* nearest the hinted column."""
     if not spelling or hint < 0:
         return -1
     best = -1
@@ -276,11 +246,7 @@ def _locate(line_bytes: bytes, spelling: bytes, hint: int) -> int:
 def _include_ranges(
     source: str, line_offsets: List[int], colors: dict
 ) -> List[Tuple[int, int, str]]:
-    """Paint library names after ``#include`` in the header color.
-
-    The lexer colors the whole ``<…>``/``"…"`` span as a string; this
-    overlay recolors just the path so headers read distinctly.
-    """
+    """Paint library names after ``#include`` in the header color."""
     color = colors.get("header")
     if not color:
         return []
@@ -299,15 +265,7 @@ def _include_ranges(
 
 
 def _guess_category(spelling: str, after: str) -> Optional[str]:
-    """Guess a highlight category when libclang gives no declaration.
-
-    Args:
-        spelling: Identifier text at the use site.
-        after: Source text following the identifier on its line.
-
-    Returns:
-        Category name, or ``None`` for keywords that the lexer owns.
-    """
+    """Guess a highlight category when libclang gives no declaration."""
     if not spelling or spelling in _CALL_KEYWORDS:
         return None
     if after.lstrip().startswith("("):
@@ -389,29 +347,13 @@ def _in_exclusion(pos: int, length: int, exclude: List[Tuple[int, int]]) -> bool
 def _fallback_ranges(
     source: str, line_offsets: List[int], colors: Dict[str, str]
 ) -> List[Tuple[int, int, str]]:
-    """Compute regex highlights when libclang is unavailable.
-
-    Args:
-        source: Full editor buffer content.
-        line_offsets: Cumulative UTF-8 byte offsets per line.
-        colors: Category-to-color mapping from the active theme.
-
-    Returns:
-        Sorted, deduplicated overlay ranges.
-    """
+    """Compute regex highlights when libclang is unavailable."""
     out: List[Tuple[int, int, str]] = []
     exclude = _exclusion_ranges(source)
     raw_lines = source.split("\n")
 
     def _emit(line_no: int, char_col: int, text: str, category: str) -> None:
-        """Append one overlay range unless it is empty or excluded.
-
-        Args:
-            line_no: Zero-indexed source line.
-            char_col: Zero-indexed character column of *text* on the line.
-            text: Exact source substring to paint.
-            category: Category name whose colour should be applied.
-        """
+        """Append one overlay range unless it is empty or excluded."""
         color = colors.get(category)
         if not color or not text:
             return
@@ -470,15 +412,7 @@ def _merge_with_fallback(
     primary: List[Tuple[int, int, str]],
     fallback: List[Tuple[int, int, str]],
 ) -> List[Tuple[int, int, str]]:
-    """Merge libclang ranges over regex fallback ranges.
-
-    Args:
-        primary: Authoritative libclang ranges winning any overlap.
-        fallback: Regex ranges filling gaps libclang missed.
-
-    Returns:
-        Sorted, non-overlapping overlay ranges.
-    """
+    """Merge libclang ranges over regex fallback ranges."""
     if not fallback:
         combined = sorted(primary)
     elif not primary:
@@ -486,15 +420,21 @@ def _merge_with_fallback(
     else:
         spans = sorted((s, s + n) for s, n, _ in primary)
         kept = list(primary)
-        for start, length, color in fallback:
+        cursor = 0
+        span_count = len(spans)
+        for start, length, color in sorted(fallback):
             end = start + length
+            index = cursor
+            while index < span_count and spans[index][1] <= start:
+                index += 1
+            cursor = index
             overlap = False
-            for p_start, p_end in spans:
-                if start < p_end and end > p_start:
+            probe = index
+            while probe < span_count and spans[probe][0] < end:
+                if spans[probe][1] > start:
                     overlap = True
                     break
-                if p_start >= end:
-                    break
+                probe += 1
             if not overlap:
                 kept.append((start, length, color))
         combined = sorted(kept)
@@ -510,17 +450,7 @@ def _merge_with_fallback(
 def compute_highlights(
     source: str, tu, colors: Dict[str, str], main_path: Optional[str] = None
 ) -> List[Tuple[int, int, str]]:
-    """Compute ``(start, length, color)`` overlays for identifier tokens.
-
-    Args:
-        source: Full editor buffer content.
-        tu: Parsed translation unit for token and cursor resolution.
-        colors: Category-to-color mapping from the active theme.
-        main_path: Main-file path; tokens from headers are skipped.
-
-    Returns:
-        Sorted, non-overlapping overlay ranges with UTF-8 byte offsets.
-    """
+    """Compute ``(start, length, color)`` overlays for identifier tokens."""
     if not source or not source.strip():
         return []
     line_offsets = _line_byte_offsets(source)

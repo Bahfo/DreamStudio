@@ -1,8 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Explorer options menu providing sort, hidden-files toggle, and path-copy
-actions for the Solution Explorer status bar.
+Explorer options menu providing sort, hidden-files toggle, and path-copy actions for the Solution Explorer status bar.
 """
 
 from __future__ import annotations
@@ -24,15 +22,7 @@ class SortMode(IntEnum):
 
 
 class ExplorerOptionsMenu(QMenu):
-    """Context-style popup menu anchored to the status-bar ``...`` button.
-
-    Provides three groups of actions:
-    1. **Sort by** -- file-ordering strategy applied to the proxy model.
-    2. **Show Hidden Files** -- toggle visibility of dot-prefixed / OS-hidden
-       entries through the proxy model.
-    3. **Copy Solution Path** -- copies the current workspace root path to the
-       system clipboard.
-    """
+    """Context-style popup menu anchored to the status-bar ``...`` button."""
 
     def __init__(
         self,
@@ -109,11 +99,7 @@ def create_options_button(
     menu: ExplorerOptionsMenu,
     parent: QWidget | None = None,
 ) -> QPushButton:
-    """Factory that builds the ``...`` button wired to *menu*.
-
-    Returns a flat, fixed-size ``QPushButton`` whose ``clicked`` signal
-    opens *menu* directly below the button.
-    """
+    """Factory that builds the ``...`` button wired to *menu*."""
     btn = QPushButton("\u2026", parent)
     btn.setObjectName("ExplorerOptionsButton")
     btn.setFixedSize(28, 28)

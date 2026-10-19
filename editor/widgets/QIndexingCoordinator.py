@@ -1,13 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Shared coordinator for background indexing progress.
-
-Python (``ProblemsWidget``) and C++ (``CppIndexer``) index side by side
-but own a single status-bar indicator. The coordinator multiplexes their
-identical ``(started, progress, finished)`` trios: the latest active
-session owns the label while finished sessions release the bar only when
-no session remains.
 """
 
 from editor import *
@@ -21,19 +14,10 @@ MESSAGES = {
 
 
 class IndexingCoordinator(QObject):
-    """Multiplex per-language indexing sessions onto one progress bar.
-
-    Attributes:
-        bar: The ``IndexingProgress`` widget being driven.
-    """
+    """Multiplex per-language indexing sessions onto one progress bar."""
 
     def __init__(self, bar, parent=None) -> None:
-        """Bind *bar* driven by per-source indexing sessions.
-
-        Args:
-            bar: ``IndexingProgress`` widget to drive.
-            parent: Optional parent object.
-        """
+        """Bind *bar* driven by per-source indexing sessions."""
         super().__init__(parent)
         self._bar = bar
         self._sessions: dict = {}
@@ -43,13 +27,7 @@ class IndexingCoordinator(QObject):
 
     @pyqtSlot(str, int, str)
     def start(self, source: str, total: int, message: str = "") -> None:
-        """Open (or restart) the indexing session for *source*.
-
-        Args:
-            source: Session key (e.g. ``"python"`` or ``"cpp"``).
-            total: Number of items to process.
-            message: Label override (per-source default when empty).
-        """
+        """Open (or restart) the indexing session for *source*."""
         total = max(1, int(total))
         self._sessions[source] = [0, total]
         if source in self._order:
@@ -61,12 +39,7 @@ class IndexingCoordinator(QObject):
 
     @pyqtSlot(str, int)
     def advance(self, source: str, done: int) -> None:
-        """Report *done* processed items for *source*.
-
-        Args:
-            source: Session key.
-            done: Items processed so far.
-        """
+        """Report *done* processed items for *source*."""
         if source not in self._sessions:
             return
         self._sessions[source][0] = max(0, int(done))
@@ -74,11 +47,7 @@ class IndexingCoordinator(QObject):
 
     @pyqtSlot(str)
     def finish(self, source: str) -> None:
-        """Close the session for *source*, hiding the bar when last.
-
-        Args:
-            source: Session key.
-        """
+        """Close the session for *source*, hiding the bar when last."""
         self._sessions.pop(source, None)
         if source in self._order:
             self._order.remove(source)

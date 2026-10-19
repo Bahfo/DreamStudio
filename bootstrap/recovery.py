@@ -1,9 +1,4 @@
-"""
-RecoveryWindow: displays unrecoverable startup failures.
-
-Uses assets/error_crash.svg as a full-window background with overlaid
-widgets for the error details textbox and action buttons.
-"""
+"""RecoveryWindow:"""
 
 import logging
 import os
@@ -25,7 +20,7 @@ def _get_assets_dir() -> str:
     import sys
 
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, "assets")  # type: ignore[attr-defined]
+        return os.path.join(sys._MEIPASS, "assets")
     return os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "assets",
@@ -37,11 +32,7 @@ _SVG_PATH = os.path.join(_ASSETS_DIR, "error_crash.svg")
 
 
 class RecoveryWindow(QMainWindow):
-    """Window shown when startup fails critically.
-
-    Renders error_crash.svg as the full background and overlays a
-    scrollable textbox for the error details plus Retry/Quit buttons.
-    """
+    """Window shown when startup fails critically."""
 
     _W, _H = 800, 533
 
@@ -63,9 +54,6 @@ class RecoveryWindow(QMainWindow):
         self._build_ui()
         logger.warning("RecoveryWindow created: %s", message)
 
-    # ------------------------------------------------------------------
-    # Background
-    # ------------------------------------------------------------------
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
@@ -75,9 +63,6 @@ class RecoveryWindow(QMainWindow):
             painter.fillRect(0, 0, self._W, self._H, Qt.GlobalColor.darkBlue)
         painter.end()
 
-    # ------------------------------------------------------------------
-    # UI
-    # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
         text_content = self._message
@@ -86,7 +71,6 @@ class RecoveryWindow(QMainWindow):
                 text_content += "\n\n"
             text_content += self._details
 
-        # -- Error details textbox (between the two SVG label lines) --
         self._text_edit = QTextEdit(self)
         self._text_edit.setReadOnly(True)
         self._text_edit.setPlainText(text_content)
@@ -121,7 +105,6 @@ class RecoveryWindow(QMainWindow):
             "}"
         )
 
-        # -- Retry button (right side, above the causality-fix text) --
         retry_btn = QPushButton("Retry", self)
         retry_btn.setGeometry(560, 430, 100, 32)
         retry_btn.setStyleSheet(
@@ -142,7 +125,6 @@ class RecoveryWindow(QMainWindow):
         )
         retry_btn.clicked.connect(self._on_retry)
 
-        # -- Quit button (right side, next to Retry) --
         quit_btn = QPushButton("Quit", self)
         quit_btn.setGeometry(672, 430, 80, 32)
         quit_btn.setStyleSheet(
@@ -163,9 +145,6 @@ class RecoveryWindow(QMainWindow):
         )
         quit_btn.clicked.connect(self._on_quit)
 
-    # ------------------------------------------------------------------
-    # Actions
-    # ------------------------------------------------------------------
 
     def _on_retry(self) -> None:
         for label, action in self._recovery_actions:

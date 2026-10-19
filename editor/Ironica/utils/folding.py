@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Consolidated folding utilities for DreamStudio.
 """
 
@@ -30,7 +29,6 @@ class FoldManager:
     """Language-agnostic fold region manager for a QsciScintilla editor."""
 
     # NOTE: Must stay in sync with CodeEditor.MARGIN_FOLD. Fold owns
-    # margin 3; modified/saved owns margin 4 (last before text).
     FOLD_MARGIN = 3
     FOLD_MARGIN_WIDTH = 14
     ARROW_SIZE = 12
@@ -53,9 +51,6 @@ class FoldManager:
         e.setMarginSensitivity(margin, True)
         e.setMarginMarkerMask(margin, QsciScintilla.SC_MASK_FOLDERS)
 
-        # Tail markers share a thin vertical connecting line; the fold
-        # headers (up/down chevrons) are drawn as pixmaps in
-        # ``_apply_theme_colours``.
         for marker in (
             QsciScintilla.SC_MARKNUM_FOLDERSUB,
             QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL,
@@ -67,16 +62,7 @@ class FoldManager:
 
     @staticmethod
     def _blend(first: QColor, second: QColor, amount: float) -> QColor:
-        """Blend *first* toward *second* by *amount* (0.0-1.0).
-
-        Args:
-            first: Base colour.
-            second: Colour to blend toward.
-            amount: Blend factor clamped to ``0.0``-``1.0``.
-
-        Returns:
-            The blended ``QColor``.
-        """
+        """Blend *first* toward *second* by *amount* (0.0-1.0)."""
         t = max(0.0, min(1.0, amount))
         return QColor(
             int(first.red() + (second.red() - first.red()) * t),
@@ -87,23 +73,7 @@ class FoldManager:
     def _arrow_pixmap(
         self, color: QColor, up: bool, stem_color: QColor | None = None
     ) -> QPixmap:
-        """Build a VS Code-style chevron-arrow pixmap for a fold header.
-
-        The arrow is painted on an 8x supersampled canvas with a thin
-        round-capped stroke and generous padding, then downscaled with
-        smooth filtering at the screen's device pixel ratio so it
-        renders soft and anti-aliased instead of pixelated. A short
-        vertical stem below the chevron ties the header into the fold
-        extent line drawn on the lines beneath it.
-
-        Args:
-            color: Chevron stroke colour.
-            up: Chevron direction; ``True`` points toward the fold header.
-            stem_color: Extent-line colour, or ``None`` for no stem.
-
-        Returns:
-            A DPR-aware ``QPixmap`` of logical size ``ARROW_SIZE``.
-        """
+        """Build a VS Code-style chevron-arrow pixmap for a fold header."""
         s = self.ARROW_SIZE
         scale = 8
         try:
@@ -173,8 +143,6 @@ class FoldManager:
         e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL)
         e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERTAIL)
 
-        # A collapsed fold points back up toward its header; an expanded
-        # fold points down into its body (VS Code chevron style).
         e.SendScintilla(
             QsciScintilla.SCI_MARKERDEFINEPIXMAP,
             QsciScintilla.SC_MARKNUM_FOLDER,
@@ -199,22 +167,13 @@ class FoldManager:
         e.setFoldMarginColors(mid, mid)
 
     def _apply_colours(self, e: QsciScintilla) -> None:
-        """Apply the fold-margin colours from the editor's palette.
-
-        The colours are derived from the editor's current palette so a
-        theme switch can re-run this method to keep the fold gutter in
-        sync with the active theme.
-        """
+        """Apply the fold-margin colours from the editor's palette."""
         pal = e.palette()
         bg = pal.color(pal.ColorRole.Window)
         self._apply_theme_colours(e, bg)
 
     def retheme(self, bg: QColor) -> None:
-        """Recolour the fold gutter after a theme change.
-
-        The gutter background uses a shade of the editor background
-        (*bg*) so it stays visually anchored to the active theme.
-        """
+        """Recolour the fold gutter after a theme change."""
         self._apply_theme_colours(self._editor, bg)
 
     def _connect_signals(self) -> None:
@@ -268,14 +227,7 @@ class FoldManager:
         return None
 
     def _apply_fold_levels(self) -> None:
-        """Translate the custom regions into working nested fold levels.
-
-        Writes every line exactly once (no separate reset pass) and
-        accumulates nesting depth with a difference array, so the whole
-        pass is ``O(lines + regions)`` with ``n`` Scintilla calls for
-        ``n`` lines. Modification notifications are masked during the
-        bulk write to avoid per-line re-layout churn.
-        """
+        """Translate the custom regions into working nested fold levels."""
         e = self._editor
         total_lines = e.lines()
         if total_lines == 0:
@@ -321,7 +273,6 @@ class FoldManager:
                 except Exception:
                     pass
 
-        # Step 5: Restore state memory blocks across buffer updates
         for region in self._regions:
             if region.folded and region.start_line < total_lines:
                 is_expanded = e.SendScintilla(

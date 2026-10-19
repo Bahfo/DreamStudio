@@ -1,14 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Fast buffer symbol table for instant naming completion.
-
-libclang stays silent or slow in several real situations (cold parse,
-broken code, macro bodies), yet the names the user needs are usually
-already visible in the open buffer. This module extracts them with a
-single linear lexical pass (~1ms) and serves prefix matches instantly
-while the semantic engine still computes. Kinds are real
-(function/method/field/type/...) — never plain text.
 """
 
 from __future__ import annotations
@@ -59,25 +51,12 @@ def _strip_line(line: str) -> str:
 
 
 def scan_symbols(source: str) -> List[Symbol]:
-    """Extract declarations from *source* in a single linear pass.
-
-    Tracks brace depth with a scope stack so members land in their
-    record scope and globals stay global. Multi-line signatures are
-    skipped by design (clang covers complete code); malformed lines
-    never raise.
-    """
+    """Extract declarations from *source* in a single linear pass."""
     found: List[Symbol] = []
     seen: set = set()
 
     def add(name: str, kind: str, line: int, scope: str = "") -> None:
-        """Record one declaration, skipping duplicates.
-
-        Args:
-            name: Identifier being declared.
-            kind: Declaration category (function, field, type, ...).
-            line: One-indexed source line of the declaration.
-            scope: Enclosing record or namespace, empty for globals.
-        """
+        """Record one declaration, skipping duplicates."""
         key = (name, kind, scope)
         if name and key not in seen:
             seen.add(key)

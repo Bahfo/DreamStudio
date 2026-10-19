@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Singleton VCS status broker mediating between the Solution Explorer and
-the Source Control panel. Neither panel references the other; both talk
-exclusively to this service, which owns the scanning thread and the
-lock-guarded status snapshot.
+Singleton VCS status broker mediating between the Solution Explorer and the Source Control panel.
 """
 
 from editor import *
@@ -13,19 +9,27 @@ from editor.utils.git_control.git_control import get_status_map, return_reposito
 
 logger = logging.getLogger(__name__)
 
+#: Strong references to workers that have been started. See the note in
+_RETAINED_WORKERS: list = []
 
-class _ScanWorker(QThread):
-    """
-    Event-driven scan loop living off the GUI thread.
 
-    Wakes exclusively when an operation requests a scan. A dirty flag set
-    during an active scan coalesces bursts into exactly one follow-up
-    pass instead of queuing per-operation work.
+def _retain_worker(worker) -> None:
+    """Keep *worker* alive for the life of the process.
+
+    Args:
+        worker: The started ``_ScanWorker`` to retain.
     """
+    if worker not in _RETAINED_WORKERS:
+        _RETAINED_WORKERS.append(worker)
+
+
+class _ScanWorker(QObject):
+    """Event-driven scan loop living off the GUI thread."""
 
     statuses_ready = pyqtSignal(str, dict)
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
+        # NOTE: deliberately NOT parented to the owning service. Qt destroys a
         super().__init__(parent)
         self._wake_event = threading.Event()
         self._state_lock = threading.Lock()
@@ -33,6 +37,20 @@ class _ScanWorker(QThread):
         self._running = True
         self._root: Optional[str] = None
         self._generation = 0
+        self._thread: Optional[threading.Thread] = None
+
+    def start_scan(self) -> None:
+        """Launch the scan loop on a fresh daemon thread (idempotent)."""
+        if self._thread is not None and self._thread.is_alive():
+            return
+        thread = threading.Thread(
+            target=self._loop,
+            name="DreamStudio-VcsScanner",
+            daemon=True,
+        )
+        self._thread = thread
+        thread.start()
+        _retain_worker(self)
 
     def set_root(self, root_path: Optional[str]) -> None:
         """Update the scanned workspace root and force a fresh scan."""
@@ -40,9 +58,7 @@ class _ScanWorker(QThread):
             self._root = root_path
             self._dirty = False
             self._generation += 1
-            gen = self._generation
         self._wake_event.set()
-        self._pending_gen = gen
 
     def request_scan(self, reason: str = "") -> None:
         """Coalesce a scan request; concurrent requests collapse to one."""
@@ -57,7 +73,15 @@ class _ScanWorker(QThread):
             self._running = False
         self._wake_event.set()
 
-    def run(self) -> None:
+    def join(self, timeout: float = 3.0) -> bool:
+        """Wait for the scan thread to exit."""
+        thread = self._thread
+        if thread is None or not thread.is_alive():
+            return True
+        thread.join(timeout)
+        return not thread.is_alive()
+
+    def _loop(self) -> None:
         """Block until woken, scan, publish; repeat until stopped."""
         while True:
             self._wake_event.wait()
@@ -77,7 +101,12 @@ class _ScanWorker(QThread):
                     return
             if superseded:
                 continue
-            self.statuses_ready.emit(repo_root, snapshot)
+            try:
+                self.statuses_ready.emit(repo_root, snapshot)
+            except RuntimeError:
+                return
+            except Exception:
+                logger.debug("VCS status publish failed", exc_info=True)
 
     @staticmethod
     def _scan(root_path: Optional[str]) -> tuple[str, dict[str, str]]:
@@ -95,26 +124,22 @@ class _ScanWorker(QThread):
 
 
 class GitStatusService(QObject):
-    """
-    Lock-guarded publisher of repository status snapshots.
-
-    Consumers connect to :attr:`statuses_updated`; the payload maps
-    repository-relative paths to ``M``/``U``/``A`` symbols. Files without
-    changes are intentionally absent so renderers skip them entirely.
-    """
+    """Lock-guarded publisher of repository status snapshots."""
 
     statuses_updated = pyqtSignal(str, dict)
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
+        self._stopped = False
         self._worker = _ScanWorker()
+        _retain_worker(self._worker)
         self._snapshot_lock = threading.Lock()
         self._snapshot: Dict[str, str] = {}
         self._repo_root = ""
         self._expected_root = ""
 
         self._worker.statuses_ready.connect(self._on_statuses_ready)
-        self._worker.start()
+        self._worker.start_scan()
 
         application = QApplication.instance()
         if application is not None:
@@ -141,9 +166,19 @@ class GitStatusService(QObject):
             return self._repo_root
 
     def stop(self) -> None:
-        """Stop the worker and flush state; invoked on application quit."""
-        self._worker.stop()
-        self._worker.wait(3000)
+        """Stop the scan loop and wait for its thread to exit."""
+        if self._stopped:
+            return
+        self._stopped = True
+        worker = getattr(self, "_worker", None)
+        if worker is None:
+            return
+        try:
+            worker.stop()
+            if not worker.join(3.0):
+                logger.warning("VCS scan thread did not finish within 3s")
+        except Exception:
+            logger.debug("VCS worker stop failed", exc_info=True)
 
     def _on_statuses_ready(self, repo_root: str, snapshot: dict) -> None:
         """Store the fresh snapshot under the lock, then republish it."""
@@ -179,3 +214,22 @@ def get_status_service() -> GitStatusService:
     if _service is None:
         _service = GitStatusService()
     return _service
+
+
+def _shutdown_status_service() -> None:
+    """Join the scan thread at interpreter exit, before Qt tears down.
+
+    Registered with :mod:`atexit` so the singleton is stopped while the
+    ``QApplication`` still exists; relying on module-global collection
+    alone leaves the worker running into Qt's finalisation.
+    """
+    service = _service
+    if service is None:
+        return
+    try:
+        service.stop()
+    except Exception:
+        pass
+
+
+atexit.register(_shutdown_status_service)

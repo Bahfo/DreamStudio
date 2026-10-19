@@ -1,13 +1,4 @@
-# (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-"""Thread-safe background diagnostics and completions bridge for DreamStudio.
-
-Coordinates async evaluation tasks off the main thread while safely
-rendering calculated visual overlays back on the primary window buffer.
-
-Jedi analysis is CPU-bound (GIL), so diagnostics and completions are
-delegated to a dedicated analysis-server subprocess; the worker thread
-only performs the blocking request/response round-trip.
-"""
+"""Thread-safe background diagnostics and completions bridge for DreamStudio."""
 
 from __future__ import annotations
 
@@ -31,18 +22,7 @@ _SYNTAX_COLOR: str = "#F14C4C"
 
 
 def _merge_spans(diagnostics: List[dict]) -> List[dict]:
-    """Merge overlapping/adjacent spans that share a line.
-
-    parso reports nested error nodes (an ``error_node`` wrapping an
-    ``error_leaf``), which would otherwise paint two squiggles over the
-    same characters.
-
-    Args:
-        diagnostics: Collected wire dicts, in walk order.
-
-    Returns:
-        New list with at most one entry per merged span.
-    """
+    """Merge overlapping/adjacent spans that share a line."""
     by_line: dict = {}
     for entry in diagnostics:
         by_line.setdefault(entry["line"], []).append(entry)
@@ -65,45 +45,14 @@ def _merge_spans(diagnostics: List[dict]) -> List[dict]:
 
 
 def _diag_field(diag, name: str, default):
-    """Read *name* from a diagnostic whether it is a dict or an object.
-
-    The remote worker always yields wire dicts; the in-process path may
-    yield jedi objects.  Both reach this manager, so both shapes must be
-    readable here.
-
-    Args:
-        diag: Wire dict or diagnostic object.
-        name: Field to read.
-        default: Value used when the field is absent.
-
-    Returns:
-        The field value, or *default*.
-    """
+    """Read *name* from a diagnostic whether it is a dict or an object."""
     if isinstance(diag, dict):
         return diag.get(name, default)
     return getattr(diag, name, default)
 
 
 def _syntax_diagnostics(source: str) -> List[dict]:
-    """Return syntax diagnostics for *source* as plain wire dicts.
-
-    NOTE: ``jedi.Script.get_diagnostics`` was removed in jedi 0.19, so
-    diagnostics come from ``parso``'s error-recovery parse instead (the
-    same parser jedi itself uses).  That covers *syntax* errors only —
-    semantic/lint diagnostics such as undefined names are not
-    implemented.
-
-    Keep this in sync with the identical helper in
-    ``editor.Ironica.analysis_server``: the analysis child stubs out the
-    whole ``Ironica`` subtree, so the two cannot share a module.
-
-    Args:
-        source: Full buffer content.
-
-    Returns:
-        List of ``{line, start_col, end_line, end_col, color, message}``
-        dicts with 1-based lines — capped, never raises.
-    """
+    """Return syntax diagnostics for *source* as plain wire dicts."""
     try:
         import parso
 
@@ -159,12 +108,7 @@ class _AnalysisRequest:
 
 
 class _DiagnosticWorker(threading.Thread):
-    """Runs background diagnostics on a plain Python thread.
-
-    Like the analysis worker, this intentionally avoids ``QThread`` so an
-    editor collected mid-evaluation can never abort Qt; the owner's signal
-    is emitted from the worker thread (safe, queued to the owner's thread).
-    """
+    """Runs background diagnostics on a plain Python thread."""
 
     def __init__(self, owner: "DiagnosticManager") -> None:
         super().__init__(name="DreamStudio-DiagnosticsWorker", daemon=True)
@@ -188,11 +132,7 @@ class _DiagnosticWorker(threading.Thread):
             self.start()
 
     def _remote_diagnostics(self, request: _AnalysisRequest):
-        """Ask the shared analysis subprocess to run jedi over the buffer.
-
-        Returns the diagnostics list, or ``None`` when the request was
-        dropped because this owner is no longer the focused tab.
-        """
+        """Ask the shared analysis subprocess to run jedi over the buffer."""
         response = process_manager.request(
             self._owner.owner_id,
             ("diagnostics", request.request_id, request.source, request.file_path),
@@ -206,14 +146,7 @@ class _DiagnosticWorker(threading.Thread):
         return response[2]
 
     def _fallback_diagnostics(self, request: _AnalysisRequest) -> List[dict]:
-        """Graceful degradation: report syntax errors when the server is down.
-
-        Uses the same parso error-recovery pass as the analysis server so a
-        dead subprocess degrades to reduced coverage rather than to
-        *no* diagnostics at all.  See the note on
-        :func:`_syntax_diagnostics` for why the helper is duplicated
-        rather than shared.
-        """
+        """Graceful degradation:"""
         return _syntax_diagnostics(request.source)
 
     def run(self) -> None:
@@ -233,12 +166,11 @@ class _DiagnosticWorker(threading.Thread):
             try:
                 diagnostics = self._remote_diagnostics(request)
                 if diagnostics is None:
-                    continue  # dropped — owner is no longer active
+                    continue
             except Exception as exc:
                 if self._is_shutting_down or not process_manager.is_active(
                     self._owner.owner_id
                 ):
-                    # Intentional teardown / lost focus — not a bug.
                     logger.debug("Diagnostics subprocess failed: %s", exc)
                     continue
                 logger.error("Diagnostics subprocess failed: %s", exc)
@@ -248,27 +180,17 @@ class _DiagnosticWorker(threading.Thread):
                 try:
                     self._owner._results_ready.emit(request.request_id, diagnostics)
                 except RuntimeError:
-                    pass  # Owner torn down while we were computing
+                    pass
 
     def shutdown(self) -> None:
-        """Stop the worker.
-
-        The shared process is deliberately left untouched: it is owned by
-        the process manager and stays warm for other tabs.  The worker is
-        a daemon thread, so it simply exits once its current round-trip
-        finishes — never blocking the caller on a busy child.
-        """
+        """Stop the worker."""
         self._is_shutting_down = True
         self._current_request = None
         self._wake.set()
 
 
 class DiagnosticManager(QObject):
-    """Debounced diagnostics bridge for one editor.
-
-    Owns a debounce timer plus a worker thread that asks the shared
-    analysis subprocess for diagnostics and paints the result back onto
-    the editor.  Per-editor, never shared."""
+    """Debounced diagnostics bridge for one editor."""
     _results_ready = pyqtSignal(int, list)
 
     def __init__(
@@ -311,8 +233,8 @@ class DiagnosticManager(QObject):
             try:
                 self._debounce_timer.stop()
             except RuntimeError:
-                pass  # timer already deleted with the editor
-            self._request_counter += 1  # invalidate any pending evaluation
+                pass
+            self._request_counter += 1
 
     def invalidate(self) -> None:
         """Increment the request counter so any pending evaluation is dropped."""
@@ -330,7 +252,7 @@ class DiagnosticManager(QObject):
             )
             self._debounce_timer.start()
         except RuntimeError:
-            pass  # timer deleted with the editor — nothing left to debounce
+            pass
         except Exception:
             try:
                 self._debounce_timer.start()
@@ -339,10 +261,7 @@ class DiagnosticManager(QObject):
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
-        """Submit the current buffer to the worker once debounced.
-
-        Skipped while a completion popup owns the caret so the two
-        never compete for the analysis subprocess."""
+        """Submit the current buffer to the worker once debounced."""
         if not self._enabled:
             return
         _profile.mark(self._editor, "diag-fire")
@@ -361,14 +280,7 @@ class DiagnosticManager(QObject):
 
     @staticmethod
     def _batch_ranges(diagnostics) -> list:
-        """Convert diagnostics to editor ``set_diagnostic_ranges`` tuples.
-
-        Args:
-            diagnostics: Wire dicts or diagnostic objects.
-
-        Returns:
-            List of ``(line0, start_col, line0, end_col, color)`` tuples.
-        """
+        """Convert diagnostics to editor ``set_diagnostic_ranges`` tuples."""
         ranges = []
         for diag in diagnostics or []:
             line = _diag_field(diag, "line", 1)
@@ -388,12 +300,11 @@ class DiagnosticManager(QObject):
     def _apply_results(self, request_id: int, diagnostics: List[dict]) -> None:
         """Paint worker diagnostics onto the editor on the UI thread."""
         if request_id < self._request_counter:
-            return  # Drop out-of-order evaluations
+            return
 
         try:
             setter = getattr(self._editor, "set_diagnostic_ranges", None)
             if setter is None:
-                # Legacy editors expose only the one-at-a-time API.
                 ranges = self._batch_ranges(diagnostics)
                 self._editor.clear_diagnostic_underlines()
                 for start_line, start_col, end_line, end_col, color in ranges:
@@ -431,18 +342,12 @@ class DiagnosticManager(QObject):
         try:
             self._debounce_timer.stop()
         except RuntimeError:
-            pass  # timer already deleted with the editor
+            pass
         self._worker.shutdown()
         process_manager.release(self._owner_id)
 
 
-# =====================================================================
-# Completion Worker
-# =====================================================================
-
 # NOTE: The completion controller already debounces keystrokes (40 ms)
-# before reaching this manager, so only a token coalescing delay is kept
-# here to merge bursts arriving from multiple editors.
 COMPLETION_DEBOUNCE_MS: int = 30
 _MAX_COMPLETION_ITEMS: int = 50
 
@@ -459,13 +364,7 @@ class _CompletionRequest:
 
 
 class _CompletionWorker(threading.Thread):
-    """Runs background Jedi completions on a plain Python thread.
-
-    Uses a dedicated ``AnalysisProcess`` subprocess so completions never
-    queue behind diagnostics or semantic-analysis requests.  Like the
-    diagnostics worker this avoids QThread so an editor collected
-    mid-evaluation can never abort Qt.
-    """
+    """Runs background Jedi completions on a plain Python thread."""
 
     def __init__(self, owner: "CompletionManager") -> None:
         super().__init__(name="DreamStudio-CompletionWorker", daemon=True)
@@ -502,11 +401,7 @@ class _CompletionWorker(threading.Thread):
             self.start()
 
     def _remote_completions(self, request: _CompletionRequest) -> Optional[list]:
-        """Ask the dedicated completion subprocess for Jedi completions.
-
-        Returns the raw completion dicts, or ``None`` if the request was
-        superseded by a newer one.
-        """
+        """Ask the dedicated completion subprocess for Jedi completions."""
         process = self._owner._process
         response = process.request(
             (
@@ -527,7 +422,7 @@ class _CompletionWorker(threading.Thread):
         return response[2]
 
     def _fallback_completions(self, request: _CompletionRequest) -> list:
-        """Graceful degradation: run jedi in-process when the server is down."""
+        """Graceful degradation:"""
         try:
             import jedi
 
@@ -578,7 +473,7 @@ class _CompletionWorker(threading.Thread):
                 completions = self._remote_completions(request)
                 _profile.mark(self._owner._editor, "engine-done")
                 if completions is None:
-                    continue  # superseded by a newer request
+                    continue
             except Exception as exc:
                 logger.error("Completions subprocess failed: %s", exc)
                 completions = self._fallback_completions(request)
@@ -602,13 +497,7 @@ class _CompletionWorker(threading.Thread):
 
 
 class CompletionManager(QObject):
-    """Debounced background completion manager.
-
-    Owns a dedicated ``AnalysisProcess`` subprocess so completions never
-    block behind diagnostics or semantic-analysis requests.  The process
-    is lazy — spawned on the first completion request — and torn down
-    with the manager.
-    """
+    """Debounced background completion manager."""
 
     completions_ready = pyqtSignal(int, list)
 
@@ -651,12 +540,7 @@ class CompletionManager(QObject):
 
     @pyqtSlot()
     def _on_editor_destroyed(self) -> None:
-        """Mark this manager dead once its editor's Qt object is gone.
-
-        Runs during ``QObject`` teardown, *before* the editor deletes its
-        children, so the debounce timer is still valid here — stop it
-        first, then flag dead so later ``request()`` calls no-op.
-        """
+        """Mark this manager dead once its editor's Qt object is gone."""
         self._stop_timer()
         self._dead = True
         self.shutdown()
@@ -673,12 +557,7 @@ class CompletionManager(QObject):
         self._file_path = path
 
     def invalidate(self) -> None:
-        """Retire in-flight and armed requests without emitting.
-
-        Used when the user commits a completion: any background result
-        still computing belongs to the pre-commit buffer and must never
-        repaint the popup.
-        """
+        """Retire in-flight and armed requests without emitting."""
         self._request_counter += 1
         self._pending_source = ""
         self._pending_file_path = None
@@ -701,16 +580,7 @@ class CompletionManager(QObject):
         file_path: Optional[str],
         prefix: str = "",
     ) -> bool:
-        """Debounce and submit a completion request to the background worker.
-
-        Silently drops the request when the manager or its timer has been
-        torn down with the editor — a stale provider singleton must never
-        crash the IDE from a live tab.
-
-        Returns:
-            ``True`` when the request was accepted, ``False`` when the
-            manager is dead and the caller should fall back.
-        """
+        """Debounce and submit a completion request to the background worker."""
         if self._dead:
             return False
         _profile.mark(self._editor, "queue")
@@ -718,10 +588,6 @@ class CompletionManager(QObject):
         self._pending_source = source
         self._pending_line = line
         self._pending_col = col
-        # Honour the caller's path: the provider is a process singleton
-        # shared by every open tab, so its ``file_path`` is only the most
-        # recently opened one. The controller passes the editor's own
-        # path, which is the authoritative per-tab identity.
         self._pending_file_path = file_path or self._file_path
         try:
             from editor.Ironica.debounce import adaptive_delay_for_editor
@@ -758,10 +624,7 @@ class CompletionManager(QObject):
 
     @pyqtSlot()
     def _on_debounce_fired(self) -> None:
-        """Submit the current buffer to the worker once debounced.
-
-        Skipped while a completion popup owns the caret so the two
-        never compete for the analysis subprocess."""
+        """Submit the current buffer to the worker once debounced."""
         if not self._enabled:
             return
         _profile.mark(self._editor, "debounce")

@@ -386,3 +386,12 @@ std::vector<Token> Lexer::tokenize() {
     tokens.push_back(makeToken(TokenType::END_OF_FILE, "", line_, column_));
     return tokens;
 }
+
+
+#include <iostream>
+
+#ifndef IOSTREAM_H
+#define IOSTREAM_H
+
+
+#endif  /*IOSTREAM_H*/

@@ -1,12 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Menu callback implementations for the DreamStudio title bar.
-
-This module provides the ``MenusAPI`` mixin that wires every
-File-menu action to the correct editor or window operation.
-It is designed to be mixed into the DreamStudio QMainWindow alongside
-``EditorAPI`` so that ``getattr(self, action_str)`` resolution works.
 """
 
 from editor import *
@@ -18,22 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class MenusAPI:
-    """Mixin that implements the File/Edit/View/Code menu callbacks.
+    """Mixin that implements the File/Edit/View/Code menu callbacks."""
 
-    Expected to be mixed into the main ``DreamStudio`` window which
-    provides ``self.hero_window`` (the ``WorkspaceContainer``) and
-    ``self.tab_editors`` (the ``DreamTabbedEditor``).
-
-    Lifecycle methods (save, close) consult the tab editor directly
-    rather than wrapping ``EditorAPI`` methods, keeping the call
-    chain flat and the intent clear.  Editor commands are routed through
-    the active editor's ``EditorAPI`` facade so the menu never manipulates
-    editor internals itself.
-    """
-
-    # ------------------------------------------------------------------
-    # New
-    # ------------------------------------------------------------------
 
     def set_new_file(self) -> None:
         """Open a new untitled file in the tab editor."""
@@ -41,11 +21,7 @@ class MenusAPI:
         self._defer_menu_sync()
 
     def set_new_project(self) -> None:
-        """Open the solution start window on the Create tab.
-
-        When a new solution is created, the window switches the workspace to
-        it and scaffolds the project behind a blocking progress dialog.
-        """
+        """Open the solution start window on the Create tab."""
         self._invoke_start_window(preferred_tab=0)
 
     def set_new_window(self) -> None:
@@ -56,11 +32,7 @@ class MenusAPI:
         self._invoke_start_window(preferred_tab=1)
 
     def _invoke_start_window(self, preferred_tab: int = 0) -> None:
-        """Run the start window over this main window and apply its choice.
-
-        Args:
-            preferred_tab: Which landing tab to preselect (0 create, 1 open).
-        """
+        """Run the start window over this main window and apply its choice."""
         from editor.utils.solution.startup_window import (
             SolutionStartWindow,
             run_start_window_selection,
@@ -88,9 +60,6 @@ class MenusAPI:
             controller = ScaffoldController(self, scaffold)
             controller.run_blocking()
 
-    # ------------------------------------------------------------------
-    # Open
-    # ------------------------------------------------------------------
 
     def set_open_file(self) -> None:
         """Open a file from the system via a file chooser dialog."""
@@ -99,35 +68,23 @@ class MenusAPI:
             self.hero_window._text_editor_center.methods.open_file(path)
             self._defer_menu_sync()
 
-    # ------------------------------------------------------------------
-    # Save
-    # ------------------------------------------------------------------
 
     def set_save_current_file(self) -> None:
-        """Save the currently active editor's buffer.
-
-        No-op when no editor tabs are open.
-        """
+        """Save the currently active editor's buffer."""
         tabs = self.hero_window._text_editor_center.tabs
         if tabs.count() == 0:
             return
         tabs.save_current_file()
 
     def set_save_file_as(self) -> None:
-        """Prompt for a new path and save the active editor.
-
-        No-op when no editor tabs are open.
-        """
+        """Prompt for a new path and save the active editor."""
         tabs = self.hero_window._text_editor_center.tabs
         if tabs.count() == 0:
             return
         tabs.save_current_file_as()
 
     def set_save_all_files(self) -> None:
-        """Save every open editor that has a file path.
-
-        No-op when no editor tabs are open.
-        """
+        """Save every open editor that has a file path."""
         tabs = self.hero_window._text_editor_center.tabs
         if tabs.count() == 0:
             return
@@ -140,16 +97,9 @@ class MenusAPI:
             tabs.save_all_files()
         self.close()
 
-    # ------------------------------------------------------------------
-    # Close
-    # ------------------------------------------------------------------
 
     def set_close_editor(self) -> None:
-        """Close all open editor tabs.
-
-        If any tab has unsaved changes, a single dialog lists all dirty
-        files and asks the user to Save All, Don't Save, or Cancel.
-        """
+        """Close all open editor tabs."""
         tabs = self.hero_window._text_editor_center.tabs
         if tabs.count() == 0:
             return
@@ -207,9 +157,6 @@ class MenusAPI:
 
         QApplication.quit()
 
-    # ------------------------------------------------------------------
-    # Import / Export
-    # ------------------------------------------------------------------
 
     def set_import_configurations(self) -> None:
         """Placeholder — not yet implemented."""
@@ -217,16 +164,10 @@ class MenusAPI:
     def set_export_configurations(self) -> None:
         """Placeholder — not yet implemented."""
 
-    # ------------------------------------------------------------------
-    # Settings
-    # ------------------------------------------------------------------
 
     def set_open_settings(self) -> None:
         """Placeholder — settings and preferences dialog."""
 
-    # ------------------------------------------------------------------
-    # Edit
-    # ------------------------------------------------------------------
 
     def set_undo(self) -> None:
         """Undo the last edit in the active editor."""
@@ -275,13 +216,7 @@ class MenusAPI:
         self._run_editor_command("Unindent Selection", lambda api: api.unindent())
 
     def set_find_replace_in_files(self) -> None:
-        """Open the solution-wide Find/Replace widget for the workspace.
-
-        Reuses the existing file-level search widget: it searches the
-        working directory and performs the replacements on disk.  Reports
-        through the notification manager when there is no directory to
-        search instead of opening an empty widget.
-        """
+        """Open the solution-wide Find/Replace widget for the workspace."""
         directory = getattr(self.title_bar, "directory", "") or ""
         if not directory or not os.path.isdir(directory):
             self._notify_menu_error(
@@ -291,16 +226,9 @@ class MenusAPI:
             return
         self._toggle_search_widget()
 
-    # ------------------------------------------------------------------
-    # View
-    # ------------------------------------------------------------------
 
     def set_full_screen(self) -> None:
-        """Toggle full screen and return to the previous window state.
-
-        The maximized state active before entering full screen is remembered
-        so leaving it restores exactly what the user had.
-        """
+        """Toggle full screen and return to the previous window state."""
         if self.isFullScreen():
             if getattr(self, "_pre_full_screen_maximized", False):
                 self.showMaximized()
@@ -312,12 +240,7 @@ class MenusAPI:
         self.showFullScreen()
 
     def toggle_options_bar(self) -> Optional[bool]:
-        """Toggle the options bar visibility.
-
-        Returns:
-            ``True`` when the bar is now visible, ``False`` when it was
-            hidden, or ``None`` when this window has no options bar.
-        """
+        """Toggle the options bar visibility."""
         bar = getattr(self, "options_menu", None)
         if bar is None:
             self._notify_menu_error(
@@ -337,12 +260,7 @@ class MenusAPI:
             self._enter_zen_mode()
 
     def _zen_surrounding_widgets(self) -> list:
-        """Return the surrounding chrome widgets Zen Mode hides.
-
-        Returns:
-            The existing widgets of this window, in the order they are
-            hidden; pieces missing from this build are skipped.
-        """
+        """Return the surrounding chrome widgets Zen Mode hides."""
         hero = getattr(self, "hero_window", None)
         widgets = []
         for owner, name in (
@@ -390,9 +308,6 @@ class MenusAPI:
         if title_bar is not None:
             title_bar.refresh_action_states()
 
-    # ------------------------------------------------------------------
-    # Code
-    # ------------------------------------------------------------------
 
     def set_format_code(self) -> None:
         """Run the active provider's formatter over the current file."""
@@ -459,7 +374,7 @@ class MenusAPI:
         self._run_editor_command("Collapse Current", lambda api: api.collapse_current())
 
     def set_collapse_all_folds(self) -> None:
-        """Smart collapse: boilerplate first, everything on second press."""
+        """Smart collapse:"""
         self._run_editor_command(
             "Collapse All", lambda api: api.smart_collapse())
 
@@ -468,17 +383,9 @@ class MenusAPI:
         self._run_editor_command(
             "Collapse Includes", lambda api: api.collapse_includes())
 
-    # ------------------------------------------------------------------
-    # Shared helpers
-    # ------------------------------------------------------------------
 
     def _run_editor_command(self, operation: str, command) -> None:
-        """Run an editor command against the active editor.
-
-        Args:
-            operation: Menu label, used when the command cannot run.
-            command: Callable receiving the active ``EditorAPI``.
-        """
+        """Run an editor command against the active editor."""
         editor_api = self.hero_window._text_editor_center.current_editor()
         if editor_api is None:
             self._notify_menu_error(operation, "No active code editor is available.")
@@ -487,11 +394,6 @@ class MenusAPI:
 
     @staticmethod
     def _notify_menu_error(title: str, message: str) -> None:
-        """Report a menu precondition failure through DreamStudio notifications.
-
-        Args:
-            title: Short notification title.
-            message: Detailed explanation of the failed precondition.
-        """
+        """Report a menu precondition failure through DreamStudio notifications."""
         logger.error("%s: %s", title, message)
         get_notification_manager().add_error(title, message, source="Menu")

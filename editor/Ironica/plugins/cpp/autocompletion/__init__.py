@@ -1,9 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Autocompletion mission: trigger classification, threaded completion
-bridging, preprocessor completion sources, buffer symbol table, and
-call-site intelligence used for ranking.
+Autocompletion mission:
 """
 
 from editor.Ironica.plugins.cpp.autocompletion.callsite import (

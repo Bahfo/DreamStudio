@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Documentation window displayed via Help -> Documentation.
 """
 
@@ -11,13 +10,7 @@ from editor import *
 
 @dataclass
 class DocPage:
-    """One documentation page.
-
-    Attributes:
-        number: Ordering prefix parsed from the file name.
-        title: Human-readable title shown in the navigation.
-        path: Absolute path of the markdown source file.
-    """
+    """One documentation page."""
 
     number: int
     title: str
@@ -25,44 +18,18 @@ class DocPage:
 
 
 class VerticalTabBar(QTabBar):
-    """Vertical tab bar with horizontal text.
-
-    The bar is placed on the west side so tabs are stacked
-    vertically. Qt would normally draw the text rotated 90
-    degrees for ``West``; this class re-implements ``paintEvent``
-    to keep the label horizontal while preserving the vertical
-    layout and ensuring the text is fully visible.
-    """
+    """Vertical tab bar with horizontal text."""
 
     def tabSizeHint(self, index: int) -> QSize:
-        """Return size for each tab.
-
-        Width is the bar thickness (must fit the text width),
-        height is the tab height when stacked vertically.
-
-        Args:
-            index: Tab index.
-
-        Returns:
-            Size for the tab.
-        """
+        """Return size for each tab."""
         text = self.tabText(index)
         fm = self.fontMetrics()
         text_width = fm.horizontalAdvance(text) if text else 0
         width = max(180, text_width + 24)
         return QSize(width, 40)
 
-    def paintEvent(self, event) -> None:  # type: ignore[override]
-        """Paint tabs with horizontal text.
-
-        Draws the tab shape via the style (so QSS still applies)
-        and then draws the text horizontally centered with
-        ``QPainter`` to avoid the vertical rotation and the
-        clipping caused by the transpose/rotate approach.
-
-        Args:
-            event: Paint event.
-        """
+    def paintEvent(self, event) -> None:
+        """Paint tabs with horizontal text."""
         painter = QStylePainter(self)
         option = QStyleOptionTab()
         for index in range(self.count()):
@@ -89,24 +56,10 @@ class VerticalTabBar(QTabBar):
 
 
 class DocumentationWindow(QWidget):
-    """Documentation viewer embedded as an editor tab.
-
-    Pages are discovered from ``docs/<number>_<slug>.md`` and shown in a
-    west-side navigation next to a styled reader. Content colours are
-    derived from the active palette, so the reader follows every IDE
-    theme without per-theme stylesheets.
-
-    Attributes:
-        tabs: Main tab widget holding documentation pages.
-        pages: Discovered :class:`DocPage` entries in display order.
-    """
+    """Documentation viewer embedded as an editor tab."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        """Initialize the documentation window.
-
-        Args:
-            parent: Optional parent widget.
-        """
+        """Initialize the documentation window."""
         super().__init__(parent)
         self.pages: list[DocPage] = []
         self._browsers: list = []

@@ -1,7 +1,4 @@
-"""
-A QPlainTextEdit-based terminal widget for DayDream.
-Provides terminal input behavior without executing system commands.
-"""
+"""A QPlainTextEdit-based terminal widget for DayDream."""
 
 _help = """(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
 
@@ -171,9 +168,6 @@ class TerminalWidget(QPlainTextEdit):
 
         self._write_prompt()
 
-    # -----------------------------------------------------------------
-    # Prompt and output
-    # -----------------------------------------------------------------
 
     def _write_prompt(self):
         cursor = self.textCursor()
@@ -206,9 +200,6 @@ class TerminalWidget(QPlainTextEdit):
         """Append output produced by the command handler."""
         self._append_text(text)
 
-    # -----------------------------------------------------------------
-    # Command input
-    # -----------------------------------------------------------------
 
     def _current_input(self):
         if self._input_start is None:
@@ -267,9 +258,6 @@ class TerminalWidget(QPlainTextEdit):
 
         self._write_prompt()
 
-    # -----------------------------------------------------------------
-    # Command history
-    # -----------------------------------------------------------------
 
     def _navigate_history(self, direction):
         if not self._history:
@@ -291,9 +279,6 @@ class TerminalWidget(QPlainTextEdit):
         else:
             self._replace_input(self._history[self._history_index])
 
-    # -----------------------------------------------------------------
-    # Input protection
-    # -----------------------------------------------------------------
 
     def _move_to_input_end_if_needed(self):
         if self._input_start is None:
@@ -340,9 +325,6 @@ class TerminalWidget(QPlainTextEdit):
         cursor.insertText(text)
         self.setTextCursor(cursor)
 
-    # -----------------------------------------------------------------
-    # Keyboard behavior
-    # -----------------------------------------------------------------
 
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.Copy):
@@ -362,12 +344,10 @@ class TerminalWidget(QPlainTextEdit):
         modifiers = event.modifiers()
         control = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
 
-        # Submit input.
         if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._submit_command()
             return
 
-        # Navigate command history.
         if modifiers == Qt.KeyboardModifier.NoModifier:
             if key == Qt.Key.Key_Up:
                 self._navigate_history(-1)
@@ -377,14 +357,12 @@ class TerminalWidget(QPlainTextEdit):
                 self._navigate_history(1)
                 return
 
-        # Clear the visible transcript.
         if control and key == Qt.Key.Key_L:
             self.clear()
             self._input_start = None
             self._write_prompt()
             return
 
-        # Move to the beginning or end of the current input.
         if control and key == Qt.Key.Key_A:
             cursor = self.textCursor()
             cursor.setPosition(self._input_start)
@@ -403,7 +381,6 @@ class TerminalWidget(QPlainTextEdit):
             self.setTextCursor(cursor)
             return
 
-        # Prevent Backspace from deleting the prompt.
         if key == Qt.Key.Key_Backspace:
             cursor = self.textCursor()
 
@@ -414,7 +391,6 @@ class TerminalWidget(QPlainTextEdit):
                 self._move_to_input_end_if_needed()
                 return
 
-        # Clear input before the cursor.
         if control and key == Qt.Key.Key_U:
             self._move_to_input_end_if_needed()
             self._remove_range(
@@ -423,7 +399,6 @@ class TerminalWidget(QPlainTextEdit):
             )
             return
 
-        # Clear input after the cursor.
         if control and key == Qt.Key.Key_K:
             self._move_to_input_end_if_needed()
 
@@ -433,7 +408,6 @@ class TerminalWidget(QPlainTextEdit):
             self._remove_range(cursor.position(), end)
             return
 
-        # Delete the word before the cursor.
         if control and key == Qt.Key.Key_W:
             self._move_to_input_end_if_needed()
 
@@ -459,7 +433,6 @@ class TerminalWidget(QPlainTextEdit):
             )
             return
 
-        # Do not let the cursor move into the prompt.
         cursor = self.textCursor()
 
         if (

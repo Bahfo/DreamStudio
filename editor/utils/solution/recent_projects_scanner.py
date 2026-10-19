@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Recent-solutions persistence built on ``~/.dreamstudio/settings``.
-
-Stores a capped, deduplicated list of opened/created solution paths so the
-IDE can remember and re-offer them on every launch.
 """
 
 from editor import *
@@ -41,12 +37,7 @@ def _write_settings(data: dict) -> None:
 
 
 def list_recent() -> list[dict]:
-    """Return the recent-solutions entries, newest first.
-
-    Returns:
-        Up to ``MAX_RECENT`` dict entries with ``path``, ``name``,
-        ``project_type`` and ``last_opened`` keys.
-    """
+    """Return the recent-solutions entries, newest first."""
     data = _read_settings()
     entries = data.get(_RECENT_KEY, {}).get(_RECENT_LIST_KEY, [])
     if not isinstance(entries, list):
@@ -55,13 +46,7 @@ def list_recent() -> list[dict]:
 
 
 def add_or_update(path: str, name: str = "", project_type: str = "") -> None:
-    """Record *path* as the most-recent solution, deduplicating by path.
-
-    Args:
-        path: Absolute solution path.
-        name: Solution display name (kept when already known).
-        project_type: Project-type identifier (kept when already known).
-    """
+    """Record *path* as the most-recent solution, deduplicating by path."""
     path = os.path.abspath(path)
     if not os.path.isdir(path):
         return
@@ -95,11 +80,7 @@ def add_or_update(path: str, name: str = "", project_type: str = "") -> None:
 
 
 def remove(path: str) -> None:
-    """Remove *path* from the recent-solutions list.
-
-    Args:
-        path: Absolute solution path to forget.
-    """
+    """Remove *path* from the recent-solutions list."""
     path = os.path.abspath(path)
     data = _read_settings()
     section = data.setdefault(_RECENT_KEY, {})

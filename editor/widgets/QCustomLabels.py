@@ -1,13 +1,8 @@
 """
 (C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and
-Supervised by EXcellent TechStacks Co.
-
-Custom Widgets for DreamStudio: Animated Label with Gradient Colors.
-- Used primarily for Welcoming the Developer when he enters EtherAI.
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and Supervised by EXcellent TechStacks Co.
 """
 
-# Written By Bahaa Nofal 2026
 
 from editor import *
 
@@ -23,7 +18,6 @@ class AnimatedGradientLabel(QLabel):
         self.setFont(Fonts.inter(24))
         self.setFixedHeight(60)
 
-        # Animation setup
         self.animation = QPropertyAnimation(self, b"gradient_offset")
         self.animation.setDuration(2000)
         self.animation.setStartValue(0.0)

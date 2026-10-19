@@ -50,25 +50,9 @@ class TerminalEdit(QPlainTextEdit):
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         pass
 
-    # ------------------------------------------------------------------
-    # Input boundary enforcement (Step 4)
-    #
-    # The PromptX terminal has a protected prompt prefix at the start of
-    # the document.  Users must not be able to insert, delete, or modify
-    # text before ``_input_pos`` through *any* input channel — keyboard,
-    # mouse paste, drag-and-drop, or context menu.  The following
-    # overrides close every one of those escape routes.
-    # ------------------------------------------------------------------
 
     def insertFromMimeData(self, source):
-        """Intercept paste operations (Ctrl+V, Shift+Insert, etc.) to
-        prevent insertion before the prompt boundary.
-
-        If the cursor currently sits inside the protected prompt zone it
-        is silently relocated to ``_input_pos`` before the base-class
-        insertion proceeds, so the pasted text always lands in the
-        editable region.
-        """
+        """Intercept paste operations (Ctrl+V, Shift+Insert, etc.) to prevent insertion before the prompt boundary."""
         cursor = self.textCursor()
         if cursor.position() < self._tw._input_pos:
             cursor.setPosition(self._tw._input_pos)
@@ -76,16 +60,11 @@ class TerminalEdit(QPlainTextEdit):
         super().insertFromMimeData(source)
 
     def dropEvent(self, event):
-        """Reject drag-and-drop operations that target the protected
-        prompt area.  Drops landing in the editable input zone are
-        accepted normally.
-        """
+        """prompt area."""
         drop_cursor = self.cursorForPosition(event.position().toPoint())
         if drop_cursor.position() < self._tw._input_pos:
             event.ignore()
             return
-        # Also guard the *current* text cursor — if it somehow ended up
-        # before the prompt, snap it forward before the base-class drop.
         if self.textCursor().position() < self._tw._input_pos:
             c = self.textCursor()
             c.setPosition(self._tw._input_pos)
@@ -93,15 +72,7 @@ class TerminalEdit(QPlainTextEdit):
         super().dropEvent(event)
 
     def contextMenuEvent(self, event):
-        """Provide a minimal, filtered context menu that never allows
-        editing of the protected prompt zone.
-
-        * Copy is always available when there is a selection.
-        * Paste is only offered when the cursor is inside the editable
-          input zone (at or after ``_input_pos``).
-        * Cut and all other mutation actions are omitted entirely to
-          prevent accidental prompt corruption.
-        """
+        """Provide a minimal, filtered context menu that never allows * Copy is always available when there is a selection."""
         cursor = self.textCursor()
         has_selection = cursor.hasSelection()
 
@@ -112,7 +83,6 @@ class TerminalEdit(QPlainTextEdit):
         if has_selection:
             copy_action.triggered.connect(self._ctx_copy)
 
-        # Only offer paste when the insertion point is in the safe zone.
         if cursor.position() >= self._tw._input_pos:
             paste_action = menu.addAction("Paste")
             paste_action.triggered.connect(self._ctx_paste)
@@ -129,8 +99,7 @@ class TerminalEdit(QPlainTextEdit):
             QApplication.clipboard().setText(text)
 
     def _ctx_paste(self):
-        """Paste from the system clipboard into the editable input zone,
-        never into the protected prompt region."""
+        """Paste from the system clipboard into the editable input zone,"""
         text = QApplication.clipboard().text()
         if text:
             cursor = self.textCursor()
@@ -139,9 +108,6 @@ class TerminalEdit(QPlainTextEdit):
                 self.setTextCursor(cursor)
             cursor.insertText(text)
 
-    # ------------------------------------------------------------------
-    # Keyboard handling
-    # ------------------------------------------------------------------
 
     def keyPressEvent(self, event):
         tw = self._tw
@@ -352,14 +318,7 @@ class PromptXTerminalWidget(QWidget):
         self._terminal.setTextCursor(cursor)
 
     def set_workspace(self, path: str) -> None:
-        """Re-point the PromptX working directory to the active workspace.
-
-        The engine prompt follows *path* without mutating the IDE's global
-        process CWD.
-
-        Args:
-            path: Absolute path of the active solution/folder.
-        """
+        """Re-point the PromptX working directory to the active workspace."""
         try:
             result = self._engine.set_directory(path)
         except Exception as exc:
@@ -393,7 +352,6 @@ class TerminalPanel(QWidget):
         self.output_tab = OutputWidget(self)
         self.ports_tab = PortsWidget()
 
-        # Connecting the close button to the system shell emulator
         self.system_shell_tab.close_requested.connect(self.close_requested.emit)
 
         self.tabs = {
@@ -407,7 +365,6 @@ class TerminalPanel(QWidget):
             widget, _ = self.tabs[tab_id]
             self.stack.addWidget(widget)
 
-        # Custom tab bar
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(0, 0, 0, 0)
         toolbar.setSpacing(0)
@@ -446,11 +403,7 @@ class TerminalPanel(QWidget):
         self.tab_bar.setCurrentIndex(index)
 
     def set_workspace(self, path: str) -> None:
-        """Re-point all terminal tabs to the active workspace directory.
-
-        Args:
-            path: Absolute path of the active solution/folder.
-        """
+        """Re-point all terminal tabs to the active workspace directory."""
         self.system_shell_tab.set_default_cwd(path)
         self.promptXShell_tab.set_workspace(path)
 
@@ -463,21 +416,11 @@ class TerminalPanel(QWidget):
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self.system_shell_tab.set_theme(bg, fg, sel)
 
-    # ------------------------------------------------------------------
-    # Cleanup (Step 7)
-    # ------------------------------------------------------------------
 
     def cleanup(self) -> None:
-        """Aggressively terminate every terminal session managed by this
-        panel.  Called from application-lifetime hooks to guarantee no
-        orphaned PTY descriptors or zombie child processes survive an
-        IDE shutdown.
-        """
+        """Aggressively terminate every terminal session managed by this panel."""
         self.system_shell_tab.cleanup()
 
     def closeEvent(self, event) -> None:
-        """Intercept close to prevent widget destruction; the workspace is
-        toggled visible/hidden by the parent splitter.  Cleanup is
-        handled separately through application lifetime hooks.
-        """
+        """Intercept close to prevent widget destruction; the workspace is toggled visible/hidden by the parent splitter."""
         event.ignore()

@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Hex dump rendering for binary / ELF inspection.
-
-Produces a deterministic, readable hex+ASCII representation for display
-inside the read-only code editor.
 """
 
 from __future__ import annotations
@@ -18,18 +14,7 @@ def generate_hex_dump(
     max_bytes: int = 512 * 1024,
     bytes_per_line: int = 16,
 ) -> str:
-    """Render *file_path* as a hex dump.
-
-    Args:
-        file_path: Absolute path to the binary file.
-        max_bytes: Maximum bytes to render (prevents huge files from
-            freezing the UI). Remaining bytes are truncated with a note.
-        bytes_per_line: Number of bytes per line (16 is conventional).
-
-    Returns:
-        A string suitable for ``CodeEditor.setText()`` containing offset,
-        hex bytes, and ASCII representation.
-    """
+    """Render *file_path* as a hex dump."""
     path = pathlib.Path(file_path)
     try:
         size = path.stat().st_size
@@ -59,9 +44,7 @@ def generate_hex_dump(
                 ascii_parts.append(chr(b))
             else:
                 ascii_parts.append(".")
-        # Pad hex area when last line is short
         hex_str = " ".join(hex_parts)
-        # Align hex column to fixed width (16*3 -1 =47)
         pad_len = bytes_per_line * 3 - 1
         hex_str = hex_str.ljust(pad_len)
         ascii_str = "".join(ascii_parts)
@@ -76,11 +59,7 @@ def generate_hex_dump(
 
 
 def is_elf_file(file_path: str) -> bool:
-    """Fast ELF magic check without invoking native code.
-
-    Returns ``True`` for ELF64 files (class byte == 2). This mirrors the
-    C inspector's minimum requirement (recognize ELF64).
-    """
+    """Fast ELF magic check without invoking native code."""
     try:
         with open(file_path, "rb") as f:
             header = f.read(5)

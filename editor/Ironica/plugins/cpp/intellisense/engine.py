@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Fresh libclang completion engine (no reuse of plugins/clang).
 """
 
@@ -19,7 +18,7 @@ from . import headers as header_resolution
 logger = logging.getLogger("DreamStudio.Cpp.Engine")
 _CACHE_SIZE = 8
 _MAX_ITEMS = 200
-_MAX_OVERLOADS_PER_NAME = 8  # Allows up to eight function overloads
+_MAX_OVERLOADS_PER_NAME = 8
 _KIND_BY_NAME = {
     "ENUM_DECL": "enum",
     "CLASS_DECL": "type",
@@ -51,12 +50,7 @@ _KIND_BY_NAME = {
 
 
 def _build_kind_map() -> dict:
-    """Map libclang cursor-kind codes to completion icons.
-
-    Completion results carry plain integer codes rather than
-    ``CursorKind`` members, so name strings never match — build the
-    map from live enum values, guarded for version differences.
-    """
+    """Map libclang cursor-kind codes to completion icons."""
     icon_by_code: dict = {}
     for name, icon in _KIND_BY_NAME.items():
         member = getattr(CursorKind, name, None)
@@ -71,8 +65,6 @@ def _build_kind_map() -> dict:
 
 _KIND = _build_kind_map()
 
-#: Parse options every translation unit is built with. Sharing one mask keeps
-#: the completion and fold/highlight cache entries interchangeable.
 _PARSE_OPTIONS = (
     TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
     | TranslationUnit.PARSE_INCOMPLETE
@@ -99,10 +91,7 @@ _KIND_RANK = {
 
 
 class CppEngine:
-    """
-    Owns one shared Index + bounded TU cache.
-    All methods never raise.
-    """
+    """Owns one shared Index + bounded TU cache."""
 
     def __init__(self, shared_index=None, owner_id=None) -> None:
         self._index = shared_index if shared_index is not None else Index.create()
@@ -112,15 +101,7 @@ class CppEngine:
         self._query_cost_ms = 0.0
 
     def query_cost_ms(self) -> float:
-        """Return the EMA of parse+complete cost in milliseconds.
-
-        Feeds the cost-scaled debounce; decays toward fast queries on its
-        own, so fixing flags (or a PCH landing) re-snappens delays with
-        no manual reset.
-
-        Returns:
-            Smoothed query cost (``0.0`` before any query).
-        """
+        """Return the EMA of parse+complete cost in milliseconds."""
         try:
             return float(self._query_cost_ms)
         except (TypeError, ValueError):
@@ -146,12 +127,7 @@ class CppEngine:
     _WORD = re.compile(r"[A-Za-z_]\w*")
 
     def _local_names(self, ctx) -> frozenset:
-        """Return in-scope identifier spellings from the buffer (lexical).
-
-        A full AST walk visits ~100k cursors through system headers
-        (~2s); this regex pass costs ~1ms and is fresh on every keystroke.
-        Words on lines before the cursor approximate scope for ranking.
-        """
+        """Return in-scope identifier spellings from the buffer (lexical)."""
         try:
             lines = ctx.source_code.splitlines() if ctx.source_code else []
             head = "\n".join(lines[: max(0, ctx.line - 1)])
@@ -301,26 +277,13 @@ class CppEngine:
         return [completion for _, completion in scored[:_MAX_ITEMS]]
 
     def _request_completion(self, ctx: CppContext, include_macros: bool = True):
-        """Run ``codeComplete`` for *ctx* on its cached TU.
-
-        Args:
-            ctx: Completion context to complete.
-            include_macros: Whether libclang should include macro rows.
-                Disabled for lowercase prefixes (macros are overwhelmingly
-                ``UPPER_SNAKE``), halving row counts on big TUs.
-
-        Returns:
-            Tuple of ``(tu, result_or_None, clang_path)``. The TU may be
-            ``None`` when parsing failed; the result may be ``None``.
-        """
+        """Run ``codeComplete`` for *ctx* on its cached TU."""
         started = time.perf_counter()
         tu = self._tu_for_completion(ctx)
         if tu is None:
             return None, None, ctx.file_path or cpp_args.unsaved_name()
         clang_path = ctx.file_path or cpp_args.unsaved_name()
         # NOTE: no reparse here — codeComplete consumes the unsaved
-        # buffer itself. An explicit reparse costs ~0.8s per keystroke
-        # with zero benefit for completion freshness.
         res = tu.codeComplete(
             clang_path,
             ctx.line,
@@ -338,15 +301,7 @@ class CppEngine:
         return tu, res, clang_path
 
     def _shape_results(self, ctx: CppContext, res) -> list:
-        """Shape raw code-complete results into prefix-filtered rows.
-
-        Args:
-            ctx: Completion context carrying the prefix filter.
-            res: Raw ``codeComplete`` result (or ``None``).
-
-        Returns:
-            Ordered ``CppCompletion`` rows (possibly empty).
-        """
+        """Shape raw code-complete results into prefix-filtered rows."""
         out: list[CppCompletion] = []
         if not res or not res.results:
             return out
@@ -397,29 +352,14 @@ class CppEngine:
         return out
 
     def prime(self, ctx: CppContext) -> None:
-        """Build the translation unit without completing (idle warmup).
-
-        Warms parse caches off the typing path; completion queries that
-        arrive later reuse the cached unit instead of paying a cold parse.
-        """
+        """Build the translation unit without completing (idle warmup)."""
         try:
             self._tu_for_completion(ctx)
         except Exception as exc:
             logger.debug("completion warmup failed: %s", exc)
 
     def missing_includes(self, ctx: CppContext) -> list:
-        """Return header names the TU reports as not found, sorted.
-
-        Parses ``'X' file not found`` diagnostics off the cached unit so
-        the UI can tell the user *why* completion is empty instead of
-        failing silently.
-
-        Args:
-            ctx: Completion context to inspect.
-
-        Returns:
-            Sorted unique header names (possibly empty) — never raises.
-        """
+        """Return header names the TU reports as not found, sorted."""
         try:
             tu = self._tu_for_completion(ctx)
             if tu is None:
@@ -436,17 +376,7 @@ class CppEngine:
             return []
 
     def flags_for(self, ctx: CppContext) -> tuple:
-        """Return the exact flags a TU for *ctx* would be built with.
-
-        Pure computation (no parsing): defaults, database overlays,
-        resolved header extras and the ``-include-pch`` flag when valid.
-
-        Args:
-            ctx: Completion context to compute flags for.
-
-        Returns:
-            Ordered flag tuple.
-        """
+        """Return the exact flags a TU for *ctx* would be built with."""
         flags = ctx.compile_args or cpp_args.args_for_file(
             ctx.file_path, ctx.source_code
         )
@@ -455,22 +385,8 @@ class CppEngine:
     def _store_tu(
         self, key: str, tu, source: str, flags: tuple, opts: int
     ) -> None:
-        """Insert *tu* into the bounded cache, evicting the oldest entry.
-
-        Both the completion and the fold/highlight paths land here so they
-        share one key space; if they ever disagreed on the flag tuple the
-        two would invalidate each other's unit on every request.
-
-        Args:
-            key: Cache key the unit belongs to.
-            tu: Parsed translation unit to cache.
-            source: Buffer text the unit was parsed from.
-            flags: Flag tuple the unit was parsed with.
-            opts: Parse options the unit was parsed with.
-        """
+        """Insert *tu* into the bounded cache, evicting the oldest entry."""
         # NOTE: prune first — if _order ever drifts from _cache, evicting
-        # _order[0] alone would pop a key with no entry and let _cache
-        # grow past _CACHE_SIZE without bound.
         self._order = [k for k in self._order if k in self._cache and k != key]
         while len(self._cache) >= _CACHE_SIZE:
             evicted = self._order.pop(0) if self._order else None
@@ -482,12 +398,7 @@ class CppEngine:
         self._order.append(key)
 
     def _tu_for_completion(self, ctx: CppContext):
-        """Return a TU for completion without reparsing (fast path).
-
-        ``codeComplete`` consumes the unsaved buffer itself, so the
-        cached TU only needs compatible compile flags — never a fresh
-        reparse. Falls back to a full parse on first use or flag change.
-        """
+        """Return a TU for completion without reparsing (fast path)."""
         key = self._cache_key(ctx)
         clang_path = ctx.file_path or cpp_args.unsaved_name()
         flags = tuple(self.flags_for(ctx))
@@ -508,20 +419,7 @@ class CppEngine:
         return tu
 
     def _tu(self, ctx: CppContext):
-        """Return a TU matching *ctx*'s current buffer, reparsing if needed.
-
-        Unlike :meth:`_tu_for_completion` this reuses the cached unit only
-        when the buffer text is unchanged; an edit triggers ``reparse``
-        before falling back to a full parse. Flags come from
-        :meth:`flags_for` — the same computation the completion path uses
-        — so the two share cache entries instead of evicting each other.
-
-        Args:
-            ctx: Context carrying the source, position and file identity.
-
-        Returns:
-            Parsed translation unit, or ``None`` when parsing failed.
-        """
+        """Return a TU matching *ctx*'s current buffer, reparsing if needed."""
         key = self._cache_key(ctx)
         clang_path = ctx.file_path or cpp_args.unsaved_name()
         flags = tuple(self.flags_for(ctx))

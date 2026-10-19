@@ -1,11 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Notifications panel for DreamStudio.
-
-Displays user-facing notifications as cards with color-coded left borders
-based on notification type (WARNING: yellow, ERROR: red, SUCCESS: green,
-INFO: blue). Adapts to the current IDE theme via QSS object names.
 """
 
 from editor import *
@@ -26,12 +21,7 @@ NOTIFICATION_COLORS = {
 
 
 class NotificationCard(QFrame):
-    """
-    A card widget representing a single notification.
-
-    Displays the notification title, message, and source with a
-    color-coded left border based on notification type.
-    """
+    """A card widget representing a single notification."""
 
     close_clicked = pyqtSignal(int)
 
@@ -58,11 +48,9 @@ class NotificationCard(QFrame):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(4)
 
-        # --- HEADER ROW ---
         header_layout = QHBoxLayout()
         header_layout.setSpacing(8)
 
-        # Title
         title_text = QLabel(self._notification.title)
         title_text.setObjectName("NotificationTitle")
         title_font = QFont()
@@ -73,13 +61,11 @@ class NotificationCard(QFrame):
 
         header_layout.addStretch()
 
-        # Timestamp
         if self._notification.timestamp:
             time_label = QLabel(self._notification.timestamp.strftime("%H:%M"))
             time_label.setObjectName("NotificationTimestamp")
             header_layout.addWidget(time_label)
 
-        # Close button
         close_btn = QPushButton("x")
         close_btn.setObjectName("NotificationCloseBtn")
         close_btn.setFixedSize(18, 18)
@@ -92,7 +78,6 @@ class NotificationCard(QFrame):
 
         layout.addLayout(header_layout)
 
-        # --- MESSAGE ROW ---
         msg_layout = QHBoxLayout()
         msg_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -104,7 +89,6 @@ class NotificationCard(QFrame):
         message_label.setWordWrap(True)
         inner_vbox.addWidget(message_label)
 
-        # Source
         if self._notification.source:
             source_label = QLabel(self._notification.source)
             source_label.setObjectName("NotificationSource")
@@ -160,7 +144,6 @@ class NotificationsPanel(PanelShell):
 
         self._frame_layout.addLayout(header_row)
 
-        # Scroll area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
@@ -175,7 +158,6 @@ class NotificationsPanel(PanelShell):
         scroll_area.setWidget(self._notifications_container)
         self._frame_layout.addWidget(scroll_area)
 
-        # Empty state
         self._empty_placeholder = QLabel("No new notifications")
         self._empty_placeholder.setObjectName("NotificationsEmpty")
         self._empty_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)

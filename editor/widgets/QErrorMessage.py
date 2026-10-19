@@ -2,17 +2,7 @@ from editor import *
 
 
 class QErrorMessage(QWidget):
-    """
-    A guided tooltip-style message that appears in fixed positions.
-
-    Can be used within problems diagnosis to show description of an exception or
-    error, or within notifications popup.
-
-    The bubble is drawn as a single outline: a rounded body plus an arrow that
-    *protrudes* from the body towards the anchored token, instead of pointing
-    back into the body. Colours are derived from the current theme background
-    so the card blends into light and dark themes alike.
-    """
+    """A guided tooltip-style message that appears in fixed positions."""
 
     BORDER_RADIUS = 3
     ARROW_HEIGHT = 10
@@ -36,9 +26,6 @@ class QErrorMessage(QWidget):
         "info": "Info",
     }
 
-    #: Accent (border + arrow) per severity. The final card colours are mixed
-    #: from these against the theme background, so every DreamStudio theme
-    #: gets a readable, native-looking bubble.
     SEVERITY_ACCENTS = {
         "error": "#E5484D",
         "warning": "#E2A03F",
@@ -66,9 +53,6 @@ class QErrorMessage(QWidget):
         self._fx.setOpacity(1.0)
         self.setGraphicsEffect(self._fx)
 
-    ###############################################
-    # STATE
-    ###############################################
 
     def set_message(self, message: str) -> None:
         self.message = message
@@ -84,14 +68,7 @@ class QErrorMessage(QWidget):
         self.update()
 
     def fitted_size(self, width: int) -> QSize:
-        """Return the bubble size that fits the message at *width*.
-
-        Args:
-            width: Outer bubble width the text must wrap inside.
-
-        Returns:
-            Size whose height grows with the wrapped message text.
-        """
+        """Return the bubble size that fits the message at *width*."""
         metrics = QFontMetrics(self.font())
         text_width = max(40, int(width) - 32)
         bounds = metrics.boundingRect(
@@ -115,9 +92,7 @@ class QErrorMessage(QWidget):
         return self._arrow_up
 
     def set_severity(self, severity: str) -> None:
-        """Tint the bubble for *severity* (``error``, ``warning``, ``check``,
-        ``typo`` or ``info``). Unknown values fall back to ``error``.
-        """
+        """Tint the bubble for *severity* (``error``, ``warning``, ``check``, ``typo`` or ``info``)."""
         key = str(severity or "error").strip().lower()
         if key not in self.SEVERITY_ACCENTS:
             key = "error"
@@ -129,12 +104,7 @@ class QErrorMessage(QWidget):
         return self._severity
 
     def set_theme_color(self, color) -> None:
-        """Adopt *color* as the surface this bubble is drawn on top of.
-
-        Pass the editor background (for example ``QPalette.Base``) so the
-        card matches the active theme. Without it the widget falls back to its
-        own palette.
-        """
+        """Adopt *color* as the surface this bubble is drawn on top of."""
         self._theme_color = self._as_color(color).name()
         self.update()
 
@@ -147,11 +117,7 @@ class QErrorMessage(QWidget):
         return self._surface_color().lightness() < 128
 
     def style_colors(self) -> tuple:
-        """Return the resolved ``(accent, fill, text)`` colours.
-
-        Exposed so callers and tests can verify the bubble against the theme
-        without having to read pixels.
-        """
+        """Return the resolved ``(accent, fill, text)`` colours."""
         surface = self._surface_color()
         dark = surface.lightness() < 128
         accent = QColor(self.SEVERITY_ACCENTS.get(self._severity, ""))
@@ -168,9 +134,6 @@ class QErrorMessage(QWidget):
             text = self._mix(accent, QColor("#000000"), 0.55)
         return accent.name(), fill.name(), text.name()
 
-    ###############################################
-    # GEOMETRY
-    ###############################################
 
     def sizeHint(self):
         return self.fitted_size(520)
@@ -189,12 +152,7 @@ class QErrorMessage(QWidget):
         return QPointF(float(self._arrow_x), float(self.height()))
 
     def _bubble_path(self) -> QPainterPath:
-        """Build one outline for body + protruding arrow.
-
-        Tracing a single path (instead of drawing a rounded rect and a
-        separate triangle) keeps the arrow free of any seam and guarantees it
-        points *out* of the bubble towards the token.
-        """
+        """Build one outline for body + protruding arrow."""
         body = self.body_rect()
         radius = min(
             float(self.BORDER_RADIUS),
@@ -210,15 +168,12 @@ class QErrorMessage(QWidget):
         tip = self.arrow_tip()
 
         path = QPainterPath()
-        # The arrow base sits *on* the body's edge and its apex reaches out to
-        # the widget boundary, so the bubble keeps a straight edge.
         base_y = body.top() if self._arrow_up else body.bottom()
         path.moveTo(arrow_left, base_y)
         path.lineTo(tip.x(), tip.y())
         path.lineTo(arrow_right, base_y)
 
         if self._arrow_up:
-            # Arrow on top: walk the body clockwise starting at its top edge.
             path.lineTo(right - radius, base_y)
             path.arcTo(QRectF(right - radius, base_y, radius, radius), 90, -90)
             path.lineTo(right, bottom - radius)
@@ -228,7 +183,6 @@ class QErrorMessage(QWidget):
             path.lineTo(left, top + radius)
             path.arcTo(QRectF(left, top, radius, radius), 180, -90)
         else:
-            # Arrow at the bottom: mirror the traversal upwards.
             path.lineTo(right - radius, base_y)
             path.arcTo(QRectF(right - radius, base_y - radius, radius, radius), 270, 90)
             path.lineTo(right, top + radius)
@@ -240,9 +194,6 @@ class QErrorMessage(QWidget):
         path.closeSubpath()
         return path
 
-    ###############################################
-    # PAINTING
-    ###############################################
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -353,9 +304,6 @@ class QErrorMessage(QWidget):
             self.message,
         )
 
-    ###############################################
-    # HELPERS
-    ###############################################
 
     def _surface_color(self) -> QColor:
         """Return the background the bubble is drawn on top of."""

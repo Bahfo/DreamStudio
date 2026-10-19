@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 ELF information popover widget for DreamStudio.
-
-Compact QWidget that behaves like a tooltip/popover attached to the
-gutter button. Shows textual summary plus structured section table.
 """
 
 from __future__ import annotations
@@ -17,23 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class ElfInfoPopup(QFrame):
-    """Compact ELF inspection popover.
-
-    Layout:
-        QFrame (styled)
-         -> header/title
-         -> summary QLabel (rich text)
-         -> separator
-         -> QTableWidget (sections)
-
-    Behaviour:
-        * Frameless, ToolTip-like, does not steal focus
-        * Positioned relative to gutter button via ``move_near()``
-        * Adapts position if insufficient room
-        * Closes on Esc, outside click, or explicit ``close()``
-        * Follows QSS/theme via palette, no hard-coded colors in Python
-          beyond resolving from palette.
-    """
+    """Compact ELF inspection popover."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(
@@ -52,7 +32,6 @@ class ElfInfoPopup(QFrame):
         self._init_ui()
         self._apply_theme()
 
-        # Close when clicking outside — we install event filter on parent/app
         self._outside_filter_installed = False
 
     def _init_ui(self) -> None:
@@ -60,7 +39,6 @@ class ElfInfoPopup(QFrame):
         outer.setContentsMargins(8, 8, 8, 8)
         outer.setSpacing(6)
 
-        # Header
         self._header = QLabel(self)
         self._header.setObjectName("ElfPopupHeader")
         self._header.setTextFormat(Qt.TextFormat.RichText)
@@ -68,7 +46,6 @@ class ElfInfoPopup(QFrame):
         self._header.setText("ELF Inspection")
         outer.addWidget(self._header)
 
-        # Summary
         self._summary = QLabel(self)
         self._summary.setObjectName("ElfPopupSummary")
         self._summary.setTextFormat(Qt.TextFormat.RichText)
@@ -84,7 +61,6 @@ class ElfInfoPopup(QFrame):
         sep.setObjectName("ElfPopupSeparator")
         outer.addWidget(sep)
 
-        # Section table label
         lbl = QLabel("Sections", self)
         lbl.setObjectName("ElfPopupSectionLabel")
         outer.addWidget(lbl)
@@ -113,7 +89,6 @@ class ElfInfoPopup(QFrame):
         self._table.setMaximumHeight(320)
         outer.addWidget(self._table, 1)
 
-        # Close hint
         hint = QLabel("Press Esc to close • Click outside to dismiss", self)
         hint.setObjectName("ElfPopupHint")
         hint.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -172,14 +147,7 @@ class ElfInfoPopup(QFrame):
         sections: list[ElfSection],
         version: str = "",
     ) -> None:
-        """Populate popup with ELF header + sections.
-
-        Args:
-            file_name: Display file name.
-            header: Parsed ELF header or None.
-            sections: Parsed sections list.
-            version: Inspector version string.
-        """
+        """Populate popup with ELF header + sections."""
         safe_name = html.escape(file_name) if file_name else "Binary"
         if header is None:
             self._header.setText(f"<b>{safe_name}</b> — ELF inspection failed")
@@ -192,7 +160,6 @@ class ElfInfoPopup(QFrame):
 
         self._header.setText(f"<b>{safe_name}</b> — ELF Inspection")
 
-        # Summary: human-readable text with both table data repeated in prose
         file_format = "ELF"
         entry_hex = f"0x{header.entry:X}"
         ph_off = f"0x{header.program_header_offset:X}"
@@ -215,7 +182,6 @@ class ElfInfoPopup(QFrame):
         )
         self._summary.setText(summary_html)
 
-        # Table
         self._table.setRowCount(len(sections))
         for row, sec in enumerate(sections):
             vals = [
@@ -230,17 +196,14 @@ class ElfInfoPopup(QFrame):
             for col, txt in enumerate(vals):
                 item = QTableWidgetItem(txt)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                # Align numeric columns right
                 if col in (0, 3, 4, 5):
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                     )
                 self._table.setItem(row, col, item)
 
-        # Resize columns sensibly
         try:
             self._table.resizeColumnsToContents()
-            # Give extra to Name column
             self._table.horizontalHeader().setSectionResizeMode(
                 1, QHeaderView.ResizeMode.Stretch
             )
@@ -250,13 +213,8 @@ class ElfInfoPopup(QFrame):
     def move_near(
         self, anchor_widget: QWidget, editor_widget: QWidget | None = None
     ) -> None:
-        """Position popup near *anchor_widget* (gutter button).
-
-        Uses ``mapToGlobal`` and adapts if insufficient room below/adjacent.
-        Keeps popup inside screen and inside application window when possible.
-        """
+        """Position popup near *anchor_widget* (gutter button)."""
         try:
-            # Global position of button's bottom-left
             anchor_rect = anchor_widget.rect()
             global_pos = anchor_widget.mapToGlobal(QPoint(0, anchor_rect.height() + 4))
             self.adjustSize()
@@ -268,10 +226,8 @@ class ElfInfoPopup(QFrame):
                 screen = QGuiApplication.primaryScreen()
             if screen is not None:
                 avail = screen.availableGeometry()
-                # Horizontal: keep inside screen
                 if global_pos.x() + pw > avail.right() - 8:
                     global_pos.setX(max(avail.left() + 8, avail.right() - pw - 8))
-                # Vertical: flip above if not enough room below
                 if global_pos.y() + ph > avail.bottom() - 8:
                     above = anchor_widget.mapToGlobal(QPoint(0, -ph - 4))
                     if above.y() >= avail.top() + 8:
@@ -279,13 +235,11 @@ class ElfInfoPopup(QFrame):
                     else:
                         global_pos.setY(max(avail.top() + 8, avail.bottom() - ph - 8))
 
-            # Also ensure inside application window if provided
             if editor_widget is not None:
                 try:
                     win = editor_widget.window()
                     if win is not None:
                         win_geo = win.geometry()
-                        # Clamp to window if window is smaller than screen
                         if global_pos.x() + pw > win_geo.right() - 8:
                             global_pos.setX(
                                 max(win_geo.left() + 8, win_geo.right() - pw - 8)
@@ -300,7 +254,6 @@ class ElfInfoPopup(QFrame):
             self.move(global_pos)
         except Exception as exc:
             logger.debug("ElfInfoPopup positioning failed: %s", exc)
-            # Fallback: center near anchor
             try:
                 self.move(anchor_widget.mapToGlobal(QPoint(0, anchor_widget.height())))
             except Exception:

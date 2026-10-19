@@ -8,7 +8,6 @@ from editor.api.menus_api import MenusAPI
 
 logger = logging.getLogger(__name__)
 
-# Local Imports
 from editor.base.statusBar import StatusBar
 from editor.base.optionsBar import OptionsMenu
 from editor.base.verticalBar import VerticalSidebar
@@ -18,13 +17,7 @@ OUTLINE_REFRESH_DEBOUNCE_MS = 600
 
 
 class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
-    """Main IDE window.
-
-    Receives the bootstrap ``ServiceRegistry`` via constructor injection
-    and obtains all startup dependencies (config, theme, resource_manager)
-    from it.  The window must never independently locate configuration
-    files, theme files, or startup paths.
-    """
+    """Main IDE window."""
 
     ui_ready = pyqtSignal()
 
@@ -45,7 +38,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
         self.ui_ready.connect(self._on_ui_ready)
 
-        # Apply the theme provided by the bootstrap kernel.
         theme_content = self._registry.get("theme_content") if self._registry else None
         if theme_content:
             config = self._registry.get("config") if self._registry else None
@@ -96,7 +88,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self.tab_editors.currentChanged.connect(self._sync_menu_state)
         self.tab_editors.currentChanged.connect(self._sync_outline)
 
-        # Run dropdown: dynamic state + saved run configurations.
         from editor.debugger.run.run_menu import RunMenuController
 
         self._run_menu = RunMenuController(self)
@@ -180,9 +171,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         tabs = self.hero_window._text_editor_center.tabs
         tabs.open_file_by_path(file_path)
 
-    # ------------------------------------------------------------------
-    # Outline wiring
-    # ------------------------------------------------------------------
 
     def _wire_outline_panel(self) -> None:
         """Connect the outline panel's symbol click to editor navigation."""
@@ -190,8 +178,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         outline.symbol_clicked.connect(self._on_outline_symbol_clicked)
         self._outline_text_connection = None
 
-        # Debounced outline refresh: every keystroke restarts this timer
-        # and the whole-document rebuild runs once, after typing pauses.
         self._outline_refresh_timer = QTimer(self)
         self._outline_refresh_timer.setSingleShot(True)
         self._outline_refresh_timer.setInterval(OUTLINE_REFRESH_DEBOUNCE_MS)
@@ -199,8 +185,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
             self._refresh_outline_for_current_editor
         )
 
-        # Also refresh outline when the panel becomes visible (e.g. first
-        # activation — currentChanged won't fire for an already-open tab).
         api = self.hero_window._vertical_menus_api
         api.panel_visibility_changed.connect(self._on_outline_visibility_changed)
 
@@ -230,8 +214,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
         editor = api.editor
 
-        # (Re)bind live updates to the active editor before any early
-        # return, so even an empty buffer keeps tracking text changes.
         if self._outline_text_connection is not None:
             try:
                 self._outline_text_connection[0].textChanged.disconnect(
@@ -257,15 +239,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self._update_outline_for_editor(editor)
 
     def _on_outline_text_changed(self) -> None:
-        """Debounced outline refresh when the editor text changes.
-
-        Restarts the single-shot refresh timer instead of rebuilding
-        synchronously: a per-keystroke rebuild parses the entire buffer
-        and recreates the whole symbol tree, which freezes typing on
-        large files.  Rebuilds are also skipped while the outline panel
-        is hidden; the visibility hook rebuilds the tree when the panel
-        is re-opened.
-        """
+        """Debounced outline refresh when the editor text changes."""
         outline = self.hero_window._file_outline
         if not outline.isVisible():
             return
@@ -325,7 +299,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
             problems = self.hero_window._lower_widget.problems_window
             problems.countsChanged.connect(self._on_problem_counts_changed)
             self.status_bar.set_problem_counts(*problems.problem_counts())
-            # Right-clicking a diagnostic button edits this panel's options.
             self.status_bar.attach_problems_panel(problems)
             try:
                 from editor.Ironica.plugins.cpp.intellisense.index import (
@@ -353,11 +326,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self.title_bar._update_menu_state(has_tabs)
 
     def _defer_menu_sync(self) -> None:
-        """Schedule a menu-state sync after the next event-loop iteration.
-
-        Call this after any operation that adds or removes tabs so the
-        count is up-to-date when the check runs.
-        """
+        """Schedule a menu-state sync after the next event-loop iteration."""
         from PyQt6.QtCore import QTimer
 
         QTimer.singleShot(0, self._sync_menu_state)

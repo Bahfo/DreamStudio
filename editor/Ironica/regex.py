@@ -1,22 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Ironica Lexer — combined keyword + bracket pair colorization + number/operator
-lexer for DreamStudio.
-
-Reads all colours from the language JSON config (keywords/*.json), making the
-JSON files the **single source of truth** for highlighting colours.
-
-Style index layout (per language config):
-   0          DEFAULT
-   1..N       keyword styles  (from config["styles"] keys that appear in config["keywords"])
-   N+1..N+3   parenthesis depth 1-3
-   N+4..N+6   square bracket depth 1-3
-   N+7..N+9   curly brace depth 1-3
-   N+10       number
-   N+11       operator
-   N+12       string
-   N+13       comment
+Ironica Lexer — combined keyword + bracket pair colorization + number/operator lexer for DreamStudio.
 """
 
 from __future__ import annotations
@@ -27,9 +11,6 @@ from editor.Ironica.retheme import resolve_colour
 
 logger = logging.getLogger(__name__)
 
-# ------------------------------------------------------------------
-# Compiled regex patterns (module-level for speed)
-# ------------------------------------------------------------------
 _RE_NUMBER = re.compile(
     r"""
     (?:
@@ -61,9 +42,6 @@ _RE_OPERATOR = re.compile(
     re.VERBOSE,
 )
 
-# Byte-compiled twins — QScintilla hands us UTF-8 byte offsets, so the
-# incremental scanner works on raw bytes to stay perfectly aligned with
-# the document even when it contains multi-byte characters.
 _RE_NUMBER_B = re.compile(
     rb"""
     (?:
@@ -95,60 +73,36 @@ _RE_OPERATOR_B = re.compile(
     re.VERBOSE,
 )
 
-# Identifier token pattern (compiled for `pos` argument support)
 _RE_IDENTIFIER = re.compile(r"\w+")
 _RE_IDENTIFIER_B = re.compile(rb"\w+")
 
-# C-compiled scan that only visits state-relevant bytes (quotes,
-# comment marker, newline, brackets).  Order matters: triple quotes are
-# matched before their single-quote prefix.
 _RE_STATE_SCAN = re.compile(rb"""\"\"\"|\'\'\'|\"|\'|#|/|\*|\n|[()\[\]{}]""")
 
-# Single-character bracket tokens
 _OPEN_PARENS = frozenset("({[")
 _CLOSE_PARENS = frozenset(")}]")
 _BRACKET_PAIRS = {"(": ")", "[": "]", "{": "}"}
 
-# C-compiled scan that only visits bracket characters (order-preserving);
-# ~6-10x faster than a per-char Python loop over large prefixes.
 _BRACKET_REGEX = re.compile(r"[()\[\]{}]")
 
-# Colors
 COLOR_REGEX = re.compile(
     r"(#(?:[0-9a-fA-F]{3,4}){1,2}\b|"
     r"rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*(?:0?\.\d+|\d+(?:\.\d+)?)\s*)?\))"
 )
 
-# ------------------------------------------------------------------
-# Incremental scanner states (carried across styleText calls)
-# ------------------------------------------------------------------
-_ST_DEFAULT = 0  # plain code
-_ST_SINGLE = 1  # inside a '...' string
-_ST_DOUBLE = 2  # inside a "..." string
-_ST_TRIPLE_S = 3  # inside a '''...''' string
-_ST_TRIPLE_D = 4  # inside a """...""" string
-_ST_COMMENT = 5  # inside a # or // comment (until end of line)
-_ST_BLOCK_COMMENT = 6  # inside a /* ... */ comment
+_ST_DEFAULT = 0
+_ST_SINGLE = 1
+_ST_DOUBLE = 2
+_ST_TRIPLE_S = 3
+_ST_TRIPLE_D = 4
+_ST_COMMENT = 5
+_ST_BLOCK_COMMENT = 6
 
 
 class IronicaLexer(QsciLexerCustom):
-    """Combined keyword + bracket-depth + number + operator lexer.
+    """Combined keyword + bracket-depth + number + operator lexer."""
 
-    All colours are read from the language JSON configuration, making the
-    JSON file the single source of truth.
-
-    Usage::
-
-        config = LanguageRegistry.get_config("python")
-        lexer = IronicaLexer(editor, config)
-        editor.setLexer(lexer)
-    """
-
-    #: Bytes between recorded lexer states. Bounds the rescan work for
-    #: any edit to roughly this window instead of the whole prefix.
     _CHECKPOINT_EVERY = 8192
 
-    #: Cap for stored checkpoints; exceeding it thins them by half.
     _CHECKPOINT_LIMIT = 2048
 
     def __init__(self, parent, config: dict) -> None:
@@ -169,9 +123,6 @@ class IronicaLexer(QsciLexerCustom):
         self._comment_style: int = 0
         self._setup_from_config()
 
-    # ------------------------------------------------------------------
-    # Configuration
-    # ------------------------------------------------------------------
 
     def _setup_from_config(self) -> None:
         """Read colours from *config* and register all styles."""
@@ -179,14 +130,12 @@ class IronicaLexer(QsciLexerCustom):
         palette = self.config.get("palette", {}) or {}
         keywords = self.config.get("keywords", {})
 
-        # Determine which style keys are actually used for keywords.
         keyword_keys: Set[str] = set()
         for style_name, kw_list in keywords.items():
             if kw_list and style_name in styles:
                 keyword_keys.add(style_name)
 
-        # Assign style indices.
-        idx = 1  # style 0 = DEFAULT
+        idx = 1
         keyword_style_ids: Dict[str, int] = {}
         for style_name in styles:
             if style_name in keyword_keys:
@@ -196,7 +145,6 @@ class IronicaLexer(QsciLexerCustom):
                 self._keyword_style_names[idx] = style_name
                 idx += 1
 
-        # Build keyword → style map (first-match wins, no duplicates).
         self._keyword_map.clear()
         for style_name, kw_list in keywords.items():
             sid = keyword_style_ids.get(style_name, 0)
@@ -211,7 +159,6 @@ class IronicaLexer(QsciLexerCustom):
                     continue
                 self._keyword_map[kw] = sid
 
-        # Bracket/operator/number offsets.
         self._paren_offset = idx
         self._bracket_offset = idx + 3
         self._brace_offset = idx + 6
@@ -220,7 +167,6 @@ class IronicaLexer(QsciLexerCustom):
         self._string_style = idx + 11
         self._comment_style = idx + 12
 
-        # Register bracket/number/operator colours.
         paren_colours = (
             resolve_colour(styles.get("bracket", "#FFD700"), palette, "#FFD700"),
             resolve_colour(styles.get("bracket_2", "#C678DD"), palette, "#C678DD"),
@@ -264,16 +210,7 @@ class IronicaLexer(QsciLexerCustom):
         self.setColor(QColor(comment_colour), self._comment_style)
 
     def retheme(self, config: dict, bg=None, fg=None) -> None:
-        """Re-colour the lexer from a (resolved) *config*.
-
-        Style indices are derived from the order of the ``"styles"``
-        keys and the keyword lists, which a resolved config preserves,
-        so existing style ids stay valid.  When *bg* / *fg* ``QColor``
-        values are given the DEFAULT style (0) is updated as well, which
-        keeps the document background and text in sync with the IDE
-        theme even while a lexer is attached.  The visible document is
-        recoloured immediately via ``SCI_COLOURISE``.
-        """
+        """Re-colour the lexer from a (resolved) *config*."""
         from PyQt6.Qsci import QsciScintilla
 
         self.config = config
@@ -318,9 +255,6 @@ class IronicaLexer(QsciLexerCustom):
             return "Comment"
         return ""
 
-    # ------------------------------------------------------------------
-    # Bracket colour helpers
-    # ------------------------------------------------------------------
 
     def _bracket_style(self, char: str, depth: int) -> int:
         cycle = (depth - 1) % 3
@@ -332,9 +266,6 @@ class IronicaLexer(QsciLexerCustom):
             return self._brace_offset + cycle
         return 0
 
-    # ------------------------------------------------------------------
-    # Incremental state helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _is_escaped(data: bytes, pos: int) -> bool:
@@ -369,12 +300,7 @@ class IronicaLexer(QsciLexerCustom):
     def _scan_state(
         self, data: bytes, state: int, depth_stack: List[str], start: int, stop: int
     ) -> int:
-        """Advance *depth_stack* + *state* over ``data[start:stop]``.
-
-        Unlike the simple regex-only ``_scan_bracket_depth`` this respects
-        string literals and comments, so brackets inside them never skew
-        the depth used for colour cycling.
-        """
+        """Advance *depth_stack* + *state* over ``data[start:stop]``."""
         pos = start
         while pos < stop:
             m = _RE_STATE_SCAN.search(data, pos, stop)
@@ -442,9 +368,6 @@ class IronicaLexer(QsciLexerCustom):
         if len(wave) > self._CHECKPOINT_LIMIT:
             del wave[::2]
 
-    # ------------------------------------------------------------------
-    # Core lexer entry point
-    # ------------------------------------------------------------------
 
     def styleText(self, start: int, end: int) -> None:
         editor = self.editor()
@@ -457,10 +380,6 @@ class IronicaLexer(QsciLexerCustom):
 
         end = min(end, doc_len)
 
-        # ── Resolve the lexical state + bracket depth before *start* ──
-        # QScintilla restyles from the edit position. The nearest stored
-        # checkpoint at or below *start* bounds the forward scan to one
-        # checkpoint window no matter where in the document the edit is.
         base_offset, base_stack, base_state = self._checkpoints_before(start)
         depth_stack = list(base_stack)
         state = base_state
@@ -480,7 +399,6 @@ class IronicaLexer(QsciLexerCustom):
         i = 0
         length = len(data)
 
-        # ── Continuation of a string/comment opened before this range ──
         if state == _ST_SINGLE:
             j = self._find_unescaped(data, i, 0x27)
             if j == -1:
@@ -537,13 +455,11 @@ class IronicaLexer(QsciLexerCustom):
                 checkpoint_at = absolute
             ch = data[i]
 
-            # ── Skip whitespace ────────────────────────────────────
             if ch in b" \t\r\n":
                 self.setStyling(1, 0)
                 i += 1
                 continue
 
-            # ── Strings (single/double/triple quoted) ──────────────
             if ch == 0x22 or ch == 0x27:
                 if data[i : i + 3] in (b'"""', b"'''"):
                     delim = data[i : i + 3]
@@ -573,7 +489,6 @@ class IronicaLexer(QsciLexerCustom):
                 state = _ST_DEFAULT
                 continue
 
-            # ── Comments ───────────────────────────────────────────
             if ch == 0x23 and not self._supports_c_comments:
                 eol = data.find(b"\n", i)
                 if eol == -1:
@@ -612,7 +527,6 @@ class IronicaLexer(QsciLexerCustom):
                     i += span
                     continue
 
-            # ── Bracket pair colourization ─────────────────────────
             if ch in b"({[":
                 depth_stack.append(chr(ch))
                 depth = len(depth_stack)
@@ -633,7 +547,6 @@ class IronicaLexer(QsciLexerCustom):
                 i += 1
                 continue
 
-            # ── Numeric literals ───────────────────────────────────
             m = _RE_NUMBER_B.match(data, i)
             if m:
                 span = m.end() - i
@@ -641,7 +554,6 @@ class IronicaLexer(QsciLexerCustom):
                 i += span
                 continue
 
-            # ── Operators ──────────────────────────────────────────
             m = _RE_OPERATOR_B.match(data, i)
             if m:
                 span = m.end() - i
@@ -649,7 +561,6 @@ class IronicaLexer(QsciLexerCustom):
                 i += span
                 continue
 
-            # ── Keywords / identifiers ─────────────────────────────
             m = _RE_IDENTIFIER_B.match(data, i)
             if m:
                 word = data[i : m.end()].decode("ascii", "ignore")
@@ -659,7 +570,6 @@ class IronicaLexer(QsciLexerCustom):
                 i += span
                 continue
 
-            # ── Default: anything else (dots, multi-byte chars, …) ─
             self.setStyling(1, 0)
             i += 1
 
@@ -667,10 +577,7 @@ class IronicaLexer(QsciLexerCustom):
 
     @staticmethod
     def _get_range(editor, start: int, end: int) -> bytes:
-        """Fetch the UTF-8 bytes of ``[start, end)`` without copying the doc.
-
-        Returns an empty ``bytes`` object when the range is empty.
-        """
+        """Fetch the UTF-8 bytes of ``[start, end)`` without copying the doc."""
         if end <= start:
             return b""
         buffer = bytearray(end - start + 1)
@@ -683,14 +590,7 @@ class IronicaLexer(QsciLexerCustom):
     def _scan_bracket_depth(
         text: str, begin: int, stop: int, depth_stack: List[str]
     ) -> None:
-        """Update *depth_stack* with the bracket balance of text[begin:stop].
-
-        Args:
-            text: The full document text.
-            begin: Start position to scan (exclusive of the stack state).
-            stop: End position to scan.
-            depth_stack: Mutable stack updated in place.
-        """
+        """Update *depth_stack* with the bracket balance of text[begin:stop]."""
         for m in _BRACKET_REGEX.finditer(text, begin, stop):
             ch = m.group(0)
             if ch in _OPEN_PARENS:

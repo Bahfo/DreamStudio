@@ -3,13 +3,7 @@ from editor.utils.resource_path import resource_path
 
 
 class DreamStudioIconProvider(QFileIconProvider):
-    """Provides file, name-based, and folder icons for the explorer tree.
-
-    Attributes:
-        _EXT_ICON: Mapping of lowercase file extension to icon file name.
-        _NAME_ICON: Mapping of lowercase full file name to icon file name.
-        _FOLDER_NAME_ICON: Mapping of lowercase folder name to icon file name.
-    """
+    """Provides file, name-based, and folder icons for the explorer tree."""
     _EXT_ICON = {
         "bash": "bash.png",
         "bat": "bat.png",
@@ -81,14 +75,7 @@ class DreamStudioIconProvider(QFileIconProvider):
     }
 
     def icon(self, file_info: QFileInfo) -> QIcon:
-        """Resolves the icon for a file or folder.
-
-        Args:
-            file_info: File metadata provided by the file system model.
-
-        Returns:
-            Matching ``QIcon`` or the generic file/folder fallback.
-        """
+        """Resolves the icon for a file or folder."""
         if not isinstance(file_info, QFileInfo):
             return super().icon(file_info)
 
@@ -104,7 +91,6 @@ class DreamStudioIconProvider(QFileIconProvider):
         icon_file = self._NAME_ICON.get(name_lower)
         if icon_file is None:
             # NOTE: catches `CMakeLists.txt` (stem `cmakelists`) and variants
-            # such as `Makefile.am` or `Dockerfile.dev`.
             try:
                 stem_lower = file_info.completeBaseName().lower()
             except Exception:

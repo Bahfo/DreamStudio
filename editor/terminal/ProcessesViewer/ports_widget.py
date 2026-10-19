@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Ports tab widget for the terminal panel. Lists every process that owns
-listening network sockets together with its port numbers, resolved IANA
-service names and live resource usage, and hosts an embedded system
-monitor utility.
+Ports tab widget for the terminal panel.
 """
 
 import psutil
@@ -71,7 +67,6 @@ class PortsWidget(QWidget):
         self.sortByDropDown.addItems(options)
         self.sortByDropDown.setStyleSheet("padding: 4px; border-radius: 4px;")
         self.sortByDropDown.currentTextChanged.connect(self.refresh_data)
-        # Also react to programmatic setCurrentText with non-existent entry
         self.sortByDropDown.lineEdit().textChanged.connect(self.refresh_data)
 
         self.listen_only_check = QCheckBox("Listening Sockets Only", self)
@@ -86,7 +81,6 @@ class PortsWidget(QWidget):
         self.table = QTableWidget(0, len(self.table_headers), self)
         self.table.setHorizontalHeaderLabels(self.table_headers)
 
-        # Clean UI styling for the data table
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
         self.table.setStyleSheet("""
@@ -166,7 +160,6 @@ class PortsWidget(QWidget):
         if search_query and search_query.lower() not in haystack:
             return False
 
-        # Tolerant matching: accept both singular/plural and substring checks
         if "Active" in status_filter:
             return status in _ACTIVE_STATUSES
         if "Stopped" in status_filter:
@@ -190,7 +183,6 @@ class PortsWidget(QWidget):
                 pid = proc.info["pid"]
                 port_entries = pid_to_ports.get(pid)
 
-                # Process all network and non-network processes
                 if port_entries:
                     ordered_ports = sorted(port_entries, key=lambda e: int(e[0]))
                     port_str = ", ".join(port for port, _ in ordered_ports)

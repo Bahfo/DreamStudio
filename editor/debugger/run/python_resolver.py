@@ -1,8 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Resolve the Python interpreter belonging to the active workspace (cwd)
-instead of the IDE's own interpreter, with a global-Python fallback.
+Resolve the Python interpreter belonging to the active workspace (cwd) instead of the IDE's own interpreter, with a global-Python fallback.
 """
 
 import logging
@@ -17,16 +15,7 @@ GLOBAL_CANDIDATES = ("python3", "python")
 
 
 def find_venv_python(workspace_dir: str | None) -> str | None:
-    """Return the workspace venv interpreter when one exists.
-
-    Args:
-        workspace_dir: Absolute path of the active project/cwd. May be
-            None or empty, in which case ``VIRTUAL_ENV`` is honoured.
-
-    Returns:
-        Absolute path to the venv Python executable, or None when no
-        workspace venv was found.
-    """
+    """Return the workspace venv interpreter when one exists."""
     candidates: list[str] = []
     if workspace_dir and os.path.isdir(os.path.abspath(workspace_dir)):
         base = os.path.abspath(workspace_dir)
@@ -61,14 +50,7 @@ def find_venv_python(workspace_dir: str | None) -> str | None:
 
 
 def find_global_python() -> str:
-    """Return a system-wide Python interpreter, never the IDE venv silently.
-
-    Returns:
-        Path or command name of a global Python interpreter.
-
-    Raises:
-        RuntimeError: When no external interpreter can be located.
-    """
+    """Return a system-wide Python interpreter, never the IDE venv silently."""
     base_exe = getattr(sys, "_base_executable", None)
     if base_exe and os.path.isfile(str(base_exe)):
         if os.path.abspath(str(base_exe)) != os.path.abspath(sys.executable):
@@ -95,16 +77,7 @@ def find_global_python() -> str:
 
 
 def resolve_project_python(workspace_dir: str | None = None) -> str:
-    """Resolve the interpreter for ``Run Current File``.
-
-    Args:
-        workspace_dir: Active project/cwd root. When None or empty, only
-            ``VIRTUAL_ENV`` and global interpreters are considered; the
-            process CWD is never used as a workspace.
-
-    Returns:
-        Workspace venv Python when present, otherwise a global Python.
-    """
+    """Resolve the interpreter for ``Run Current File``."""
     base = workspace_dir if workspace_dir else None
     venv_python = find_venv_python(base)
     if venv_python:
@@ -113,15 +86,7 @@ def resolve_project_python(workspace_dir: str | None = None) -> str:
 
 
 def resolve_workspace_dir(window=None) -> str:
-    """Return the active workspace root without touching IDE resources.
-
-    Args:
-        window: Main IDE window (uses ``currentDirectory`` when set).
-
-    Returns:
-        Absolute path of the active workspace, or ``""`` when no
-        workspace is open. Never falls back to process CWD.
-    """
+    """Return the active workspace root without touching IDE resources."""
     from editor.utils.workspace import get_workspace_dir
 
     return get_workspace_dir(window)

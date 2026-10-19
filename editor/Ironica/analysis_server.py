@@ -1,21 +1,4 @@
-# (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-"""Out-of-process analysis server for Ironica.
-
-Runs the Python plugin's CPU-bound work (semantic highlights, fold
-regions, jedi diagnostics) in a dedicated interpreter, so heavy typing
-in large files never freezes the IDE's main thread.
-
-The server is intentionally launched as a *plain script* rather than
-``python -m``.  The ``editor`` package itself is a pure standard-library
-/ PyQt6 import hub (safe to load here), but ``editor.Ironica`` still
-pulls the whole widget GUI chain, so the ``Ironica`` subtree is stubbed
-as namespace-only packages before any ``editor.Ironica.*`` module is
-imported - those modules must never exist inside the analysis child.
-
-Wire protocol (mirrors ``analysis_bridge``): 8-byte little-endian length
-followed by a pickle payload, strictly request/response over stdin/stdout.
-The ``None``/empty sentinel tells the loop to exit.
-"""
+"""Out-of-process analysis server for Ironica."""
 
 from __future__ import annotations
 
@@ -31,10 +14,6 @@ _PICKLE_PROTOCOL = pickle.HIGHEST_PROTOCOL
 
 logger = logging.getLogger("DreamStudio.Analysis.Server")
 
-# ----------------------------------------------------------------------
-# Isolated package imports
-# ----------------------------------------------------------------------
-
 
 def _stub_package(name: str, path: str) -> None:
     """Register a namespace-only package so its ``__init__.py`` never runs."""
@@ -45,13 +24,10 @@ def _stub_package(name: str, path: str) -> None:
 
 
 def _install_package_stubs() -> None:
-    # When the real ``editor`` package is already imported (unit tests),
-    # keep it — stubbing must only isolate the *child* process, which has
-    # never touched the ``editor`` package before this script runs.
     if "editor" in sys.modules:
         return
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        root = sys._MEIPASS  # type: ignore[attr-defined]
+        root = sys._MEIPASS
     else:
         root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -60,8 +36,7 @@ def _install_package_stubs() -> None:
         sys.path.insert(0, root)
     ironica_root = os.path.join(root, "editor", "Ironica")
     # NOTE: the ``editor`` package itself is only an import hub now, so the
-    # child loads it directly; plugin modules rely on its namespace.
-    import editor  # noqa: F401
+    import editor
 
     _stub_package("editor.Ironica", ironica_root)
     _stub_package("editor.Ironica.utils", os.path.join(ironica_root, "utils"))
@@ -77,11 +52,6 @@ def _install_package_stubs() -> None:
 
 
 _install_package_stubs()
-
-# ----------------------------------------------------------------------
-# Framing (kept local — importing analysis_bridge would re-enter the
-# ``editor`` package chain this process exists to avoid)
-# ----------------------------------------------------------------------
 
 
 class _WireError(EOFError):
@@ -116,22 +86,12 @@ def _write_frame(stream, payload) -> None:
     stream.flush()
 
 
-# ----------------------------------------------------------------------
-# Environment (theme + language config must match the parent editor)
-# ----------------------------------------------------------------------
-
 _LAST_THEME: str = ""
 _LAST_CONFIGS: dict = {}
 
 
 def _ensure_environment(config: dict, theme_name: str, lang: str = "python") -> None:
-    """Sync theme and language config for *lang*, invalidating caches.
-
-    Args:
-        config: Language config dict (plain data) for *lang*.
-        theme_name: Active theme name in the parent editor.
-        lang: Language id (``"python"`` or ``"clang"``).
-    """
+    """Sync theme and language config for *lang*, invalidating caches."""
     global _LAST_THEME
 
     if theme_name != _LAST_THEME:
@@ -191,10 +151,6 @@ def _resolve_spills(payload):
     return type(payload)(resolved)
 
 
-# ----------------------------------------------------------------------
-# Memory guard (keeps the child inside the large-file memory budget)
-# ----------------------------------------------------------------------
-
 _RSS_CAP_MB = int(os.environ.get("DREAMSTUDIO_ANALYSIS_RSS_MB", "600"))
 
 
@@ -209,12 +165,7 @@ def _rss_mb() -> float:
 
 
 def _check_rss_budget() -> None:
-    """Drop warm caches when the child exceeds its RSS budget.
-
-    Translation units, Jedi scripts and semantic token caches are all
-    recomputable; shedding them trades one slower re-parse for never
-    spiking past the budget on 100k-line buffers.
-    """
+    """Drop warm caches when the child exceeds its RSS budget."""
     if _RSS_CAP_MB <= 0:
         return
     current = _rss_mb()
@@ -250,11 +201,6 @@ def _check_rss_budget() -> None:
             getattr(module, func_name)()
         except Exception:
             pass
-
-
-# ----------------------------------------------------------------------
-# Handlers
-# ----------------------------------------------------------------------
 
 
 def _apply_workspace_paths(paths) -> list[str]:
@@ -343,24 +289,7 @@ _SYNTAX_COLOR = "#F14C4C"
 
 
 def _syntax_diagnostics(source: str):
-    """Return syntax diagnostics for *source* as plain wire dicts.
-
-    NOTE: ``jedi.Script.get_diagnostics`` was removed in jedi 0.19, so
-    diagnostics come from ``parso``'s error-recovery parse instead (the
-    same parser jedi itself uses).  That covers *syntax* errors only —
-    semantic/lint diagnostics such as undefined names are not
-    implemented.  Keep this in sync with the identical helper in
-    ``editor.Ironica.plugins.python.jedi_worker``; the two cannot share
-    a module because this process stubs out the whole ``Ironica``
-    subtree.
-
-    Args:
-        source: Full buffer content.
-
-    Returns:
-        List of ``{line, start_col, end_line, end_col, color, message}``
-        dicts with 1-based lines — capped, never raises.
-    """
+    """Return syntax diagnostics for *source* as plain wire dicts."""
     try:
         import parso
 
@@ -408,18 +337,7 @@ def _syntax_diagnostics(source: str):
 
 
 def _merge_spans(diagnostics):
-    """Merge overlapping/adjacent spans that share a line.
-
-    parso reports nested error nodes (an ``error_node`` wrapping an
-    ``error_leaf``), which would otherwise paint two squiggles over the
-    same characters.
-
-    Args:
-        diagnostics: Collected wire dicts, in walk order.
-
-    Returns:
-        New list with at most one entry per merged span.
-    """
+    """Merge overlapping/adjacent spans that share a line."""
     by_line: dict = {}
     for entry in diagnostics:
         by_line.setdefault(entry["line"], []).append(entry)
@@ -453,15 +371,7 @@ _JEDI_LAST_SCRIPT = None
 
 
 def _jedi_script(source: str, file_path):
-    """Return a cached Jedi script for *source*, reusing the last buffer.
-
-    Args:
-        source: Full buffer content.
-        file_path: Optional path handed to Jedi for context.
-
-    Returns:
-        A ``jedi.Script`` bound to *source*.
-    """
+    """Return a cached Jedi script for *source*, reusing the last buffer."""
     global _JEDI_LAST_SOURCE, _JEDI_LAST_PATH, _JEDI_LAST_SCRIPT
     import jedi
 
@@ -498,8 +408,6 @@ def _handle_completions(request_id: int, source: str, line: int, col: int, file_
             {
                 "text": c.name,
                 # NOTE: ``c.complete`` is only the missing suffix (typed
-                # "imp" -> "ort"); clients replace the typed prefix, so the
-                # full identifier must be inserted instead.
                 "insert_text": c.name,
                 "kind": c.type or "",
                 "signature": "",
@@ -511,10 +419,7 @@ def _handle_completions(request_id: int, source: str, line: int, col: int, file_
 
 
 def handle_request(payload) -> object:
-    """Dispatch one request and return its response payload.
-
-    Public for direct in-process testing of the dispatch logic.
-    """
+    """Dispatch one request and return its response payload."""
     if payload is None:
         return None
 

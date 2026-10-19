@@ -25,9 +25,6 @@ class TitleBar(QWidget):
         except Exception:
             pass
 
-        #################################
-        # Title
-        #################################
 
         self.icon_btn = QPushButton(title)
         self.icon_btn.setIcon(QIcon(resource_path(self.icon)))
@@ -63,7 +60,7 @@ class TitleBar(QWidget):
             font-size: 12px;}
             QPushButton:hover{
             background-color:#444;}
-            
+
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 0.1);
             }""")
@@ -81,7 +78,7 @@ class TitleBar(QWidget):
             font-size: 16px;}
             QPushButton:hover{
             background-color:#444;}
-            
+
             QPushButton:hover {
                 background-color: #E81123;
                 color: white;

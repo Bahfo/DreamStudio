@@ -5,17 +5,7 @@ from editor.utils.icons import get_qicon
 
 
 class ToolbarButton(QPushButton):
-    """
-    A small, flat icon button used to construct DreamStudio menus.
-
-    Parameters:
-        - `icon_path` of type `str` points to button's icon path.
-        - `tooltip` of type `str` sets the tooltip.
-        - `text` of type `str` sets text displayed to the right of the icon.
-        - `fixed_size` of type `tuple` sets fixed dimensions (width, height).
-        - `icon_size` of type `tuple` sets the image sizes.
-        - `callback` if any function (method) is called.
-    """
+    """A small, flat icon button used to construct DreamStudio menus."""
 
     def __init__(
         self,

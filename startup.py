@@ -1,11 +1,3 @@
-# DreamStudio application entry point.
-#
-# This is the only file that should be executed to start the IDE.
-# It delegates all startup orchestration to BootstrapManager.
-#
-# Usage:
-#     python startup.py
-
 import os
 import sys
 
@@ -18,12 +10,7 @@ if _PROJECT_ROOT not in sys.path:
 
 
 def _parse_project_arg(argv: list) -> str | None:
-    """
-    Extract a project/solution path from command-line arguments.
-
-    Supports ``--project <path>``, ``--solution <path>`` and ``-p <path>``.
-    Returns ``None`` when no path was supplied.
-    """
+    """Extract a project/solution path from command-line arguments."""
     for index, arg in enumerate(argv):
         if arg in ("--project", "--solution", "-p") and index + 1 < len(argv):
             candidate = argv[index + 1]
@@ -33,16 +20,7 @@ def _parse_project_arg(argv: list) -> str | None:
 
 
 def _run_post_reveal_scaffold(window, scaffold: dict) -> None:
-    """
-    Scaffold a just-created solution over the revealed main window.
-
-    The scaffolding runs with a blocking modal progress dialog so the user
-    cannot interact with the IDE until it finishes or is cancelled.
-
-    Args:
-        window: The revealed DreamStudio main window.
-        scaffold: Pending-scaffold dict emitted by the solution prompt.
-    """
+    """Scaffold a just-created solution over the revealed main window."""
     try:
         from editor.utils.solution.QScafoldController import ScaffoldController
 

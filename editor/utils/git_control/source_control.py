@@ -556,16 +556,7 @@ class GitVersionControl(PanelShell):
         return files
 
     def getChangedFilePath(self, item: Optional[QTreeWidgetItem]) -> Optional[str]:
-        """Return the file path for a changed-files tree item.
-
-        Args:
-            item: Tree item to resolve, typically from a click or
-                selection signal.
-
-        Returns:
-            Stored file path for file rows, or ``None`` for parent
-            category rows, placeholders, and invalid input.
-        """
+        """Return the file path for a changed-files tree item."""
         if item is None:
             return None
         if item.parent() is None:

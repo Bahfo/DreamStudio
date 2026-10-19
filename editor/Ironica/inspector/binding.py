@@ -1,11 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Python ctypes wrapper around the native ELF inspector shared library.
-
-This module is the single place where raw ``ctypes`` calls live.
-All higher-level code must use :class:`Inspector` instead of touching
-``ctypes`` directly.
 """
 
 from __future__ import annotations
@@ -18,18 +13,8 @@ from typing import List, Optional, Tuple
 logger = __import__("logging").getLogger(__name__)
 
 
-# ----------------------------------------------------------------------
-# Structures — must match C exactly (see hex-editor/include/inspector.h)
-# ----------------------------------------------------------------------
-
-
 class ElfHeaderInfo(ctypes.Structure):
-    """Mirror of C ``ElfHeaderInfo``.
-
-    Fields are in the exact same order and use compatible C types.
-    Padding is handled by ``ctypes`` natural alignment (no ``_pack_``),
-    which matches the C compiler's layout on x86-64 (verified size 40).
-    """
+    """Mirror of C ``ElfHeaderInfo``."""
 
     _fields_ = [
         ("elf_class", ctypes.c_uint8),
@@ -58,23 +43,12 @@ class ElfSectionInfo(ctypes.Structure):
     ]
 
 
-# ----------------------------------------------------------------------
-# Helpers to locate the shared library without hardcoding absolute paths
-# ----------------------------------------------------------------------
-
-
 def _find_library() -> pathlib.Path:
-    """Locate ``libinspector.so`` relative to the project/package.
-
-    Searches a small set of predictable locations relative to this file
-    and the project root. No absolute hard-coded paths are used.
-    Supports PyInstaller frozen builds via sys._MEIPASS.
-    """
+    """Locate ``libinspector.so`` relative to the project/package."""
     import sys
 
-    # Frozen handling: sys._MEIPASS is the bundle root
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        meipass = pathlib.Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        meipass = pathlib.Path(sys._MEIPASS)
         frozen_candidates: List[pathlib.Path] = [
             meipass / "native" / "build" / "lib" / "libinspector.so",
             meipass / "hex-editor" / "build" / "libinspector.so",
@@ -87,7 +61,6 @@ def _find_library() -> pathlib.Path:
                 return cand
 
     this = pathlib.Path(__file__).resolve()
-    # project root is three levels up from editor/Ironica/inspector/
     try:
         project_root = this.parents[3]
     except IndexError:
@@ -110,7 +83,6 @@ def _find_library() -> pathlib.Path:
     for cand in candidates:
         if cand.is_file():
             return cand
-    # Last resort: rely on system loader search
     raise FileNotFoundError(
         "Could not locate libinspector.so. Searched: "
         + ", ".join(str(c) for c in candidates)
@@ -125,11 +97,6 @@ def _load_lib() -> ctypes.CDLL:
         return lib
     except OSError as exc:
         raise OSError(f"Failed to load inspector library {path}: {exc}") from exc
-
-
-# ----------------------------------------------------------------------
-# Python-friendly dataclasses
-# ----------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -147,7 +114,6 @@ class ElfHeader:
     section_header_count: int
     section_name_string_table_index: int
 
-    # Derived human-readable names (filled by Inspector helper)
     class_name: str = ""
     data_name: str = ""
     type_name: str = ""
@@ -170,17 +136,8 @@ class ElfSection:
     flags_name: str
 
 
-# ----------------------------------------------------------------------
-# Main wrapper
-# ----------------------------------------------------------------------
-
-
 class Inspector:
-    """Single abstraction over the native ELF inspector.
-
-    Handles library loading, argtypes/restype declarations, handle
-    management, and conversion of C results to Python values.
-    """
+    """Single abstraction over the native ELF inspector."""
 
     def __init__(self) -> None:
         self._lib = _load_lib()
@@ -188,7 +145,6 @@ class Inspector:
 
     def _configure(self) -> None:
         lib = self._lib
-        # Opaque BinaryFile* -> c_void_p
         lib.binary_file_open.argtypes = [ctypes.c_char_p]
         lib.binary_file_open.restype = ctypes.c_void_p
 
@@ -212,7 +168,6 @@ class Inspector:
         ]
         lib.binary_file_read_section.restype = ctypes.c_int
 
-        # Returns malloc'd char* — use void_p to avoid auto conversion
         lib.binary_file_read_section_name.argtypes = [
             ctypes.c_void_p,
             ctypes.POINTER(ElfHeaderInfo),
@@ -244,9 +199,6 @@ class Inspector:
         lib.inspector_free.argtypes = [ctypes.c_void_p]
         lib.inspector_free.restype = None
 
-    # ------------------------------------------------------------------
-    # Low-level helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _decode(c_bytes: Optional[bytes]) -> str:
@@ -280,9 +232,6 @@ class Inspector:
     def elf_section_flags_name(self, flags: int) -> str:
         return self._decode(self._lib.elf_section_flags_name(flags))
 
-    # ------------------------------------------------------------------
-    # File handling
-    # ------------------------------------------------------------------
 
     def open(self, path: str) -> ctypes.c_void_p:
         """Open binary file, returning opaque handle or None on failure."""
@@ -301,14 +250,7 @@ class Inspector:
                 logger.debug("binary_file_close failed: %s", exc)
 
     def read_header(self, handle: ctypes.c_void_p) -> Optional[ElfHeader]:
-        """Read ELF header via native code.
-
-        Args:
-            handle: Opaque file handle from :meth:`open`.
-
-        Returns:
-            :class:`ElfHeader` on success, ``None`` on failure.
-        """
+        """Read ELF header via native code."""
         if not handle:
             return None
         raw = ElfHeaderInfo()
@@ -335,13 +277,9 @@ class Inspector:
     def read_sections(
         self, handle: ctypes.c_void_p, header: ElfHeader
     ) -> List[ElfSection]:
-        """Read all sections for *header*.
-
-        Handles memory ownership for section names via ``inspector_free``.
-        """
+        """Read all sections for *header*."""
         if not handle or header is None:
             return []
-        # Reconstruct raw header for the C calls (need pointer)
         raw_header = ElfHeaderInfo(
             elf_class=header.elf_class,
             elf_data=header.elf_data,
@@ -363,7 +301,6 @@ class Inspector:
             )
             if rc != 1:
                 continue
-            # Section name — malloc'd, must free
             name_ptr = self._lib.binary_file_read_section_name(
                 handle, ctypes.byref(raw_header), ctypes.byref(raw_sec)
             )
@@ -394,12 +331,7 @@ class Inspector:
         return sections
 
     def inspect(self, path: str) -> Tuple[Optional[ElfHeader], List[ElfSection], str]:
-        """High-level helper: open, read header+sections, close.
-
-        Returns:
-            (header_or_None, sections_list, error_message)
-            On success error_message is "".
-        """
+        """High-level helper:"""
         handle = None
         try:
             handle = self.open(path)
@@ -418,11 +350,7 @@ class Inspector:
                 self.close(handle)
 
     def is_elf(self, path: str) -> bool:
-        """Quick ELF magic check without full parsing.
-
-        First checks ELF magic bytes, then confirms via native parser.
-        Returns ``True`` only for valid ELF64 files.
-        """
+        """Quick ELF magic check without full parsing."""
         try:
             with open(path, "rb") as f:
                 magic = f.read(4)
@@ -434,7 +362,6 @@ class Inspector:
         return hdr is not None and err == ""
 
 
-# Singleton helper
 _singleton: Optional[Inspector] = None
 
 

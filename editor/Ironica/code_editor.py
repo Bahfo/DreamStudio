@@ -1,11 +1,8 @@
 """
 (C) COPYRIGHT 2026 - EXcellent TechStacks, All Rights Reserved.
-
 Ironica Code Editor - Lightweight static text editor for DreamStudio.
-This code is protected under the GPLv3 License.
 """
 
-# Written By Bahaa Nofal - 26/May/2026
 
 from editor import *
 
@@ -27,32 +24,7 @@ SCI_SETFOLDEXPANDEDTEXT = 2700
 
 
 class CodeEditor(QsciScintilla):
-    """
-    Base class code editor for complex language support for DreamStudio.
-
-    Builds on top of QScintilla. The ``CodeEditor`` class supports a multi-
-    plugin system for languages support via its modern engine built on top
-    of Ironica Lexers.
-
-    **Ownership Model:**
-
-    The editor owns the following state exclusively:
-
-    - Text content (via QScintilla buffer)
-    - Cursor position and selection
-    - Modified (dirty) flag (via ``isModified()``)
-    - Lexer and language configuration
-    - Read-only state (via ``setReadOnly()``)
-    - ``current_file_path`` — the canonical path of the file on disk
-    - ``current_lang`` — the resolved language identifier
-    - ``current_provider`` — the language intelligence provider
-
-    The tab manager (``DreamTabbedEditor``) owns:
-
-    - Tab title, position, and ordering
-    - The ``opened_files`` deduplication map
-    - Per-tab UI indicators (dirty dot, read-only lock)
-    """
+    """Base class code editor for complex language support for DreamStudio."""
 
     position_changed = pyqtSignal(int, int)
     dirty_state_changed = pyqtSignal(bool)
@@ -98,16 +70,7 @@ class CodeEditor(QsciScintilla):
     MARKER_ELF = 5
 
     def __init__(self, _parent=None, language=None, file_path=None):
-        """
-        Initialise the editor widget.
-
-        Args:
-            _parent: Parent widget (typically the tab editor).
-            language: Optional language identifier string. When ``None``,
-                no syntax highlighting or provider is attached.
-            file_path: Optional file path to load immediately. If provided,
-                ``load_from_file`` is called during construction.
-        """
+        """Initialise the editor widget."""
         super().__init__(_parent)
 
         self.setObjectName("CodeEditor")
@@ -122,26 +85,19 @@ class CodeEditor(QsciScintilla):
         self._configured_diagnostic_slots: dict = {}
         self._severity_slots: dict = dict(self._SEVERITY_SLOTS)
 
-        # Overview-ruler ticks
         self._diagnostic_ticks: list = []
         self._hover_band = None
         self._hover_line: int = -1
 
         self.SendScintilla(QsciScintilla.SCI_SETENDATLASTLINE, 0)
 
-        ###############################################
-        # Right-click menu
-        ###############################################
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos))
 
-        # Bracket-pair highlight state (custom, indicator-based).
         self._bracket_hl_ranges: list = []
 
-        # For breakpoints hover:
         self._hovered_breakpoint_line = None
 
-        # zooming
         self._is_zoomed = False
 
         self.shortcut_reset = QShortcut(QKeySequence("Ctrl+0"), self)
@@ -165,9 +121,6 @@ class CodeEditor(QsciScintilla):
             self._zoom_out_shortcuts.append(_sc)
         self.shortcut_zoom_out = self._zoom_out_shortcuts[0]
 
-        ###############################################
-        # Breakpoint Helpers
-        ###############################################
         self._debug_stack_widget = None
         self._paused_line = -1
 
@@ -176,21 +129,12 @@ class CodeEditor(QsciScintilla):
             self._update_debug_stack_position
         )
 
-        ###############################################
-        # Snippets Management
-        ###############################################
         self.snippet_map = {}
         self._is_replacing = False
         self.textChanged.connect(self._on_text_changed)
 
-        ###############################################
-        # Text Modification
-        ###############################################
         self.textChanged.connect(self._handle_text_modification)
 
-        ###############################################
-        # Color Wheel and Indicators
-        ###############################################
         self._color_marker_cache = {}
         self._next_color_marker_id = self.COLOR_MARKER_START
 
@@ -200,13 +144,10 @@ class CodeEditor(QsciScintilla):
             self.update_visible_color_indicators
         )
 
-        # Language state — single source of truth.
         self.current_lang: Optional[str] = None
         self.current_provider: Optional[Any] = None
         self._theme_name = "dark"
 
-        # Whole-document analysis state (semantic overlays + folds are
-        # computed off the UI thread by the analysis worker).
         self._analysis_active = False
         self._analysis_enabled = False
         self._analysis_owner_id = id(self)
@@ -231,18 +172,15 @@ class CodeEditor(QsciScintilla):
         self._setup_edge()
         self._setup_wrap()
 
-        # Hover flyout state (DocumentationFlyout + HoverController).
         self._hover_flyout: Optional[DocumentationFlyout] = None
         self._hover_controller: Optional[HoverController] = None
         self._last_mouse_pos = None
 
-        # Import highlighting indicators (debounced).
         self._import_highlight_timer = QTimer(self)
         self._import_highlight_timer.setSingleShot(True)
         self._import_highlight_timer.setInterval(300)
         self._import_highlight_timer.timeout.connect(self._apply_semantic_indicators)
 
-        # Fold recomputation (debounced).
         self._fold_recompute_timer = QTimer(self)
         self._fold_recompute_timer.setSingleShot(True)
         self._fold_recompute_timer.setInterval(500)
@@ -252,11 +190,9 @@ class CodeEditor(QsciScintilla):
 
         self.marginClicked.connect(self._on_margin_clicked)
 
-        # Apply language if provided.
         if language:
             self.setLanguage(language)
 
-        # Load file if provided.
         if file_path:
             self.load_from_file(file_path)
 
@@ -264,34 +200,21 @@ class CodeEditor(QsciScintilla):
 
         self.retheme(self._active_theme())
 
-        ###############################################
-        # Completion
-        ###############################################
         self._autocompletion_widget = CompletionController(self)
 
-        ###############################################
-        # Binary / ELF inspector state
-        ###############################################
         self._binary_mode: bool = False
         self._elf_header = None
         self._elf_sections: list = []
         self._elf_file_path: str | None = None
         self._elf_popup = None
         self._elf_button: QPushButton | None = None
-        # Drag/drop is disabled in binary mode via flag below
         self._binary_drag_enabled = True
 
-    ###############################################
-    # CONTEXT MENU
-    ###############################################
 
     def show_context_menu(self, pos):
         menu = RightClickMenu(self)
         menu.exec(QCursor.pos())
 
-    ###############################################
-    # DIRTY STATE
-    ###############################################
 
     def _on_text_changed(self) -> None:
         if getattr(self, "_binary_mode", False):
@@ -362,17 +285,9 @@ class CodeEditor(QsciScintilla):
         """Return ``True`` if the editor buffer has been modified."""
         return self._is_dirty
 
-    ###############################################
-    # SNIPPETS
-    ###############################################
 
     def load_snippets(self, snippets_path: str) -> None:
-        """Load snippet definitions from a JSON file into ``snippet_map``.
-
-        Args:
-            snippets_path: Absolute path to a JSON file containing
-                nested snippet definitions.
-        """
+        """Load snippet definitions from a JSON file into ``snippet_map``."""
         self.snippet_map.clear()
         path = pathlib.Path(snippets_path)
         if not path.is_file():
@@ -425,9 +340,6 @@ class CodeEditor(QsciScintilla):
         self.endUndoAction()
         self._is_replacing = False
 
-    ###############################################
-    # FOLDS & ANALYSIS
-    ###############################################
 
     def _schedule_fold_recompute(self) -> None:
         """Debounce fold recomputation on text change, backing off on size."""
@@ -446,11 +358,7 @@ class CodeEditor(QsciScintilla):
         return bool(getattr(widget, "_request_pending", False))
 
     def _defer_rival_paint(self, timer) -> bool:
-        """Defer one analysis cycle while completion owns the paint.
-
-        Returns True when deferred (bounded: at most three consecutive
-        deferrals, then the analysis proceeds regardless).
-        """
+        """Defer one analysis cycle while completion owns the paint."""
         if not self._completion_in_flight():
             self._analysis_deferrals = 0
             return False
@@ -471,12 +379,7 @@ class CodeEditor(QsciScintilla):
         self._request_analysis()
 
     def _request_analysis(self) -> None:
-        """Hand the latest buffer to the threaded analysis manager.
-
-        Emits ``analysis_started`` once per active analysis so the status
-        bar can show the spinner, and relies on ``analysis_finished`` to
-        hide it when the most recent request completes.
-        """
+        """Hand the latest buffer to the threaded analysis manager."""
         if not self._analysis_enabled:
             return
         if not self.current_provider or not self.current_lang:
@@ -497,13 +400,7 @@ class CodeEditor(QsciScintilla):
         self.analysis_finished.emit()
 
     def set_analysis_active(self, active: bool) -> None:
-        """Enable/disable whole-document analysis for this editor.
-
-        Called by the tab editor on focus changes: only the focused tab's
-        requests are routed to the shared analysis process.  Deactivating
-        also settles the spinner so an in-flight (now dropped) request can
-        never leave the status bar spinning forever.
-        """
+        """Enable/disable whole-document analysis for this editor."""
         if active == self._analysis_enabled:
             return
         self._analysis_enabled = active
@@ -520,21 +417,11 @@ class CodeEditor(QsciScintilla):
             self._request_analysis()
 
     def _apply_semantic_overlays(self, highlights) -> None:
-        """Paint semantic-highlight overlays from *highlights*.
-
-        Always clears the overlay indicator slots first so stale tokens
-        from a previous buffer state are never left behind.  Ranges
-        intersecting the viewport paint synchronously; the remainder is
-        painted in idle chunks so a 100k-token result never blocks the UI
-        in one go.  A newer analysis run cancels pending chunks via the
-        paint generation counter.  Called on the UI thread with results
-        computed by the analysis worker.
-        """
+        """Paint semantic-highlight overlays from *highlights*."""
         self._semantic_paint_gen = getattr(self, "_semantic_paint_gen", 0) + 1
         gen = self._semantic_paint_gen
         length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
 
-        # ── always clear all indicator slots first ────────────────
         for ind in range(8):
             self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
             self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
@@ -543,7 +430,6 @@ class CodeEditor(QsciScintilla):
             self._semantic_paint_state = None
             return
 
-        # ── group by colour → one indicator slot per colour, merged ──
         _SLOTS = 8
         colour_to_slot: dict = {}
         slot_ranges: dict = {}
@@ -553,7 +439,6 @@ class CodeEditor(QsciScintilla):
             slot = colour_to_slot.get(colour_hex)
             if slot is None:
                 if len(colour_to_slot) >= _SLOTS:
-                    # Exhausted — deterministic skip to avoid overwriting active slot color
                     continue
                 slot = len(colour_to_slot)
                 colour_to_slot[colour_hex] = slot
@@ -613,7 +498,7 @@ class CodeEditor(QsciScintilla):
             return
         gen, deferred, pos = state
         if gen != getattr(self, "_semantic_paint_gen", 0):
-            return  # superseded by a newer analysis run
+            return
         stop = min(len(deferred), pos + self._SEMANTIC_CHUNK_RANGES)
         current_slot = -1
         try:
@@ -628,7 +513,7 @@ class CodeEditor(QsciScintilla):
                 pos += 1
         except RuntimeError:
             self._semantic_paint_state = None
-            return  # editor torn down mid-paint
+            return
         if pos < len(deferred):
             self._semantic_paint_state = [gen, deferred, pos]
             QTimer.singleShot(0, self._paint_semantic_chunk)
@@ -636,13 +521,7 @@ class CodeEditor(QsciScintilla):
             self._semantic_paint_state = None
 
     def _apply_fold_regions(self, fold_regions) -> None:
-        """Push *fold_regions* into the FoldManager.
-
-        Display text is applied before fold levels: Scintilla's
-        ``SCI_SETFOLDEXPANDEDTEXT`` degrades to ~O(n^2) when the buffer
-        already has active fold levels, freezing the UI for seconds on
-        large files.
-        """
+        """Push *fold_regions* into the FoldManager."""
         if not self.current_lang or not self._fold_manager:
             return
 
@@ -653,9 +532,6 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Fold application failed: %s", exc)
 
-    ###############################################
-    # ZOOM
-    ###############################################
 
     def _get_zoom_level(self) -> int:
         """
@@ -677,13 +553,8 @@ class CodeEditor(QsciScintilla):
         """
         A public API to reset current editor instance zoom level.
         """
-        # THIS IS JUST A STUPID WRAPPER AROUND QScintilla.zoomTo()
-        # IDK WHY I ADDED THIS...
         self.zoomTo(0)
 
-    ###############################################
-    # HOVER
-    ###############################################
 
     def _setup_hover_engine(self) -> None:
         """Create and attach the DocumentationFlyout."""
@@ -720,12 +591,7 @@ class CodeEditor(QsciScintilla):
             self._hover_flyout = None
 
     def _dismiss_hover_flyout(self, force: bool = False) -> None:
-        """Dismiss the flyout unless pinned or mouse is inside it.
-
-        ``force=True`` always hides the flyout, which is used when the
-        user acts on it (e.g. Go to Declaration) so the window does not
-        linger after the action.
-        """
+        """Dismiss the flyout unless pinned or mouse is inside it."""
         if self._hover_flyout and self._hover_flyout.isVisible():
             self._hover_flyout.dismiss(force=force)
 
@@ -741,9 +607,6 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-    ###############################################
-    # EDITOR SETUP
-    ###############################################
 
     def _setup_indentation(self) -> None:
         """Configure indentation, tab width, and backspace behaviour."""
@@ -777,12 +640,7 @@ class CodeEditor(QsciScintilla):
         self.setMarginMarkerMask(margin, mask)
 
     def _setup_margins(self) -> None:
-        """Configure margins left-to-right with modified/saved last.
-
-        Layout is 0 line numbers, 1 breakpoints, 2 color, 3 fold,
-        4 modified/saved directly before the text. Each margin masks
-        only its own markers so indicators never leak into neighbours.
-        """
+        """Configure margins left-to-right with modified/saved last."""
         bg, text, _, _ = self._theme_colors()
         self.setPaper(bg)
         self.setColor(text)
@@ -791,7 +649,6 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-        # Line Numbers
         self.setMarginType(
             self.MARGIN_LINENUMBER, QsciScintilla.MarginType.NumberMargin
         )
@@ -801,7 +658,6 @@ class CodeEditor(QsciScintilla):
         self.setMarginsForegroundColor(text)
         self._apply_indent_guide_color(text)
 
-        # Breakpoints Margin
         self.markerDefine(
             self._create_circle_image(18, self.CIRCLE_RADIUS, self.COLOR_BREAKPOINT),
             self.MARKER_BREAKPOINT,
@@ -873,10 +729,7 @@ class CodeEditor(QsciScintilla):
             self._fold_manager = FoldManager(self)
 
     def _setup_folding_display_text(self) -> None:
-        """
-        Sets up text that appears beside a folded text. It displays number
-        of lines folded when applied.
-        """
+        """Sets up text that appears beside a folded text."""
         self.SendScintilla(QsciScintilla.SCI_FOLDDISPLAYTEXTSETSTYLE, 1)
 
         self._apply_folding_display_colors()
@@ -884,14 +737,7 @@ class CodeEditor(QsciScintilla):
         self.SendScintilla(SCI_SETDEFAULTFOLDDISPLAYTEXT, 0, b" ... ")
 
     def _apply_folding_display_colors(self) -> None:
-        """Blend the fold display text with the editor paper colour.
-
-        Scintilla defaults the ``STYLE_FOLDDISPLAYTEXT`` background to
-        white; without an explicit ``SCI_STYLESETBACK`` the ghost text
-        renders as a white box on dark themes. Style backgrounds do not
-        support alpha, so matching the paper colour is the only way to
-        make the label appear transparent.
-        """
+        """Blend the fold display text with the editor paper colour."""
         bg = self._theme_colors()[0]
         self.SendScintilla(
             QsciScintilla.SCI_STYLESETFORE,
@@ -907,18 +753,7 @@ class CodeEditor(QsciScintilla):
     def set_custom_import_fold_text(
         self, line: int, import_count: int, label: str = "imports"
     ):
-        """
-        Set custom text on a specific line when a grouped fold is made.
-
-        Scintilla message 2700 (``SCI_TOGGLEFOLDSHOWTEXT``) also toggles the
-        fold on that line, so the previous fold state is restored afterwards
-        to keep setting the text side-effect free.
-
-        Identical calls are skipped via ``_fold_display_text_cache``:
-        re-sending the message on an active fold header costs an
-        O(document) fold recalculation per line, which would freeze the
-        UI for seconds on large files.
-        """
+        """Set custom text on a specific line when a grouped fold is made."""
         if self._fold_display_text_cache.get(line) == import_count:
             return
         was_expanded = bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
@@ -944,14 +779,7 @@ class CodeEditor(QsciScintilla):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     def _setup_auto_indent(self) -> None:
-        """Configure indentation, auto-indent and bracket-pair matching.
-
-        QScintilla's built-in brace matching is disabled because its
-        default ``STYLE_BRACELIGHT`` renders as an opaque white box on
-        bracket characters (and their match) the moment the caret lands
-        next to them.  A custom, theme-aware indicator highlight is used
-        instead — see ``_setup_brace_highlight``.
-        """
+        """Configure indentation, auto-indent and bracket-pair matching."""
         self.setBraceMatching(QsciScintilla.BraceMatch.NoBraceMatch)
         self._setup_brace_highlight()
 
@@ -965,9 +793,6 @@ class CodeEditor(QsciScintilla):
         if not enabled:
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
-    ###############################################
-    # CODE MODIFICATION MARGIN DEFINITIONS
-    ###############################################
 
     def _handle_text_modification(self):
         """
@@ -991,17 +816,9 @@ class CodeEditor(QsciScintilla):
         self.markerDeleteAll(self.MARKER_SAVED)
         self.markerDeleteAll(self.MARKER_MODIFIED)
 
-    ###############################################
-    # BRACKET HIGHLIGHTING
-    ###############################################
 
     def _setup_brace_highlight(self) -> None:
-        """Configure the smooth, theme-aware bracket-pair highlight.
-
-        The active bracket and its match are drawn with a translucent
-        rounded box (``INDIC_ROUNDBOX``) that follows the IDE theme
-        instead of the default white brace-match style.
-        """
+        """Configure the smooth, theme-aware bracket-pair highlight."""
         self._bracket_hl_ranges = []
         self.cursorPositionChanged.connect(self._update_brace_highlight)
         self.textChanged.connect(self._on_brace_text_changed)
@@ -1056,15 +873,7 @@ class CodeEditor(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_BAD_SLOT, 0)
 
     def _on_brace_text_changed(self, *args) -> None:
-        """Clear stale bracket highlights after edits, then recompute.
-
-        Document positions shift on insertion/deletion, so ranges saved
-        before the edit may no longer align with the brackets. Clearing
-        the whole indicator slot (which holds at most two runs) drops
-        any stale box that could otherwise linger on a neighbouring
-        token character, e.g. part of ``QMainWindow`` in
-        ``(QMainWindow)``.
-        """
+        """Clear stale bracket highlights after edits, then recompute."""
         try:
             length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
         except Exception:
@@ -1077,16 +886,7 @@ class CodeEditor(QsciScintilla):
         self._update_brace_highlight(*args)
 
     def _update_brace_highlight(self, *args) -> None:
-        """Highlight the bracket pair adjacent to the caret, if any.
-
-        Only the previously highlighted ranges are cleared (never the
-        whole document) so caret movement stays O(1) regardless of the
-        buffer size. Both the active position and its ``SCI_BRACEMATCH``
-        counterpart are re-validated as complementary brackets before
-        painting, so only ``()[]{}`` characters are ever highlighted —
-        never an adjacent token character such as the ``Q`` in
-        ``(QMainWindow)``.
-        """
+        """Highlight the bracket pair adjacent to the caret, if any."""
         prev = self._bracket_hl_ranges
         self._bracket_hl_ranges = []
         if prev:
@@ -1129,31 +929,13 @@ class CodeEditor(QsciScintilla):
 
     @staticmethod
     def _is_complementary_bracket(active_ch: int, match_ch: int) -> bool:
-        """Return True when two char codes form a valid bracket pair.
-
-        Args:
-            active_ch: Byte value at the caret-adjacent position.
-            match_ch: Byte value returned by ``SCI_BRACEMATCH``.
-
-        Returns:
-            True only for ``()``, ``[]`` and ``{}`` in either order.
-        """
+        """Return True when two char codes form a valid bracket pair."""
         pairs = {0x28: 0x29, 0x29: 0x28, 0x5B: 0x5D, 0x5D: 0x5B, 0x7B: 0x7D, 0x7D: 0x7B}
         return pairs.get(active_ch) == match_ch
 
-    ###############################################
-    # OCCURRENCE HIGHLIGHT
-    ###############################################
 
     def _setup_occurrence_highlight(self) -> None:
-        """Configure VS Code-style word-occurrence highlight.
-
-        A small gray semi-transparent rounded box is drawn around every
-        other occurrence of the currently selected word.  The highlight
-        uses indicator slot ``OCCURRENCE_HL_SLOT`` (18) which is outside
-        the semantic (0-7), diagnostic (8-15) and bracket (16-17)
-        allocations.
-        """
+        """Configure VS Code-style word-occurrence highlight."""
         self._occurrence_ranges: list = []
         self._occurrence_timer = QTimer(self)
         self._occurrence_timer.setSingleShot(True)
@@ -1167,12 +949,7 @@ class CodeEditor(QsciScintilla):
         self._apply_occurrence_highlight_colors()
 
     def _apply_occurrence_highlight_colors(self, bg=None) -> None:
-        """Derive the occurrence indicator colours from the theme.
-
-        Args:
-            bg: Optional paper ``QColor``.  When ``None`` the current
-                theme colours are resolved automatically.
-        """
+        """Derive the occurrence indicator colours from the theme."""
         if bg is None:
             bg, _, _, _ = self._theme_colors()
         if bg.lightness() < 128:
@@ -1218,16 +995,7 @@ class CodeEditor(QsciScintilla):
         self._occurrence_ranges = []
 
     def _update_occurrence_highlight(self) -> None:
-        """Highlight all other occurrences of the selected word.
-
-        Only single-line, non-empty selections of at least
-        ``OCCURRENCE_MIN_LENGTH`` characters are considered.  Word-like
-        selections (``^\\w+$``) are matched with word boundaries so that
-        ``foo`` does not highlight inside ``foobar``.  Other selections
-        use a literal substring search.  The current selection itself is
-        never highlighted, matching VS Code behaviour.  The search is
-        capped at ``OCCURRENCE_MAX_OCC`` hits.
-        """
+        """Highlight all other occurrences of the selected word."""
         self._clear_occurrence_highlight()
         if not self.hasSelectedText():
             return
@@ -1268,9 +1036,6 @@ class CodeEditor(QsciScintilla):
         if sel not in text:
             return
         # NOTE: One buffer copy serves the whole scan. Per-line
-        # ``text(line)`` calls would each round-trip through Scintilla
-        # (100k IPC calls on huge files); char→byte mapping uses
-        # precomputed line-start tables instead.
         char_starts = [0]
         byte_starts = [0]
         for line_text in text.split("\n"):
@@ -1297,17 +1062,12 @@ class CodeEditor(QsciScintilla):
             self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, pos, length)
         self._occurrence_ranges = ranges
 
-    ###############################################
-    # EVENTS
-    ###############################################
 
     def _emit_position(self, line: int, col: int) -> None:
         """Forward cursor position changes to the ``position_changed`` signal."""
         self.position_changed.emit(line, col)
 
     def resizeEvent(self, event) -> None:
-        # The error-message bubble is anchored to token pixels, so a resize
-        # invalidates its position.
         self.hide_error_message()
         super().resizeEvent(event)
         self._update_debug_stack_position()
@@ -1365,17 +1125,10 @@ class CodeEditor(QsciScintilla):
         super().hideEvent(event)
 
     def focusOutEvent(self, event) -> None:
-        """Dismiss hover flyout when the editor loses focus.
-
-        If the new focus belongs to the documentation flyout (or any of
-        its children) the flyout is kept alive – otherwise any click
-        inside the docs card would immediately destroy it and block
-        richer interactive designs.
-        """
+        """Dismiss hover flyout when the editor loses focus."""
         try:
             flyout = getattr(self, "_hover_flyout", None)
             if flyout is not None and flyout.isVisible():
-                # Focus moved into the flyout?
                 try:
                     new_focus = QApplication.focusWidget()
                     if new_focus is not None and (
@@ -1385,14 +1138,12 @@ class CodeEditor(QsciScintilla):
                         return
                 except Exception:
                     pass
-                # Mouse still over the flyout (click without focus change)?
                 try:
                     if flyout.underMouse() or flyout.contains_global_pos(QCursor.pos()):
                         super().focusOutEvent(event)
                         return
                 except Exception:
                     pass
-                # Qt Tool window activation: activeWindow may be flyout's window
                 try:
                     active = QApplication.activeWindow()
                     if active is not None and (
@@ -1407,9 +1158,6 @@ class CodeEditor(QsciScintilla):
         self._dismiss_hover_flyout(force=True)
         super().focusOutEvent(event)
 
-    ###############################################
-    # FONT MANAGEMENT
-    ###############################################
 
     @property
     def font_size(self) -> int:
@@ -1426,12 +1174,7 @@ class CodeEditor(QsciScintilla):
             self._lexer.setFont(self._font, -1)
 
     def set_editor_font(self, font) -> None:
-        """
-        Set the editor font family or QFont instance.
-
-        Args:
-            font: A ``QFont`` instance or a font family name string.
-        """
+        """Set the editor font family or QFont instance."""
         if isinstance(font, QFont):
             self._font = QFont(font)
         else:
@@ -1450,13 +1193,9 @@ class CodeEditor(QsciScintilla):
         """Set the editor font point size."""
         self.font_size = int(font_size)
 
-    ###############################################
-    # KEYBOARD
-    ###############################################
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         """Intercept key events for goto definition and enhanced enter/return behaviour."""
-        # The error-message bubble is tooltip-like: any keystroke dismisses it.
         self.hide_error_message()
         if bool(e.modifiers() & Qt.KeyboardModifier.ControlModifier):
             _k = e.key()
@@ -1472,9 +1211,7 @@ class CodeEditor(QsciScintilla):
                 self.reset_zoom_level()
                 e.accept()
                 return
-        # Strict binary read-only guard — block all mutating keys
         if getattr(self, "_binary_mode", False):
-            # Allow navigation and copy/select, block everything else
             allowed = {
                 Qt.Key.Key_Left,
                 Qt.Key.Key_Right,
@@ -1488,7 +1225,6 @@ class CodeEditor(QsciScintilla):
             }
             mods = e.modifiers()
             is_ctrl = bool(mods & Qt.KeyboardModifier.ControlModifier)
-            # Allow Ctrl+A (select all), Ctrl+C (copy), Ctrl+F (find)
             if is_ctrl and e.key() in (
                 Qt.Key.Key_A,
                 Qt.Key.Key_C,
@@ -1500,7 +1236,6 @@ class CodeEditor(QsciScintilla):
             if e.key() in allowed:
                 super().keyPressEvent(e)
                 return
-            # F12 is handled before, but block everything else
             e.ignore()
             return
 
@@ -1540,9 +1275,6 @@ class CodeEditor(QsciScintilla):
 
         super().keyPressEvent(e)
 
-    ###############################################
-    # MOUSE
-    ###############################################
 
     def mouseMoveEvent(self, e):
         """Track cursor movement for breakpoint margin hover."""
@@ -1552,7 +1284,6 @@ class CodeEditor(QsciScintilla):
         if self._hover_controller is not None:
             self._hover_controller.eventFilter(self, e)
 
-        # Breakpoint Margin Hover Preview
         w0 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 0)
         w1 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 1)
 
@@ -1579,7 +1310,6 @@ class CodeEditor(QsciScintilla):
 
     def mousePressEvent(self, e: QKeyEvent) -> None:
         """Intercept Ctrl+Click for go-to-definition navigation."""
-        # Clicking inside the editor dismisses the error-message bubble.
         self.hide_error_message()
         if (
             e.button() == Qt.MouseButton.LeftButton
@@ -1597,9 +1327,6 @@ class CodeEditor(QsciScintilla):
 
         super().mousePressEvent(e)
 
-    ###############################################
-    # DEBUGGER & BREAKPOINTS
-    ###############################################
 
     @staticmethod
     def _create_circle_image(size: int, radius: int, color: QColor) -> QImage:
@@ -1644,7 +1371,6 @@ class CodeEditor(QsciScintilla):
     ) -> None:
         """Handles click actions for breakpoints and colorpicker margins."""
 
-        # BREAKPOINTS
         if margin == self.MARGIN_BREAKPOINT:
             mask = self.markersAtLine(line)
             if mask & (1 << self.MARKER_BREAKPOINT):
@@ -1656,7 +1382,6 @@ class CodeEditor(QsciScintilla):
                 self.markerAdd(line, self.MARKER_BREAKPOINT)
                 self._hovered_breakpoint_line = None
 
-        # COLORWHEEL
         elif margin == self.COLOR_MARGIN:
             info = self._get_color_by_line(line)
             if not info:
@@ -1673,10 +1398,7 @@ class CodeEditor(QsciScintilla):
                 self._apply_color_to_line(line, old_str, new_color, start_col, end_col)
 
     def get_breakpoint_lines(self) -> set[int]:
-        """
-        Scans the document and returns a set of 1-based line numbers where
-        breakpoint markers currently exist.
-        """
+        """Scans the document and returns a set of 1-based line numbers where breakpoint markers currently exist."""
         breakpoint_lines = set()
 
         mask = 1 << self.MARKER_BREAKPOINT
@@ -1695,14 +1417,7 @@ class CodeEditor(QsciScintilla):
         return breakpoint_lines
 
     def set_execution_line_highlight(self, line: int) -> None:
-        """Highlight the given 1-based line as the current execution point.
-
-        Removes any previous execution highlight before applying the new
-        one so that only a single line is highlighted at any time.
-
-        Args:
-            line: 1-based line number to highlight.
-        """
+        """Highlight the given 1-based line as the current execution point."""
         self.clear_all_execution_highlights()
         line_idx = line - 1
         if 0 <= line_idx < self.lines():
@@ -1716,19 +1431,14 @@ class CodeEditor(QsciScintilla):
     def show_debug_stack_frame(
         self, line: int, info_text: str = "Stack Info Placeholder"
     ):
-        """Displays a red-bordered frame widget directly below the given
-        1-based line number.
-        Pushes lower lines down to make space.
-        """
-        # Clear the annotation at the previous paused line so that the
-        # editor layout doesn't accumulate orphaned gaps when stepping.
+        """Displays a red-bordered frame widget directly below the given 1-based line number."""
         if self._paused_line != -1 and self._paused_line != line:
             old_idx = self._paused_line - 1
             if 0 <= old_idx < self.lines():
                 self.clearAnnotations(old_idx)
 
         self._paused_line = line
-        line_idx = line - 1  # Convert to 0-based for QScintilla
+        line_idx = line - 1
 
         if self._debug_stack_widget is None:
             self._debug_stack_widget = StackInfoFrame(self)
@@ -1740,13 +1450,9 @@ class CodeEditor(QsciScintilla):
         self._update_debug_stack_position()
 
     def hide_debug_stack_frame(self):
-        """
-        Removes the debug stack frame and collapses reserved space back
-        together.
-        """
+        """Removes the debug stack frame and collapses reserved space back together."""
         if self._paused_line != -1:
             line_idx = self._paused_line - 1
-            # Clear annotation gap
             self.clearAnnotations(line_idx)
             self._paused_line = -1
 
@@ -1754,10 +1460,7 @@ class CodeEditor(QsciScintilla):
             self._debug_stack_widget.hide()
 
     def _update_debug_stack_position(self):
-        """
-        Calculates exact viewport coordinates and moves/resizes frame
-        on viewport scroll or resize.
-        """
+        """Calculates exact viewport coordinates and moves/resizes frame on viewport scroll or resize."""
         if self._paused_line < 1 or self._debug_stack_widget is None:
             return
 
@@ -1784,15 +1487,9 @@ class CodeEditor(QsciScintilla):
                 frame_x, frame_y, frame_width, frame_height
             )
 
-    ###############################################
-    # COLOR WHEEL
-    ###############################################
 
     def _get_color_by_line(self, line_number: int) -> tuple[Any, str, int, int] | None:
-        """
-        Scans a specific line and extracts the indicated color from it by
-        using a set of compiled regular expressions (COLOR_REGEX)
-        """
+        """Scans a specific line and extracts the indicated color from it by using a set of compiled regular expressions (COLOR_REGEX)"""
         line_text = self.text(line_number)
         match = COLOR_REGEX.search(line_text)
         if not match:
@@ -1812,17 +1509,16 @@ class CodeEditor(QsciScintilla):
         """
         color_str = color_str.strip()
 
-        if color_str.startswith("#"):  # HEX
+        if color_str.startswith("#"):
             hex_body = color_str[1:]
             if len(hex_body) in (3, 4):
                 expanded = "".join(c * 2 for c in hex_body)
-                # This case is for shortened hex colors, e.g.: #333
                 color_str = f"#{expanded}"
 
             color = QColor(color_str)
             return color if color.isValid() else None
 
-        if color_str.startswith("rgb"):  # RGB / RGBA
+        if color_str.startswith("rgb"):
             nums = re.findall(r"[\d\.]+", color_str)
             if len(nums) in (3, 4):
                 r, g, b = map(int, nums[:3])
@@ -1888,12 +1584,7 @@ class CodeEditor(QsciScintilla):
             self.markerAdd(line_number, marker_id)
 
     def _init_color_debouncer(self) -> None:
-        """Route color-margin rendering through a 300 ms single-shot timer.
-
-        Replaces the synchronous ``textChanged`` connection to
-        ``update_visible_color_indicators`` so margin swatches are only
-        recomputed once typing pauses.
-        """
+        """Route color-margin rendering through a 300 ms single-shot timer."""
         self._color_update_timer = QTimer(self)
         self._color_update_timer.setSingleShot(True)
         self._color_update_timer.setInterval(300)
@@ -1930,10 +1621,7 @@ class CodeEditor(QsciScintilla):
         self.endUndoAction()
 
     def _format_color_string(self, old_str: str, new_color: QColor) -> str:
-        """
-        Formats new_color to match the format (Hex/RGB/RGBA) and case of
-        old_str.
-        """
+        """Formats new_color to match the format (Hex/RGB/RGBA) and case of old_str."""
         r, g, b, a = (
             new_color.red(),
             new_color.green(),
@@ -1941,7 +1629,6 @@ class CodeEditor(QsciScintilla):
             new_color.alpha(),
         )
 
-        # RGB/RGBA
         if old_str.strip().startswith("rgb"):
             if "rgba" in old_str or a < 255:
                 alpha_str = f"{a / 255.0:.2f}".rstrip("0").rstrip(".")
@@ -1950,7 +1637,6 @@ class CodeEditor(QsciScintilla):
 
         is_uppercase = any(c.isupper() for c in old_str)
 
-        # HEX RGB/RGBA/RRGGBB/RRGGBBAA
         if a < 255:
             hex_str = f"#{r:02x}{g:02x}{b:02x}{a:02x}"
         else:
@@ -1958,24 +1644,9 @@ class CodeEditor(QsciScintilla):
 
         return hex_str.upper() if is_uppercase else hex_str
 
-    ###############################################
-    # GO-TO DEFINITION
-    ###############################################
 
     def execute_goto_definition(self, line: int = None, col: int = None) -> None:
-        """Resolve the symbol under the cursor and navigate to its definition.
-
-        When *line* and *col* are ``None`` (the default), the current
-        cursor position is used.  Callers that know the exact position
-        — e.g. the documentation flyout — can pass explicit coordinates.
-
-        Falls back gracefully if no provider is active or the symbol
-        cannot be resolved.  All provider errors are caught so that a
-        plugin failure never crashes the editor.
-        """
-        # Acting on the documentation flyout (Go to Declaration button)
-        # must close it; the mouse is inside the flyout so a normal
-        # ``dismiss()`` would keep it visible.
+        """Resolve the symbol under the cursor and navigate to its definition."""
         self._dismiss_hover_flyout(force=True)
         try:
             controller = getattr(self, "_hover_controller", None)
@@ -2011,11 +1682,9 @@ class CodeEditor(QsciScintilla):
 
             file_path, target_line, target_col = target
 
-            # Guard: empty or None file path — nothing to navigate to.
             if not file_path:
                 return
 
-            # Guard: already at the definition (same file + same line).
             current_path = getattr(self, "current_file_path", "") or ""
             if file_path == current_path and target_line == line:
                 return
@@ -2030,20 +1699,9 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Go-to-definition failed: %s", exc)
 
-    ###############################################
-    # LANGUAGE & LEXER
-    ###############################################
 
     def apply_visual_language(self, lang: str) -> None:
-        """Preview *lang* highlighting without touching disk or session state.
-
-        Visual-only: the file is not renamed, no configuration is written,
-        and reopening the file resolves the language from its extension
-        again. Thin routing over :meth:`setLanguage` for panels.
-
-        Unknown or unregistered ids are ignored so the current lexer,
-        theme, and fonts are never destroyed by a preview request.
-        """
+        """Preview *lang* highlighting without touching disk or session state."""
         if not lang or lang == "--":
             return
         try:
@@ -2098,18 +1756,9 @@ class CodeEditor(QsciScintilla):
         self._setup_hover_engine()
 
     def _create_lexer(self, lang: str, config: dict):
-        """Create an ``IronicaLexer`` for *lang*.
-
-        ``IronicaLexer`` is a combined lexer that handles keyword
-        highlighting, bracket pair colorization with depth tracking,
-        numeric literals, and operators — all with colours read from
-        the language JSON config.
-        """
+        """Create an ``IronicaLexer`` for *lang*."""
         return IronicaLexer(self, config)
 
-    ###############################################
-    # THEME
-    ###############################################
 
     def _active_theme(self) -> str:
         """Return the current IDE theme name, falling back to the active one."""
@@ -2129,13 +1778,7 @@ class CodeEditor(QsciScintilla):
         return resolve_language_config(config, self._active_theme())
 
     def retheme(self, theme_name: str) -> None:
-        """Re-apply base colours and the lexer palette for *theme_name*.
-
-        Sets paper, foreground, caret, margins, selection and edge
-        colours from the theme's QSS source, re-colours the active
-        lexer, and invalidates the semantic provider cache so overlay
-        colours refresh as well.
-        """
+        """Re-apply base colours and the lexer palette for *theme_name*."""
         from editor.Ironica.retheme import (
             editor_colors,
             resolve_language_config,
@@ -2163,6 +1806,10 @@ class CodeEditor(QsciScintilla):
         self._apply_brace_highlight_colors(bg)
         try:
             self._apply_occurrence_highlight_colors(bg)
+        except Exception:
+            pass
+        try:
+            self._apply_diagnostic_colors(bg)
         except Exception:
             pass
 
@@ -2218,9 +1865,6 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-    ###############################################
-    # SEMANTIC INDICATORS
-    ###############################################
 
     @staticmethod
     def _scintilla_rgb(hex_color: str) -> int:
@@ -2230,39 +1874,17 @@ class CodeEditor(QsciScintilla):
         c = QColor(hex_color)
         return ((c.blue() & 0xFF) << 16) | ((c.green() & 0xFF) << 8) | (c.red() & 0xFF)
 
-    # Slot indices used for Scintilla indicators (up to 8 reserved).
     _IND_PROVIDER_BASE = 0
 
     def _apply_semantic_indicators(self) -> None:
-        """Schedule semantic-highlight overlay analysis.
-
-        The heavy provider computation runs off the UI thread; the
-        computed overlays are painted via ``_apply_semantic_overlays``.
-        """
+        """Schedule semantic-highlight overlay analysis."""
         if self._defer_rival_paint(self._import_highlight_timer):
             return
         self._request_analysis()
 
-    ###############################################
-    # FILE I/O
-    ###############################################
 
     def load_from_file(self, file_path: str) -> None:
-        """Load file contents into the editor.
-
-        Attempts UTF-8 decoding first, then falls back to the system
-        default encoding. Sets the editor to read-only when the file on
-        disk lacks write permissions.
-
-        Args:
-            file_path: Absolute path to the file to load.
-
-        Raises:
-            FileNotFoundError: If the file does not exist.
-            PermissionError: If the file cannot be read.
-            UnicodeDecodeError: If the file cannot be decoded (after
-                fallback attempt).
-        """
+        """Load file contents into the editor."""
         if getattr(self, "_binary_mode", False):
             try:
                 self.exit_binary_mode()
@@ -2337,13 +1959,7 @@ class CodeEditor(QsciScintilla):
             )
 
     def save(self) -> bool:
-        """Save the current buffer to ``current_file_path``.
-
-        If no file path is set, delegates to ``save_as()``.
-
-        Returns:
-            ``True`` on success, ``False`` on failure or cancellation.
-        """
+        """Save the current buffer to ``current_file_path``."""
         if self.isReadOnly():
             from editor.widgets.QExitDialog import ConfirmDialog
 
@@ -2362,11 +1978,7 @@ class CodeEditor(QsciScintilla):
         return self.save_as()
 
     def save_as(self) -> bool:
-        """Prompt the user for a path and save the buffer.
-
-        Returns:
-            ``True`` on success, ``False`` on failure or cancellation.
-        """
+        """Prompt the user for a path and save the buffer."""
         if self.isReadOnly():
             from editor.widgets.QExitDialog import ConfirmDialog
 
@@ -2393,15 +2005,7 @@ class CodeEditor(QsciScintilla):
         return self.save_to_file(file_path)
 
     def save_to_file(self, file_path: str) -> bool:
-        """
-        Write the editor buffer to *file_path*.
-
-        Args:
-            file_path: Destination path (overwritten if it exists).
-
-        Returns:
-            ``True`` on success, ``False`` on any I/O error.
-        """
+        """Write the editor buffer to *file_path*."""
         if self.isReadOnly():
             from editor.widgets.QExitDialog import ConfirmDialog
 
@@ -2440,9 +2044,6 @@ class CodeEditor(QsciScintilla):
             logger.error("Save failed for %s: %s", file_path, exc)
             return False
 
-    ###############################################
-    # CLIPBOARD
-    ###############################################
 
     def copy_selection_as_plain_text(self) -> None:
         """Copy the current selection to the system clipboard as plain text."""
@@ -2451,9 +2052,6 @@ class CodeEditor(QsciScintilla):
             clipboard = QApplication.clipboard()
             clipboard.setText(selected_text)
 
-    ###############################################
-    # READ-ONLY
-    ###############################################
 
     def make_file_readonly(self) -> None:
         """Toggle the file's read-only permission on disk and in the editor."""
@@ -2477,7 +2075,6 @@ class CodeEditor(QsciScintilla):
             write_bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
 
             if current_mode & write_bits:
-                # Store original mode to restore exactly on toggle back.
                 self._pre_readonly_mode = current_mode
                 new_mode = current_mode & ~write_bits
                 self.setReadOnly(True)
@@ -2487,7 +2084,6 @@ class CodeEditor(QsciScintilla):
                 if pre is not None and (pre & write_bits):
                     new_mode = current_mode | (pre & write_bits)
                 else:
-                    # No history - at least restore user write.
                     new_mode = current_mode | stat.S_IWUSR
                 self.setReadOnly(False)
                 self._update_readonly_tab_indicator(False)
@@ -2514,11 +2110,7 @@ class CodeEditor(QsciScintilla):
     def _update_readonly_tab_indicator(self, is_readonly: bool) -> None:
         """Notify the tab bar to show or hide the read-only lock icon."""
         tab_widget = self._parent
-        # After wrapping, CodeEditor's Qt parent is MiniMapHostWidget,
-        # while the tab manager is stored in _parent. Fallback to
-        # parent chain if _parent is stale.
         if tab_widget is None:
-            # Try to resolve via Qt parent chain.
             parent = self.parent()
             while parent is not None:
                 if hasattr(parent, "tabBar") and hasattr(parent, "count"):
@@ -2536,7 +2128,6 @@ class CodeEditor(QsciScintilla):
             if w is self or getattr(w, "editor", None) is self:
                 tab_bar.mark_readonly(i, is_readonly)
                 break
-            # Fallback for identity via MiniMapHostWidget wrapper.
             try:
                 from editor.Ironica.utils.minimap import MiniMapHostWidget
 
@@ -2546,9 +2137,6 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
 
-    ###############################################
-    # BINARY / ELF INSPECTION MODE
-    ###############################################
 
     def is_binary_mode(self) -> bool:
         """Return ``True`` when editor is in binary read-only mode."""
@@ -2564,7 +2152,6 @@ class CodeEditor(QsciScintilla):
             btn.setToolTip("Show ELF information")
             btn.setFixedSize(18, 18)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            # Use info icon if available, fallback to text
             icon_path = resource_path("assets/menus/info.png")
             if pathlib.Path(icon_path).is_file():
                 btn.setIcon(QIcon(icon_path))
@@ -2596,7 +2183,6 @@ class CodeEditor(QsciScintilla):
         if btn is None or not btn.isVisible():
             return
         try:
-            # Compute total margin width for margins 0,1,2
             total_margin = 0
             for m in (0, 1, 2):
                 try:
@@ -2604,13 +2190,8 @@ class CodeEditor(QsciScintilla):
                     total_margin += int(w) if w else 0
                 except Exception:
                     pass
-            # Position inside gutter, top-aligned
-            # Left offset includes small padding
             x = 6
-            # If margins are narrow, place overlay near left edge
-            # Use viewport offset to stay inside editor
             y = 6
-            # Ensure within editor geometry
             btn.move(x, y)
             btn.raise_()
         except Exception:
@@ -2639,7 +2220,6 @@ class CodeEditor(QsciScintilla):
                 pass
 
             if self._elf_popup is None or not isinstance(self._elf_popup, ElfInfoPopup):
-                # Parent should be the window so popup is not clipped
                 parent_win = self.window()
                 self._elf_popup = ElfInfoPopup(parent_win)
 
@@ -2670,17 +2250,7 @@ class CodeEditor(QsciScintilla):
                 pass
 
     def load_binary_file(self, file_path: str) -> bool:
-        """Load *file_path* as a binary/ELF file in strict read-only mode.
-
-        Renders a hex dump, marks editor read-only, stores ELF metadata,
-        and shows the gutter inspection button.
-
-        Args:
-            file_path: Absolute path to the ELF executable.
-
-        Returns:
-            ``True`` on success, ``False`` on any error.
-        """
+        """Load *file_path* as a binary/ELF file in strict read-only mode."""
         try:
             p = pathlib.Path(file_path)
             if not p.is_file():
@@ -2787,10 +2357,7 @@ class CodeEditor(QsciScintilla):
             return False
 
     def exit_binary_mode(self) -> None:
-        """Exit binary inspection mode and restore editable state.
-
-        Called when a different file is loaded or editor is reused.
-        """
+        """Exit binary inspection mode and restore editable state."""
         self._binary_mode = False
         self._elf_header = None
         self._elf_sections = []
@@ -2824,16 +2391,9 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
 
-    ###############################################
-    # CODE FORMATTING
-    ###############################################
 
     def format_current_file(self) -> None:
-        """Pass the buffer through the current provider's formatter.
-
-        All provider errors are caught so that a plugin failure
-        never crashes the editor.
-        """
+        """Pass the buffer through the current provider's formatter."""
         if self.isReadOnly():
             return
         if not self.current_provider:
@@ -2848,7 +2408,6 @@ class CodeEditor(QsciScintilla):
                 first_visible = self.SendScintilla(
                     QsciScintilla.SCI_GETFIRSTVISIBLELINE
                 )
-                # Capture old line for smart cursor preservation
                 try:
                     old_lines = raw_text.split("\n")
                     old_line_text = (
@@ -2865,8 +2424,6 @@ class CodeEditor(QsciScintilla):
 
                 total_lines = self.lines()
                 clamped_line = max(0, min(line, total_lines - 1))
-                # Restore cursor: if it was at EOL, keep it at EOL
-                # (black adds spaces, e.g. x=1 -> x = 1, col 3 -> 5)
                 try:
                     new_lines = formatted_text.split("\n")
                     new_line_text = (
@@ -2885,53 +2442,25 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Format query failed: %s", exc)
 
-    ###############################################
-    # DIAGNOSTICS
-    ###############################################
 
-    # ------------------------------------------------------------------
-    # Diagnostic indicators
-    #
-    # One indicator slot per severity so diagnostics of different
-    # severities coexist on the same characters, every slot drawn as a
-    # wavy "squiggle" underline in the IDE theme accent colour.
-    # ------------------------------------------------------------------
-
-    #: Indicator styles resolved from QsciScintilla so the numeric values always
-    #: match the bundled Scintilla build. Guessing them makes an indicator draw
-    #: an invisible/black block instead of a squiggle.
     _INDIC_SQUIGGLE = getattr(QsciScintilla, "INDIC_SQUIGGLE", 1)
-    _INDIC_SQUIGGLE_LOW = 2
 
-    #: Severity colour -> indicator slot. Slots 8-15 are reserved for
-    #: diagnostics so they never collide with folding/parser indicators, and
-    #: every severity colour is listed so none has to be allocated on the fly
-    #: into a slot another indicator may already own.
+    _DIAGNOSTIC_ALPHA = 170
+
+    _DIAGNOSTIC_HOVER_ALPHA = 235
+
     _SEVERITY_SLOTS = {
-        "#F14C4C": 8,  # error  — red
-        "#FCC700": 9,  # warning — amber
-        "#C586C0": 10,  # check  — violet
-        "#3794FF": 11,  # typo   — blue
-        "#4EC9B0": 12,  # info   — teal
+        "#F14C4C": 8,
+        "#FCC700": 9,
+        "#C586C0": 10,
+        "#3794FF": 11,
+        "#4EC9B0": 12,
     }
 
-    #: Slots inside the diagnostic range that stay out of severity colours:
-    #: one holds the de-emphasis dimming, the rest absorb future colours.
     _DIAGNOSTIC_SLOT_RANGE = range(8, 16)
 
     def _diagnostic_slot(self, color_hex: str) -> int:
-        """Return the indicator slot for *color_hex*, configured as a squiggle.
-
-        The slot is (re)configured the first time it is used in this editor, and
-        again whenever the requested colour changed, so an indicator can never
-        keep Scintilla's default style (a black block that looks like nothing).
-
-        Args:
-            color_hex: ``#RRGGBB`` colour of the diagnostic severity.
-
-        Returns:
-            Scintilla indicator slot number reserved for diagnostics.
-        """
+        """Return the indicator slot for *color_hex*, configured as a squiggle."""
         slots = self._severity_slots
         slot = slots.get(color_hex)
         if slot is None:
@@ -2943,13 +2472,38 @@ class CodeEditor(QsciScintilla):
             self._configure_diagnostic_slot(slot, color_hex)
         return slot
 
-    def _configure_diagnostic_slot(self, slot: int, color_hex: str) -> None:
-        """Configure *slot* as a wavy, theme-coloured diagnostic indicator.
+    def _apply_diagnostic_colors(self, bg: str) -> None:
+        """Reserve indicator slots for the active theme's severity colours."""
+        try:
+            from editor.Ironica.retheme import diagnostic_palette
 
-        Args:
-            slot: Indicator slot number.
-            color_hex: ``#RRGGBB`` stroke colour.
-        """
+            palette = diagnostic_palette()
+        except Exception:
+            return
+        reserved = set(self._RESERVED_INDIC_SLOTS)
+        previous = self._severity_slots
+        rebuilt: dict = {}
+        taken = set()
+        for color in palette.values():
+            if color in previous and previous[color] not in taken:
+                rebuilt[color] = previous[color]
+                taken.add(previous[color])
+        free = [c for c in self._DIAGNOSTIC_SLOT_RANGE if c not in taken | reserved]
+        for color in palette.values():
+            if color in rebuilt:
+                continue
+            if not free:
+                logger.debug("No free indicator slot for diagnostic %s", color)
+                continue
+            slot = free.pop(0)
+            rebuilt[color] = slot
+            taken.add(slot)
+        if rebuilt:
+            self._severity_slots = rebuilt
+            self._configured_diagnostic_slots.clear()
+
+    def _configure_diagnostic_slot(self, slot: int, color_hex: str) -> None:
+        """Configure *slot* as a wavy, theme-coloured diagnostic indicator."""
         colour = self._scintilla_rgb(color_hex)
         try:
             self.SendScintilla(
@@ -2959,9 +2513,16 @@ class CodeEditor(QsciScintilla):
             self.SendScintilla(
                 QsciScintilla.SCI_INDICSETHOVERSTYLE, slot, self._INDIC_SQUIGGLE
             )
-            self.SendScintilla(QsciScintilla.SCI_INDICSETHOVERFORE, slot, colour)
-            self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, slot, 255)
-            self.SendScintilla(QsciScintilla.SCI_INDICSETOUTLINEALPHA, slot, 255)
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETHOVERFORE, slot, colour
+            )
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETALPHA, slot, self._DIAGNOSTIC_ALPHA
+            )
+            self.SendScintilla(
+                QsciScintilla.SCI_INDICSETOUTLINEALPHA, slot,
+                self._DIAGNOSTIC_ALPHA,
+            )
             self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, slot, 1)
         except Exception as exc:
             logger.debug("Indicator configuration failed for slot %s: %s", slot, exc)
@@ -2975,15 +2536,7 @@ class CodeEditor(QsciScintilla):
         color_hex: str = "#F14C4C",
         severity=None,
     ) -> None:
-        """Underline the exact range on *line* with a diagnostic squiggle.
-
-        Args:
-            line: 0-based line index.
-            start_col: 0-based start column.
-            end_col: 0-based end column (exclusive).
-            color_hex: Severity colour.
-            severity: Optional ``ProblemSeverity`` for the overview ruler.
-        """
+        """Underline the exact range on *line* with a diagnostic squiggle."""
         self.add_diagnostic_range(line, start_col, line, end_col, color_hex, severity)
 
     def add_diagnostic_range(
@@ -2995,16 +2548,7 @@ class CodeEditor(QsciScintilla):
         color_hex: str = "#F14C4C",
         severity=None,
     ) -> None:
-        """Underline an exact (possibly multi-line) range with a squiggle.
-
-        Args:
-            start_line: 0-based first line.
-            start_col: 0-based first column.
-            end_line: 0-based last line.
-            end_col: 0-based last column.
-            color_hex: Severity colour.
-            severity: Optional ``ProblemSeverity`` for the overview ruler.
-        """
+        """Underline an exact (possibly multi-line) range with a squiggle."""
         if start_line < 0 or start_line >= self.lines():
             return
         end_line = max(start_line, min(end_line, self.lines() - 1))
@@ -3024,24 +2568,12 @@ class CodeEditor(QsciScintilla):
         self.SendScintilla(
             QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_end - byte_start
         )
-        # One-off ranges never touch ``_diagnostic_ranges``, so the tick has to
-        # be appended here for the overview ruler to see it. A new list is
-        # passed on purpose: mutating the stored one would make the
-        # change-detection inside ``_set_diagnostic_ticks`` compare equal.
         self._set_diagnostic_ticks(
             list(self._diagnostic_ticks) + [(int(start_line), str(color_hex), severity)]
         )
 
     def _byte_offset(self, line: int, column: int) -> int:
-        """Return the UTF-8 byte offset of *column* on *line*.
-
-        Args:
-            line: 0-based line index.
-            column: 0-based column in characters.
-
-        Returns:
-            Document byte offset, or ``-1`` when the position is invalid.
-        """
+        """Return the UTF-8 byte offset of *column* on *line*."""
         line_start = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
         if line_start == -1:
             return -1
@@ -3050,21 +2582,7 @@ class CodeEditor(QsciScintilla):
         return line_start + len(prefix.encode("utf-8"))
 
     def set_diagnostic_ranges(self, ranges) -> None:
-        """Replace every diagnostic indicator with *ranges*.
-
-        The call is idempotent: when the incoming ranges are identical to the
-        ones already painted, the editor is left untouched so a repeated
-        analysis never produces clear/redraw flicker. Colors are grouped so a
-        severity is configured once and every indicator of that severity is
-        filled in a single batched pass.
-
-        Args:
-            ranges: Iterable of
-                ``(start_line0, start_col0, end_line0, end_col0, color_hex)``
-                tuples with 0-based coordinates. An optional sixth element
-                carries the ``ProblemSeverity`` so the overview ruler can
-                merge ticks per pixel row without re-deriving severity.
-        """
+        """Replace every diagnostic indicator with *ranges*."""
         try:
             normalized = []
             for item in ranges or []:
@@ -3130,13 +2648,7 @@ class CodeEditor(QsciScintilla):
             logger.debug("Painting diagnostic ranges failed: %s", exc)
 
     def set_diagnostics(self, marks) -> None:
-        """Paint squiggle indicators for single-line *marks*.
-
-        Args:
-            marks: Iterable of ``(line0, start_col0, end_col0, color_hex)``
-                tuples with 0-based coordinates. An optional fifth element
-                carries the ``ProblemSeverity`` for the overview ruler.
-        """
+        """Paint squiggle indicators for single-line *marks*."""
         ranges = []
         for mark in marks or []:
             try:
@@ -3157,32 +2669,15 @@ class CodeEditor(QsciScintilla):
         self.set_diagnostic_ranges(ranges)
 
     def diagnostic_ranges(self) -> list:
-        """Return the diagnostic ranges currently painted.
-
-        Returns:
-            Copy of the last range list handed to :meth:`set_diagnostic_ranges`.
-        """
+        """Return the diagnostic ranges currently painted."""
         return [tuple(entry[:4]) for entry in self._diagnostic_ranges]
 
     def set_diagnostic_labels(self, labels) -> None:
-        """Attach hover metadata (code/source/message) to painted ranges.
-
-        Args:
-            labels: Iterable of dicts with ``start_line``, ``start_col``,
-                ``end_line``, ``end_col`` and an optional ``text`` key.
-        """
+        """Attach hover metadata (code/source/message) to painted ranges."""
         self._diagnostic_labels = list(labels or [])
 
     def diagnostic_label_at(self, line: int, column: int) -> str:
-        """Return hover text for diagnostics covering *line*/*column*.
-
-        Args:
-            line: 0-based line index.
-            column: 0-based column.
-
-        Returns:
-            Concatenated diagnostic descriptions, or an empty string.
-        """
+        """Return hover text for diagnostics covering *line*/*column*."""
         messages = []
         for label in self._diagnostic_labels:
             start_line = int(label.get("start_line", 0))
@@ -3197,34 +2692,16 @@ class CodeEditor(QsciScintilla):
                     messages.append(text)
         return "\n\n".join(messages)
 
-    #: Indicator style that recolours the text itself (no underline drawn).
     _INDIC_TEXTFORE = getattr(QsciScintilla, "INDIC_TEXTFORE", 17)
 
-    #: Slot for de-emphasised (unused) code. It lives inside the diagnostic
-    #: range but is never handed out by :meth:`_diagnostic_slot`: sharing a
-    #: slot would let the two indicators overwrite each other's style and
-    #: clear each other's ranges.
     _DEEMPHASIS_SLOT = 13
 
-    #: Diagnostic-range slots that no severity colour may take.
     _RESERVED_INDIC_SLOTS = (_DEEMPHASIS_SLOT,)
 
-    #: Muted grey used for unused code, following the IDE theme.
     _DEEMPHASIS_COLOR = "#8A8A8A"
 
     def set_deemphasized_ranges(self, ranges) -> None:
-        """Render *ranges* in a muted colour instead of flagging them.
-
-        Used for diagnostics that are informational rather than wrong (unused
-        imports/variables): the words themselves are dimmed, so no squiggle is
-        drawn for them and the important diagnostics stay visually dominant.
-
-        The call is idempotent: identical input leaves the editor untouched.
-
-        Args:
-            ranges: Iterable of ``(start_line0, start_col0, end_line0,
-                end_col0)`` tuples with 0-based coordinates.
-        """
+        """Render *ranges* in a muted colour instead of flagging them."""
         try:
             normalized = []
             for item in ranges or []:
@@ -3272,11 +2749,7 @@ class CodeEditor(QsciScintilla):
             logger.debug("Painting de-emphasized ranges failed: %s", exc)
 
     def deemphasized_ranges(self) -> list:
-        """Return the currently de-emphasized ranges.
-
-        Returns:
-            Copy of the last list handed to :meth:`set_deemphasized_ranges`.
-        """
+        """Return the currently de-emphasized ranges."""
         return [tuple(entry) for entry in self._deemphasized_ranges]
 
     def _clear_deemphasis(self) -> None:
@@ -3300,9 +2773,6 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # Error message popup (attached to the editor, anchored to a token)
-    # ------------------------------------------------------------------
 
     def show_error_message(
         self,
@@ -3312,25 +2782,7 @@ class CodeEditor(QsciScintilla):
         end_column: int = None,
         text: str = None,
     ) -> bool:
-        """Show a :class:`QErrorMessage` bubble under the given token.
-
-        The bubble is a child of this editor and is positioned from the
-        diagnostic range itself, so it never follows the mouse. It behaves
-        like a tooltip otherwise: no focus is taken, and typing, clicking,
-        scrolling or switching tabs dismisses it.
-
-        Args:
-            line: 0-based line of the diagnostic.
-            column: 0-based column where the diagnostic starts.
-            end_line: 0-based last line of the range (defaults to *line*).
-            end_column: 0-based last column of the range (defaults to
-                *column* + 1).
-            text: Message to display. Defaults to the hover metadata painted
-                for this range by :meth:`set_diagnostic_labels`.
-
-        Returns:
-            ``True`` when the bubble was shown, ``False`` otherwise.
-        """
+        """Show a :class:`QErrorMessage` bubble under the given token."""
         try:
             self.hide_error_message()
             line = max(0, int(line))
@@ -3435,13 +2887,7 @@ class CodeEditor(QsciScintilla):
         return max(0, total + 20)
 
     def _token_pixel_x(self, position: int, y: int) -> int:
-        """Return the left pixel of *position* on the screen line at *y*.
-
-        ``SCI_POINTXFROMPOSITION`` is unusable in this QScintilla binding (it
-        always reports the caret column), so the exact edge is resolved with a
-        binary search over ``SCI_POSITIONFROMPOINT``, which honours the left
-        margin, indentation and tabs.
-        """
+        """Return the left pixel of *position* on the screen line at *y*."""
         width = max(1, self.width())
         low = min(self._text_start_x(), width - 1)
         high = width
@@ -3484,8 +2930,6 @@ class CodeEditor(QsciScintilla):
         from editor.widgets.QErrorMessage import QErrorMessage
 
         popup = QErrorMessage("", self)
-        # Tooltip behaviour: never take focus, never enter the editor's
-        # focus chain, and never steal the input method.
         popup.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         popup.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         popup.setToolTip("")
@@ -3524,13 +2968,7 @@ class CodeEditor(QsciScintilla):
         return band
 
     def set_hover_line(self, line: int) -> None:
-        """
-        Highlight *line* (0-based) without moving the caret.
-        Used by the diagnostic overview ruler while the pointer is over it.
-
-        Args:
-            line: 0-based line to highlight. Anything negative clears it.
-        """
+        """Highlight *line* (0-based) without moving the caret."""
         try:
             line = int(line)
             if line < 0 or line >= self.lines():
@@ -3593,16 +3031,9 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-    ###############################################
-    # GHOST TEXT
-    ###############################################
 
     def set_ghost_text(self, line: int, text: str, color_hex: str = "#8a8a8a") -> None:
-        """
-        Renders light gray overlay annotation text directly beneath or after a
-        target line. Perfect for structural descriptions like "(+5 more imports)" or
-        custom inline messages.
-        """
+        """Renders light gray overlay annotation text directly beneath or after a target line."""
         if line < 0 or line >= self.lines():
             return
 
@@ -3646,9 +3077,6 @@ class CodeEditor(QsciScintilla):
         """Clear every active ghost text annotation throughout the entire document buffer."""
         self.SendScintilla(QsciScintilla.SCI_ANNOTATIONCLEARALL)
 
-    ###############################################
-    # LIFECYCLE
-    ###############################################
 
     def deleteLater(self) -> None:
         """Shut down the analysis worker before destroying the widget."""
@@ -3676,17 +3104,9 @@ class CodeEditor(QsciScintilla):
                 pass
         super().deleteLater()
 
-    ###############################################
-    # Diagnostics
-    ###############################################
 
     def _set_diagnostic_ticks(self, ticks) -> None:
-        """
-        Replace the overview-ruler ticks and notify listeners.
-
-        Args:
-            ticks: Iterable of `(line0, color_hex, severity)` tuples.
-        """
+        """Replace the overview-ruler ticks and notify listeners."""
 
         payload = []
         for item in ticks or ():

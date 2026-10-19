@@ -1,9 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Minimal CMake provider: keyword highlighting comes from the registry lexer,
-this provider only adds basic prefix completion over commands, variables
-and registered snippets. Never raises.
+Minimal CMake provider:
 """
 
 from __future__ import annotations
@@ -51,18 +48,7 @@ class CmakeProvider(BaseLanguageProvider):
         file_path=None,
         project_root=None,
     ) -> list:
-        """Complete CMake commands, variables and snippets by prefix.
-
-        Args:
-            text: Full editor buffer content.
-            cursor_position: ``(line, col)`` 0-indexed cursor.
-            prefix: Current word prefix (may be empty).
-            file_path: File being edited (unused).
-            project_root: Workspace root (unused).
-
-        Returns:
-            List of ``{"text", "kind", "signature"}`` dicts, never raising.
-        """
+        """Complete CMake commands, variables and snippets by prefix."""
         try:
             return self._complete(text, cursor_position, prefix or "")
         except Exception as exc:

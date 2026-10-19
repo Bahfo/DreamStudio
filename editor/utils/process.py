@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Shared subprocess helpers with consistent cwd, timeout and logging.
 """
 
@@ -20,21 +19,7 @@ def run_capture(
     env: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> subprocess.CompletedProcess:
-    """Run *argv* and capture output with uniform error mapping.
-
-    Args:
-        argv: Argument sequence, must be non-empty.
-        cwd: Working directory, may be None for inherit.
-        env: Optional environment override.
-        timeout: Seconds before ``TimeoutExpired``.
-
-    Returns:
-        Completed process instance.
-
-    Raises:
-        FileNotFoundError: When executable is missing.
-        RuntimeError: For spawn or timeout failures.
-    """
+    """Run *argv* and capture output with uniform error mapping."""
     if not argv:
         raise ValueError("argv must be non-empty.")
     if cwd is not None and not os.path.isdir(cwd):

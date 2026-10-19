@@ -1,10 +1,4 @@
-"""
-Python language plugin for DreamStudio.
-
-Exports the public API surface used by the editor's registration
-and integration layers.  All internal modules remain decoupled
-from the editor core; only the registration module bridges the two.
-"""
+"""Python language plugin for DreamStudio."""
 
 from editor.Ironica.plugins.python.provider import PythonLanguageProvider
 from editor.Ironica.plugins.python.provider import create_provider

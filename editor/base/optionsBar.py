@@ -3,7 +3,6 @@ from editor import *
 from editor.utils.resource_path import resource_path
 from editor.utils.icons import get_qicon
 
-# Local Imports
 from editor.Ironica.utils.debug_frame import DebugControlFrame
 from editor.widgets.QOptionsMenu import ToolbarMenuButton
 from editor.widgets.QToolButton import ToolbarButton
@@ -34,8 +33,6 @@ class OptionsMenu(QFrame):
         self.setFrameShape(QFrame.Shape.Panel)
         self.setFixedHeight(35)
 
-        # Registry of built dropdowns so other components (e.g. the run
-        # menu controller) can access a menu button and its actions.
         self._menu_buttons: dict[str, ToolbarMenuButton] = {}
         self._menu_actions: dict[str, dict[str, QAction]] = {}
 
@@ -49,19 +46,11 @@ class OptionsMenu(QFrame):
             self._build_bar(json_file)
         # TODO: Add a guard method of json is not found
 
-        # Method to add the debug session without activation so it floats inside the hero
-        # container without guards.
-        # Debug control frame is hidden until a debug session is active.
-        # Parented to the main window (self.master) so it can be positioned
-        # and dragged across the entire window, not just the options bar.
         self.debug_frame = DebugControlFrame(self.master)
         self.debug_frame.hide()
 
     def _validate_config(self, menu_data: list) -> None:
-        """
-        Validates the entire JSON structure against the selected bar_type rules
-        before any UI widgets are instantiated.
-        """
+        """Validates the entire JSON structure against the selected bar_type rules before any UI widgets are instantiated."""
         policy = self.BAR_POLICIES[self.bar_type]
 
         present_ids = [item.get("id") for item in menu_data if "id" in item]
@@ -126,8 +115,6 @@ class OptionsMenu(QFrame):
                 )
                 self.optionsMenu_layout.addWidget(btn)
 
-                # Keep a reference to the debug button so the session can
-                # disable/re-enable it (Edge Case 3 — button state collision).
                 if tooltip == "Debug Current File":
                     self._debug_button = btn
 

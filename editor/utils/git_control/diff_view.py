@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Side-by-side diff view for changed files in source control.
 """
 
@@ -24,14 +23,7 @@ ADD_LIGHT = "#c4e6c4"
 
 
 def resolve_language(path: str) -> Optional[str]:
-    """Return the editor language identifier for a file path.
-
-    Args:
-        path: Repository-relative file path.
-
-    Returns:
-        Language identifier, or ``None`` when the extension is unknown.
-    """
+    """Return the editor language identifier for a file path."""
     ext = os.path.splitext(path)[1].lower()
     if not ext:
         return None
@@ -46,15 +38,7 @@ def resolve_language(path: str) -> Optional[str]:
 def compute_blocks(
     old: str, new: str
 ) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
-    """Compute changed-line ranges for a file pair.
-
-    Args:
-        old: HEAD content.
-        new: Working-tree content.
-
-    Returns:
-        ``(left_blocks, right_blocks)`` as 0-based ``(start, end)`` ranges.
-    """
+    """Compute changed-line ranges for a file pair."""
     matcher = difflib.SequenceMatcher(
         a=old.splitlines(), b=new.splitlines(), autojunk=False
     )
@@ -74,14 +58,7 @@ def compute_blocks(
 
 
 def _theme_is_dark(theme_name: Optional[str] = None) -> bool:
-    """Return whether a theme is a dark theme.
-
-    Args:
-        theme_name: Theme to inspect, or ``None`` for the active theme.
-
-    Returns:
-        ``True`` for dark themes, ``False`` for light ones.
-    """
+    """Return whether a theme is a dark theme."""
     try:
         from editor.Ironica.retheme import active_theme_name, editor_colors
 
@@ -92,16 +69,7 @@ def _theme_is_dark(theme_name: Optional[str] = None) -> bool:
 
 
 def _marker_color(theme_name: Optional[str], dark: str, light: str) -> QColor:
-    """Pick the dark or light marker color for a theme.
-
-    Args:
-        theme_name: Theme deciding the variant.
-        dark: Color used on dark themes.
-        light: Color used on light themes.
-
-    Returns:
-        Theme-appropriate ``QColor``.
-    """
+    """Pick the dark or light marker color for a theme."""
     return QColor(dark if _theme_is_dark(theme_name) else light)
 
 
@@ -113,16 +81,7 @@ def _paint_blocks(
     light: str,
     theme_name: Optional[str] = None,
 ) -> None:
-    """Paint full-line background markers over line ranges.
-
-    Args:
-        editor: Target diff pane.
-        blocks: 0-based ``(start, end)`` line ranges.
-        marker: Scintilla marker number to use.
-        dark: Marker color on dark themes.
-        light: Marker color on light themes.
-        theme_name: Theme deciding the variant.
-    """
+    """Paint full-line background markers over line ranges."""
     editor.markerDefine(QsciScintilla.MarkerSymbol.Background, marker)
     editor.setMarkerBackgroundColor(_marker_color(theme_name, dark, light), marker)
     for start, end in blocks:
@@ -136,28 +95,13 @@ def _paint_blocks(
 def _recolor_markers(
     editor: Any, marker: int, dark: str, light: str, theme_name: str
 ) -> None:
-    """Refresh a marker's color for a theme.
-
-    Args:
-        editor: Target diff pane.
-        marker: Scintilla marker number to recolor.
-        dark: Marker color on dark themes.
-        light: Marker color on light themes.
-        theme_name: Theme deciding the variant.
-    """
+    """Refresh a marker's color for a theme."""
     editor.markerDefine(QsciScintilla.MarkerSymbol.Background, marker)
     editor.setMarkerBackgroundColor(_marker_color(theme_name, dark, light), marker)
 
 
 class DiffView(QWidget):
-    """Side-by-side read-only diff tab with themed panes.
-
-    Attributes:
-        left: HEAD content pane.
-        right: Working-tree content pane.
-        left_blocks: Changed-line ranges in the left pane.
-        right_blocks: Changed-line ranges in the right pane.
-    """
+    """Side-by-side read-only diff tab with themed panes."""
 
     is_diff_view = True
 
@@ -169,15 +113,7 @@ class DiffView(QWidget):
         language: Optional[str] = None,
         parent: Optional[QWidget] = None,
     ) -> None:
-        """Build header labels, themed panes, highlights, and scroll sync.
-
-        Args:
-            path: Repository-relative file path (used for the headers).
-            old: HEAD content.
-            new: Working-tree content (empty when deleted).
-            language: Editor language identifier for highlighting.
-            parent: Optional parent widget.
-        """
+        """Build header labels, themed panes, highlights, and scroll sync."""
         super().__init__(parent)
         self.path = path
         self.left_blocks, self.right_blocks = compute_blocks(old, new)
@@ -202,16 +138,7 @@ class DiffView(QWidget):
     def _build_pane(
         header: str, content: str, language: Optional[str]
     ) -> Tuple[QWidget, Any]:
-        """Build one labeled read-only pane.
-
-        Args:
-            header: Label shown above the editor.
-            content: File content to display.
-            language: Editor language identifier for highlighting.
-
-        Returns:
-            ``(container, editor)`` tuple.
-        """
+        """Build one labeled read-only pane."""
         from editor.Ironica.code_editor import CodeEditor
 
         box = QWidget()
@@ -235,11 +162,7 @@ class DiffView(QWidget):
         return box, editor
 
     def _paint(self, theme_name: Optional[str] = None) -> None:
-        """Paint change markers on both panes.
-
-        Args:
-            theme_name: Theme deciding the marker colors.
-        """
+        """Paint change markers on both panes."""
         try:
             _paint_blocks(
                 self.left, self.left_blocks, DEL_MARKER, DEL_DARK, DEL_LIGHT,
@@ -277,11 +200,7 @@ class DiffView(QWidget):
         rh.valueChanged.connect(lambda v: _forward(lh, v))
 
     def retheme(self, theme_name: str) -> None:
-        """Re-apply a theme to both panes and their change markers.
-
-        Args:
-            theme_name: Theme to apply (e.g. ``"dark"``).
-        """
+        """Re-apply a theme to both panes and their change markers."""
         for editor in (self.left, self.right):
             try:
                 editor.retheme(theme_name)
@@ -298,12 +217,7 @@ class DiffView(QWidget):
 
 
 def match_diff_fonts(view: DiffView, tab_editor: Any) -> None:
-    """Copy the active editor font family and size onto diff panes.
-
-    Args:
-        view: Diff view whose panes receive the font.
-        tab_editor: Central tab widget hosting the current editor.
-    """
+    """Copy the active editor font family and size onto diff panes."""
     try:
         cur = tab_editor.currentWidget()
         ref = getattr(cur, "editor", None) or cur
@@ -322,17 +236,7 @@ def match_diff_fonts(view: DiffView, tab_editor: Any) -> None:
 
 
 def build_diff_tab(tab_editor: Any, path: str, old: str, new: str) -> Optional[QWidget]:
-    """Open a themed side-by-side diff tab for a file pair.
-
-    Args:
-        tab_editor: Central tab widget receiving the new tab.
-        path: Repository-relative file path (used for title and language).
-        old: HEAD content.
-        new: Working-tree content.
-
-    Returns:
-        The new tab widget.
-    """
+    """Open a themed side-by-side diff tab for a file pair."""
     view = DiffView(path, old, new, resolve_language(path))
     match_diff_fonts(view, tab_editor)
     name = os.path.basename(path)

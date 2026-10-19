@@ -1,7 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Embedded browser widget for rendering HTML file previews inside
-DreamStudio tabs via Qt WebEngine.
+Embedded browser widget for rendering HTML file previews inside DreamStudio tabs via Qt WebEngine.
 """
 
 from editor import *
@@ -16,11 +15,7 @@ _BTN_STYLE = (
 
 
 class WebViewer(QWidget):
-    """Embedded browser widget that displays an HTML file preview.
-
-    Wraps ``QWebEngineView`` and adds navigation controls
-    (back, forward, refresh) in the top-right corner.
-    """
+    """Embedded browser widget that displays an HTML file preview."""
 
     def __init__(self, file: str, parent=None):
         super().__init__(parent)
@@ -70,11 +65,9 @@ class WebViewer(QWidget):
 
         root.addLayout(top_bar)
 
-        # Fix: Attach parent immediately to prevent phantom window flashing
         self.browser = QWebEngineView(self)
         root.addWidget(self.browser)
 
-        # Fix: Update navigation buttons when history changes
         self.browser.loadFinished.connect(self._update_nav_buttons)
         self.browser.urlChanged.connect(self._update_nav_buttons)
 

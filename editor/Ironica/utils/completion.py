@@ -1,4 +1,3 @@
-# (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
 """
 The main completion widget for Ironica.
 """
@@ -12,7 +11,6 @@ from editor.utils.resource_path import resource_path
 logger = logging.getLogger("DreamStudio.Completion")
 
 COMPLETION_DEBOUNCE_MS: int = 40
-# Delay before a cache-served popup is confirmed by one background query.
 CACHE_CONFIRM_MS: int = 800
 
 
@@ -41,7 +39,6 @@ class CompletionDelegate(QStyledItemDelegate):
     RIGHT_PADDING = 10
     SIGNATURE_GAP = 18
 
-    # Absolute icon directory resolution relative to this file
     _ICON_DIR = resource_path("assets/editor")
 
     _KIND_ICON_MAP = {
@@ -172,7 +169,6 @@ class CompletionDelegate(QStyledItemDelegate):
         if icon is not None and not icon.isNull():
             icon.paint(painter, icon_rect, Qt.AlignmentFlag.AlignCenter)
         else:
-            # Fallback: Render a clean colored letter badge if PNG is missing
             self._draw_fallback_badge(painter, icon_rect, item.icon_name)
 
         fm = option.fontMetrics
@@ -726,15 +722,11 @@ class CompletionController(QObject):
             pass
 
         # NOTE: Short debounce only gates the very first popup. While the
-        # popup is open every keystroke re-filters cached items instantly;
-        # the timer merely schedules a background refresh of the results.
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.setInterval(COMPLETION_DEBOUNCE_MS)
         self._debounce_timer.timeout.connect(self._request_completions)
 
-        # Confirm timer: after a popup is served from cache (no worker
-        # query), one background refresh converges it to true results.
         self._confirm_timer = QTimer(self)
         self._confirm_timer.setSingleShot(True)
         self._confirm_timer.setInterval(CACHE_CONFIRM_MS)
@@ -769,9 +761,6 @@ class CompletionController(QObject):
         self._doc_version = 0
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        # ``editor`` is assigned right after ``super().__init__``; a filter can
-        # still fire while a controller is being torn down or rebuilt, so the
-        # attribute is read defensively here.
         if obj is getattr(self, "editor", None):
             return self._filter_editor_event(event)
 
@@ -855,7 +844,7 @@ class CompletionController(QObject):
                 "cpp_member_triggers",
                 False,
             ):
-                return False  # second ':' of '::' must not kill the popup
+                return False
             self._close()
 
         return False
@@ -1015,14 +1004,7 @@ class CompletionController(QObject):
         self._debounce_timer.start()
 
     def _get_snippet_completions(self) -> List[CompletionItem]:
-        """Return snippet CompletionItems matching the current prefix.
-
-        Snippets are sourced from ``editor.snippet_map`` (trigger -> body)
-        and, as fallback, from ``LanguageRegistry.get_snippets(lang)``.
-        A prefix starting with ``/`` requires an exact ``/``-prefixed
-        match; otherwise the leading ``/`` is ignored so typing ``Cl``
-        also surfaces ``/Class``.
-        """
+        """Return snippet CompletionItems matching the current prefix."""
         prefix = self._current_prefix or ""
         prefix_lower = prefix.lower()
         stripped_prefix = prefix.lstrip("/").lower()
@@ -1076,7 +1058,6 @@ class CompletionController(QObject):
             if is_snippet_prefix:
                 matched = [(0, len(prefix))]
             else:
-                # Highlight starts after leading "/" if present
                 offset = 1 if trig.startswith("/") else 0
                 matched = [(offset, len(prefix))]
 
@@ -1094,23 +1075,14 @@ class CompletionController(QObject):
         return result
 
     def _refresh_from_cache(self) -> None:
-        """Re-populate the popup from cached items for the current prefix.
-
-        Returns without touching the popup when nothing matches, letting
-        the pending background request decide the final state.  Snippet
-        matches are merged synchronously so ``/``-triggered discovery
-        feels instant.
-        """
-        # Snippet prefix: show snippet matches directly
+        """Re-populate the popup from cached items for the current prefix."""
         if self._current_prefix.startswith("/"):
             snippet_matches = self._get_snippet_completions()
-            # Also filter cached items that are snippets (if previously cached)
             cached_matches = [
                 item
                 for item in self._cached_items
                 if item.text.lower().startswith(self._current_prefix.lower())
             ]
-            # Prefer synchronous snippet matches; they are always fresh
             combined = snippet_matches if snippet_matches else cached_matches
             if combined:
                 self.popup.populate(combined)
@@ -1121,7 +1093,6 @@ class CompletionController(QObject):
             for item in self._cached_items
             if item.text.lower().startswith(self._current_prefix.lower())
         ]
-        # Merge snippets that match this word prefix
         provider = getattr(self.editor, "current_provider", None)
         slash_only = getattr(provider, "slash_snippets_only", False)
         if slash_only and not self._current_prefix.startswith("/"):
@@ -1146,7 +1117,6 @@ class CompletionController(QObject):
         self._requested_prefix = self._current_prefix
         provider = getattr(self.editor, "current_provider", None)
 
-        # Snippet-only prefix: bypass language provider and show snippets instantly
         if self._current_prefix.startswith("/"):
             snippet_items = self._get_snippet_completions()
             self._present_items(snippet_items)
@@ -1154,7 +1124,6 @@ class CompletionController(QObject):
 
         if provider is None:
             items = self._get_document_tokens()
-            # Merge snippet completions even without a provider
             snippet_items = self._get_snippet_completions()
             existing = {i.text for i in items}
             for s in snippet_items:
@@ -1166,9 +1135,6 @@ class CompletionController(QObject):
                 self._close()
             return
 
-        # Prefer the editor-scoped manager (like _diag_manager); the
-        # provider singleton's slot may still hold another tab's — or an
-        # already destroyed — manager.
         cache_hit = False
         try:
             live_text = self.editor.text()
@@ -1192,8 +1158,6 @@ class CompletionController(QObject):
                 completion_manager, live_text, live_line, live_col, live_file
             )
         ):
-            # Pure prefix extension on a fresh TU: the popup already shows
-            # re-filtered rows — skip the worker and confirm in background.
             _profile.mark(self.editor, "cache-served")
             self._request_pending = False
             self._confirm_timer.start()
@@ -1205,16 +1169,10 @@ class CompletionController(QObject):
                 accepted = completion_manager.request(
                     self.editor.text(),
                     *self.editor.getCursorPosition(),
-                    # The provider is a process singleton shared by every
-                    # open tab, so its ``file_path`` is only the most
-                    # recently opened one; the editor's own path is the
-                    # authoritative per-tab identity.
                     getattr(self.editor, "current_file_path", None) or None,
                     self._current_prefix,
                 )
             except RuntimeError:
-                # Manager's Qt object was deleted with its editor — fall
-                # through to the synchronous provider path instead.
                 accepted = False
             if accepted is not False:
                 self._request_pending = True
@@ -1226,7 +1184,7 @@ class CompletionController(QObject):
                 )
                 return
             if not getattr(completion_manager, "_dead", True):
-                self._close()  # context suppressed; nothing to show
+                self._close()
                 return
             logger.debug("completion manager is dead; using sync path")
 
@@ -1256,12 +1214,7 @@ class CompletionController(QObject):
         self._present_items(items)
 
     def _prefix_extends_last_query(self) -> bool:
-        """Check the prefix strictly extends the last submitted query.
-
-        Returns:
-            ``True`` when the current prefix is a longer extension of the
-            last submitted one in the same completion context.
-        """
+        """Check the prefix strictly extends the last submitted query."""
         last = self._last_queried_prefix or ""
         current = self._current_prefix or ""
         return (
@@ -1274,19 +1227,7 @@ class CompletionController(QObject):
     def _flags_unchanged(
         self, manager, text: str, line: int, col: int, file_path,
     ) -> bool:
-        """Check the TU flags match the last submitted query's snapshot.
-
-        Args:
-            manager: Completion manager exposing ``current_flags``.
-            text: Full buffer content.
-            line: 0-indexed cursor line.
-            col: 0-indexed cursor column.
-            file_path: File being edited.
-
-        Returns:
-            ``True`` when flags are known and unchanged (``False`` keeps
-            the old always-submit behavior for untracked providers).
-        """
+        """Check the TU flags match the last submitted query's snapshot."""
         if self._last_queried_flags is None:
             return False
         try:
@@ -1303,15 +1244,7 @@ class CompletionController(QObject):
     def _note_submitted_query(
         self, manager, text: str, line: int, col: int, file_path,
     ) -> None:
-        """Snapshot prefix and flags for the cache-skip gate.
-
-        Args:
-            manager: Completion manager exposing ``current_flags``.
-            text: Full buffer content.
-            line: 0-indexed cursor line.
-            col: 0-indexed cursor column.
-            file_path: File being edited.
-        """
+        """Snapshot prefix and flags for the cache-skip gate."""
         self._last_queried_prefix = self._current_prefix or ""
         self._last_queried_flags = None
         try:
@@ -1325,11 +1258,7 @@ class CompletionController(QObject):
             self._last_queried_flags = None
 
     def _manager_query_cost(self) -> float:
-        """Return the completion manager's smoothed query cost in ms.
-
-        Returns:
-            Smoothed parse+complete cost (``0.0`` when unknown).
-        """
+        """Return the completion manager's smoothed query cost in ms."""
         try:
             manager = getattr(self.editor, "_completion_manager", None)
             getter = getattr(manager, "query_cost_ms", None)
@@ -1345,30 +1274,18 @@ class CompletionController(QObject):
         self._request_completions()
 
     def _present_items(self, items: List[CompletionItem]) -> None:
-        """Cache fresh results and display those matching the typed prefix.
-
-        The cache powers the synchronous keystroke filter, so results are
-        stored unfiltered while only prefix matches become visible. When
-        a provider yields nothing the document-token fallback runs.
-        Snippet completions from ``LanguageRegistry`` / ``snippet_map``
-        are merged into the visible set so users discover snippet names.
-
-        Args:
-            items: Raw completion items returned by the active provider.
-        """
+        """Cache fresh results and display those matching the typed prefix."""
         self._cached_items = list(items)
         self._cache_ident = self._requested_context[0]
 
         prefix_lower = self._current_prefix.lower()
 
-        # Snippet-only prefix: items are already snippet-filtered
         if self._current_prefix.startswith("/"):
             visible = [
                 item
                 for item in self._cached_items
                 if item.text.lower().startswith(prefix_lower)
             ]
-            # Ensure fresh snippet filtering even if cache was empty
             if not visible:
                 visible = self._get_snippet_completions()
             if visible:
@@ -1385,9 +1302,6 @@ class CompletionController(QObject):
             if item.text.lower().startswith(prefix_lower)
         ]
 
-        # Suppress self-echo: a lone exact match of a plain identifier
-        # (e.g. finishing 'std' suggests 'std') shows no popup. Member
-        # contexts (ident set) are exempt so 'std::' still completes.
         if (
             len(visible) == 1
             and not self._requested_context[0]
@@ -1398,7 +1312,6 @@ class CompletionController(QObject):
             _profile.log_report(self.editor, "completion")
             return
 
-        # Merge snippets that match this word prefix (without needing "/")
         provider_now = getattr(self.editor, "current_provider", None)
         snippet_items = []
         if getattr(provider_now, "slash_snippets_only", False) and not (
@@ -1414,12 +1327,11 @@ class CompletionController(QObject):
 
         if not visible and not items and not snippet_items:
             if getattr(provider_now, "suppress_token_fallback", False):
-                self._close()  # e.g. preprocessor lines: no noise allowed
+                self._close()
                 _profile.mark(self.editor, "shown")
                 _profile.log_report(self.editor, "completion")
                 return
             visible = self._get_document_tokens()
-            # Also include snippets in fallback if tokens found no prefix match
             for s in snippet_items:
                 if s.text not in {v.text for v in visible}:
                     visible.append(s)
@@ -1464,12 +1376,7 @@ class CompletionController(QObject):
 
     @pyqtSlot(int, str)
     def _on_completion_hint(self, request_id: int, message: str) -> None:
-        """Surface a missing-include hint as a throttled notification.
-
-        Args:
-            request_id: Request the hint belongs to (unused, latest wins).
-            message: Comma-separated missing header names.
-        """
+        """Surface a missing-include hint as a throttled notification."""
         del request_id
         if not message:
             return
@@ -1493,25 +1400,25 @@ class CompletionController(QObject):
         _profile.mark(self.editor, "arrive")
         self._request_pending = False
         if request_id <= self._commit_suppress_id:
-            return  # committed since this batch was requested; never repaint
+            return
         requested = getattr(self, "_requested_cursor", None)
         if requested is not None:
             try:
                 live_line, live_col = self.editor.getCursorPosition()
                 if live_line != requested[0] or live_col < requested[1]:
-                    return  # cursor moved lines (e.g. Enter); drop stale results
+                    return
                 live_text = self.editor.text(live_line)[:live_col]
                 if re.search(r"[)\];}{]\s*$", live_text):
-                    return  # closed construct; nothing to complete here
+                    return
                 want = self._requested_prefix or ""
                 if want:
                     current = re.search(r"[A-Za-z_]\w*$", live_text)
                     if current is None or not current.group(0).startswith(want):
-                        return  # typed past the request; drop before coerce
+                        return
             except Exception:
                 pass
         if request_id < self._last_presented_id:
-            return  # older batch landed after a newer paint; skip rebuild
+            return
         self._last_presented_id = request_id
         items = self._coerce_items(raw_items or [])
         try:
@@ -1531,12 +1438,7 @@ class CompletionController(QObject):
 
     def _try_cached_present(self, source: str, line: int, col: int,
                             prefix: str, file_path) -> bool:
-        """Present filtered cached rows for pure prefix extensions.
-
-        Returns True when the buffer differs from the cached version
-        only by appended identifier characters on the current line; the
-        caller still submits the background refresh to confirm.
-        """
+        """Present filtered cached rows for pure prefix extensions."""
         state = self._reuse_state
         if not state or not prefix:
             return False
@@ -1572,20 +1474,7 @@ class CompletionController(QObject):
 
     @staticmethod
     def _full_insert_text(text: str, candidate: str) -> str:
-        """Pick a safe insertion string from a provider payload.
-
-        Legacy payloads carry jedi's ``complete`` attribute, which is only
-        the missing suffix of the word (typed ``imp`` -> ``ort``). Since
-        insertion replaces the whole typed fragment, any insert shorter
-        than the display text is treated as a suffix and discarded.
-
-        Args:
-            text: Full display text (the complete identifier).
-            candidate: Provider-supplied insert text, possibly a suffix.
-
-        Returns:
-            The candidate when it fully covers the word, else *text*.
-        """
+        """Pick a safe insertion string from a provider payload."""
         if len(candidate) >= max(1, len(text)) and candidate:
             return candidate
         return text
@@ -1598,7 +1487,6 @@ class CompletionController(QObject):
             if isinstance(raw, CompletionItem):
                 result.append(raw)
             elif isinstance(raw, dict):
-                # FIX: Read dictionary keys sent across IPC bridge
                 text = raw.get("text") or raw.get("name") or ""
                 icon_name = raw.get("kind") or raw.get("icon_name") or ""
                 signature = raw.get("signature") or ""
@@ -1659,13 +1547,7 @@ class CompletionController(QObject):
         return self._doc_words
 
     def _show_popup(self, items: List[CompletionItem]) -> None:
-        """Show the popup at the caret with a deterministic side.
-
-        The popup prefers below the caret and flips above only when
-        below does not fit. While visible it keeps its side across
-        refreshes whenever that side still fits, so async result
-        batches and content-height changes never make it jump.
-        """
+        """Show the popup at the caret with a deterministic side."""
         was_visible = self.popup.isVisible()
         if not self.popup.populate(items):
             self._close()
@@ -1742,22 +1624,7 @@ class CompletionController(QObject):
         self._active = True
 
     def _insert_completion(self, item: CompletionItem) -> None:
-        """Replace the fragment before the cursor with the chosen item.
-
-        Anchors are recomputed from the live document at commit time
-        instead of positions captured when results arrived. Async answers
-        routinely land after the user has kept typing, so stale anchors
-        previously produced corrupted words (``imp`` + ``import`` ->
-        ``impt``/``importt``). With live anchoring the inserted text is
-        always the full identifier swapped over whatever is typed now.
-
-        Snippet completions carry multi-line bodies; they are expanded with
-        language-aware indentation so subsequent lines align with the
-        original cursor indentation.
-
-        Args:
-            item: The completion entry selected in the popup.
-        """
+        """Replace the fragment before the cursor with the chosen item."""
         if self._committing:
             return
 

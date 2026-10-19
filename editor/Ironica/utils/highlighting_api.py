@@ -1,23 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Core Highlighting API for DreamStudio.
-
-Defines the abstract contract between the QScintilla lexer pipeline
-and language-aware token providers.  The editor never guesses what a
-token is -- it asks the API.
-
-**Design Principles**
-
-- All token data is returned as exact ``(start_offset, length,
-  style_id_or_color)`` tuples.  No partial string matching.
-- Style IDs map to QScintilla style indices (integers).  Colors are
-  ``#RRGGBB`` hex strings for Scintilla indicator overlays.
-- The API is language-agnostic.  Language plugins implement the
-  ``ITokenProvider`` interface and register themselves with the
-  ``HighlightingRegistry``.
-- Callers must use strict word boundaries (``\\b``) or exact ``length``
-  properties from the parser.  Substring matching is forbidden.
 """
 
 from __future__ import annotations
@@ -29,23 +12,9 @@ from editor.Ironica.retheme import is_hex_color
 logger = logging.getLogger(__name__)
 
 
-# ==================================================================
-# Token style definitions
-# ==================================================================
-
-
 @dataclass(frozen=True)
 class TokenStyle:
-    """Maps a semantic token type to a QScintilla style index and
-    foreground colour.
-
-    Attributes:
-        style_id:   QScintilla style index (0-based).  Style 0 is
-                    always the default.
-        colour:     ``#RRGGBB`` hex colour string.
-        bold:       Whether the token should render in bold.
-        italic:     Whether the token should render in italic.
-    """
+    """Maps a semantic token type to a QScintilla style index and foreground colour."""
 
     style_id: int
     colour: str
@@ -53,13 +22,8 @@ class TokenStyle:
     italic: bool = False
 
 
-# Style 0 is reserved as DEFAULT by QScintilla.
 STYLE_DEFAULT = TokenStyle(0, "#D4D4D4")
 
-# Mapping from semantic token types to JSON config style keys.
-# The JSON files (keywords/*.json) are the single source of truth for colours.
-# This map tells `styles_from_config()` how to translate config style names
-# into semantic token types used by the highlighting API.
 SEMANTIC_TO_CONFIG_KEY: Dict[str, str] = {
     "keyword": "keyword",
     "builtin": "builtin",
@@ -83,7 +47,6 @@ SEMANTIC_TO_CONFIG_KEY: Dict[str, str] = {
     "header": "header",
 }
 
-# Fallback colours for semantic types not present in the language config.
 _DEFAULT_COLOURS: Dict[str, str] = {
     "keyword": "#C586C0",
     "builtin": "#4FC1FF",
@@ -111,33 +74,20 @@ _DEFAULT_COLOURS: Dict[str, str] = {
 
 
 def styles_from_config(config: dict) -> Dict[str, TokenStyle]:
-    """Build a STYLES dict from a language configuration.
-
-    Reads the ``"styles"`` section of *config* and maps each semantic
-    token type to its colour.  Symbolic style values (e.g.
-    ``KEYWORD_COLOR``) are resolved through the config's ``"palette"``
-    section.  Semantic types that are not present in the config fall
-    back to ``_DEFAULT_COLOURS``.
-
-    Style IDs are assigned sequentially starting at 1 (0 is reserved
-    as DEFAULT by QScintilla).
-    """
+    """Build a STYLES dict from a language configuration."""
     config_styles = config.get("styles", {})
     palette = config.get("palette", {}) or {}
     style_id = 1
     result: Dict[str, TokenStyle] = {}
 
-    # Collect all unique config keys referenced by semantic types.
     needed_keys: set = set(SEMANTIC_TO_CONFIG_KEY.values())
 
-    # Assign IDs from the config, preserving order from the config dict.
     config_key_to_id: Dict[str, int] = {}
     for key in config_styles:
         if key in needed_keys:
             config_key_to_id[key] = style_id
             style_id += 1
 
-    # Build result for every semantic type.
     for sem_type, config_key in SEMANTIC_TO_CONFIG_KEY.items():
         raw = config_styles.get(config_key)
         if raw is not None:
@@ -155,22 +105,9 @@ def styles_from_config(config: dict) -> Dict[str, TokenStyle]:
 STYLES: Dict[str, TokenStyle] = {}
 
 
-# ==================================================================
-# Token data model
-# ==================================================================
-
-
 @dataclass(frozen=True)
 class Token:
-    """A single styled token with exact byte boundaries.
-
-    Attributes:
-        start:   Start offset in the document (0-indexed byte position).
-        length:  Length of the token in bytes.
-        style:   The ``TokenStyle`` to apply.
-        kind:    Semantic category string (e.g. ``"keyword"``,
-                 ``"variable"``, ``"string"``).
-    """
+    """A single styled token with exact byte boundaries."""
 
     start: int
     length: int
@@ -178,67 +115,22 @@ class Token:
     kind: str
 
 
-# ==================================================================
-# Abstract token provider interface
-# ==================================================================
-
-
 class ITokenProvider(ABC):
-    """Abstract contract for language-aware token providers.
-
-    A token provider analyses source text and returns a list of
-    ``Token`` objects with exact ``(start, length, style)`` tuples.
-
-    **Critical contract:**
-
-    - Every token MUST specify its exact ``start`` offset and
-      ``length``.  No partial or approximate ranges.
-    - Tokens MUST NOT overlap.  If two providers claim the same
-      range, the later-registered provider wins.
-    - Providers MUST respect string and comment boundaries.  Tokens
-      inside strings or comments MUST NOT be returned.
-    """
+    """Abstract contract for language-aware token providers."""
 
     @abstractmethod
     def get_tokens(self, text: str) -> List[Token]:
-        """Return styled tokens for the full document text.
-
-        Args:
-            text: The complete editor buffer content.
-
-        Returns:
-            A list of ``Token`` objects sorted by start offset.
-        """
+        """Return styled tokens for the full document text."""
         return []
 
     @abstractmethod
     def get_semantic_ranges(self, text: str) -> List[Tuple[int, int, str]]:
-        """Return ``(start_offset, length, "#RRGGBB")`` tuples for
-        Scintilla indicator overlays.
-
-        These are additional semantic highlights (AST-derived,
-        Jedi-derived) that layer on top of the base lexer tokens.
-
-        Args:
-            text: The complete editor buffer content.
-
-        Returns:
-            A list of ``(start, length, colour)`` tuples.
-        """
+        """Return ``(start_offset, length, "#RRGGBB")`` tuples for Scintilla indicator overlays."""
         return []
 
 
-# ==================================================================
-# Highlighting registry — central token provider lookup
-# ==================================================================
-
-
 class HighlightingRegistry:
-    """Class-level registry mapping language identifiers to their
-    ``ITokenProvider`` implementations.
-
-    All methods are ``@classmethod`` -- no instantiation required.
-    """
+    """Class-level registry mapping language identifiers to their ``ITokenProvider`` implementations."""
 
     _providers: Dict[str, ITokenProvider] = {}
 
@@ -252,7 +144,7 @@ class HighlightingRegistry:
 
     @classmethod
     def unregister(cls, lang: str) -> bool:
-        """Remove the provider for *lang*.  Returns ``True`` if found."""
+        """Remove the provider for *lang*."""
         if lang not in cls._providers:
             return False
         del cls._providers[lang]

@@ -4,10 +4,7 @@ from editor.utils.resource_path import resource_path
 from editor.utils.icons import get_qicon
 
 class ToolbarMenuButton(QPushButton):
-    """
-    A custom dropdown menu button with a far-right arrow indicator
-    that updates its text to show the currently selected option.
-    """
+    """A custom dropdown menu button with a far-right arrow indicator that updates its text to show the currently selected option."""
 
     def __init__(
         self,

@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Jedi integration adapter for DreamStudio.
 """
 
@@ -22,21 +21,14 @@ logger = logging.getLogger("DreamStudio.PythonSupport.JediAdapter")
 
 
 class JediAdapter(IJediAdapter):
-    """
-    An adapter that translates between the DreamStudio domain layer and Jedi.
-    This class is stateless and operates strictly on the provided PythonContext.
-    """
+    """An adapter that translates between the DreamStudio domain layer and Jedi."""
 
     def __init__(self) -> None:
         super().__init__()
 
     @staticmethod
     def _extract_default_from_signature(param) -> Optional[str]:
-        """Extract default value from a Jedi parameter's signature string.
-
-        Jedi's param.to_string() returns e.g. ``b=10`` or ``c="hello"``.
-        This extracts the value after the ``=``.
-        """
+        """Extract default value from a Jedi parameter's signature string."""
         try:
             param_str = param.to_string()
             if "=" in param_str:
@@ -48,10 +40,7 @@ class JediAdapter(IJediAdapter):
         return None
 
     def _get_script(self, context: PythonContext) -> Optional[jedi.Script]:
-        """
-        Safely instantiates a Jedi Script from an immutable context.
-        The subsystem does not touch the filesystem; code is passed purely in memory.
-        """
+        """Safely instantiates a Jedi Script from an immutable context."""
         try:
             project = self._resolve_project(context)
             if project is not None:
@@ -75,12 +64,7 @@ class JediAdapter(IJediAdapter):
 
     @staticmethod
     def _resolve_project(context: PythonContext):
-        """Build a Jedi project rooted at the user's project directory.
-
-        Falls back to the buffer's own directory when no project root
-        was supplied, and returns ``None`` when neither is available
-        so callers keep the previous behaviour.
-        """
+        """Build a Jedi project rooted at the user's project directory."""
         import os
 
         candidates: list = []
@@ -131,7 +115,6 @@ class JediAdapter(IJediAdapter):
 
             primary_def = definitions[0]
 
-            # Parse parameters if the symbol is callable (function, class, method)
             parameters: List[ParameterInfo] = []
             signature_str = ""
             return_type = None
@@ -141,11 +124,9 @@ class JediAdapter(IJediAdapter):
                 sig = signatures[0]
                 signature_str = sig.to_string()
 
-                # Parse return type from type annotation if present
                 if hasattr(sig, "annotation") and sig.annotation:
                     return_type = str(sig.annotation)
 
-                # Parse parameter specific names, defaults, and hints
                 for param in sig.params:
                     annotation = (
                         param.annotation if hasattr(param, "annotation") else None
@@ -163,7 +144,6 @@ class JediAdapter(IJediAdapter):
                         )
                     )
             else:
-                # Fallback to simple definition representation if no signature exists
                 signature_str = primary_def.description
 
             return HoverDetails(
@@ -210,15 +190,13 @@ class JediAdapter(IJediAdapter):
 
             target = definitions[0]
 
-            # Extract raw paths securely and convert to standardized strings
             file_path = str(target.module_path) if target.module_path else None
 
-            # Capture the target code context snippet surrounding the definition target
             context_line = None
             try:
                 context_line = target.get_line_code()
             except Exception:
-                pass  # Suppress and keep as None if code lookup fails
+                pass
 
             return DefinitionLocation(
                 file_path=file_path,
@@ -232,11 +210,7 @@ class JediAdapter(IJediAdapter):
             return None
 
     def get_completions(self, context: PythonContext) -> List[CompletionDetails]:
-        """Return code-completion suggestions at the cursor position.
-
-        Delegates to ``jedi.Script.complete()`` and translates each raw
-        Jedi completion object into a ``CompletionDetails`` domain model.
-        """
+        """Return code-completion suggestions at the cursor position."""
         script = self._get_script(context)
         if not script:
             return []
@@ -264,7 +238,6 @@ class JediAdapter(IJediAdapter):
                 CompletionDetails(
                     text=comp.name,
                     # NOTE: comp.complete is only the missing suffix; callers
-                    # replace the typed prefix, so insert the full word.
                     insert_text=comp.name,
                     kind=comp.type or "",
                     signature=signature,

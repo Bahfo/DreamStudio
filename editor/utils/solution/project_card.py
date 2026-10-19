@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Project-template card for the solution start window.
-
-Holds the selectable card widget, search-match highlighting and manifest tag
-derivation so ``startup_window`` stays focused on window flow and filtering.
 """
 
 import html
@@ -18,19 +14,7 @@ _DESCRIPTION_MAX_CHARS = 140
 
 
 def shorten_description(text: str, limit: int = _DESCRIPTION_MAX_CHARS) -> str:
-    """Collapse whitespace and truncate *text* at a word boundary.
-
-    Cards have a fixed height that fits roughly two wrapped lines, so
-    longer descriptions are cut at *limit* characters without splitting
-    a word and suffixed with an ellipsis.
-
-    Args:
-        text: Raw description which may contain newlines or long runs.
-        limit: Maximum characters to keep before truncating.
-
-    Returns:
-        Shortened plain text safe for card display.
-    """
+    """Collapse whitespace and truncate *text* at a word boundary."""
     cleaned = " ".join(str(text).split())
     if len(cleaned) <= limit:
         return cleaned
@@ -39,16 +23,7 @@ def shorten_description(text: str, limit: int = _DESCRIPTION_MAX_CHARS) -> str:
 
 
 def highlight_html(text: str, query: str, color: str) -> str:
-    """Return *text* as HTML with *query* matches wrapped in a highlight span.
-
-    Args:
-        text: Plain source text to display.
-        query: Case-insensitive substring to highlight (empty disables).
-        color: Background color used for the highlight span.
-
-    Returns:
-        HTML string safe for a rich-text ``QLabel``.
-    """
+    """Return *text* as HTML with *query* matches wrapped in a highlight span."""
     safe = html.escape(str(text))
     needle = query.strip()
     if not needle:
@@ -65,14 +40,7 @@ def highlight_html(text: str, query: str, color: str) -> str:
 
 
 def entry_tags(project_entry: dict) -> list:
-    """Derive pill tags for a manifest entry.
-
-    Args:
-        project_entry: Manifest entry with ``manifest`` and ``project_type``.
-
-    Returns:
-        Ordered, deduplicated list of tag strings (capped at 7).
-    """
+    """Derive pill tags for a manifest entry."""
     manifest = project_entry.get("manifest") or {}
     tags: list = []
 
@@ -111,14 +79,7 @@ def entry_tags(project_entry: dict) -> list:
 
 
 def resolve_entry_icon(project_entry: dict) -> QIcon:
-    """Resolve a manifest-provided icon, falling back to a native icon.
-
-    Args:
-        project_entry: Manifest entry that may carry an ``icon`` value.
-
-    Returns:
-        The template icon or a generic file icon.
-    """
+    """Resolve a manifest-provided icon, falling back to a native icon."""
     icon_value = project_entry.get("icon")
 
     if isinstance(icon_value, QIcon):
@@ -145,24 +106,13 @@ def resolve_entry_icon(project_entry: dict) -> QIcon:
 
 
 class ProjectCard(QFrame):
-    """Visual project-template card used by the solution picker.
-
-    Attributes:
-        project_entry: Manifest entry dict backing this card.
-        clicked: Emitted with the entry on single click.
-        double_clicked: Emitted with the entry on double click.
-    """
+    """Visual project-template card used by the solution picker."""
 
     clicked = pyqtSignal(object)
     double_clicked = pyqtSignal(object)
 
     def __init__(self, project_entry: dict, parent=None) -> None:
-        """Build the card widgets for *project_entry*.
-
-        Args:
-            project_entry: Manifest entry with display info and tags.
-            parent: Optional parent widget.
-        """
+        """Build the card widgets for *project_entry*."""
         super().__init__(parent)
 
         self.project_entry = project_entry
@@ -244,19 +194,11 @@ class ProjectCard(QFrame):
         self.refresh_text()
 
     def _resolve_icon(self) -> QIcon:
-        """Resolve this card's icon via the shared manifest helper.
-
-        Returns:
-            The template icon or a generic file icon.
-        """
+        """Resolve this card's icon via the shared manifest helper."""
         return resolve_entry_icon(self.project_entry)
 
     def refresh_text(self, query: str = "") -> None:
-        """Refresh title, description and tags, highlighting *query*.
-
-        Args:
-            query: Current search text used for match highlighting.
-        """
+        """Refresh title, description and tags, highlighting *query*."""
         self._query = query or ""
         color = startup_highlight(self._theme_mode())
         name = str(self.project_entry.get("display_name", "Unnamed Project"))
@@ -287,27 +229,19 @@ class ProjectCard(QFrame):
         self._tags_row.addStretch(1)
 
     def _theme_mode(self) -> str:
-        """Find the start window's theme mode by walking ancestors.
-
-        Returns:
-            ``"light"`` when an ancestor reports light mode, else ``"dark"``.
-        """
+        """Find the start window's theme mode by walking ancestors."""
         parent = self.parentWidget()
         while parent is not None:
             if hasattr(parent, "_theme_mode"):
                 try:
-                    return str(parent._theme_mode)  # noqa: SLF001
+                    return str(parent._theme_mode)
                 except Exception:
                     return "dark"
             parent = parent.parentWidget()
         return "dark"
 
     def set_selected(self, selected: bool) -> None:
-        """Update the card selection state.
-
-        Args:
-            selected: Whether this card is the active selection.
-        """
+        """Update the card selection state."""
         self._selected = selected
 
         self.setProperty(

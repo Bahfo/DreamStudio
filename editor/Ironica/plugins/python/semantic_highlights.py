@@ -1,26 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Minimal two-path Python highlighting pipeline for DreamStudio.
-
-**Design**
-
-The provider exposes two independent output paths:
-
-1. **Lexer path** (``get_tokens``): full syntax-coloured token stream
-   produced entirely by ``tokenize``.  Keywords, strings, comments,
-   numbers, operators, and decorator sigils are authoritative here.
-   No AST inference is merged into this stream.
-
-2. **Overlay path** (``get_semantic_ranges`` / ``get_semantic_highlights``):
-   a *small* whitelist of AST-derived spans painted on top of the base
-   lexer via Scintilla indicators.
-
-**Guarantees**
-
-- All offsets are strictly converted to UTF-8 Byte Offsets to perfectly
-  align with QScintilla's internal buffer, preventing highlight shifting
-  caused by multi-byte characters or non-breaking spaces.
 """
 
 import ast
@@ -48,20 +28,29 @@ _FSTRING_TOKEN_TYPES = frozenset(
     if t is not None
 )
 
-# ------------------------------------------------------------------
-# UTF-8 Byte Offset Infrastructure
-# ------------------------------------------------------------------
+
+_HANDLED_NODE_TYPES = frozenset(
+    {
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.Lambda,
+        ast.ClassDef,
+        ast.Import,
+        ast.ImportFrom,
+        ast.Assign,
+        ast.AnnAssign,
+        ast.For,
+        ast.AsyncFor,
+        ast.With,
+        ast.AsyncWith,
+        ast.ExceptHandler,
+        ast.Name,
+    }
+)
 
 
 def _build_line_offsets(text: str) -> List[int]:
-    """Build cumulative line-start offsets in UTF-8 bytes.
-
-    Args:
-        text: Full source buffer.
-
-    Returns:
-        Offset of every line start plus a final total-length entry.
-    """
+    """Build cumulative line-start offsets in UTF-8 bytes."""
     if text.isascii():
         offsets = [0]
         current_byte = 0
@@ -87,39 +76,27 @@ def _tokenize_char_to_byte(
     """Convert tokenize 1-indexed row and character col to absolute byte offset."""
     if row_1 - 1 < 0 or row_1 - 1 >= len(line_offsets):
         return -1
+    if line_str.isascii():
+        width = len(line_str)
+        if char_col > width:
+            char_col = width
+        return line_offsets[row_1 - 1] + char_col
     byte_col = len(line_str[:char_col].encode("utf-8"))
     return line_offsets[row_1 - 1] + byte_col
 
 
 def _build_line_index(tok_stream) -> Dict[int, List]:
-    """Group tokens by their start line, preserving stream order.
-
-    Avoids the O(nodes × tokens) quadratic behaviour of re-scanning the
-    full token stream once per AST node on large files.
-    """
+    """Group tokens by their start line, preserving stream order."""
     index: Dict[int, List] = {}
     for tok in tok_stream:
         index.setdefault(tok.start[0], []).append(tok)
     return index
 
 
-# ------------------------------------------------------------------
-# Exclusion-range builder
-# ------------------------------------------------------------------
-
-
 def _build_exclusions_from_stream(
     tok_stream: List, line_offsets: List[int]
 ) -> List[Tuple[int, int]]:
-    """Build comment/string exclusion ranges from one tokenize pass.
-
-    Args:
-        tok_stream: Tokens from a single ``generate_tokens`` run.
-        line_offsets: Cumulative UTF-8 byte offsets per line.
-
-    Returns:
-        Sorted ``(start, end)`` byte ranges covering non-code spans.
-    """
+    """Build comment/string exclusion ranges from one tokenize pass."""
     exclude: List[Tuple[int, int]] = []
     for tok in tok_stream:
         if (
@@ -154,11 +131,6 @@ def _in_exclusion(pos: int, length: int, exclude: List[Tuple[int, int]]) -> bool
     return False
 
 
-# ------------------------------------------------------------------
-# AST Helpers
-# ------------------------------------------------------------------
-
-
 def _iter_param_args(args: ast.arguments):
     """Yield every parameter argument node of a function signature."""
     yield from args.posonlyargs
@@ -170,17 +142,8 @@ def _iter_param_args(args: ast.arguments):
         yield args.kwarg
 
 
-# ==================================================================
-# Token provider
-# ==================================================================
-
-
 class PythonSemanticProvider(ITokenProvider):
-    """Two-path Python token provider.
-
-    The lexer path emits authoritative ``tokenize`` output; the overlay
-    path adds a small whitelist of AST-derived identifier spans.  Both
-    use UTF-8 byte offsets so they line up with QScintilla's buffer."""
+    """Two-path Python token provider."""
     def __init__(self) -> None:
         self._cache_text: str = ""
         self._cache_lexical: List[Token] = []
@@ -206,11 +169,7 @@ class PythonSemanticProvider(ITokenProvider):
         self._styles = {}
 
     def _compute(self, text: str) -> None:
-        """Compute and cache lexical/semantic tokens for *text*.
-
-        Args:
-            text: Full source buffer; recomputed only when changed.
-        """
+        """Compute and cache lexical/semantic tokens for *text*."""
         if text == self._cache_text:
             return
 
@@ -306,6 +265,8 @@ class PythonSemanticProvider(ITokenProvider):
 
         tokens: List[Token] = []
         for node in ast.walk(tree):
+            if type(node) not in _HANDLED_NODE_TYPES:
+                continue
             try:
                 self._process_node(node, line_offsets, exclude, line_index, tokens)
             except Exception:
@@ -420,7 +381,7 @@ class PythonSemanticProvider(ITokenProvider):
                 line_offsets[target.lineno - 1]
                 + target.col_offset
                 + len(target.value.id)
-                + 1  # skip "self."
+                + 1
             )
             attr_len = len(target.attr.encode("utf-8"))
             if attr_start >= 0 and not _in_exclusion(attr_start, attr_len, exclude):
@@ -455,7 +416,6 @@ class PythonSemanticProvider(ITokenProvider):
             if not seen_from:
                 continue
 
-            # This MUST be checked before evaluating a generic tokenize.NAME
             if tok.type == tokenize.NAME and tok.string == "import":
                 break
 
@@ -482,9 +442,7 @@ class PythonSemanticProvider(ITokenProvider):
         line_index,
         tokens: List[Token],
     ) -> None:
-        """Emit overlay tokens for one AST node.
-
-        Each branch is guarded so a partially-typed file never raises."""
+        """Emit overlay tokens for one AST node."""
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             if not isinstance(node, ast.Lambda):
                 name_tok = self._find_next_name_after_token(
@@ -576,7 +534,6 @@ class PythonSemanticProvider(ITokenProvider):
                     )
                     tokens.append(Token(start, length, style, "definition"))
 
-        # ── Variable definitions ──────────────────────────────────
         elif isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name):
@@ -632,7 +589,6 @@ class PythonSemanticProvider(ITokenProvider):
                             )
                         )
 
-        # ── Exception clause ─────────────────────────────────────
         elif isinstance(node, ast.ExceptHandler):
             if isinstance(node.type, ast.Name):
                 start = line_offsets[node.type.lineno - 1] + node.type.col_offset
@@ -692,12 +648,5 @@ def get_semantic_highlights(text: str) -> List[Tuple[int, int, str]]:
 
 
 def invalidate_semantic_cache() -> None:
-    """Drop the cached style map and semantic token stream.
-
-    The module-level provider caches ``TokenStyle`` objects (whose
-    colours are baked in at compute time) together with the token
-    stream, so without this hook a theme switch would keep painting
-    definitions/classes/variables/modules with the previous theme's
-    palette.  The editor calls this on every ``retheme``.
-    """
+    """Drop the cached style map and semantic token stream."""
     _legacy_provider.invalidate_cache()

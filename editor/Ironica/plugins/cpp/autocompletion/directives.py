@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Preprocessor directive completion for the C++ plugin.
-
-Static table — no parse cost. libclang stays silent on directive lines,
-so the engine owns this context outright.
 """
 
 from __future__ import annotations
@@ -13,8 +9,6 @@ from typing import List, Tuple
 
 from ..models import CppCompletion
 
-#: (directive word, one-line doc). Insert text carries a trailing space so
-#: header/macro completion continues naturally after acceptance.
 _DIRECTIVES: Tuple[Tuple[str, str], ...] = (
     ("include", "include a header: #include <…> or #include \"…\""),
     ("define", "define a macro: #define NAME value"),
@@ -36,14 +30,7 @@ _DIRECTIVES: Tuple[Tuple[str, str], ...] = (
 
 
 def complete_directive(prefix: str) -> List[CppCompletion]:
-    """Return directives starting with *prefix* (``#`` excluded).
-
-    Args:
-        prefix: Partial directive word without the leading ``#``.
-
-    Returns:
-        Directive completions whose insert text ends with a space.
-    """
+    """Return directives starting with *prefix* (``#`` excluded)."""
     lowered = (prefix or "").lower()
     out: List[CppCompletion] = []
     for word, doc in _DIRECTIVES:

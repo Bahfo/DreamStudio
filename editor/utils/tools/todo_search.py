@@ -18,7 +18,6 @@ class TODOSearch(PanelShell):
         self._theme = None
         super().__init__(_parent)
 
-        # Make the title bold
         title_font = QFont()
         title_font.setBold(True)
         self.title.setFont(title_font)

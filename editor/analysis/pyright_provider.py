@@ -1,28 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 basedpyright semantic/type diagnostics provider for the Problems scanner.
-
-basedpyright complements the other providers with the diagnostics they cannot
-produce: unresolved names and imports, undefined attributes, invalid calls and
-type mismatches. Its CLI emits structured JSON
-(``--outputjson`` → ``generalDiagnostics[]`` with severity, message, rule and
-an exact character range), which maps directly onto the shared ``Problem``
-model.
-
-Design constraints honoured here:
-
-* optional — a missing binary is reported as a *provider note*, never as an
-  error, so the panel never shows a false failure for an uninstalled tool;
-* isolated — every failure mode (missing binary, non-zero exit, timeout,
-  malformed JSON) becomes a :class:`ProviderResult` with ``error`` set, which
-  the composition layer records while keeping the other providers' output;
-* read-only — analysis never writes into the workspace;
-* workspace-configured — invoked with the workspace as ``cwd`` so
-  ``pyproject.toml`` / ``basedpyrightconfig.json`` are honoured;
-* buffer aware — pyright's CLI has no stdin mode, so unsaved buffers are only
-  analyzed when the installed build advertises one; otherwise the provider
-  reports a note and the built-in/Ruff buffer results stand on their own.
 """
 
 from editor import *
@@ -41,19 +19,14 @@ from editor.analysis.types import (
 
 logger = logging.getLogger(__name__)
 
-#: Environment variable holding an explicit basedpyright executable path.
 BASEDPYRIGHT_PATH_ENV = "DREAMSTUDIO_BASEDPYRIGHT"
 
-#: Source tag attached to every diagnostic produced by this provider.
 BASEDPYRIGHT_SOURCE = "pyright"
 
-#: Wall-clock budget for a whole-workspace run.
 WORKSPACE_TIMEOUT_SECONDS = 300
 
-#: Wall-clock budget for a single-file run.
 FILE_TIMEOUT_SECONDS = 120
 
-#: Exit codes that still carry a valid JSON payload.
 _SUCCESS_CODES = (0, 1)
 
 _MISSING = "not installed (basedpyright executable not found)"
@@ -73,10 +46,8 @@ _SEVERITY_MAP = {
     "deprecated": ProblemSeverity.TYPO,
 }
 
-#: Cached stdin capability probe (None = not probed yet).
 _SUPPORTS_STDIN: Optional[bool] = None
 
-#: Workspace mirrors reused for unsaved-buffer analysis, keyed by root.
 _MIRRORS: Dict[str, str] = {}
 
 
@@ -90,19 +61,7 @@ atexit.register(_drop_all_mirrors)
 
 
 def basedpyright_command(executable: Optional[list] = None) -> Optional[list]:
-    """Return the basedpyright argv prefix, or ``None`` when unavailable.
-
-    Resolution order: explicit *executable*, ``DREAMSTUDIO_BASEDPYRIGHT``,
-    ``PATH``, a workspace-local ``node_modules/.bin``, then the Python
-    distribution entry point.
-
-    Args:
-        executable: Explicit argv prefix (used by tests and callers that
-            already resolved one).
-
-    Returns:
-        Argv prefix such as ``["basedpyright"]``, or ``None``.
-    """
+    """Return the basedpyright argv prefix, or ``None`` when unavailable."""
     if executable:
         return list(executable)
 
@@ -132,14 +91,7 @@ def basedpyright_command(executable: Optional[list] = None) -> Optional[list]:
 
 
 def find_basedpyright(root: Optional[str] = None) -> Optional[list]:
-    """Discover the basedpyright argv prefix for *root*.
-
-    Args:
-        root: Workspace directory searched for ``node_modules/.bin`` first.
-
-    Returns:
-        Argv prefix, or ``None`` when basedpyright is not installed.
-    """
+    """Discover the basedpyright argv prefix for *root*."""
     if root:
         candidate = os.path.join(root, "node_modules", ".bin", "basedpyright")
         if os.path.isfile(candidate):
@@ -155,31 +107,13 @@ def resource_root() -> str:
 
 
 def map_severity(value: object) -> ProblemSeverity:
-    """Map a basedpyright severity string onto the shared severity model.
-
-    Args:
-        value: Raw severity reported by basedpyright.
-
-    Returns:
-        The matching :class:`ProblemSeverity`; unknown values become ``TYPO``
-        so they stay visible as style-level hints.
-    """
+    """Map a basedpyright severity string onto the shared severity model."""
     normalized = str(value or "").strip().lower()
     return _SEVERITY_MAP.get(normalized, ProblemSeverity.TYPO)
 
 
 def supports_stdin(command: Optional[list] = None) -> bool:
-    """Return ``True`` when the installed build can read from stdin.
-
-    The probe runs ``--help`` once per process and caches the answer. When the
-    binary is missing the answer is ``False``.
-
-    Args:
-        command: Explicit argv prefix; auto-discovered when omitted.
-
-    Returns:
-        ``True`` only when the CLI advertises a stdin option.
-    """
+    """Return ``True`` when the installed build can read from stdin."""
     global _SUPPORTS_STDIN
     if command is None and _SUPPORTS_STDIN is not None:
         return _SUPPORTS_STDIN
@@ -187,7 +121,7 @@ def supports_stdin(command: Optional[list] = None) -> bool:
     if not argv:
         return False
     try:
-        completed = subprocess.run(  # noqa: S603 - fixed, read-only argv
+        completed = subprocess.run(
             [*argv, "--help"],
             capture_output=True,
             text=True,
@@ -204,14 +138,7 @@ def supports_stdin(command: Optional[list] = None) -> bool:
 
 
 class BasedPyrightProvider(ProblemProvider):
-    """Read-only ``basedpyright --outputjson`` provider.
-
-    Attributes:
-        root: Workspace directory used as the subprocess working directory.
-        executable: Resolved argv prefix (``None`` auto-discovers).
-        last_error: Failure message of the most recent run, or ``None``.
-        last_note: Non-fatal note about provider capabilities, or ``None``.
-    """
+    """Read-only ``basedpyright --outputjson`` provider."""
 
     def __init__(self, root: str, executable: Optional[list] = None) -> None:
         self.root = os.path.abspath(root or "") or os.getcwd()
@@ -219,25 +146,13 @@ class BasedPyrightProvider(ProblemProvider):
         self.last_error: Optional[str] = None
         self.last_note: Optional[str] = None
 
-    # ------------------------------------------------------------------
-    # Public provider API
-    # ------------------------------------------------------------------
 
     def collect(self) -> List[Problem]:
-        """Analyze the whole workspace.
-
-        Returns:
-            List of :class:`Problem` items; failures are exposed through
-            :attr:`last_error` and return an empty list.
-        """
+        """Analyze the whole workspace."""
         return self.scan_workspace().problems
 
     def scan_workspace(self) -> ProviderResult:
-        """Run basedpyright over the workspace and normalize the JSON.
-
-        Returns:
-            A :class:`ProviderResult` carrying diagnostics or an ``error``.
-        """
+        """Run basedpyright over the workspace and normalize the JSON."""
         command = self.executable or find_basedpyright(self.root)
         if not command:
             self.last_error = None
@@ -249,14 +164,7 @@ class BasedPyrightProvider(ProblemProvider):
         return self._run(argv, timeout=WORKSPACE_TIMEOUT_SECONDS)
 
     def analyze_file(self, path: str) -> ProviderResult:
-        """Analyze a single saved file.
-
-        Args:
-            path: Absolute path of the file to analyze.
-
-        Returns:
-            A :class:`ProviderResult` for that file.
-        """
+        """Analyze a single saved file."""
         command = self.executable or find_basedpyright(self.root)
         if not command:
             self.last_error = None
@@ -274,18 +182,7 @@ class BasedPyrightProvider(ProblemProvider):
         return self._run(argv, timeout=FILE_TIMEOUT_SECONDS)
 
     def analyze_source(self, path: str, content: str) -> ProviderResult:
-        """Analyze an in-memory buffer when the CLI supports stdin.
-
-        Args:
-            path: Buffer path used for diagnostics and as filename context.
-            content: In-memory editor text.
-
-        Returns:
-            A :class:`ProviderResult`; when the installed build has no stdin
-            mode the result is *successful but empty* with :attr:`last_note`
-            set, so the caller can surface the capability gap without
-            reporting a provider failure.
-        """
+        """Analyze an in-memory buffer when the CLI supports stdin."""
         command = self.executable or find_basedpyright(self.root)
         if not command:
             self.last_error = None
@@ -303,30 +200,11 @@ class BasedPyrightProvider(ProblemProvider):
         ]
         return self._run(argv, timeout=FILE_TIMEOUT_SECONDS, stdin_text=content)
 
-    # ------------------------------------------------------------------
-    # Buffer analysis without a stdin mode
-    # ------------------------------------------------------------------
 
     def _analyze_via_mirror(
         self, command: List[str], path: str, content: str
     ) -> ProviderResult:
-        """Analyze an unsaved buffer through a mirrored workspace shadow.
-
-        basedpyright's CLI cannot read stdin, so the in-memory text is written
-        into a throw-away mirror of the workspace (the real entries are
-        symlinked, the edited file is a real copy). Imports, configuration and
-        project layout therefore resolve exactly as they do in the workspace,
-        while the analyzer still sees the *unsaved* text.
-
-        Args:
-            command: Resolved argv prefix.
-            path: Buffer path (must live inside the workspace root).
-            content: In-memory editor text.
-
-        Returns:
-            A :class:`ProviderResult`; capability or mirror problems produce a
-            note instead of a failure so the caller keeps the other providers.
-        """
+        """Analyze an unsaved buffer through a mirrored workspace shadow."""
         mirror = None
         try:
             absolute = os.path.abspath(path)
@@ -340,8 +218,6 @@ class BasedPyrightProvider(ProblemProvider):
             relative = os.path.relpath(absolute, os.path.abspath(self.root))
             self._materialize_shadow_path(mirror, relative)
             shadow = os.path.join(mirror, relative)
-            # The mirror entry is a symlink into the real workspace: replace it
-            # with a real file first so the buffer is never written *through* it.
             if os.path.islink(shadow) or os.path.isfile(shadow):
                 os.unlink(shadow)
             with open(shadow, "w", encoding="utf-8") as handle:
@@ -357,7 +233,7 @@ class BasedPyrightProvider(ProblemProvider):
                 relative,
             ]
             try:
-                completed = subprocess.run(  # noqa: S603 - fixed, read-only argv
+                completed = subprocess.run(
                     argv,
                     cwd=mirror,
                     capture_output=True,
@@ -405,7 +281,7 @@ class BasedPyrightProvider(ProblemProvider):
             self.last_error = None
             self.last_note = None
             return ProviderResult(problems)
-        except Exception as exc:  # noqa: BLE001 - provider isolation boundary
+        except Exception as exc:
             self.last_note = f"buffer analysis unavailable: {exc}"
             logger.info("basedpyright buffer mirror unavailable: %s", exc)
             return ProviderResult([], None, self.last_note)
@@ -415,16 +291,7 @@ class BasedPyrightProvider(ProblemProvider):
 
     @staticmethod
     def _materialize_shadow_path(mirror: str, relative: str) -> None:
-        """Create real directories for *relative* inside *mirror*.
-
-        Mirror entries are symlinks into the real workspace, so a nested path
-        must be rebuilt as real directories (with symlinked siblings) before
-        the shadow file can be written safely.
-
-        Args:
-            mirror: Mirror root directory.
-            relative: Workspace-relative path of the buffer.
-        """
+        """Create real directories for *relative* inside *mirror*."""
         parts = relative.split(os.sep)[:-1]
         current = mirror
         for part in parts:
@@ -447,9 +314,6 @@ class BasedPyrightProvider(ProblemProvider):
                 except OSError:
                     continue
 
-    # ------------------------------------------------------------------
-    # Internals
-    # ------------------------------------------------------------------
 
     def _run(
         self,
@@ -457,18 +321,9 @@ class BasedPyrightProvider(ProblemProvider):
         timeout: int,
         stdin_text: Optional[str] = None,
     ) -> ProviderResult:
-        """Execute basedpyright read-only and normalize the result.
-
-        Args:
-            argv: Full argv for the invocation.
-            timeout: Wall-clock budget in seconds.
-            stdin_text: Buffer text for stdin mode, ``None`` otherwise.
-
-        Returns:
-            Normalized :class:`ProviderResult`.
-        """
+        """Execute basedpyright read-only and normalize the result."""
         try:
-            completed = subprocess.run(  # noqa: S603 - fixed, read-only argv
+            completed = subprocess.run(
                 argv,
                 cwd=self.root,
                 input=stdin_text,
@@ -513,17 +368,7 @@ class BasedPyrightProvider(ProblemProvider):
         return ProviderResult(problems)
 
     def normalize(self, payload: dict, root: Optional[str] = None) -> List[Problem]:
-        """Convert basedpyright JSON diagnostics into :class:`Problem` items.
-
-        Args:
-            payload: Decoded ``--outputjson`` object.
-            root: Directory relative paths are resolved against; defaults to
-                the provider's workspace root.
-
-        Returns:
-            Normalized problems with absolute paths, preserved rule codes and
-            exact start/end ranges.
-        """
+        """Convert basedpyright JSON diagnostics into :class:`Problem` items."""
         base = os.path.abspath(root or self.root)
         entries = payload.get("generalDiagnostics")
         if not isinstance(entries, list):
@@ -560,15 +405,7 @@ class BasedPyrightProvider(ProblemProvider):
 
     @staticmethod
     def _range_of(span: object) -> tuple:
-        """Return a normalized ``(line, column, end_line, end_column)``.
-
-        Args:
-            span: The ``range`` object from a basedpyright diagnostic.
-
-        Returns:
-            1-based tuple; missing or malformed ranges collapse to
-            ``(1, 1, 1, 2)``.
-        """
+        """Return a normalized ``(line, column, end_line, end_column)``."""
         if not isinstance(span, dict):
             return 1, 1, 1, 2
         start = span.get("start") or {}
@@ -600,18 +437,8 @@ class BasedPyrightProvider(ProblemProvider):
         return line, column, end_line, end_column
 
 
-# ----------------------------------------------------------------------
-# Workspace mirrors for unsaved-buffer analysis
-# ----------------------------------------------------------------------
-
-
 def _link_workspace(mirror: str, directory: str) -> None:
-    """Symlink every entry of *directory* into *mirror*.
-
-    Args:
-        mirror: Mirror root that receives the links.
-        directory: Real directory whose entries are linked.
-    """
+    """Symlink every entry of *directory* into *mirror*."""
     try:
         existing = set(os.listdir(mirror))
     except OSError:
@@ -630,19 +457,7 @@ def _link_workspace(mirror: str, directory: str) -> None:
 
 
 def _mirror_for(root: str) -> Optional[str]:
-    """Return a reusable symlink mirror of *root*.
-
-    The mirror keeps workspace imports, configuration and sibling modules
-    resolvable while the edited file itself is written as a real shadow copy.
-    It is cached per workspace so repeated buffer analyses do not re-link the
-    whole tree.
-
-    Args:
-        root: Workspace directory to mirror.
-
-    Returns:
-        Mirror directory, or ``None`` when it cannot be created.
-    """
+    """Return a reusable symlink mirror of *root*."""
     root = os.path.abspath(root)
     if not os.path.isdir(root):
         return None
@@ -663,12 +478,7 @@ def _mirror_for(root: str) -> Optional[str]:
 
 
 def _forget_shadow(mirror: str, path: str) -> None:
-    """Delete the shadow copy written for *path*.
-
-    Args:
-        mirror: Mirror root.
-        path: Real workspace path of the analyzed buffer.
-    """
+    """Delete the shadow copy written for *path*."""
     try:
         root = next((real for real, temp in _MIRRORS.items() if temp == mirror), None)
         if root is None:

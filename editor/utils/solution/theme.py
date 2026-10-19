@@ -1,11 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Shared theming and screen-centering helpers for the solution-management
-widgets (start window, create dialog, scaffold dialog, confirm boxes).
-
-Also loads the standalone start-window QSS files (``editor/qss/startup_*``)
-and the create-dialog fallback QSS so no widget embeds stylesheets inline.
+Shared theming and screen-centering helpers for the solution-management widgets (start window, create dialog, scaffold dialog, confirm boxes).
 """
 
 from PyQt6.QtWidgets import QApplication, QWidget
@@ -26,26 +21,12 @@ _HIGHLIGHT_COLORS = {
 
 
 def normalize_theme_mode(mode: str = "dark") -> str:
-    """Normalize a theme mode to ``"dark"`` or ``"light"``.
-
-    Args:
-        mode: Raw mode string (case-insensitive).
-
-    Returns:
-        ``"light"`` for light input, ``"dark"`` for anything else.
-    """
+    """Normalize a theme mode to ``"dark"`` or ``"light"``."""
     return "light" if str(mode).strip().lower() == "light" else "dark"
 
 
 def _read_qss(relative_path: str) -> str:
-    """Read a QSS resource file, returning ``""`` when unavailable.
-
-    Args:
-        relative_path: Project-relative resource path.
-
-    Returns:
-        File content or an empty string on any failure.
-    """
+    """Read a QSS resource file, returning ``""`` when unavailable."""
     try:
         with open(resource_path(relative_path), encoding="utf-8") as handle:
             return handle.read()
@@ -54,14 +35,7 @@ def _read_qss(relative_path: str) -> str:
 
 
 def load_startup_qss(mode: str = "dark") -> str:
-    """Load the standalone start-window QSS for *mode*.
-
-    Args:
-        mode: ``"dark"`` or ``"light"`` (anything else falls back to dark).
-
-    Returns:
-        QSS content, or ``""`` when neither file is readable.
-    """
+    """Load the standalone start-window QSS for *mode*."""
     content = _read_qss(_STARTUP_QSS_FILES[normalize_theme_mode(mode)])
     if content:
         return content
@@ -69,36 +43,17 @@ def load_startup_qss(mode: str = "dark") -> str:
 
 
 def load_dialog_qss() -> str:
-    """Load the create-dialog fallback QSS.
-
-    Returns:
-        QSS content, or ``""`` when the file is unreadable.
-    """
+    """Load the create-dialog fallback QSS."""
     return _read_qss(_DIALOG_QSS_FILE)
 
 
 def startup_highlight(mode: str = "dark") -> str:
-    """Return the search-match highlight color for *mode*.
-
-    Args:
-        mode: ``"dark"`` or ``"light"``.
-
-    Returns:
-        Hex color string used for template match highlighting.
-    """
+    """Return the search-match highlight color for *mode*."""
     return _HIGHLIGHT_COLORS[normalize_theme_mode(mode)]
 
 
 def apply_theme(widget: QWidget, registry=None) -> bool:
-    """Apply the boot theme's QSS to *widget* when one is available.
-
-    Args:
-        widget: The widget to style.
-        registry: Optional bootstrap ServiceRegistry holding ``theme_content``.
-
-    Returns:
-        ``True`` when a theme was applied, ``False`` otherwise.
-    """
+    """Apply the boot theme's QSS to *widget* when one is available."""
     theme_content = None
     try:
         if registry is not None:
@@ -112,19 +67,7 @@ def apply_theme(widget: QWidget, registry=None) -> bool:
 
 
 def inherit_theme(widget: QWidget) -> bool:
-    """Copy the nearest ancestor's theme QSS onto *widget*.
-
-    :class:`~PyQt6.QtWidgets.QDialog` and other top-level popups do not
-    cascade the parent window's stylesheet on their own, so the theme is
-    duplicated explicitly from the nearest parent whose ``styleSheet()`` is
-    non-empty.
-
-    Args:
-        widget: The dialog/box to style from its ancestor window.
-
-    Returns:
-        ``True`` when a stylesheet was copied, ``False`` otherwise.
-    """
+    """Copy the nearest ancestor's theme QSS onto *widget*."""
     qss = ""
     try:
         parent = (
@@ -148,11 +91,7 @@ def inherit_theme(widget: QWidget) -> bool:
 
 
 def center_on_screen(widget: QWidget) -> None:
-    """Move *widget* to the center of its current screen geometry.
-
-    Args:
-        widget: The dialog or message box to reposition.
-    """
+    """Move *widget* to the center of its current screen geometry."""
     try:
         screen = widget.screen() or QApplication.primaryScreen()
         if screen is None:
@@ -178,11 +117,6 @@ def center_on_screen(widget: QWidget) -> None:
 
 
 def center_on_screen_show(widget: QWidget, event) -> None:
-    """Center a dialog from ``showEvent`` then pass the event through.
-
-    Args:
-        widget: The dialog being shown.
-        event: The original ``QShowEvent``.
-    """
+    """Center a dialog from ``showEvent`` then pass the event through."""
     center_on_screen(widget)
     super(widget.__class__, widget).showEvent(event)

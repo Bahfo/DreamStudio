@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Isolated Problems view for DreamStudio.
 """
 
@@ -15,8 +14,6 @@ from editor.utils.resource_path import resource_path
 
 logger = logging.getLogger(__name__)
 
-#: Squiggle color per severity (red / yellow / violet / blue / teal) — IDE
-#: theme accents so indicators always look native.
 SEVERITY_COLORS = {
     ProblemSeverity.ERROR: "#F14C4C",
     ProblemSeverity.WARNING: "#FCC700",
@@ -24,6 +21,18 @@ SEVERITY_COLORS = {
     ProblemSeverity.TYPO: "#3794FF",
     ProblemSeverity.INFO: "#4EC9B0",
 }
+
+
+def severity_color(severity) -> str:
+    """Return the active theme's squiggle colour for *severity*."""
+    fallback = SEVERITY_COLORS.get(severity, "#F14C4C")
+    try:
+        from editor.Ironica.retheme import diagnostic_palette
+
+        key = str(getattr(severity, "value", severity)).upper()
+        return diagnostic_palette().get(key, fallback)
+    except Exception:
+        return fallback
 
 
 def _count_severities(problems: Iterable[Problem]) -> tuple:
@@ -45,9 +54,6 @@ def _count_severities(problems: Iterable[Problem]) -> tuple:
     )
 
 
-#: User-facing title of every severity group. Shared by the "Filter by"
-#: selector, the summary hint and the status-bar context menu so the panel and
-#: the buttons always use the same wording.
 _GROUP_TITLES = {
     "errors": "Problems",
     "warnings": "Warnings",
@@ -55,23 +61,14 @@ _GROUP_TITLES = {
     "typos": "Typos & Hints",
 }
 
-#: Groups offered in the "Filter by" selector (the status bar only drives the
-#: first three).
 _FILTER_GROUPS = ("errors", "warnings", "checks")
 
-#: ``(label, group)`` pairs of the "Filter by" selector. ``None`` means "every
-#: group"; ``"custom"`` is a display-only state the status-bar context menu
-#: produces when several groups are toggled at once.
 _FILTER_ITEMS = (
     ("All", None),
     *((_GROUP_TITLES[group], group) for group in _FILTER_GROUPS),
     ("Custom", "custom"),
 )
 
-#: Named severity groups, each owning one independent display switch. Every
-#: severity belongs to exactly one group, so any diagnostic can be turned off.
-#: Only the first three own a status-bar button; the status-bar menu still
-#: lists the rest.
 SEVERITY_GROUPS: Dict[str, frozenset] = {
     "errors": frozenset({ProblemSeverity.ERROR}),
     "warnings": frozenset({ProblemSeverity.WARNING}),
@@ -80,30 +77,19 @@ SEVERITY_GROUPS: Dict[str, frozenset] = {
 }
 
 
-#: Debounce before a workspace (re)index starts — rapid switches collapse.
 _SCAN_DEBOUNCE_MS = 250
 
-#: Quiet period after the last keystroke before the active buffer is
-#: re-analyzed. Short enough that squiggles track typing, long enough that a
-#: burst of keystrokes produces a single analysis.
 _LIVE_DEBOUNCE_MS = 250
 
-#: Files analyzed per background batch, keeping each worker slice short.
 _LAZY_BATCH_SIZE = 24
 
-#: Pause between batches so the GUI thread keeps a full event loop slice.
 _LAZY_BATCH_GAP_MS = 40
 
-#: How often the workspace is re-indexed for on-disk changes.
 _LAZY_WATCH_INTERVAL_MS = 4000
 
 
 def _python_suffixes() -> tuple[str, ...]:
-    """Return file suffixes handled by the installed Python plugin.
-
-    This workspace scanner implements Python diagnostics, so it follows the
-    Python plugin's registered extensions instead of carrying its own list.
-    """
+    """Return file suffixes handled by the installed Python plugin."""
     try:
         from editor.Ironica.language_engine import LanguageRegistry
 
@@ -127,11 +113,7 @@ _ASSETS_SYSTEM = Path(resource_path("assets/system"))
 
 
 def _load_icon(filename: str) -> QIcon:
-    """Load a ``QIcon`` from ``assets/system``.
-
-    Returns an empty icon when the file is missing so the UI never crashes
-    on a missing optional asset.
-    """
+    """Load a ``QIcon`` from ``assets/system``."""
     path = _ASSETS_SYSTEM / filename
     if path.is_file():
         return QIcon(str(path))
@@ -156,8 +138,6 @@ def _normalize_problems(
     return out
 
 
-#: Icon asset per diagnostic category, so different problem types are
-#: distinguishable at a glance instead of collapsing onto the severity icon.
 CATEGORY_ICONS = {
     "syntax": "problem.png",
     "check": "bug.png",
@@ -188,14 +168,7 @@ def _groups_of_severities(severities: Iterable[ProblemSeverity]) -> set:
 
 
 def _hover_text(problem: Problem) -> str:
-    """Build the editor hover text for *problem*.
-
-    Args:
-        problem: Diagnostic to describe.
-
-    Returns:
-        Multi-line string with rule code, message and provider name.
-    """
+    """Build the editor hover text for *problem*."""
     head = problem.code or problem.severity.value.title()
     lines = [f"{head}", problem.message]
     source = problem.source or "unknown"
@@ -230,11 +203,7 @@ class _IndexThread(QThread):
 
 
 class _BatchThread(QThread):
-    """Off-GUI-thread analysis of one indexed batch of files.
-
-    Every registered provider runs for each file; results are merged by the
-    provider layer before they reach the GUI thread.
-    """
+    """Off-GUI-thread analysis of one indexed batch of files."""
 
     batch_done = pyqtSignal(int, object)
 
@@ -245,12 +214,7 @@ class _BatchThread(QThread):
         self._root = root
 
     def run(self) -> None:
-        """Read + analyze the batch; never touch GUI objects here.
-
-        Workspace scope deliberately uses the built-in provider only: one
-        external process per file would make a sweep prohibitively expensive.
-        External providers cover the workspace in a single pass instead.
-        """
+        """Read + analyze the batch; never touch GUI objects here."""
         from editor.analysis.providers import analyze_saved_file
 
         results: List[tuple] = []
@@ -273,11 +237,7 @@ class _BatchThread(QThread):
 
 
 class _LiveParseThread(QThread):
-    """Off-GUI-thread analysis of the active buffer snapshot.
-
-    Text is read on the GUI thread and parsed here, so external providers
-    (which run as subprocesses) can never stall typing.
-    """
+    """Off-GUI-thread analysis of the active buffer snapshot."""
 
     live_done = pyqtSignal(int, str, int, object, object, object, object)
 
@@ -300,12 +260,7 @@ class _LiveParseThread(QThread):
         self._semantic = semantic
 
     def run(self) -> None:
-        """Analyze the snapshot; never touch GUI or disk objects here.
-
-        The fast pass (built-in + Ruff stdin) is emitted first so squiggles
-        appear immediately; the slower semantic pass follows and enriches the
-        same file without disturbing the fast result.
-        """
+        """Analyze the snapshot; never touch GUI or disk objects here."""
         from editor.analysis.providers import (
             analyze_buffer_fast,
             analyze_buffer_semantic,
@@ -351,11 +306,7 @@ class _LiveParseThread(QThread):
 
 
 class _WorkspaceProviderThread(QThread):
-    """Off-GUI-thread whole-workspace pass of the external providers.
-
-    Only external providers run here; the built-in provider keeps using the
-    incremental batches so a workspace is never walked twice.
-    """
+    """Off-GUI-thread whole-workspace pass of the external providers."""
 
     provider_done = pyqtSignal(int, object, object, object)
 
@@ -383,19 +334,7 @@ class _WorkspaceProviderThread(QThread):
 
 
 class ProblemsWidget(QWidget):
-    """Visual Studio-style Problems panel grouped by file.
-
-    The view is fully isolated from analysis backends. Callers push
-    diagnostics via :meth:`set_problems`; the widget groups them by file,
-    renders collapsible file headers (basename + extension) and per-problem
-    rows with severity icons (``problem.png`` / ``warning.png`` /
-    ``spell_check.png``).
-
-    Attributes:
-        problemActivated: Emitted when the user activates a diagnostic.
-            Payload is the underlying :class:`Problem` so the host can
-            navigate to ``file_path:line:column`` without parsing UI text.
-    """
+    """Visual Studio-style Problems panel grouped by file."""
 
     problemActivated = pyqtSignal(object)
     problemClicked = pyqtSignal(object)
@@ -416,16 +355,10 @@ class ProblemsWidget(QWidget):
             ProblemSeverity.TYPO: _load_icon("spell_check.png"),
             ProblemSeverity.INFO: _load_icon("info.png"),
         }
-        # Category icons (syntax / undefined name / unused / style …) let the
-        # panel distinguish problem types beyond plain severity.
         self._category_icons: Dict[str, QIcon] = {
             category: _load_icon(asset) for category, asset in CATEGORY_ICONS.items()
         }
-        # File-type icon cache (extension -> QIcon). Lazy-filled on demand.
         self._file_icons: Dict[str, QIcon] = {}
-        # Display state: which severity groups are listed in the tree and
-        # which are underlined in the editor. Both are presentation-only — the
-        # diagnostics themselves and the published counts never depend on them.
         self._enabled_groups: set = set(SEVERITY_GROUPS)
         self._underlined_groups: set = set(SEVERITY_GROUPS)
         self._syncing_filter: bool = False
@@ -464,9 +397,6 @@ class ProblemsWidget(QWidget):
         self._setup_ui()
         self.clear()
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
 
     def _setup_ui(self) -> None:
         """Build the header bar, empty state and tree."""
@@ -474,7 +404,6 @@ class ProblemsWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # -- Header bar: summary + actions ------------------------------
         header = QFrame(self)
         header.setObjectName("ProblemsHeader")
         h_layout = QHBoxLayout(header)
@@ -496,8 +425,6 @@ class ProblemsWidget(QWidget):
         )
         for label, group in _FILTER_ITEMS:
             self._filter_combo.addItem(label, group)
-        # "Custom" only ever reflects a context-menu toggle combination, so the
-        # user cannot select it directly.
         custom_index = self._filter_combo.findData("custom")
         if custom_index >= 0:
             self._filter_combo.model().item(custom_index).setEnabled(False)
@@ -534,7 +461,6 @@ class ProblemsWidget(QWidget):
 
         layout.addWidget(header)
 
-        # -- Stack: tree vs empty placeholder ---------------------------
         self._stack = QStackedWidget(self)
         layout.addWidget(self._stack, 1)
 
@@ -578,23 +504,11 @@ class ProblemsWidget(QWidget):
         empty_layout.addWidget(self._empty_detail)
         self._stack.addWidget(empty)
 
-    # ------------------------------------------------------------------
-    # Public API — isolated from any provider
-    # ------------------------------------------------------------------
 
     def set_problems(
         self, problems: Iterable[Union[Problem, dict]], skipped: int = 0
     ) -> None:
-        """Replace the current diagnostics with *problems*.
-
-        Args:
-            problems: Iterable of :class:`Problem` or plain dicts with
-                ``file_path``, ``severity`` (error/warning/typo),
-                ``message``, ``line``, ``column``. Dicts are coerced via
-                :meth:`Problem.from_dict` so callers may pass raw JSON.
-            skipped: Number of files skipped during scan, shown distinctly
-                from a clean result.
-        """
+        """Replace the current diagnostics with *problems*."""
         self._problems = _normalize_problems(problems)
         self._skipped_files = int(skipped or 0)
         self._enabled_groups = set(SEVERITY_GROUPS)
@@ -603,23 +517,14 @@ class ProblemsWidget(QWidget):
         self._render_all()
 
     def add_problem(self, problem: Union[Problem, dict]) -> None:
-        """Append a single *problem* and rebuild.
-
-        Args:
-            problem: Single diagnostic as :class:`Problem` or dict.
-        """
+        """Append a single *problem* and rebuild."""
         normalized = _normalize_problems([problem])
         if normalized:
             self._problems.extend(normalized)
             self._rebuild()
 
     def clear(self) -> None:
-        """Remove all diagnostics and show the empty state.
-
-        Cached provider results are dropped as well so the panel never
-        contradicts the coordinator; the explicit "Analyze" action (or the
-        next edit) repopulates it.
-        """
+        """Remove all diagnostics and show the empty state."""
         self._store.clear_results()
         self._problems = []
         self._rebuild()
@@ -654,26 +559,12 @@ class ProblemsWidget(QWidget):
         return len(self._problems)
 
     def problem_counts(self) -> tuple:
-        """Return current ``(errors, warnings, checks)`` counts.
-
-        Checks are counted apart from warnings because they are neither fatal
-        problems nor ordinary warnings; the status bar shows them on their own
-        button.
-
-        Returns:
-            Tuple of error, warning and check counts derived from the cache.
-        """
+        """Return current ``(errors, warnings, checks)`` counts."""
         errors, warnings, checks, _typos = _count_severities(self._problems)
         return errors, warnings, checks
 
     def analyze_workspace(self) -> None:
-        """Explicit "Analyze Workspace" action.
-
-        Drops every cached result and re-runs the full workspace scope:
-        re-index, batched built-in analysis, external provider pass and a
-        fresh active-buffer analysis. Also recovers from an accidental
-        :meth:`clear` or an applied filter.
-        """
+        """Explicit "Analyze Workspace" action."""
         root = self._scan_root or os.getcwd()
         self._stop_timers()
         self._file_stamps = {}
@@ -695,14 +586,7 @@ class ProblemsWidget(QWidget):
         self.analyze_workspace()
 
     def request_file(self, path: str) -> None:
-        """Ensure a single file is analyzed by the workspace scope.
-
-        Used when a Python file is opened that has no cached diagnostics yet
-        (including after a save, so results match the saved content).
-
-        Args:
-            path: Absolute path of the file to analyze.
-        """
+        """Ensure a single file is analyzed by the workspace scope."""
         if not path or not path.endswith(_python_suffixes()):
             return
         if not os.path.isfile(path):
@@ -756,10 +640,6 @@ class ProblemsWidget(QWidget):
         enabled = self.enabled_groups()
         return [p for p in self._problems if _group_of(p.severity) in enabled]
 
-    # -- Filter by ----------------------------------------------------
-    # Panel visibility is tracked per severity group, so the "Filter by"
-    # selector, the status-bar buttons and the right-click menu all drive the
-    # same state.
 
     def enabled_groups(self) -> frozenset:
         """Return the severity groups currently listed in the tree."""
@@ -789,26 +669,11 @@ class ProblemsWidget(QWidget):
         self.set_enabled_groups(groups)
 
     def filter_by_severity(self, severities: Iterable[ProblemSeverity]) -> None:
-        """Show only diagnostics whose severity is in *severities*.
-
-        Args:
-            severities: Collection of severities to keep visible. Pass an
-                empty collection to hide all rows without mutating the
-                underlying collection.
-        """
+        """Show only diagnostics whose severity is in *severities*."""
         self.set_enabled_groups(_groups_of_severities(severities or ()))
 
     def show_group(self, group: str) -> None:
-        """Show only the diagnostics belonging to the named severity *group*.
-
-        Unlike :meth:`filter_by_severity` this survives re-analysis and new
-        results, so a status-bar button can keep the panel narrowed to the
-        counter the user pressed.
-
-        Args:
-            group: One of :data:`SEVERITY_GROUPS`, e.g. ``"checks"``. Unknown
-                names fall back to showing every diagnostic.
-        """
+        """Show only the diagnostics belonging to the named severity *group*."""
         name = self._group_name(group)
         if not name:
             self.show_all_groups()
@@ -820,11 +685,7 @@ class ProblemsWidget(QWidget):
         self.set_enabled_groups(SEVERITY_GROUPS)
 
     def filter_group(self) -> str:
-        """Return the single visible group, or ``""`` when not narrowed to one.
-
-        Every group visible (``"all"``) and several-but-not-all groups
-        (``"custom"``) both report ``""``, because neither is a narrowing.
-        """
+        """Return the single visible group, or ``""`` when not narrowed to one."""
         enabled = self._enabled_groups
         if len(enabled) == 1:
             return next(iter(enabled))
@@ -832,11 +693,7 @@ class ProblemsWidget(QWidget):
 
     @staticmethod
     def severity_groups() -> tuple:
-        """Return every severity group the panel knows, in display order.
-
-        Lets callers (the status-bar menu) enumerate all of them instead of
-        hardcoding a subset that could drift from this mapping.
-        """
+        """Return every severity group the panel knows, in display order."""
         return tuple(SEVERITY_GROUPS)
 
     @staticmethod
@@ -845,9 +702,6 @@ class ProblemsWidget(QWidget):
         name = str(group or "").strip().lower()
         return name if name in SEVERITY_GROUPS else ""
 
-    # -- Underlining in the editor ------------------------------------
-    # Independent of the tree filter: a group can stay listed in the panel
-    # while its squiggles are turned off in the code editor.
 
     def underlined_groups(self) -> frozenset:
         """Return the severity groups currently underlined in editors."""
@@ -880,7 +734,7 @@ class ProblemsWidget(QWidget):
         self.set_underlined_groups(SEVERITY_GROUPS)
 
     def reset_display_options(self) -> None:
-        """Restore the defaults: every group listed and underlined."""
+        """Restore the defaults:"""
         self._underlined_groups = set(SEVERITY_GROUPS)
         self._enabled_groups = set(SEVERITY_GROUPS)
         self._repaint_open_editors()
@@ -898,12 +752,10 @@ class ProblemsWidget(QWidget):
             return
         enabled = self._enabled_groups
         if enabled == set(SEVERITY_GROUPS):
-            target = None  # every group visible -> "All"
+            target = None
         elif len(enabled) == 1:
             target = next(iter(enabled))
         else:
-            # A partial combination (or nothing at all) is the "Custom" state
-            # produced by the status-bar context menu.
             target = "custom"
         index = combo.findData(target)
         if index < 0:
@@ -930,16 +782,7 @@ class ProblemsWidget(QWidget):
         self.set_enabled_groups({str(group)})
 
     def run_workspace_analysis(self, workspace_root: str) -> None:
-        """Start continuous scanning of *workspace_root* off the GUI thread.
-
-        Two isolated workers keep the UI responsive: an indexer that only
-        ``stat``s files, and short analysis batches that merge results into
-        the per-file cache. Every batch hands control back to the event loop
-        before the next one starts, so the GUI never blocks.
-
-        Args:
-            workspace_root: Directory to scan for Python diagnostics.
-        """
+        """Start continuous scanning of *workspace_root* off the GUI thread."""
         root = os.path.abspath(workspace_root or "")
         if not root or not os.path.isdir(root):
             self.set_problems([])
@@ -1032,14 +875,7 @@ class ProblemsWidget(QWidget):
         self._maybe_finish_indexing()
 
     def _purge_vanished(self, seen: set) -> None:
-        """Drop cached state for files missing from the latest walk.
-
-        Deleted files never appear in new index entries, so without this
-        their stamps, queued analyses and panel rows would linger forever.
-        Only previously indexed paths are purged; pending new paths are
-        left for their batch to skip gracefully. One store announcement
-        covers every purged path.
-        """
+        """Drop cached state for files missing from the latest walk."""
         try:
             vanished = [path for path in self._file_stamps if path not in seen]
         except Exception:
@@ -1151,12 +987,7 @@ class ProblemsWidget(QWidget):
         self._start_pending_index()
 
     def _on_store_changed(self, touched: object) -> None:
-        """Re-render the panel and editor squiggles from the coordinator.
-
-        Args:
-            touched: Paths whose diagnostics changed; an empty list means
-                every tracked file changed.
-        """
+        """Re-render the panel and editor squiggles from the coordinator."""
         paths = [path for path in (touched or []) if isinstance(path, str)]
         if paths and all(self._awaiting_live_result(path) for path in paths):
             return
@@ -1178,13 +1009,7 @@ class ProblemsWidget(QWidget):
         self._repaint_paths({path: self._store.problems_for(path) for path in paths})
 
     def _awaiting_live_result(self, path: str) -> bool:
-        """Return True while *path* has edits but no buffer result yet.
-
-        Right after the first keystroke the buffer bucket is still empty,
-        so repainting now would flash the editor and panel blank until the
-        debounced analysis lands. Keeping the previous paint until then
-        matches how editors normally surface diagnostics.
-        """
+        """Return True while *path* has edits but no buffer result yet."""
         try:
             if not self._store.is_dirty(path):
                 return False
@@ -1217,14 +1042,7 @@ class ProblemsWidget(QWidget):
     def _on_provider_done(
         self, gen: object, groups: object, errors: object, notes: object = None
     ) -> None:
-        """Merge external workspace diagnostics and record provider health.
-
-        Each provider writes into its own coordinator bucket, so Ruff and the
-        semantic provider coexist instead of replacing each other. Failures
-        are surfaced (log + empty-state hint + :attr:`providerError`) instead
-        of silently looking like a clean scan; capability notes are shown
-        separately because a missing optional tool is not a failure.
-        """
+        """Merge external workspace diagnostics and record provider health."""
         try:
             if int(gen) != int(self._scan_gen):
                 return
@@ -1244,13 +1062,7 @@ class ProblemsWidget(QWidget):
         self._maybe_finish_indexing()
 
     def _maybe_finish_indexing(self) -> None:
-        """Emit :attr:`indexing_finished` once the active scan is drained.
-
-        A scan is done when its batch queue is empty, no batch is running,
-        and no provider pass is outstanding for the current generation.
-        Incremental watch re-scans never arm the bar, so they can never
-        finish it either — completion requires a prior `started` signal.
-        """
+        """Emit :attr:`indexing_finished` once the active scan is drained."""
         if not self._indexing_active:
             return
         if self._index_queue or self._scan_busy:
@@ -1319,17 +1131,9 @@ class ProblemsWidget(QWidget):
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # Editor tracking — underlines + live re-parse of the active buffer
-    # ------------------------------------------------------------------
 
     def track_tabs(self, tabs) -> None:
-        """Follow tab switches so underlines stay in sync with editors.
-
-        Args:
-            tabs: Tab container exposing ``count()``, ``widget(i)`` and
-                a ``currentChanged`` signal.
-        """
+        """Follow tab switches so underlines stay in sync with editors."""
         try:
             old = getattr(self, "_tracked_tabs", None)
             if old is not None:
@@ -1361,12 +1165,7 @@ class ProblemsWidget(QWidget):
             pass
 
     def _on_tracked_tab_changed(self, _index: int = -1) -> None:
-        """Activate the buffer scope for the newly focused tab.
-
-        An editor becoming active is an automatic active-buffer event: its
-        cached diagnostics are repainted and, when the file has never been
-        analyzed, the workspace scope is asked to cover it.
-        """
+        """Activate the buffer scope for the newly focused tab."""
         try:
             tabs = getattr(self, "_tracked_tabs", None)
             if tabs is None:
@@ -1421,12 +1220,7 @@ class ProblemsWidget(QWidget):
             self._live_connected = False
 
     def _on_buffer_changed(self) -> None:
-        """Handle a keystroke in the active buffer.
-
-        A new buffer revision invalidates any analysis still running for the
-        previous text, and the debounced re-analysis of the latest text is
-        (re)scheduled.
-        """
+        """Handle a keystroke in the active buffer."""
         editor = getattr(self, "_live_editor", None)
         if editor is None:
             return
@@ -1437,15 +1231,7 @@ class ProblemsWidget(QWidget):
         self._schedule_live_reparse()
 
     def _sync_dirty_state(self, editor) -> None:
-        """Mirror an editor's saved/unsaved state into the coordinator.
-
-        The dirty signal is connected once per editor, so a save is noticed
-        even when the document became dirty after it was opened.
-
-        Args:
-            editor: Editor whose ``is_dirty()``/``dirty_state_changed`` state
-                is authoritative for saved-vs-unsaved handling.
-        """
+        """Mirror an editor's saved/unsaved state into the coordinator."""
         if editor is None:
             return
         self._connect_dirty_signal(editor)
@@ -1486,15 +1272,7 @@ class ProblemsWidget(QWidget):
         self._on_dirty_state_changed(path, bool(is_dirty))
 
     def _on_dirty_state_changed(self, path: str, is_dirty: object) -> None:
-        """Transition a document between unsaved and saved state.
-
-        On save the buffer-scope diagnostics are discarded and the file is
-        re-analyzed from disk, so the panel reflects the saved content.
-
-        Args:
-            path: Absolute path of the document.
-            is_dirty: New dirty flag reported by the editor.
-        """
+        """Transition a document between unsaved and saved state."""
         if bool(is_dirty):
             self._store.mark_dirty(path)
             return
@@ -1511,11 +1289,7 @@ class ProblemsWidget(QWidget):
         self._repaint_paths({path: self._store.problems_for(path)})
 
     def _schedule_live_reparse(self, immediate: bool = False) -> None:
-        """Restart the debounce timer for active-buffer analysis.
-
-        Args:
-            immediate: Parse on the next event-loop turn when ``True``.
-        """
+        """Restart the debounce timer for active-buffer analysis."""
         try:
             timer = self._live_timer
             if timer is None:
@@ -1574,14 +1348,7 @@ class ProblemsWidget(QWidget):
         notes: object = None,
         source: object = None,
     ) -> None:
-        """Apply an active-buffer result, rejecting stale revisions.
-
-        The coordinator compares the result's buffer revision with the latest
-        known one, so a slow analysis of an older revision can never overwrite
-        the diagnostics of the text currently in the editor. Results are stored
-        per provider, so the fast lint pass and the slower semantic pass
-        contribute independently.
-        """
+        """Apply an active-buffer result, rejecting stale revisions."""
         provider = str(source) if source else None
         if provider is None:
             self._live_busy = False
@@ -1592,8 +1359,6 @@ class ProblemsWidget(QWidget):
         except (TypeError, ValueError):
             return
         if stale:
-            # A semantic pass that finished for superseded text is discarded;
-            # re-analyze so the newest revision still gets its semantic result.
             if provider is not None:
                 self._schedule_live_reparse()
             return
@@ -1620,14 +1385,7 @@ class ProblemsWidget(QWidget):
         return None
 
     def problems_for(self, path: str) -> list:
-        """Return the visible diagnostics for *path*.
-
-        Args:
-            path: Absolute file path.
-
-        Returns:
-            Merged diagnostics owned by the coordinator for that file.
-        """
+        """Return the visible diagnostics for *path*."""
         if not path:
             return []
         return self._store.problems_for(path)
@@ -1685,16 +1443,7 @@ class ProblemsWidget(QWidget):
                 pass
 
     def _paint_editor(self, editor, problems: list) -> None:
-        """Paint squiggle indicators for *problems* into *editor*.
-
-        Uses the exact ranges reported by the analyzers (multi-line ranges
-        included) instead of guessing token boundaries, and batches the whole
-        result in a single call so the editor repaints once.
-
-        Args:
-            editor: Editor widget supporting diagnostic indicators.
-            problems: Diagnostics visible for this editor's file.
-        """
+        """Paint squiggle indicators for *problems* into *editor*."""
         try:
             setter = getattr(editor, "set_diagnostic_ranges", None)
             if setter is None:
@@ -1710,8 +1459,6 @@ class ProblemsWidget(QWidget):
             for problem in problems or []:
                 start_line, start_col, end_line, end_col = problem.range_0based
                 if is_deemphasized(problem):
-                    # Dimmed code is not underlined, so it stays visible even
-                    # when its severity group has no underlining.
                     muted.append((start_line, start_col, end_line, end_col))
                     continue
                 if _group_of(problem.severity) not in underlined:
@@ -1722,7 +1469,7 @@ class ProblemsWidget(QWidget):
                         start_col,
                         end_line,
                         end_col,
-                        SEVERITY_COLORS.get(problem.severity, "#F14C4C"),
+                        severity_color(problem.severity),
                         problem.severity,
                     )
                 )
@@ -1749,12 +1496,7 @@ class ProblemsWidget(QWidget):
             pass
 
     def _populate_table(self, result: dict) -> None:
-        """Legacy dict-based population (kept for existing tests).
-
-        Args:
-            result: Dict with ``errors`` / ``warnings`` lists as produced
-                by the legacy analyzer's ``return_errors``.
-        """
+        """Legacy dict-based population (kept for existing tests)."""
         problems: List[Problem] = []
         for err in result.get("errors", []):
             data = dict(err)
@@ -1772,9 +1514,6 @@ class ProblemsWidget(QWidget):
                 continue
         self.set_problems(problems)
 
-    # ------------------------------------------------------------------
-    # Internal — grouping and tree building (Visual Studio parity)
-    # ------------------------------------------------------------------
 
     def _rebuild(self) -> None:
         """Group problems by file and repopulate the tree."""
@@ -1808,7 +1547,6 @@ class ProblemsWidget(QWidget):
             key = prob.file_path or "<unknown>"
             grouped.setdefault(key, []).append(prob)
 
-        # Deterministic order: files alphabetically, diagnostics by line.
         for file_path in sorted(grouped.keys(), key=lambda p: p.lower()):
             items = grouped[file_path]
             items.sort(key=lambda p: (p.line, p.column, p.severity.value))
@@ -1839,12 +1577,7 @@ class ProblemsWidget(QWidget):
             pass
 
     def _refresh_file_group(self, path: str) -> None:
-        """Rebuild only the file group for *path*, preserving UI state.
-
-        Untouched groups keep their expansion, selection and scroll
-        position, so routine file operations no longer replay a full
-        tree rebuild. An empty group is removed instead of shown.
-        """
+        """Rebuild only the file group for *path*, preserving UI state."""
         enabled = self._enabled_groups
         items = [
             prob
@@ -1879,12 +1612,7 @@ class ProblemsWidget(QWidget):
         self._group_items[path] = header
 
     def _add_file_group(self, file_path: str, problems: List[Problem]) -> None:
-        """Create a collapsible file header with *problems* as children.
-
-        Args:
-            file_path: Full path for the group.
-            problems: Diagnostics belonging to that file.
-        """
+        """Create a collapsible file header with *problems* as children."""
         header = self._build_file_group(file_path, problems)
         self._tree.addTopLevelItem(header)
         self._group_items[file_path] = header
@@ -1892,30 +1620,19 @@ class ProblemsWidget(QWidget):
     def _build_file_group(
         self, file_path: str, problems: List[Problem]
     ) -> QTreeWidgetItem:
-        """Build (without attaching) a file header with *problems* as children.
-
-        Args:
-            file_path: Full path for the group.
-            problems: Diagnostics belonging to that file.
-
-        Returns:
-            The detached header item, ready to insert into the tree.
-        """
+        """Build (without attaching) a file header with *problems* as children."""
         errors = sum(1 for p in problems if p.severity == ProblemSeverity.ERROR)
         warnings = sum(1 for p in problems if p.severity == ProblemSeverity.WARNING)
         checks = sum(1 for p in problems if p.severity == ProblemSeverity.CHECK)
         typos = sum(1 for p in problems if p.severity == ProblemSeverity.TYPO)
 
         basename = os.path.basename(file_path) or file_path
-        # QTreeWidgetItem with two columns: file label + count summary.
         header = QTreeWidgetItem()
         header.setExpanded(True)
         header.setData(0, Qt.ItemDataRole.UserRole, file_path)
-        # File icon by extension (best-effort).
         ext = Path(basename).suffix.lower()
         file_icon = self._file_icons.get(ext)
         if file_icon is None and ext:
-            # Try type icons under assets/types.
             candidate = _PROJECT_ROOT / "assets" / "types" / f"{ext.lstrip('.')}.png"
             if candidate.is_file():
                 file_icon = QIcon(str(candidate))
@@ -1940,7 +1657,6 @@ class ProblemsWidget(QWidget):
         header.setText(1, "  •  ".join(count_parts))
         header.setToolTip(0, file_path)
         header.setToolTip(1, file_path)
-        # Bold file header for scanability (mirrors VS header style).
         font = header.font(0)
         font.setBold(True)
         header.setFont(0, font)
@@ -1952,7 +1668,6 @@ class ProblemsWidget(QWidget):
             icon = self._icon_for(prob)
             if icon and not icon.isNull():
                 child.setIcon(0, icon)
-            # Message column: show code prefix when available.
             label = prob.message
             if prob.code:
                 label = f"[{prob.code}] {label}"
@@ -1977,9 +1692,6 @@ class ProblemsWidget(QWidget):
             self._summary_label.setText(self._filter_hint("No problems"))
             self.countsChanged.emit(0, 0, 0)
             return
-        # While a severity group is active the header describes what is on
-        # screen; the emitted counters stay global so the status-bar buttons
-        # never change because the user pressed one.
         scoped = (
             self._visible_problems()
             if self._enabled_groups != set(SEVERITY_GROUPS)
@@ -2021,22 +1733,9 @@ class ProblemsWidget(QWidget):
         self.stop_scanning()
         super().closeEvent(event)
 
-    # ------------------------------------------------------------------
-    # Interaction
-    # ------------------------------------------------------------------
 
     def _icon_for(self, problem: Problem) -> QIcon:
-        """Return the icon representing *problem*'s type.
-
-        Falls back to the severity icon when the category has no dedicated
-        asset or the asset is missing.
-
-        Args:
-            problem: Diagnostic to illustrate.
-
-        Returns:
-            A :class:`QIcon` (possibly null).
-        """
+        """Return the icon representing *problem*'s type."""
         try:
             from editor.analysis.providers import diagnostic_category
 
@@ -2049,12 +1748,7 @@ class ProblemsWidget(QWidget):
         return self._icons.get(problem.severity) or self._icons[ProblemSeverity.ERROR]
 
     def _on_item_clicked(self, item: QTreeWidgetItem, column: int) -> None:
-        """Handle single click on a diagnostic row.
-
-        Emits :attr:`problemActivated` so the host can navigate to
-        ``file_path:line:column`` with a single click, exactly as it does on
-        double-click.
-        """
+        """Handle single click on a diagnostic row."""
         prob = item.data(0, Qt.ItemDataRole.UserRole)
         if isinstance(prob, Problem):
             self.problemClicked.emit(prob)

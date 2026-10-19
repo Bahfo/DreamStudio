@@ -1,32 +1,16 @@
-# (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-"""Parent-side client for the out-of-process analysis server.
-
-Analysis runs in a dedicated interpreter subprocess (``analysis_server.py``)
-so that CPU-bound Python work (jedi, ast, tokenize) never contends with the
-main thread's GIL — the root cause of UI freezes while typing in large files.
-
-Protocol
---------
-Framed pickle over the child's stdin/stdout: every message is an 8-byte
-little-endian length followed by ``pickle.dumps`` of a plain-data payload.
-Both endpoints are strictly request/response: the worker thread writes one
-frame, then blocks reading the reply, so at most a single request is in
-flight per subprocess.
-
-The server is spawned as a plain script (not ``-m``) with its own isolated
-package stubs, so importing it never pulls in the heavyweight
-``editor/__init__.py`` GUI chain.
-"""
+"""Parent-side client for the out-of-process analysis server."""
 
 from __future__ import annotations
 
 import itertools
+import select
 import tempfile
 import time
 
 from editor import *
 
 from editor.analysis.wire import (
+    SPILL_DIR_NAME as _SPILL_DIR_NAME,
     discard_spills as _wire_discard,
     resolve_spills as _wire_resolve,
     spill_large_strings as _wire_spill,
@@ -37,13 +21,9 @@ logger = logging.getLogger(__name__)
 _FRAME_HEADER = struct.Struct("<Q")
 _PICKLE_PROTOCOL = pickle.HIGHEST_PROTOCOL
 
-#: Sources larger than this (UTF-8 bytes) are spilled to a temp file and
-#: sent by reference, so a 100k-line buffer crosses the wire once instead
-#: of being copied through every pickle/str layer on both processes.
 _SPILL_THRESHOLD_BYTES = 1_000_000
 _MAX_FRAME_BYTES = 20_000_000
 _REQUEST_TIMEOUT_S = 15.0
-_SPILL_DIR_NAME = "dreamstudio-analysis"
 _spill_counter = itertools.count()
 _spill_lock = threading.Lock()
 
@@ -52,11 +32,37 @@ class AnalysisProcessError(RuntimeError):
     """Raised when the analysis subprocess dies or the wire protocol breaks."""
 
 
-def _read_exact(stream, n: int) -> bytes:
+def _read_exact(stream, n: int, deadline: Optional[float] = None) -> bytes:
     """Read exactly *n* bytes from *stream* or raise ``AnalysisProcessError``."""
+    if n <= 0:
+        raise AnalysisProcessError(f"invalid frame read length: {n}")
     chunks: list = []
     remaining = n
+    fileno = None
+    if deadline is not None:
+        try:
+            fileno = stream.fileno()
+        except Exception:
+            fileno = None
     while remaining > 0:
+        if deadline is not None:
+            if fileno is not None:
+                # NOTE: checking the clock *between* reads is not enough —
+                remaining_time = deadline - time.monotonic()
+                if remaining_time <= 0:
+                    raise AnalysisProcessError(
+                        "analysis subprocess response timed out"
+                    )
+                try:
+                    ready, _, _ = select.select([fileno], [], [], remaining_time)
+                except (OSError, ValueError):
+                    ready = [fileno]
+                if not ready:
+                    raise AnalysisProcessError(
+                        "analysis subprocess response timed out"
+                    )
+            elif time.monotonic() >= deadline:
+                raise AnalysisProcessError("analysis subprocess response timed out")
         chunk = stream.read(remaining)
         if not chunk:
             raise AnalysisProcessError("analysis subprocess closed its output stream")
@@ -65,15 +71,15 @@ def _read_exact(stream, n: int) -> bytes:
     return b"".join(chunks)
 
 
-def read_frame(stream) -> object:
+def read_frame(stream, deadline: Optional[float] = None) -> object:
     """Read one length-prefixed pickle frame from *stream*."""
-    header = _read_exact(stream, _FRAME_HEADER.size)
+    header = _read_exact(stream, _FRAME_HEADER.size, deadline)
     (size,) = _FRAME_HEADER.unpack(header)
     if size > _MAX_FRAME_BYTES:
         raise AnalysisProcessError(f"analysis frame too large: {size} bytes")
     if size == 0:
         raise AnalysisProcessError("empty analysis frame")
-    data = _read_exact(stream, size)
+    data = _read_exact(stream, size, deadline)
     return pickle.loads(data)
 
 
@@ -129,15 +135,7 @@ def discard_spills(paths) -> None:
 
 
 class AnalysisProcess:
-    """Client end of the analysis-server subprocess.
-
-    Designed for exactly one live subprocess shared across the whole IDE:
-    ``request`` serialises write/read round-trips through an internal lock,
-    and ``shutdown`` hands the blocking reap off to a daemon reaper thread
-    so the UI thread never waits on a busy child.  A dead child is
-    transparently respawned on the next ``request`` call unless a clean
-    ``shutdown`` has already been requested.
-    """
+    """Client end of the analysis-server subprocess."""
 
     def __init__(self) -> None:
         self._proc: Optional[subprocess.Popen] = None
@@ -146,32 +144,23 @@ class AnalysisProcess:
         self._lifecycle_lock = threading.Lock()
         self._shutdown_requested = False
 
-    # ------------------------------------------------------------------
-    # Lifecycle helpers
-    # ------------------------------------------------------------------
 
     def _server_script(self) -> str:
         here = os.path.dirname(os.path.abspath(__file__))
         return os.path.join(here, "analysis_server.py")
 
     def _root_dir(self) -> str:
-        # <root>/editor/Ironica/analysis_bridge.py -> <root>
         return os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         )
 
     def _server_cmd(self) -> list[str]:
-        """Return the command to launch the analysis server.
-
-        Development: [sys.executable, analysis_server.py]
-        Frozen: [sibling DreamStudioAnalysisServer executable]
-        """
+        """Return the command to launch the analysis server."""
         if getattr(sys, "frozen", False):
             exe_dir = pathlib.Path(sys.executable).resolve().parent
             candidate = exe_dir / "DreamStudioAnalysisServer"
             if candidate.is_file():
                 return [str(candidate)]
-            # Fallback: _MEIPASS parent (when _MEIPASS is _internal)
             try:
                 if hasattr(sys, "_MEIPASS"):
                     alt = (
@@ -182,7 +171,6 @@ class AnalysisProcess:
                         return [str(alt)]
             except Exception:
                 pass
-            # Last resort: candidate even if not found — let Popen raise explicit error
             return [str(candidate)]
         return [sys.executable, self._server_script()]
 
@@ -193,9 +181,6 @@ class AnalysisProcess:
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def is_alive(self) -> bool:
         return self._proc is not None and self._proc.poll() is None
@@ -208,9 +193,7 @@ class AnalysisProcess:
             if self.is_alive():
                 return
 
-            # Resolve command: development vs frozen sibling executable
             cmd = self._server_cmd()
-            # Explicit error if frozen sibling missing
             if getattr(sys, "frozen", False):
                 exe_path = pathlib.Path(cmd[0])
                 if not exe_path.is_file():
@@ -219,13 +202,14 @@ class AnalysisProcess:
                         f"Expected sibling executable next to {sys.executable}"
                     )
 
+            # NOTE: bufsize=0 keeps the pipes unbuffered at the Python
             if getattr(sys, "frozen", False):
-                # Frozen: sibling executable is self-contained, no PYTHONPATH/cwd needed
                 self._proc = subprocess.Popen(
                     cmd,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    bufsize=0,
                 )
             else:
                 root = self._root_dir()
@@ -243,6 +227,7 @@ class AnalysisProcess:
                     stderr=subprocess.PIPE,
                     cwd=root,
                     env=env,
+                    bufsize=0,
                 )
             self._stderr_thread = threading.Thread(
                 target=self._drain_stderr,
@@ -258,12 +243,7 @@ class AnalysisProcess:
                 pass
 
     def __del__(self) -> None:
-        """Kill a still-running child when the client is collected.
-
-        The worker threads are deliberately not ``QThread`` so garbage
-        collection of an editor never aborts Qt; this finalizer prevents
-        the orphaned child from outliving the parent process.
-        """
+        """Kill a still-running child when the client is collected."""
         proc = self._proc
         self._proc = None
         if proc is None:
@@ -286,11 +266,7 @@ class AnalysisProcess:
                 pass
 
     def request(self, payload, timeout: float = _REQUEST_TIMEOUT_S) -> object:
-        """Send *payload* to the server and block for its reply.
-
-        Sources over ~1MB are spilled to a temp file and sent by
-        reference; the spill is deleted once the reply arrives.
-        """
+        """Send *payload* to the server and block for its reply."""
         locked = self._pipe_lock.acquire(timeout=timeout)
         if not locked:
             raise AnalysisProcessError("analysis subprocess busy (lock timeout)")
@@ -309,7 +285,8 @@ class AnalysisProcess:
                 if isinstance(payload, tuple):
                     packed, spilled = spill_large_strings(payload)
                 write_frame(proc.stdin, packed)
-                return read_frame(proc.stdout)
+                # NOTE: the lock is already held, so the read must be
+                return read_frame(proc.stdout, time.monotonic() + timeout)
             except (BrokenPipeError, OSError, pickle.PickleError) as exc:
                 logger.warning(
                     "Analysis subprocess IPC failed, resetting handle: %s", exc
@@ -333,15 +310,7 @@ class AnalysisProcess:
                 pass
 
     def shutdown(self) -> None:
-        """Request a graceful shutdown without blocking the caller.
-
-        The exit sentinel is written by a daemon reaper thread once any
-        in-flight round-trip has finished; the child then exits and is
-        force-killed only if it fails to do so within the reap timeout.
-        Never touches ``self._pipe_lock`` from the caller's thread, so
-        shutting down while the child is busy computing never stalls the
-        UI thread.
-        """
+        """Request a graceful shutdown without blocking the caller."""
         with self._lifecycle_lock:
             if self._shutdown_requested:
                 return
@@ -356,20 +325,20 @@ class AnalysisProcess:
             target=self._reap,
             args=(proc,),
             name="analysis-server-reaper",
-            daemon=True,
+            daemon=False,
         ).start()
 
     def _reap(self, proc: subprocess.Popen) -> None:
         """Gracefully stop *proc*, force-killing it after the timeout."""
         try:
             try:
-                # Wait for any in-flight round-trip to release the pipe
-                # lock, then ask the child to exit. Bounded by the current
-                # request's compute time.
-                with self._pipe_lock:
-                    if proc.poll() is None:
-                        proc.stdin.write(_FRAME_HEADER.pack(0))
-                        proc.stdin.flush()
+                if self._pipe_lock.acquire(timeout=2.0):
+                    try:
+                        if proc.poll() is None:
+                            proc.stdin.write(_FRAME_HEADER.pack(0))
+                            proc.stdin.flush()
+                    finally:
+                        self._pipe_lock.release()
             except Exception:
                 pass
             try:

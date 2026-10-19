@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Module to configure run options for DreamStudio for any file type.
 """
 
@@ -13,21 +12,7 @@ from editor.utils.io import load_json, save_json
 
 
 class ConfigRun:
-    """Main module to configure run options, save options, and execute them.
-
-    Configuration Example Format:
-
-    ```json
-    {
-        "config_name": "Name of Your Configuration",
-        "file_path": "Path/to/Your/File/to/Run",
-        "Arg": "python3",
-        "Parameters": [
-            "List", "Containing", "Your", "Parameters"
-        ]
-    }
-    ```
-    """
+    """Main module to configure run options, save options, and execute them."""
 
     def __init__(
         self,
@@ -50,16 +35,7 @@ class ConfigRun:
             }
 
     def save_config(self, save_path: Optional[str] = None, indent: int = 4) -> str:
-        """Saves current run configurations into a JSON file.
-
-        Args:
-            save_path: Optional path to save to. Defaults to
-              `self.config_file_path`.
-            indent: Indentation level for pretty-printing JSON.
-
-        Returns:
-            The path where the configuration was saved.
-        """
+        """Saves current run configurations into a JSON file."""
         target_path = save_path or self.config_file_path
 
         self.options["config_name"] = self.config_name
@@ -72,15 +48,7 @@ class ConfigRun:
         return target_path
 
     def load_config(self, source_path: Optional[str] = None) -> Dict[str, Any]:
-        """Loads and extracts configuration options from a JSON file.
-
-        Args:
-            source_path: File path to load JSON from. Defaults to
-              `self.config_file_path`.
-
-        Returns:
-            The loaded dictionary configuration.
-        """
+        """Loads and extracts configuration options from a JSON file."""
         target_path = source_path or self.config_file_path
 
         if not os.path.exists(target_path):
@@ -97,23 +65,7 @@ class ConfigRun:
         return self.options
 
     def build_command(self, cwd: Optional[str] = None) -> Tuple[List[str], str]:
-        """Resolves the configured executable, target file, and parameters
-        into an argv sequence plus a working directory — without launching
-        any process.
-
-        Args:
-            cwd: Optional working directory override. Defaults to the
-              configured file's parent dir when the file exists.
-
-        Returns:
-            A `(command_arguments, working_directory)` tuple where the
-            arguments keep the interpreter, file path, and parameters as
-            separate list entries (safe for exec-style launching).
-
-        Raises:
-            ValueError: If no file path is configured or no working
-              directory can be determined without using process CWD.
-        """
+        """Resolves the configured executable, target file, and parameters into an argv sequence plus a working directory — without launching any process."""
         arg = (
             self.options.get("Arg")
             or self.options.get("interpreter")
@@ -145,19 +97,7 @@ class ConfigRun:
     def run(
         self, cwd: Optional[str] = None, async_mode: bool = True
     ) -> Union[subprocess.Popen, subprocess.CompletedProcess]:
-        """Executes the target script using subprocess according to saved config options.
-
-        Args:
-            cwd: Working directory for execution (defaults to file's parent
-              dir).
-            async_mode: If True (recommended for IDEs), returns `Popen` object
-              for non-blocking, real-time stdout/stderr streaming. If False,
-              blocks until completion and returns `CompletedProcess`.
-
-        Returns:
-            `subprocess.Popen` process instance if async_mode is True, else
-            `subprocess.CompletedProcess`.
-        """
+        """Executes the target script using subprocess according to saved config options."""
         cmd, work_dir = self.build_command(cwd=cwd)
 
         if async_mode:

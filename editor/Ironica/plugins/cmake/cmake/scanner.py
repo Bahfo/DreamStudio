@@ -1,13 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 ``CMakeLists.txt`` scanner for the DreamStudio CMake plugin.
-
-Parses a paren-aware subset of CMake (commands may span lines, ``#``
-comments, quoted arguments, single-level ``${VAR}`` expansion from
-``set()``) into a :class:`CmakeModel` of targets, include directories,
-linked packages and language standards. Dependency-free and side-effect
-free — generation lives in ``generator.py``.
 """
 
 from __future__ import annotations
@@ -63,14 +56,7 @@ class CmakeModel:
 
 
 def find_cmake_root(start: str) -> str | None:
-    """Walk upward from *start* looking for a ``CMakeLists.txt``.
-
-    Args:
-        start: File or directory to start searching from.
-
-    Returns:
-        Directory holding ``CMakeLists.txt``, or ``None``.
-    """
+    """Walk upward from *start* looking for a ``CMakeLists.txt``."""
     try:
         current = os.path.abspath(start)
     except Exception:
@@ -169,17 +155,7 @@ def scan_cmake_text(
     base_dir: str,
     variables: dict | None = None,
 ) -> tuple[list, dict]:
-    """Parse CMake *text* into commands and collected ``set()`` variables.
-
-    Args:
-        text: Raw file content.
-        base_dir: Directory used to absolutise relative paths.
-        variables: Mutable variable table shared across included files.
-
-    Returns:
-        Tuple of ``(commands, variables)`` where commands is a list of
-        ``(name, expanded_args, line_number)``.
-    """
+    """Parse CMake *text* into commands and collected ``set()`` variables."""
     if variables is None:
         variables = {}
     cleaned = "\n".join(_strip_comment(line) for line in text.splitlines())
@@ -194,14 +170,7 @@ def scan_cmake_text(
 
 
 def scan_project(root: str) -> CmakeModel:
-    """Scan the CMake project rooted at *root* into a model.
-
-    Args:
-        root: Directory holding the top-level ``CMakeLists.txt``.
-
-    Returns:
-        Populated :class:`CmakeModel` (empty when unreadable).
-    """
+    """Scan the CMake project rooted at *root* into a model."""
     model = CmakeModel(root=os.path.abspath(root))
     entry = os.path.join(model.root, "CMakeLists.txt")
     try:

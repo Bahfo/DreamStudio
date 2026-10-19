@@ -1,18 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Background C++ workspace indexer for the DreamStudio C++ plugin.
-
-Walks workspace C/C++ files on a worker thread, cursor-walks one
-translation unit per file for top-level symbols, and persists per-file
-records under ``.ds/cpp/index/`` keyed by modification time. Completion
-uses :func:`search_for_file` as a fallback when the semantic TU yields
-nothing. Progress mirrors the Python trio (``started/progress/finished``)
-so the status-bar coordinator shows both languages side by side.
-
-On every run the indexer first refreshes the generated compile database
-from ``CMakeLists.txt`` (via the cmake plugin) so third-party includes
-resolve before any file is parsed.
 """
 
 from __future__ import annotations
@@ -63,10 +51,6 @@ _KIND_BY_CURSOR = {
     "MACRO_INSTANTIATION": "macro",
 }
 
-#: Completion kinds that are never valid as a bare identifier.
-#: ``field``/``method``/``parameter`` require a member or call scope
-#: (``obj.``/``::``/``(...)``), so serving them for plain naming
-#: contexts only produces flash-then-vanish rows.
 NON_GLOBAL_COMPLETION_KINDS: frozenset = frozenset(
     {"field", "method", "parameter"}
 )
@@ -75,11 +59,7 @@ _indexer_instance = None
 
 
 def get_cpp_indexer():
-    """Return the process-wide :class:`CppIndexer` singleton.
-
-    Returns:
-        Shared indexer instance (created on first call).
-    """
+    """Return the process-wide :class:`CppIndexer` singleton."""
     global _indexer_instance
     if _indexer_instance is None:
         _indexer_instance = CppIndexer()
@@ -130,11 +110,7 @@ class CppIndexer(QObject):
     indexing_finished = pyqtSignal()
 
     def __init__(self, parent=None) -> None:
-        """Prepare idle indexer state (no threads started).
-
-        Args:
-            parent: Optional parent object.
-        """
+        """Prepare idle indexer state (no threads started)."""
         super().__init__(parent)
         self._lock = threading.Lock()
         self._active = False
@@ -150,11 +126,7 @@ class CppIndexer(QObject):
             logger.debug("sysindex preload skipped: %s", exc)
 
     def run(self, root: str) -> None:
-        """Index *root* on a worker thread (latest request wins).
-
-        Args:
-            root: Workspace root to index.
-        """
+        """Index *root* on a worker thread (latest request wins)."""
         if not root or not os.path.isdir(root):
             return
         with self._lock:
@@ -179,18 +151,7 @@ class CppIndexer(QObject):
         limit: int = 50,
         exclude_kinds: frozenset | set | None = None,
     ) -> list:
-        """Return cached index symbols under *root* matching *prefix*.
-
-        Args:
-            root: Solution root whose memory cache is searched.
-            prefix: Case-insensitive name prefix.
-            limit: Maximum rows returned.
-            exclude_kinds: Kinds skipped as never valid bare identifiers.
-                Defaults to :data:`NON_GLOBAL_COMPLETION_KINDS`.
-
-        Returns:
-            List of ``CppCompletion`` rows (possibly empty).
-        """
+        """Return cached index symbols under *root* matching *prefix*."""
         from ..models import CppCompletion
 
         needle = (prefix or "").strip().lower()
@@ -236,17 +197,7 @@ class CppIndexer(QObject):
         limit: int = 50,
         exclude_kinds: frozenset | set | None = None,
     ) -> list:
-        """Return preloaded system-index rows matching *prefix*.
-
-        Args:
-            prefix: Case-insensitive name prefix.
-            limit: Maximum rows returned.
-            exclude_kinds: Kinds skipped as never valid bare identifiers.
-                Defaults to :data:`NON_GLOBAL_COMPLETION_KINDS`.
-
-        Returns:
-            List of ``CppCompletion`` rows (possibly empty).
-        """
+        """Return preloaded system-index rows matching *prefix*."""
         try:
             from . import sysindex as sysindex_support
 
@@ -259,12 +210,7 @@ class CppIndexer(QObject):
             return []
 
     def _run_guarded(self, root: str, generation: int) -> None:
-        """Run one pass, then pick up a pending root when superseded.
-
-        Args:
-            root: Workspace root to index.
-            generation: Run generation used to drop stale passes.
-        """
+        """Run one pass, then pick up a pending root when superseded."""
         try:
             self._run_pass(root, generation)
         except Exception as exc:
@@ -285,12 +231,7 @@ class CppIndexer(QObject):
             self._run_guarded(pending, generation)
 
     def _run_pass(self, root: str, generation: int) -> None:
-        """Refresh the compile DB, then index every C++ file under *root*.
-
-        Args:
-            root: Workspace root to index.
-            generation: Run generation used to drop stale passes.
-        """
+        """Refresh the compile DB, then index every C++ file under *root*."""
         self.indexing_started.emit(1)
         self._refresh_compile_db(root)
         if generation != self._generation:
@@ -322,16 +263,7 @@ class CppIndexer(QObject):
             pass
 
     def _refresh_sysindex(self, root: str, files: list, generation: int) -> None:
-        """Build the per-machine system index, then preload it.
-
-        Runs after workspace symbols so fast value lands first; the
-        system build is one-time per machine afterwards (mtime-keyed).
-
-        Args:
-            root: Workspace root whose include graph is collected.
-            files: Workspace source files seeding the graph.
-            generation: Run generation used to drop stale passes.
-        """
+        """Build the per-machine system index, then preload it."""
         try:
             from . import sysindex as sysindex_support
             from . import args as cpp_args
@@ -364,15 +296,7 @@ class CppIndexer(QObject):
             pass
 
     def _refresh_pch(self, root: str, files: list) -> None:
-        """Build the shared precompiled header for *root* (background).
-
-        Runs after symbol indexing so keystrokes never wait on it; a
-        failed or skipped build simply leaves completion unaccelerated.
-
-        Args:
-            root: Workspace root owning ``.ds/cpp/stable.pch``.
-            files: Workspace source files harvested for includes.
-        """
+        """Build the shared precompiled header for *root* (background)."""
         try:
             from . import pch as pch_support
 
@@ -381,11 +305,7 @@ class CppIndexer(QObject):
             logger.debug("pch refresh failed: %s", exc)
 
     def _refresh_compile_db(self, root: str) -> None:
-        """Regenerate ``.ds/cpp`` artefacts from ``CMakeLists.txt``.
-
-        Args:
-            root: Workspace root that may hold a CMake project.
-        """
+        """Regenerate ``.ds/cpp`` artefacts from ``CMakeLists.txt``."""
         try:
             from editor.Ironica.plugins.cmake.cmake.scanner import (
                 find_cmake_root,
@@ -408,14 +328,7 @@ class CppIndexer(QObject):
             logger.debug("cmake generate failed: %s", exc)
 
     def _collect_files(self, root: str) -> list:
-        """List indexable C/C++ files under *root*, honouring excludes.
-
-        Args:
-            root: Workspace root to walk.
-
-        Returns:
-            Sorted absolute paths (capped).
-        """
+        """List indexable C/C++ files under *root*, honouring excludes."""
         suffixes = _cpp_suffixes()
         found: list = []
         for current, directories, files in os.walk(root):
@@ -430,15 +343,7 @@ class CppIndexer(QObject):
         return sorted(found)
 
     def _symbols_for(self, root: str, path: str) -> list:
-        """Return cached-or-fresh index symbols for *path*.
-
-        Args:
-            root: Solution root owning the persisted record.
-            path: Absolute source path to describe.
-
-        Returns:
-            List of symbol dicts.
-        """
+        """Return cached-or-fresh index symbols for *path*."""
         record_path = _record_name(root, path)
         try:
             mtime = os.path.getmtime(path)
@@ -472,14 +377,7 @@ class CppIndexer(QObject):
         return symbols
 
     def _walk_file(self, path: str) -> list:
-        """Cursor-walk one file's TU for top-level + member symbols.
-
-        Args:
-            path: Absolute source path to parse.
-
-        Returns:
-            Symbol dicts with ``name``, ``kind``, ``line`` and ``detail``.
-        """
+        """Cursor-walk one file's TU for top-level + member symbols."""
         try:
             import clang.cindex as cindex
             from clang.cindex import CursorKind, Index, TranslationUnit
@@ -489,7 +387,7 @@ class CppIndexer(QObject):
         try:
             from . import args as cpp_args
         except Exception:
-            cpp_args = None  # type: ignore[assignment]
+            cpp_args = None
         try:
             flags = (
                 cpp_args.args_for_file(path, "")
@@ -576,18 +474,7 @@ def search_for_file(
     limit: int = 50,
     exclude_kinds: frozenset | set | None = None,
 ) -> list:
-    """Search the owning solution's index for *prefix* matches.
-
-    Args:
-        file_path: File requesting completion (locates the solution).
-        prefix: Case-insensitive name prefix.
-        limit: Maximum rows returned.
-        exclude_kinds: Kinds skipped as never valid bare identifiers.
-            Defaults to :data:`NON_GLOBAL_COMPLETION_KINDS`.
-
-    Returns:
-        List of ``CppCompletion`` rows (possibly empty) — never raises.
-    """
+    """Search the owning solution's index for *prefix* matches."""
     try:
         if not file_path or not prefix:
             return []

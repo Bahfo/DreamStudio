@@ -1,19 +1,16 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-New C++ provider (Feature 1: completion only).
+New C++ provider (Feature 1:
 """
 
 from __future__ import annotations
 
 import logging
 
-# Base Language Provider
 from editor.Ironica.language_engine import BaseLanguageProvider
 
 logger = logging.getLogger("DreamStudio.Cpp.Provider")
 
-# Local Imports: the full plugin surface, loaded as one watched unit.
 from .models import CppContext
 from .intellisense import args as cpp_args
 from .intellisense import CppEngine
@@ -46,19 +43,7 @@ class CppProvider(BaseLanguageProvider):
         self, text: str, theme_name: str | None = None,
         file_path: str | None = None,
     ):
-        """Return libclang identifier overlays for the buffer.
-
-        Args:
-            text: Full editor buffer content.
-            theme_name: Active IDE theme; resolved automatically when omitted.
-            file_path: Buffer's own path. The analysis worker supplies it
-                (``wants_file_path = True``) because this provider is a
-                process singleton shared by every open C++ tab; without it
-                the last-opened tab's path would be used instead.
-
-        Returns:
-            List of ``(start, length, "#RRGGBB")`` overlay ranges.
-        """
+        """Return libclang identifier overlays for the buffer."""
         import hashlib
 
         from .highlighting.tokens import compute_highlights, _resolve_colors
@@ -113,72 +98,27 @@ class CppProvider(BaseLanguageProvider):
         self._highlight_cache = None
 
     def get_hover_hint(self, text, line, col):
-        """Return an HTML hover tooltip for the symbol at the cursor.
-
-        Args:
-            text: Full editor buffer content.
-            line: Zero-indexed cursor line.
-            col: Zero-indexed cursor column.
-
-        Returns:
-            Always ``None`` — hover is not implemented for C++ yet.
-        """
+        """Return an HTML hover tooltip for the symbol at the cursor."""
         return None
 
     def get_definition_location(self, text, line, col):
-        """Return ``(file_path, line, col)`` for the symbol at the cursor.
-
-        Args:
-            text: Full editor buffer content.
-            line: Zero-indexed cursor line.
-            col: Zero-indexed cursor column.
-
-        Returns:
-            Always ``None`` — go-to-definition is not implemented for C++ yet.
-        """
+        """Return ``(file_path, line, col)`` for the symbol at the cursor."""
         return None
 
     def format_source(self, source_code):
-        """Return *source_code* formatted in place.
-
-        Args:
-            source_code: Full editor buffer content.
-
-        Returns:
-            The buffer unchanged — no C++ formatter is wired up yet.
-        """
+        """Return *source_code* formatted in place."""
         return source_code
 
     def has_diagnostics(self):
-        """Return whether this provider supplies a diagnostics manager.
-
-        Returns:
-            ``False`` — C++ diagnostics are not implemented yet.
-        """
+        """Return whether this provider supplies a diagnostics manager."""
         return False
 
     def has_folding(self) -> bool:
-        """Return whether this provider supplies fold regions.
-
-        Returns:
-            ``True`` — regions come from :mod:`.folding.regions`.
-        """
+        """Return whether this provider supplies fold regions."""
         return True
 
     def get_fold_regions(self, text: str, file_path: str | None = None) -> list:
-        """Return AST-accurate fold regions for the buffer.
-
-        Args:
-            text: Full editor buffer content.
-            file_path: Buffer's own path, supplied by the analysis worker
-                via ``wants_file_path``. Falls back to the most recently
-                opened C++ tab, then to an unsaved-buffer placeholder.
-
-        Returns:
-            List of ``FoldRegion`` objects. Never raises: a libclang
-            failure falls back to brace matching, and a failure of that
-            too yields an empty list.
-        """
+        """Return AST-accurate fold regions for the buffer."""
         from .folding.regions import compute_fold_regions
 
         if not text or not text.strip():
@@ -239,9 +179,7 @@ class CppProvider(BaseLanguageProvider):
         file_path=None,
         project_root=None,
     ) -> list:
-        """
-        Sync path (used when manager is dead). Never raises.
-        """
+        """Sync path (used when manager is dead)."""
 
         if not text:
             return []
@@ -315,13 +253,9 @@ class CppProvider(BaseLanguageProvider):
         return CppEngine(shared_index=self._shared_index)
 
     def create_completion_manager(self, editor, file_path, parent):
-        """
-        Called by tab_editor.py:597. Editor-scoped, never singleton.
-        """
+        """Called by tab_editor.py:597."""
 
         # NOTE: assign unconditionally — keeping the previous value for a
-        # path-less tab would resolve its compile flags against another
-        # buffer's directory.
         self._file_path = file_path or None
         engine = CppEngine(
             shared_index=self._shared_index,
@@ -336,11 +270,7 @@ class CppProvider(BaseLanguageProvider):
 
 @property
 def completion_manager(self):
-        """Return the most recently created per-editor completion manager.
-
-        Returns:
-            The manager, or ``None`` when no C++ tab has been opened yet.
-        """
+        """Return the most recently created per-editor completion manager."""
         return self._completion_manager
 
 

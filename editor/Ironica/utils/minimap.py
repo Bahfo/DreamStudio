@@ -1,33 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 High-Performance Virtual Minimap for DreamStudio.
-
-Completely replaces the dual-QScintilla approach with a lightweight,
-QPainter-based virtual viewport renderer.  Only the text chunks
-(lines) currently visible within the minimap's logical viewport are
-calculated and painted, eliminating the dual-memory footprint and
-preventing editor crashes on massive files.
-
-**Architecture**
-
-- ``VirtualMinimap`` — a plain ``QWidget`` that draws minimap lines
-  via ``paintEvent``.  No QScintilla instance; no secondary text
-  buffer.
-- ``MinimapOverlay`` — a transparent overlay highlighting the
-  source editor's visible region (unchanged from the original).
-- ``MiniMapHostWidget`` — the side-by-side container wrapping a
-  ``CodeEditor`` and the ``VirtualMinimap``.
-- Debounced scroll-sync prevents rapid scroll events from flooding
-  the main thread with paint requests.
-
-**Performance Guarantees**
-
-- O(visible_lines) paint cost per frame.
-- Zero extra text buffer memory (lines are read from the source
-  editor on demand).
-- Line metrics (width in pixels) are cached per font size and
-  invalidated only when the editor font changes.
 """
 
 from __future__ import annotations
@@ -38,41 +11,9 @@ from editor.Ironica.utils.diagnostics_ruler import DiagnosticsRuler
 logger = logging.getLogger(__name__)
 
 
-# ==================================================================
-# VirtualMinimap — QPainter-based virtual viewport minimap
-# ==================================================================
-
-
 class VirtualMinimap(QWidget):
-    """Lightweight minimap that renders only the visible chunk of
-    the source editor's text buffer using QPainter.
+    """Lightweight minimap that renders only the visible chunk of the source editor's text buffer using QPainter."""
 
-    **How it works:**
-
-    1. On every paint event, determine which source lines overlap the
-       minimap's viewport (``_visible_range``).
-    2. For each visible line, read the raw text from the source
-       editor (``self._source.text(line)``), truncate it to a
-       maximum pixel width, and paint it as a tiny coloured
-       rectangle.
-    3. A semi-transparent overlay highlights the source editor's
-       current visible viewport.
-
-    **Line metric cache:**
-
-    The pixel width of each line is computed lazily and cached in
-    ``_line_width_cache``.  The cache is invalidated when the
-    editor font changes (detected via ``_last_font_key``).
-
-    **Scroll sync:**
-
-    Clicking or dragging on the minimap scrolls the source editor
-    to the corresponding line.  A debounced ``QTimer`` prevents
-    rapid scroll events from overwhelming the paint pipeline.
-    """
-
-    # Maximum number of characters to measure per line (for
-    # performance on extremely long lines).
     MAX_LINE_CHARS = 200
 
     def __init__(
@@ -84,36 +25,29 @@ class VirtualMinimap(QWidget):
         self._source = source
         self.setObjectName("MiniMapHostWidget")
 
-        # ── Visual configuration ──────────────────────────────────
-        self._char_width: float = 1.8  # pixels per character
-        self._line_height: float = 3.0  # pixels per line
-        self._padding: int = 2  # top/bottom padding
+        self._char_width: float = 1.8
+        self._line_height: float = 3.0
+        self._padding: int = 2
 
-        # ── Line cache ────────────────────────────────────────────
         self._line_cache: dict[int, str] = {}
         self._line_width_cache: dict[int, float] = {}
         self._last_font_key: Optional[str] = None
 
-        # ── Visible range tracking ────────────────────────────────
         self._first_visible_source: int = 0
         self._visible_line_count: int = 0
 
-        # ── Overlay for the source viewport highlight ─────────────
         self._overlay_y: int = 0
         self._overlay_h: int = 0
 
-        # ── Drag state ────────────────────────────────────────────
         self._is_dragging: bool = False
 
-        # ── Debounce timer for scroll sync ────────────────────────
         self._scroll_debounce = QTimer(self)
         self._scroll_debounce.setSingleShot(True)
-        self._scroll_debounce.setInterval(16)  # ~60 fps
+        self._scroll_debounce.setInterval(16)
         self._scroll_debounce.timeout.connect(self.update)
 
         self._apply_theme()
 
-        # ── Configuration ─────────────────────────────────────────
         self.setFixedWidth(110)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
@@ -122,14 +56,7 @@ class VirtualMinimap(QWidget):
         self,
         palette: Optional[dict] = None,
     ) -> None:
-        """Resolve the syntax-approximation bar colours from the theme palette.
-
-        The widget surface (background) is owned entirely by the active
-        ``.qss`` stylesheet — this method deliberately makes no
-        background decisions.  Only the tiny painted text bars need
-        colours here because they are ``QPainter`` primitives and can
-        therefore not be styled through QSS.
-        """
+        """Resolve the syntax-approximation bar colours from the theme palette."""
         from editor.Ironica.retheme import active_theme_name, theme_palette
 
         if palette is None:
@@ -144,8 +71,6 @@ class VirtualMinimap(QWidget):
             c.setAlpha(50)
             return c
 
-        # Approximate syntax colours at minimap scale, keyed by the
-        # same symbolic palette entries the lexer uses.
         self._line_comment_color = token("COMMENT_COLOR", "#6A9955")
         self._line_string_color = token("STRING_COLOR", "#CE9178")
         self._line_class_color = token("CLASS_COLOR", "#4EC9B0")
@@ -153,9 +78,6 @@ class VirtualMinimap(QWidget):
         self._line_import_color = token("IMPORT_COLOR", "#C586C0")
         self._line_number_color = token("NUMBER_COLOR", "#B5CEA8")
 
-    # ------------------------------------------------------------------
-    # Font / metric management
-    # ------------------------------------------------------------------
 
     def _font_key(self) -> str:
         """Return a hashable key for the current source editor font."""
@@ -176,12 +98,8 @@ class VirtualMinimap(QWidget):
         self._char_width = fm.horizontalAdvance("M") * 0.18
         self._line_height = max(2.0, fm.height() * 0.25)
 
-        # Invalidate line width cache on font change.
         self._line_width_cache.clear()
 
-    # ------------------------------------------------------------------
-    # Source line access
-    # ------------------------------------------------------------------
 
     def _source_line_count(self) -> int:
         """Return the total number of lines in the source editor."""
@@ -196,7 +114,6 @@ class VirtualMinimap(QWidget):
             return self._line_cache[line]
         try:
             text = self._source.text(line)
-            # Truncate for performance on very long lines.
             if len(text) > self.MAX_LINE_CHARS:
                 text = text[: self.MAX_LINE_CHARS]
             self._line_cache[line] = text
@@ -209,9 +126,6 @@ class VirtualMinimap(QWidget):
         self._line_cache.clear()
         self._line_width_cache.clear()
 
-    # ------------------------------------------------------------------
-    # Visible range calculation
-    # ------------------------------------------------------------------
 
     def _calculate_visible_range(self) -> None:
         """Determine which source lines are visible in the minimap viewport."""
@@ -230,7 +144,6 @@ class VirtualMinimap(QWidget):
         lines_per_viewport = max(1, int(viewport_h / max(1.0, self._line_height)))
         total_source_lines = total
 
-        # Map source scrollbar position to minimap first visible line.
         source_scrollbar = self._source.verticalScrollBar()
         if source_scrollbar is not None:
             sb_max = source_scrollbar.maximum()
@@ -249,15 +162,12 @@ class VirtualMinimap(QWidget):
         )
         self._visible_line_count = min(lines_per_viewport, total_source_lines)
 
-    # ------------------------------------------------------------------
-    # Overlay (viewport highlight)
-    # ------------------------------------------------------------------
 
     def _update_overlay(self) -> None:
         """Calculate the position and height of the overlay rectangle."""
         try:
-            source_first = self._source.SendScintilla(2152)  # SCI_GETFIRSTVISIBLELINE
-            source_visible = self._source.SendScintilla(2156)  # SCI_LINESONSCREEN
+            source_first = self._source.SendScintilla(2152)
+            source_visible = self._source.SendScintilla(2156)
         except Exception:
             return
 
@@ -270,17 +180,9 @@ class VirtualMinimap(QWidget):
         self._overlay_y = int(y)
         self._overlay_h = int(h)
 
-    # ------------------------------------------------------------------
-    # Paint
-    # ------------------------------------------------------------------
 
-    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
-        """Render only the visible chunk of the source document.
-
-        This is the core of the virtual minimap: we paint at most
-        ``visible_line_count`` lines, each as a tiny coloured
-        rectangle representing the text density.
-        """
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """Render only the visible chunk of the source document."""
         self._ensure_metrics()
         self._calculate_visible_range()
         self._update_overlay()
@@ -288,9 +190,6 @@ class VirtualMinimap(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
-        # Background: delegated entirely to the active .qss theme via
-        # the ``QWidget#MiniMapHostWidget`` rule.  Drawing PE_Widget is
-        # what lets a plain-QPainter widget honour the stylesheet.
         option = QStyleOption()
         option.initFrom(self)
         self.style().drawPrimitive(
@@ -304,10 +203,9 @@ class VirtualMinimap(QWidget):
 
         line_h = max(2.0, self._line_height)
         char_w = max(0.5, self._char_width)
-        x_offset = 4  # left padding
+        x_offset = 4
         max_w = self.width() - x_offset - 2
 
-        # ── Draw visible lines ────────────────────────────────────
         for i in range(self._visible_line_count):
             src_line = self._first_visible_source + i
             if src_line >= total:
@@ -317,18 +215,11 @@ class VirtualMinimap(QWidget):
             text = self._source_line_text(src_line)
 
             if not text.strip():
-                continue  # skip blank lines (leave background)
+                continue
 
-            # Draw the line as a series of tiny rectangles.
-            # We don't render individual characters at this scale;
-            # instead we draw a single horizontal bar whose width
-            # represents the line's text density.
             stripped = text.rstrip()
             pixel_w = min(len(stripped) * char_w, max_w)
 
-            # Simple colour assignment based on leading whitespace
-            # and first non-space character (approximates syntax
-            # colouring at minimap scale).
             colour = self._line_default_color
             first_char = stripped.lstrip()[:1] if stripped else ""
             if first_char in ("#",):
@@ -346,7 +237,6 @@ class VirtualMinimap(QWidget):
 
             painter.fillRect(x_offset, y, int(pixel_w), int(line_h), colour)
 
-        # ── Draw viewport overlay ─────────────────────────────────
         painter.fillRect(
             0,
             self._overlay_y,
@@ -357,9 +247,6 @@ class VirtualMinimap(QWidget):
 
         painter.end()
 
-    # ------------------------------------------------------------------
-    # Scroll sync (debounced)
-    # ------------------------------------------------------------------
 
     def _on_source_scroll(self) -> None:
         """Debounced handler for source editor scroll changes."""
@@ -370,9 +257,6 @@ class VirtualMinimap(QWidget):
         self._invalidate_cache()
         self._scroll_debounce.start()
 
-    # ------------------------------------------------------------------
-    # Mouse interaction
-    # ------------------------------------------------------------------
 
     def _scroll_source_to_y(self, y: int) -> None:
         """Translate a minimap Y coordinate to a source editor scroll."""
@@ -385,17 +269,16 @@ class VirtualMinimap(QWidget):
         target_line = self._first_visible_source + clicked_line_offset
         target_line = max(0, min(target_line, total - 1))
 
-        # Center the source view on the clicked line.
         try:
-            visible_on_screen = self._source.SendScintilla(2156)  # SCI_LINESONSCREEN
+            visible_on_screen = self._source.SendScintilla(2156)
         except Exception:
             visible_on_screen = 20
 
         first_visible = max(0, target_line - visible_on_screen // 2)
-        self._source.SendScintilla(2152, first_visible)  # SCI_SETFIRSTVISIBLELINE
+        self._source.SendScintilla(2152, first_visible)
         self.update()
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._is_dragging = True
             self._scroll_source_to_y(int(event.position().y()))
@@ -403,44 +286,34 @@ class VirtualMinimap(QWidget):
         else:
             super().mousePressEvent(event)
 
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._is_dragging = False
             event.accept()
         else:
             super().mouseReleaseEvent(event)
 
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self._is_dragging:
             self._scroll_source_to_y(int(event.position().y()))
             event.accept()
         else:
             super().mouseMoveEvent(event)
 
-    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         event.ignore()
 
-    def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802
+    def wheelEvent(self, event: QWheelEvent) -> None:
         """Forward scroll wheel events directly to the source editor."""
         self._source.wheelEvent(event)
 
-    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+    def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self.update()
 
 
-# ==================================================================
-# MinimapOverlay — transparent viewport highlight
-# ==================================================================
-
-
 class MinimapOverlay(QWidget):
-    """Transparent overlay that highlights the visible region of the
-    source editor inside the minimap container.
-
-    This widget is ``WA_TransparentForMouseEvents`` so clicks pass
-    through to the ``VirtualMinimap`` beneath it.
-    """
+    """Transparent overlay that highlights the visible region of the source editor inside the minimap container."""
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -452,26 +325,8 @@ class MinimapOverlay(QWidget):
             self.setGeometry(0, y_offset, self.parent().width(), height)
 
 
-# ==================================================================
-# MiniMapHostWidget — side-by-side container
-# ==================================================================
-
-
 class MiniMapHostWidget(QWidget):
-    """Wraps a ``CodeEditor`` and a ``VirtualMinimap`` side by side.
-
-    Delegates all attribute access to the underlying editor so the
-    host widget can be used as a drop-in replacement wherever
-    ``CodeEditor`` is expected.
-
-    **Public interface:**
-
-    - ``editor`` — the underlying ``CodeEditor`` instance.
-    - ``minimap`` — the ``VirtualMinimap`` instance.
-    - ``ruler`` — the ``DiagnosticsRuler`` overview ruler instance.
-    - ``set_minimap_visible(visible)`` — toggle minimap visibility.
-    - ``toggle_minimap()`` — flip minimap visibility.
-    """
+    """Wraps a ``CodeEditor`` and a ``VirtualMinimap`` side by side."""
 
     position_changed = pyqtSignal(int, int)
     dirty_state_changed = pyqtSignal(bool)
@@ -494,21 +349,16 @@ class MiniMapHostWidget(QWidget):
         self._editor.position_changed.connect(self.position_changed.emit)
         self._editor.dirty_state_changed.connect(self.dirty_state_changed.emit)
 
-        # ── Layout ────────────────────────────────────────────────
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._editor, 1)
 
-        # Diagnostic overview ruler (VS Code style). It lives outside the
-        # minimap panel so it stays visible while the minimap is collapsed.
         self._ruler = DiagnosticsRuler(self._editor, self)
         layout.addWidget(self._ruler, 0)
 
-        # ── Minimap container (vertical: up btn + minimap + down btn) ──
         self._minimap_container = QWidget(self)
         self._minimap_container.setObjectName("MinimapPanel")
-        # Plain QWidget needs this flag to render its QSS background.
         self._minimap_container.setAttribute(
             Qt.WidgetAttribute.WA_StyledBackground, True
         )
@@ -516,7 +366,6 @@ class MiniMapHostWidget(QWidget):
         minimap_layout.setContentsMargins(0, 0, 0, 0)
         minimap_layout.setSpacing(0)
 
-        # Up scroll button.
         self._btn_up = QToolButton(self._minimap_container)
         self._btn_up.setArrowType(Qt.ArrowType.UpArrow)
         self._btn_up.setAutoRepeat(True)
@@ -529,10 +378,8 @@ class MiniMapHostWidget(QWidget):
         )
         self._btn_up.clicked.connect(self._scroll_up)
 
-        # The virtual minimap.
         self._minimap = VirtualMinimap(editor, self._minimap_container)
 
-        # Down scroll button.
         self._btn_down = QToolButton(self._minimap_container)
         self._btn_down.setArrowType(Qt.ArrowType.DownArrow)
         self._btn_down.setAutoRepeat(True)
@@ -552,7 +399,6 @@ class MiniMapHostWidget(QWidget):
         self._minimap_container.setFixedWidth(self._minimap_width)
         layout.addWidget(self._minimap_container, 0)
 
-        # ── Connect source signals for debounced sync ─────────────
         source_scrollbar = self._editor.verticalScrollBar()
         if source_scrollbar is not None:
             source_scrollbar.valueChanged.connect(self._minimap._on_source_scroll)
@@ -560,7 +406,6 @@ class MiniMapHostWidget(QWidget):
         self._editor.textChanged.connect(self._minimap._on_source_text_changed)
         self._editor.cursorPositionChanged.connect(self._minimap._on_source_scroll)
 
-        # Diagnostic ticks and hover reporting between editor and ruler.
         ticks_signal = getattr(self._editor, "diagnostic_ticks_changed", None)
         if ticks_signal is not None:
             ticks_signal.connect(self._ruler.set_ticks)
@@ -569,11 +414,7 @@ class MiniMapHostWidget(QWidget):
         self._minimap.update()
 
     def _on_ruler_line_hovered(self, line: int) -> None:
-        """Forward a ruler hover to the editor as a highlight or a clear.
-
-        Args:
-            line: 0-based hovered line, or ``-1`` when the pointer left.
-        """
+        """Forward a ruler hover to the editor as a highlight or a clear."""
         setter = getattr(self._editor, "set_hover_line", None)
         if setter is None:
             return
@@ -599,9 +440,6 @@ class MiniMapHostWidget(QWidget):
         """Return the ``VirtualMinimap`` instance."""
         return self._minimap
 
-    # ------------------------------------------------------------------
-    # Scroll helpers
-    # ------------------------------------------------------------------
 
     def _scroll_up(self) -> None:
         """Scroll the source editor up one step."""
@@ -615,9 +453,6 @@ class MiniMapHostWidget(QWidget):
         if sb:
             sb.setValue(sb.value() + sb.singleStep())
 
-    # ------------------------------------------------------------------
-    # Visibility
-    # ------------------------------------------------------------------
 
     def set_minimap_visible(self, visible: bool) -> None:
         """Show or hide the minimap panel."""
@@ -631,17 +466,9 @@ class MiniMapHostWidget(QWidget):
         """Flip minimap visibility."""
         self.set_minimap_visible(not self._minimap_visible)
 
-    # ------------------------------------------------------------------
-    # Attribute delegation
-    # ------------------------------------------------------------------
 
     def __getattr__(self, name: str):
         return getattr(self._editor, name)
-
-
-# ==================================================================
-# Public factory functions
-# ==================================================================
 
 
 def attach_minimap(

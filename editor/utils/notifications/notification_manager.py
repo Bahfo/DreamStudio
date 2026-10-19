@@ -1,18 +1,11 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Centralized notification manager for DreamStudio.
-
-Provides a singleton NotificationManager that handles all user-facing
-notifications across the IDE. Notifications are categorized by type
-(WARNING, ERROR, SUCCESS, INFO) and can be displayed in the
-Notifications panel.
 """
 
 from editor import *
 from datetime import datetime
 
-# Local I
 
 logger = logging.getLogger(__name__)
 
@@ -52,15 +45,7 @@ class Notification:
 
 
 class NotificationManager(QObject):
-    """
-    Notification manager for DreamStudio.
-
-    Centralizes all user-facing notifications across the IDE.
-    Emits signals when notifications are added or removed so the
-    UI can update accordingly.
-
-    Use ``get_notification_manager()`` to obtain the singleton instance.
-    """
+    """Notification manager for DreamStudio."""
 
     notification_added = pyqtSignal(object)
     notification_removed = pyqtSignal(int)
@@ -77,9 +62,6 @@ class NotificationManager(QObject):
         self._lock = _threading.Lock()
         logger.info("NotificationManager initialized")
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def add_notification(
         self,
@@ -88,18 +70,7 @@ class NotificationManager(QObject):
         notification_type: NotificationType = NotificationType.INFO,
         source: str = "",
     ) -> Notification:
-        """
-        Add a new notification.
-
-        Args:
-            title: Short title for the notification.
-            message: Detailed notification message.
-            notification_type: The severity/type of notification.
-            source: Source module/component that generated the notification.
-
-        Returns:
-            The created Notification object.
-        """
+        """Add a new notification."""
         notification = Notification(
             id=self._next_id,
             title=title,
@@ -112,7 +83,6 @@ class NotificationManager(QObject):
 
             self._notifications.append(notification)
 
-            # Trim old notifications if we exceed the limit
             if len(self._notifications) > self._max_notifications:
                 self._notifications = self._notifications[-self._max_notifications :]
 
@@ -142,15 +112,7 @@ class NotificationManager(QObject):
         return self.add_notification(title, message, NotificationType.INFO, source)
 
     def dismiss_notification(self, notification_id: int) -> bool:
-        """
-        Dismiss a notification by its ID.
-
-        Args:
-            notification_id: The ID of the notification to dismiss.
-
-        Returns:
-            True if dismissed, False if not found.
-        """
+        """Dismiss a notification by its ID."""
         for notification in self._notifications:
             if notification.id == notification_id:
                 notification.dismissed = True
@@ -176,7 +138,6 @@ class NotificationManager(QObject):
         return len(self.get_notifications())
 
 
-# Module-level singleton instance (managed outside QObject to avoid __new__ segfault)
 _instance: Optional["NotificationManager"] = None
 
 

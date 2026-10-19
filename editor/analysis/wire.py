@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Single spill/resolve implementation for analysis wire protocol.
 """
 
@@ -15,12 +14,14 @@ _SPILL_THRESHOLD_BYTES = 1_000_000
 _spill_counter = itertools.count()
 _spill_lock = threading.Lock()
 
+SPILL_DIR_NAME = "dreamstudio_analysis"
+
 
 def _spill_dir() -> str:
     """Return temp directory for spilled sources."""
     import tempfile
 
-    path = os.path.join(tempfile.gettempdir(), "dreamstudio_analysis")
+    path = os.path.join(tempfile.gettempdir(), SPILL_DIR_NAME)
     try:
         os.makedirs(path, exist_ok=True)
     except OSError:

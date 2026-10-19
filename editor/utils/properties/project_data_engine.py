@@ -10,10 +10,7 @@ from editor.utils.solution.paths import (
 
 
 class ProjectDataEngine:
-    """
-    Handles low-level file extraction and updates for DreamStudio
-    workspace metadata.
-    """
+    """Handles low-level file extraction and updates for DreamStudio workspace metadata."""
 
     def __init__(self, project_dir: Optional[str] = None):
         self.project_dir: Optional[Path] = Path(project_dir) if project_dir else None
@@ -29,20 +26,14 @@ class ProjectDataEngine:
         self.ds_dir = self.project_dir / DS_DIR
 
     def is_valid_project(self) -> bool:
-        """
-        Verifies if the loaded workspace directory contains the required .ds
-        footprint.
-        """
+        """Verifies if the loaded workspace directory contains the required .ds footprint."""
         if not (self.ds_dir and self.ds_dir.is_dir()):
             return False
         marker = self.ds_dir / SOLUTION_FILE
         return marker.is_file()
 
     def extract_solution_properties(self) -> Dict[str, Any]:
-        """
-        Reads all configuration states from the .ds environment directory
-        and root files.
-        """
+        """Reads all configuration states from the .ds environment directory and root files."""
         data = {
             "name": "",
             "authors": "",
@@ -136,10 +127,7 @@ class ProjectDataEngine:
         os.replace(tmp, path)
 
     def commit_solution_properties(self, updates: Dict[str, Any]) -> bool:
-        """
-        Writes revised property dictionaries back to their corresponding file
-        descriptors.
-        """
+        """Writes revised property dictionaries back to their corresponding file descriptors."""
         if not self.is_valid_project():
             return False
 

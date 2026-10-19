@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Single authority for workspace-directory resolution and re-point protocol.
 """
 
@@ -9,15 +8,7 @@ from typing import Protocol, runtime_checkable
 
 
 def get_workspace_dir(widget_or_window=None) -> str:
-    """Return validated workspace root or empty string.
-
-    Args:
-        widget_or_window: Main window or any child widget. For widgets
-            the top-level window's ``currentDirectory`` is used.
-
-    Returns:
-        Absolute workspace path, or ``""`` when unset. Never process CWD.
-    """
+    """Return validated workspace root or empty string."""
     candidate = ""
     try:
         target = widget_or_window

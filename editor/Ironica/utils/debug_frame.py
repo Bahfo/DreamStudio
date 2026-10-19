@@ -5,10 +5,7 @@ from editor.widgets.QToolButton import ToolbarButton
 
 
 class StackInfoFrame(QFrame):
-    """
-    An inline container widget with a red border to display breakpoint
-    stack info.
-    """
+    """An inline container widget with a red border to display breakpoint stack info."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -40,11 +37,7 @@ class StackInfoFrame(QFrame):
 
 
 class DebugControlFrame(QFrame):
-    """A compact horizontal frame containing debug action buttons.
-
-    Hidden by default. Shown only when a debug session is active.
-    Each button delegates its action to the attached ``DebugSession``.
-    """
+    """A compact horizontal frame containing debug action buttons."""
 
     _ASSET_BASE = resource_path("assets/system")
 
@@ -60,7 +53,6 @@ class DebugControlFrame(QFrame):
         """)
         self.setFixedSize(150, 30)
 
-        # Hide by default until called
         self.hide()
 
         layout = QHBoxLayout(self)
@@ -122,12 +114,10 @@ class DebugControlFrame(QFrame):
         super().closeEvent(event)
 
     def hideEvent(self, event):
-        # Keep filter while hidden (widget is reused), do not remove
         super().hideEvent(event)
 
     def show_at_default_position(self):
-        """Shows the widget at 20% from the left and 10% from
-        the top of the parent."""
+        """Shows the widget at 20% from the left and 10% from the top of the parent."""
         parent = self.parentWidget()
         if parent:
             x = int(parent.width() * 0.815)
@@ -145,7 +135,6 @@ class DebugControlFrame(QFrame):
 
         parent_rect = parent.rect()
 
-        # Calculate bounds
         max_x = parent_rect.width() - self.width()
         max_y = parent_rect.height() - self.height()
 
@@ -169,7 +158,6 @@ class DebugControlFrame(QFrame):
 
     def mouseMoveEvent(self, event):
         if self._is_dragging and event.buttons() & Qt.MouseButton.LeftButton:
-            # Calculate new position relative to the parent
             new_pos = self.mapToParent(event.pos() - self._drag_start_position)
             self.move(new_pos)
             self._constrain_to_parent()

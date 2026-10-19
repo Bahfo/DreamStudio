@@ -1,8 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Pure translation helpers converting VCS status snapshots into absolute
-path color indices and theme-aware brushes for the Solution Explorer.
+Pure translation helpers converting VCS status snapshots into absolute path color indices and theme-aware brushes for the Solution Explorer.
 """
 
 from editor import *
@@ -20,21 +18,7 @@ def resolve_vcs_colors(bg_lightness: int) -> Dict[str, QColor]:
 
 
 def build_status_index(repo_root: str, snapshot: Dict[str, str]) -> Dict[str, str]:
-    """
-    Expand a repo-relative snapshot into an absolute-path color index.
-
-    Every ancestor directory up to the repository root inherits the most
-    severe descendant status, mirroring JetBrains folder coloring: any
-    modified descendant marks the whole chain orange even when other
-    descendants are merely added.
-
-    Args:
-        repo_root: Absolute repository working directory.
-        snapshot: Repository-relative path to ``M``/``U``/``A`` symbols.
-
-    Returns:
-        Normalized absolute path to ``modified``/``added`` kinds.
-    """
+    """Expand a repo-relative snapshot into an absolute-path color index."""
     index: Dict[str, str] = {}
     root_norm = os.path.normpath(repo_root)
 
@@ -47,9 +31,7 @@ def build_status_index(repo_root: str, snapshot: Dict[str, str]) -> Dict[str, st
             continue
 
         current = os.path.normpath(os.path.join(repo_root, relative))
-        # Use normcase for case-insensitive comparison on Windows
         root_norm_case = os.path.normcase(root_norm)
-        # Ignore snapshot entries that resolve outside the repo (e.g. "../" traversal)
         cur_case = os.path.normcase(current)
         if not (cur_case == root_norm_case or cur_case.startswith(root_norm_case + os.sep)):
             continue
@@ -59,7 +41,6 @@ def build_status_index(repo_root: str, snapshot: Dict[str, str]) -> Dict[str, st
             parent = os.path.dirname(current)
             if parent == current:
                 break
-            # Proper prefix check: parent must be exactly root or inside root
             parent_case = os.path.normcase(parent)
             if not (parent_case == root_norm_case or parent_case.startswith(root_norm_case + os.sep)):
                 break

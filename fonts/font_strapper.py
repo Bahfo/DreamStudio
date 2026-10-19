@@ -16,7 +16,6 @@ FONTS_DIR = _get_fonts_dir()
 
 _FONT_EXTENSIONS = {".ttf", ".otf", ".woff", ".woff2"}
 
-# Monospace font families — excluded from UI font lists.
 _MONOSPACE_FAMILIES: set[str] = {
     "Space Mono",
     "Cascadia Code",
@@ -64,14 +63,7 @@ def _discover_font_files() -> list[Path]:
 
 
 class Fonts:
-    """Container for application fonts.
-
-    Fonts are dynamically discovered from the ``fonts/`` directory at
-    init time.  The ``available_families()`` class method returns every
-    family that was successfully registered, and ``ui_families()``
-    filters out monospace families so they can be offered as UI font
-    choices.
-    """
+    """Container for application fonts."""
 
     FONT_SPACE_MONO: str = "Space Mono"
     FONT_MONTSERRAT: str = "Montserrat"
@@ -85,13 +77,7 @@ class Fonts:
 
     @classmethod
     def init(cls):
-        """Register all bundled fonts with Qt's font database.
-
-        Discovers every font file under ``fonts/`` recursively and
-        registers it.  Safe to call multiple times — individual
-        ``load_font`` calls are idempotent and failures are logged
-        without raising.
-        """
+        """Register all bundled fonts with Qt's font database."""
         cls._registered_families.clear()
         seen: set[str] = set()
 
@@ -119,12 +105,7 @@ class Fonts:
 
     @classmethod
     def ensure_font(cls, family: str) -> str | None:
-        """Load a single font file from fonts/ by family name at runtime.
-
-        Searches the fonts directory for a file whose path contains the
-        family name (case-insensitive) and registers it on the fly.
-        Returns the resolved family name, or ``None`` if not found.
-        """
+        """Load a single font file from fonts/ by family name at runtime."""
         if family in cls._registered_families:
             return family
 
@@ -248,18 +229,7 @@ class Fonts:
 
     @classmethod
     def make_font(cls, family: str, size: int = 10, **kwargs) -> QFont:
-        """Create a QFont for any registered or system font family.
-
-        Args:
-            family: Font family name (e.g. ``"Inter"``, ``"Montserrat"``).
-            size: Point size for the font.
-            **kwargs: Optional QFont properties — ``bold`` (bool),
-                ``italic`` (bool), ``weight`` (``QFont.Weight``),
-                ``monospace`` (bool, adds ``Monospace`` style hint).
-
-        Returns:
-            A configured ``QFont`` instance.
-        """
+        """Create a QFont for any registered or system font family."""
         cls.ensure_font(family)
         font = QFont(family, size)
         if kwargs.get("bold"):

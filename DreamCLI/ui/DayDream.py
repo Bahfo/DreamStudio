@@ -1,11 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 A Command-Line Interface for the DreamScript Language.
-This tool comes with the default distribution of DreamStudio, or can be installed
-independently alongside DreamScript. The main purpose of DreamScript and this tool
-is to automate developer's tasks by providing a very powerful and rich set of
-commands and scripts to serve as a secondary terminal and an automation center.
 """
 
 from PyQt6.QtWidgets import *
@@ -14,7 +9,6 @@ from PyQt6.QtGui import *
 
 import sys
 
-# Local Imports
 from editor.widgets.QTitleBar import TitleBar
 from DreamCLI.ui.DayTerminal import TerminalWidget
 
@@ -37,28 +31,21 @@ class DayDreamTitleBar(TitleBar):
         self._layout.setContentsMargins(8, 0, 8, 0)
         self._layout.setSpacing(8)
 
-        # Application title
         self.icon_btn.setFixedHeight(30)
         self.icon_btn.setIconSize(QSize(22, 22))
         self.icon_btn.setCursor(Qt.CursorShape.OpenHandCursor)
 
-        # Menu bar
         self.menubar.setNativeMenuBar(False)
         self.menubar.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Fixed,
         )
 
-        # Give the menu bar enough horizontal space for its menus.
         self._layout.setStretchFactor(self.menubar, 1)
 
-        # Window controls
         self.btn_minimize.setFixedSize(30, 30)
         self.btn_close.setFixedSize(30, 30)
 
-    #####################################################################
-    # Window Dragging
-    #####################################################################
 
     def _start_drag(self, event):
         self._drag_position = (

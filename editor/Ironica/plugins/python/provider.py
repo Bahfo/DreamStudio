@@ -1,16 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Stateless PythonLanguageProvider bridging the editor UI expectations to the Jedi
-isolation adapter.
-Implements the abstract BaseLanguageProvider required by the editor core.
-
-**Coordinate System:**
-
-The editor uses 0-indexed line numbers.  Jedi uses 1-indexed lines and
-0-indexed columns.  This provider translates between the two so that
-neither the editor nor the adapter needs to know about the other's
-coordinate convention.
+Stateless PythonLanguageProvider bridging the editor UI expectations to the Jedi isolation adapter.
 """
 
 import html as _html
@@ -52,11 +42,6 @@ def _is_inside_string(line_text: str, col: int) -> bool:
     return False
 
 
-# ------------------------------------------------------------------
-# Hover formatting (language-specific, lives in the plugin)
-# ------------------------------------------------------------------
-
-
 def _clean_docstring(docstring: str) -> str:
     """Strip common leading indentation from a docstring."""
     lines = docstring.expandtabs(4).splitlines()
@@ -83,11 +68,7 @@ def _clean_docstring(docstring: str) -> str:
 
 
 def _format_qt_tooltip(details: HoverDetails) -> str:
-    """Minimal HTML4 subset safe for ``QToolTip.showText()``.
-
-    Qt's tooltip renderer only supports ``<b>``, ``<i>``, ``<u>``,
-    ``<font>``, ``<br>``, ``<p>``, and ``<table>``/``<tr>``/``<td>``.
-    """
+    """Minimal HTML4 subset safe for ``QToolTip.showText()``."""
     parts = []
 
     kind_label = _html.escape(details.kind.upper() if details.kind else "SYMBOL")
@@ -228,19 +209,12 @@ def _format_hover_markdown(details: HoverDetails) -> str:
 
 
 class PythonLanguageProvider(BaseLanguageProvider):
-    """
-    Stateless provider. Handles coordinate transformations and caching,
-    delegating source code analysis tasks entirely to an IJediAdapter.
-    """
+    """Stateless provider."""
 
-    #: Semantic highlights + folding are computed in a dedicated analysis
-    #: subprocess so the GIL never stalls the main thread on large files.
     remote_analysis: bool = True
 
-    #: Wire-protocol kind for whole-document Python analysis requests.
     remote_kind: str = "analysis"
 
-    #: Language identifier used for config/theme resolution.
     language_id: str = "python"
 
     def __init__(
@@ -276,9 +250,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
         """Get or set the buffer path handed to the Jedi adapter."""
         self._file_path = value
 
-    # ------------------------------------------------------------------
-    # Context translation
-    # ------------------------------------------------------------------
 
     def _build_context(
         self,
@@ -288,10 +259,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         file_path: Optional[str] = None,
         project_root: Optional[str] = None,
     ) -> PythonContext:
-        """Build an immutable adapter context for a caret position.
-
-        Translates the editor's 0-indexed line to Jedi's 1-indexed
-        convention; columns stay 0-indexed."""
+        """Build an immutable adapter context for a caret position."""
         effective_path = file_path or self._file_path
         effective_root = project_root or getattr(self, "_project_root", None)
         return PythonContext(
@@ -302,9 +270,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
             project_root=effective_root,
         )
 
-    # ------------------------------------------------------------------
-    # Domain Hover Support
-    # ------------------------------------------------------------------
 
     def get_hover_details(
         self,
@@ -326,10 +291,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return self._adapter.get_hover(context)
 
     def get_hover_hint(self, text: str, line: int, col: int) -> Optional[str]:
-        """Return an HTML tooltip for the symbol under the cursor.
-
-        Returns:
-            Qt tooltip markup, or ``None`` when there is no symbol."""
+        """Return an HTML tooltip for the symbol under the cursor."""
         if not text:
             return None
 
@@ -341,15 +303,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
     @staticmethod
     def _line_text_at(text: str, line: int) -> Optional[str]:
-        """Extract one line without splitting the whole buffer.
-
-        Args:
-            text: Full editor buffer content.
-            line: Zero-indexed line number.
-
-        Returns:
-            The requested line or ``None`` when out of range.
-        """
+        """Extract one line without splitting the whole buffer."""
         if line < 0:
             return None
         start = 0
@@ -365,16 +319,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
     @staticmethod
     def _symbol_at(text: str, line: int, col: int) -> Optional[str]:
-        """Return the identifier under *col* on *line* without full split.
-
-        Args:
-            text: Full editor buffer content.
-            line: Zero-indexed line number.
-            col: Zero-indexed column.
-
-        Returns:
-            Identifier string or ``None`` when absent/inside a string.
-        """
+        """Return the identifier under *col* on *line* without full split."""
         row = PythonLanguageProvider._line_text_at(text, line)
         if row is None:
             return None
@@ -390,17 +335,11 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return None
 
     def get_hover_display(self, text: str, line: int, col: int) -> Optional[tuple]:
-        """Return ``(title_markdown, body_markdown)`` for the DocumentationFlyout.
-
-        The flyout renders both fragments through ``QTextDocument.setMarkdown()``
-        so the provider must emit clean Markdown rather than pre-rendered HTML.
-        """
+        """Return ``(title_markdown, body_markdown)`` for the DocumentationFlyout."""
         details = self.get_hover_details(text, line, col)
         if not details:
             return None
 
-        # Markdown heading — the flyout strips heading syntax for the header
-        # label but keeps the structure for rendering.
         if details.kind:
             title_markdown = f"## {details.name} ({details.kind.strip().capitalize()})"
         else:
@@ -416,11 +355,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         file_path: Optional[str] = None,
         project_root: Optional[str] = None,
     ) -> Optional[Tuple[str, int, int]]:
-        """Return ``(file_path, line, col)`` for the symbol under the cursor.
-
-        Returns:
-            Target location with 0-indexed line, or ``None`` when the
-            definition cannot be resolved."""
+        """Return ``(file_path, line, col)`` for the symbol under the cursor."""
         context = self._build_context(text, line, col, file_path, project_root)
 
         cached_result = self._cache.get(context, "definition")
@@ -439,9 +374,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
         self._cache.set(context, "definition", result)
         return result
 
-    # ------------------------------------------------------------------
-    # Completion Support
-    # ------------------------------------------------------------------
 
     def get_completions(
         self,
@@ -451,20 +383,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
         file_path: Optional[str] = None,
         project_root: Optional[str] = None,
     ) -> list:
-        """Return code-completion suggestions for the editor.
-
-        The signature matches the duck-typed contract expected by
-        ``CompletionController`` — the editor never imports plugin
-        types, and this method never imports UI types.
-
-        Args:
-            text: Full editor buffer content.
-            cursor_position: ``(line, col)`` tuple (0-indexed).
-            prefix: The identifier prefix the user has typed.
-
-        Returns:
-            A list of ``CompletionDetails`` domain objects.
-        """
+        """Return code-completion suggestions for the editor."""
         if not text:
             return []
 
@@ -478,20 +397,7 @@ class PythonLanguageProvider(BaseLanguageProvider):
             return []
 
     def format_source(self, source_code: str) -> str:
-        """Format *source_code* using black.
-
-        Uses the ``black`` PyPI module installed in the IDE venv.
-        Keeps the operation minimalistic — delegates to the existing
-        ``CodeEditor.format_current_file`` / right-click ``Format Code``
-        flow without adding any new files.
-
-        Args:
-            source_code: Raw Python source from the editor buffer.
-
-        Returns:
-            Formatted source, or the original text if ``black`` is
-            missing or the code has a syntax error.
-        """
+        """Format *source_code* using black."""
         if not source_code or not source_code.strip():
             return source_code
         try:
@@ -513,34 +419,18 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return get_semantic_highlights(text)
 
     def invalidate_cache(self) -> None:
-        """Drop the semantic-highlight cache so overlay colours follow
-        the currently active IDE theme on the next repaint.
-
-        The editor calls this on every ``retheme``; without it the
-        cached tokens keep the palette of the theme that was active the
-        first time a buffer was highlighted.
-        """
+        """Drop the semantic-highlight cache so overlay colours follow the currently active IDE theme on the next repaint."""
         from .semantic_highlights import invalidate_semantic_cache
 
         invalidate_semantic_cache()
 
-    # ------------------------------------------------------------------
-    # Capability flags
-    # ------------------------------------------------------------------
 
     def has_folding(self) -> bool:
         """Return ``True`` — the Python plugin provides fold regions."""
         return True
 
     def get_fold_regions(self, text: str) -> list:
-        """Return fold regions computed from Python source indentation.
-
-        Args:
-            text: The full editor buffer content.
-
-        Returns:
-            A list of ``FoldRegion`` objects.
-        """
+        """Return fold regions computed from Python source indentation."""
         from .folding import compute_fold_regions
 
         return compute_fold_regions(text)
@@ -550,38 +440,18 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return True
 
     def create_diagnostic_manager(self, editor, file_path, parent):
-        """Create a Jedi-backed DiagnosticManager for *editor*.
-
-        Args:
-            editor: The ``CodeEditor`` instance.
-            file_path: Path to the file on disk.
-            parent: Qt parent for the manager's thread.
-
-        Returns:
-            A ``DiagnosticManager`` instance.
-        """
+        """Create a Jedi-backed DiagnosticManager for *editor*."""
         from .jedi_worker import DiagnosticManager
 
         return DiagnosticManager(editor=editor, file_path=file_path, parent=parent)
 
-    # ------------------------------------------------------------------
-    # Outline support
-    # ------------------------------------------------------------------
 
     def has_outline(self) -> bool:
         """Return ``True`` — the Python plugin provides file outlines."""
         return True
 
     def get_outline(self, source_code: str):
-        """Return an outline tree for Python source code.
-
-        Args:
-            source_code: Full Python source from the editor buffer.
-
-        Returns:
-            An ``OutlineResult`` from the plugin's outline parser, or ``None``
-            if parsing fails.
-        """
+        """Return an outline tree for Python source code."""
         from .outline_parser import parse_python_outline
 
         result = parse_python_outline(source_code)
@@ -595,21 +465,10 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return self._completion_manager
 
     def create_completion_manager(self, editor, file_path, parent):
-        """Create a Jedi-backed CompletionManager for *editor*.
-
-        Args:
-            editor: The ``CodeEditor`` instance.
-            file_path: Path to the file on disk.
-            parent: Qt parent for the manager's thread.
-
-        Returns:
-            A ``CompletionManager`` instance.
-        """
+        """Create a Jedi-backed CompletionManager for *editor*."""
         from .jedi_worker import CompletionManager
 
         # NOTE: assign unconditionally — keeping the previous value for a
-        # path-less tab would resolve that buffer's jedi script against
-        # another tab's directory.
         self._file_path = file_path or None
         self._completion_manager = CompletionManager(
             editor=editor, file_path=file_path, parent=parent
@@ -617,30 +476,14 @@ class PythonLanguageProvider(BaseLanguageProvider):
         return self._completion_manager
 
     def post_fold_setup(self, editor, regions) -> None:
-        """Apply Python-specific fold display text labels.
-
-        Enables the Scintilla fold display-text feature and tags import
-        fold regions with ``( ... +N imports)`` labels.
-        """
+        """Apply Python-specific fold display text labels."""
         from .folding import _apply_import_fold_text
 
         _apply_import_fold_text(editor, regions)
 
 
-# ------------------------------------------------------------------
-# Factory function (called dynamically by the plugin registration system)
-# ------------------------------------------------------------------
-
-
 def create_provider() -> PythonLanguageProvider:
-    """Create and return a fully wired PythonLanguageProvider.
-
-    This factory is invoked by the dynamic plugin registration system
-    via ``importlib`` when loading the Python language plugin.
-
-    Returns:
-        A ``PythonLanguageProvider`` backed by Jedi.
-    """
+    """Create and return a fully wired PythonLanguageProvider."""
     from .jedi_adapter import JediAdapter
     from .cache import LanguageCache
 

@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Project-template manifest discovery for the solution start window.
 """
 
@@ -22,14 +21,7 @@ class ManifestScanError(Exception):
 
 
 def projects_dir() -> str:
-    """Return the manifests directory, raising when it is missing.
-
-    Returns:
-        Absolute path of the projects manifests directory.
-
-    Raises:
-        ManifestScanError: When the directory cannot be located.
-    """
+    """Return the manifests directory, raising when it is missing."""
     base = resource_path(_PROJECTS_DIR)
     if not os.path.isdir(base):
         raise ManifestScanError(f"Projects manifests directory not found: {base}")
@@ -37,17 +29,7 @@ def projects_dir() -> str:
 
 
 def load_manifest(path: str) -> dict:
-    """Load and validate the manifest YAML at *path*.
-
-    Args:
-        path: Absolute manifest file path.
-
-    Returns:
-        Parsed manifest dict.
-
-    Raises:
-        ValueError: When the content is not a dict or misses required keys.
-    """
+    """Load and validate the manifest YAML at *path*."""
     import yaml
 
     with open(path, "r", encoding="utf-8") as fh:
@@ -61,12 +43,7 @@ def load_manifest(path: str) -> dict:
 
 
 def scan_project_types() -> list[dict]:
-    """Scan manifests into sorted project-type entries, skipping invalid ones.
-
-    Returns:
-        Entries with ``manifest_path``, ``project_type``, ``display_name``,
-        ``description`` and ``manifest`` keys.
-    """
+    """Scan manifests into sorted project-type entries, skipping invalid ones."""
     base = projects_dir()
     entries: list[dict] = []
     for filename in sorted(os.listdir(base)):
@@ -92,14 +69,7 @@ def scan_project_types() -> list[dict]:
 
 
 def find_project_type(project_type: str) -> dict | None:
-    """Find the entry for *project_type*, rescanning manifests.
-
-    Args:
-        project_type: Project-type identifier to look up.
-
-    Returns:
-        Matching entry, or ``None`` when absent.
-    """
+    """Find the entry for *project_type*, rescanning manifests."""
     for entry in scan_project_types():
         if entry.get("project_type") == project_type:
             return entry

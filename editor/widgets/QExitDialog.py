@@ -455,17 +455,7 @@ class ErrorDialog(QDialog):
 
 
 class UnsavedChangesDialog(QDialog):
-    """Dialog that prompts the user when closing editors with unsaved changes.
-
-    Displays a list of dirty files and offers three options:
-    - Save All: saves every dirty file and proceeds with the close.
-    - Don't Save: discards changes and proceeds with the close.
-    - Cancel: aborts the close operation entirely.
-
-    Returns:
-        QDialog.DialogCode.Accepted with ``result`` set to one of
-        ``"save"``, ``"discard"``, or ``"cancel"``.
-    """
+    """Dialog that prompts the user when closing editors with unsaved changes."""
 
     RESULT_SAVE = "save"
     RESULT_DISCARD = "discard"

@@ -1,9 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Domain models and context definitions for the DreamStudio Python language
-support system. These models are completely decoupled from any providers
-such as Jedi, Qt, or the filesystem.
+Domain models and context definitions for the DreamStudio Python language support system.
 """
 
 import dataclasses
@@ -11,10 +8,7 @@ from typing import List, Optional
 
 @dataclasses.dataclass
 class PythonContext:
-    """
-    An immutable snapshot of the editor's state at the moment of a request.
-    This prevents race conditions and keeps language providers stateless.
-    """
+    """An immutable snapshot of the editor's state at the moment of a request."""
 
     source_code: str
     line: int
@@ -62,10 +56,7 @@ class DefinitionLocation:
 
 @dataclasses.dataclass(frozen=True)
 class ReferenceLocation:
-    """
-    Represents an occurrence of a symbol somewhere in the codebase.
-    Used by the reference finder tool to list occurrences.
-    """
+    """Represents an occurrence of a symbol somewhere in the codebase."""
 
     file_path: Optional[str]
     line: int  # 1-based index
@@ -76,12 +67,7 @@ class ReferenceLocation:
 
 @dataclasses.dataclass(frozen=True)
 class CompletionDetails:
-    """One autocompletion suggestion from the language plugin.
-
-    This is the plugin-side data model.  The editor's completion widget
-    consumes these through a duck-typed interface and converts them into
-    its own rendering objects — the plugin never imports UI types.
-    """
+    """One autocompletion suggestion from the language plugin."""
 
     text: str
     insert_text: str = ""

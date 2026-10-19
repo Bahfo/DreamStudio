@@ -1,14 +1,7 @@
 from editor import *
 
 class RightClickMenu(QMenu):
-    """
-    A custom menu dedicated for Ironica with right-aligned shortcuts and custom width.
-
-    Actions that require a condition (e.g. selection, undo history, clipboard
-    content) are automatically disabled/grayed-out when the condition is not met.
-    This is handled by ``_refresh_action_states`` which runs every time the menu
-    is about to show.
-    """
+    """A custom menu dedicated for Ironica with right-aligned shortcuts and custom width."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -47,7 +40,7 @@ class RightClickMenu(QMenu):
                 "shortcut": "Ctrl+Alt+B",
                 "key": "go_to_usage",
             },
-            None,  # Separator
+            None,
             {
                 "label": "Undo",
                 "action": self.undo_action,
@@ -84,7 +77,7 @@ class RightClickMenu(QMenu):
                 "shortcut": "Ctrl+V",
                 "key": "paste",
             },
-            None,  # Separator
+            None,
             {
                 "label": "Make File Read-Only",
                 "action": self.make_file_read_only,
@@ -109,7 +102,7 @@ class RightClickMenu(QMenu):
                 "shortcut": "Shift+F6",
                 "key": "rename_current_file",
             },
-            None,  # Separator
+            None,
             {
                 "label": "Expand All Folds",
                 "action": self.expand_all_folds,
@@ -134,7 +127,7 @@ class RightClickMenu(QMenu):
                 "shortcut": "Ctrl+Num-",
                 "key": "collapse_current_fold",
             },
-            None,  # Separator
+            None,
             {
                 "label": "Format Code",
                 "action": self.format_code,
@@ -153,7 +146,7 @@ class RightClickMenu(QMenu):
                 "shortcut": "Ctrl+/",
                 "key": "uncomment",
             },
-            None,  # Separator
+            None,
             {
                 "label": "Add File to Chat",
                 "action": self.add_file_to_chat,
@@ -182,9 +175,6 @@ class RightClickMenu(QMenu):
 
                 self._actions[item["key"]] = qaction
 
-    # ------------------------------------------------------------------
-    # Dynamic enable/disable — runs every time the menu opens
-    # ------------------------------------------------------------------
 
     def _refresh_action_states(self):
         """Enable or disable actions based on the current editor state."""
@@ -216,7 +206,6 @@ class RightClickMenu(QMenu):
         self._set_enabled("collapse_current_fold", has_folds)
         self._set_enabled("comment", has_selection and not is_readonly)
         self._set_enabled("uncomment", has_selection and not is_readonly)
-        # Block formatting when read-only.
         self._set_enabled("format_code", not is_readonly)
 
     def _set_enabled(self, key, enabled):
@@ -224,9 +213,6 @@ class RightClickMenu(QMenu):
         if action is not None:
             action.setEnabled(enabled)
 
-    # ------------------------------------------------------------------
-    # Navigation
-    # ------------------------------------------------------------------
 
     def go_to_definition(self):
         editor = self._editor()
@@ -236,9 +222,6 @@ class RightClickMenu(QMenu):
     def go_to_usage(self):
         pass
 
-    # ------------------------------------------------------------------
-    # Clipboard & Undo
-    # ------------------------------------------------------------------
 
     def undo_action(self):
         editor = self._editor()
@@ -278,9 +261,6 @@ class RightClickMenu(QMenu):
         if editor:
             editor.paste()
 
-    # ------------------------------------------------------------------
-    # File Operations
-    # ------------------------------------------------------------------
 
     def make_file_read_only(self):
         editor = self._editor()
@@ -315,9 +295,6 @@ class RightClickMenu(QMenu):
             except Exception:
                 pass
 
-    # ------------------------------------------------------------------
-    # Folding
-    # ------------------------------------------------------------------
 
     def expand_all_folds(self):
         editor = self._editor()
@@ -353,9 +330,6 @@ class RightClickMenu(QMenu):
         if region is not None:
             fm.collapse_region(region)
 
-    # ------------------------------------------------------------------
-    # Formatting
-    # ------------------------------------------------------------------
 
     def format_code(self):
         editor = self._editor()
@@ -397,9 +371,6 @@ class RightClickMenu(QMenu):
         editor.endUndoAction()
         editor.setCursorPosition(line, max(0, len(stripped) - 2))
 
-    # ------------------------------------------------------------------
-    # AI Integration (not yet implemented)
-    # ------------------------------------------------------------------
 
     def add_file_to_chat(self):
         pass

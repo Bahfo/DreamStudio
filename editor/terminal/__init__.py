@@ -1,8 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Shells and Emulators for DreamStudio - Contain all emulator classes and
-custom terminals used by the IDE.
+Shells and Emulators for DreamStudio - Contain all emulator classes and custom terminals used by the IDE.
 """
 
 from editor.terminal.Emulator.emulator import ShellEmulator

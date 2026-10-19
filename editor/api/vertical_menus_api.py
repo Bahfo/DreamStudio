@@ -1,26 +1,11 @@
-"""
-Vertical Menus API — panel activation manager for DreamStudio.
-
-Panels are created once and kept alive in the QStackedWidget; their tab-bar
-entries are shown/hidden on demand via QTabBar.setTabVisible().
-"""
+"""Vertical Menus API — panel activation manager for DreamStudio."""
 
 from __future__ import annotations
 
 from editor import *
 
 class VerticalMenusAPI(QObject):
-    """
-    Panel activation/deactivation controller.
-
-    Register each panel once with :meth:`register_panel`, then use
-    :meth:`activate_panel` / :meth:`deactivate_panel` to show/hide tabs.
-
-    Signals
-    -------
-    panel_visibility_changed(panel_id: str, visible: bool)
-        Emitted whenever a panel tab is shown or hidden.
-    """
+    """Panel activation/deactivation controller."""
 
     panel_visibility_changed = pyqtSignal(str, bool)
 
@@ -40,9 +25,6 @@ class VerticalMenusAPI(QObject):
         self._tab_managers: dict[str, QWidget] = {}
         self._splitters: dict[str, tuple] = {}
 
-    # ------------------------------------------------------------------
-    # Registration
-    # ------------------------------------------------------------------
 
     def register_panel(
         self,
@@ -55,36 +37,14 @@ class VerticalMenusAPI(QObject):
         splitter_index: int = 0,
         default_width: int = 250,
     ) -> None:
-        """
-        Register a panel for dynamic lifecycle management.
-
-        Parameters
-        ----------
-        panel_id:
-            Unique string key (e.g. ``"solution_explorer"``).
-        widget:
-            The panel content widget.
-        tab_manager:
-            The UtilityTabManager that will host the panel's tab.
-        side:
-            ``"left"`` or ``"right"`` — used for splitter targeting.
-        splitter:
-            The QSplitter the panel's tab manager lives in.
-        splitter_index:
-            The tab manager's index inside *splitter*.
-        default_width:
-            Width in pixels to restore when activating a collapsed container.
-        """
+        """Register a panel for dynamic lifecycle management."""
         self._widgets[panel_id] = widget
         self._tab_managers[panel_id] = tab_manager
         self._splitters[panel_id] = (splitter, splitter_index, default_width, side)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def activate_panel(self, panel_id: str) -> None:
-        """Show the panel: add its tab if needed, switch to it, ensure container visible."""
+        """Show the panel:"""
         tm = self._tab_managers.get(panel_id)
         if tm is None:
             return
@@ -116,7 +76,7 @@ class VerticalMenusAPI(QObject):
         self.panel_visibility_changed.emit(panel_id, True)
 
     def deactivate_panel(self, panel_id: str) -> None:
-        """Hide the panel tab.  If no tabs remain in the container, collapse it."""
+        """Hide the panel tab."""
         tm = self._tab_managers.get(panel_id)
         if tm is None or panel_id not in tm._panel_ids:
             return

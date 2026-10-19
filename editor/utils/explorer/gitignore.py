@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 GitIgnore parser and service for Solution Explorer highlighting.
-Reads .gitignore line by line, matches files/directories and
-exposes patterns via a singleton service that watches the file
-for modifications or first-time creation.
 """
 
 from __future__ import annotations
@@ -66,12 +62,7 @@ def is_ignored(relative_posix: str, is_dir: bool, patterns: list[str]) -> bool:
         matched = False
 
         def _translate_pat(pat: str) -> str:
-            # Translate gitignore pat with ** support to regex
-            # Handle /**/, **/, /**, ** specially for zero-or-more dirs
-            # Escape first, then replace placeholders
-            # Order matters: handle /**/ first
             esc = re.escape(pat)
-            # /**/ -> (?:/.*)?/  (zero or more dirs)
             esc = esc.replace(r"/\*\*/", r"/___DS___/")
             esc = esc.replace(r"\*\*/", r"___DS_SLASH___")
             esc = esc.replace(r"/\*\*", r"___SLASH_DS___")
@@ -85,7 +76,6 @@ def is_ignored(relative_posix: str, is_dir: bool, patterns: list[str]) -> bool:
             return esc
 
         def _match(name: str, pattern: str) -> bool:
-            # Handle ** via regex, otherwise fnmatch with ** support
             if "**" in pattern:
                 try:
                     rx = _translate_pat(pattern)

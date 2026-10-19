@@ -1,14 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Precompiled-header support for the C++ plugin.
-
-Cold translation-unit parses re-parse every included header (seconds on
-SDL-scale dependencies). This module harvests workspace ``#include``s,
-builds one shared ``.ds/cpp/stable.pch`` with libclang itself in the
-background, and validates it per request via a key file. A mismatched or
-failed PCH is simply not used — completion falls back to parsing without
-it, so the PCH is strictly additive and never load-bearing.
 """
 
 from __future__ import annotations
@@ -49,16 +41,7 @@ def _cpp_dir(root: str) -> str:
 
 
 def harvest_includes(files: list) -> list:
-    """Collect raw ``(open_char, path)`` includes from *files*.
-
-    Only file heads are read — includes live at the top. Never raises.
-
-    Args:
-        files: Absolute source paths to scan.
-
-    Returns:
-        Sorted unique ``(open_char, path)`` tuples (capped).
-    """
+    """Collect raw ``(open_char, path)`` includes from *files*."""
     found: set = set()
     for path in files:
         try:
@@ -73,22 +56,11 @@ def harvest_includes(files: list) -> list:
         if len(found) >= _MAX_INCLUDES:
             break
     # NOTE: plain lists (not tuples) so the key round-trips through JSON
-    # unchanged — otherwise every validation compares unequal and rebuilds.
     return [[open_char, path] for open_char, path in sorted(found)]
 
 
 def _base_flags(root: str) -> list:
-    """Return the normalized base flags the PCH is built and keyed with.
-
-    Uses the generated ``compile_flags.txt`` when present so the PCH and
-    its consumers derive flags from the same source by construction.
-
-    Args:
-        root: Solution root.
-
-    Returns:
-        Ordered flag list (defaults + resource dir + generated flags).
-    """
+    """Return the normalized base flags the PCH is built and keyed with."""
     from editor.utils.solution.paths import compile_flags_path
 
     try:
@@ -111,16 +83,7 @@ def _base_flags(root: str) -> list:
 
 
 def _key_for(root: str, includes: list, base: list) -> dict:
-    """Build the validity key dict for *root*.
-
-    Args:
-        root: Solution root.
-        includes: Harvested ``(open_char, path)`` includes.
-        base: Normalized base flags.
-
-    Returns:
-        Key dict with flags hash, includes and newest header mtime.
-    """
+    """Build the validity key dict for *root*."""
     digest = hashlib.sha1()
     digest.update(json.dumps(base, sort_keys=True).encode("utf-8"))
     digest.update(json.dumps(includes, sort_keys=True).encode("utf-8"))
@@ -168,15 +131,7 @@ def _pch_path(root: str) -> str:
 
 
 def is_valid(root: str, files: list | None = None) -> bool:
-    """Check whether *root*'s PCH matches current flags and headers.
-
-    Args:
-        root: Solution root owning the PCH.
-        files: Workspace files to harvest (re-harvested when omitted).
-
-    Returns:
-        ``True`` when the PCH file exists and its key matches.
-    """
+    """Check whether *root*'s PCH matches current flags and headers."""
     try:
         stored = _read_key(root)
         if stored is None or not stored.get("built_at"):
@@ -200,17 +155,7 @@ def is_valid(root: str, files: list | None = None) -> bool:
 
 
 def include_args(root: str | None) -> list:
-    """Return ``-include-pch`` args for *root* when its PCH is usable.
-
-    Deliberately cheap (key-file read only, no header walk): per-keystroke
-    freshness is enforced by rebuilds, not by revalidation here.
-
-    Args:
-        root: Solution root (``None`` disables).
-
-    Returns:
-        ``['-include-pch', path]`` or ``[]`` — never raises.
-    """
+    """Return ``-include-pch`` args for *root* when its PCH is usable."""
     try:
         if not root:
             return []
@@ -227,18 +172,7 @@ def include_args(root: str | None) -> list:
 
 
 def ensure_for_root(root: str, files: list) -> bool:
-    """Build (or skip) the PCH for *root* from *files*. Background use.
-
-    Rebuilds when the key mismatches, honouring a minimum rebuild
-    interval so header churn cannot busy-loop the indexer. Never raises.
-
-    Args:
-        root: Solution root receiving ``.ds/cpp/stable.pch``.
-        files: Workspace source files to harvest includes from.
-
-    Returns:
-        ``True`` when a usable PCH exists afterwards.
-    """
+    """Build (or skip) the PCH for *root* from *files*."""
     try:
         if not root or not os.path.isdir(root):
             return False
@@ -262,8 +196,6 @@ def ensure_for_root(root: str, files: list) -> bool:
                 time.time() - float(stored.get("built_at", 0.0))
                 < _MIN_REBUILD_SECONDS
             ):
-                # Only header mtimes drifted and the last build is recent:
-                # serve the existing PCH, rebuild on a later pass.
                 return True
         return _build(root, includes, base, current)
     except Exception as exc:
@@ -272,17 +204,7 @@ def ensure_for_root(root: str, files: list) -> bool:
 
 
 def _build(root: str, includes: list, base: list, key: dict) -> bool:
-    """Parse the stub header and save the PCH for *root*.
-
-    Args:
-        root: Solution root receiving the artefacts.
-        includes: Harvested ``(open_char, path)`` includes.
-        base: Normalized base flags.
-        key: Validity key dict to persist alongside.
-
-    Returns:
-        ``True`` when a usable PCH exists afterwards.
-    """
+    """Parse the stub header and save the PCH for *root*."""
     try:
         import clang.cindex as cindex
         from clang.cindex import Index, TranslationUnit

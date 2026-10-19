@@ -18,14 +18,7 @@ logger = logging.getLogger(__name__)
 
 class ScaffoldController:
     def __init__(self, window, scaffold: dict) -> None:
-        """Build the controller.
-
-        Args:
-            window: The revealed DreamStudio main window.
-            scaffold: Pending-scaffold dict emitted by the solution prompt
-                with ``target``, ``name``, ``project_type`` and
-                ``manifest_path`` keys.
-        """
+        """Build the controller."""
         self._window = window
         self._scaffold = scaffold
         self.finished_ok = False
@@ -74,11 +67,7 @@ class ScaffoldController:
         self._refresh_ide()
 
     def _report_failure(self, dialog: "QScaffoldProgressDialog") -> None:
-        """Show a persistent error so a rolled-back project is never silent.
-
-        Args:
-            dialog: Finished progress dialog carrying the failure details.
-        """
+        """Show a persistent error so a rolled-back project is never silent."""
         step = dialog.failed_step or "unknown step"
         detail = dialog.error_text.strip().splitlines()
         tail = "\n".join(detail[-8:]) if detail else "See the application log."
@@ -92,14 +81,7 @@ class ScaffoldController:
         ).exec()
 
     def _collect_packages(self, manifest: dict) -> list[str]:
-        """Extract dependency names from the manifest's requirements template.
-
-        Args:
-            manifest: The raw YAML manifest dict.
-
-        Returns:
-            List of package requirement lines (e.g. ``PyQt6>=6.6.0``).
-        """
+        """Extract dependency names from the manifest's requirements template."""
         packages: list[str] = []
         templates = (manifest.get("initialization") or {}).get("templates") or []
         for template in templates:
@@ -125,14 +107,7 @@ class ScaffoldController:
         return lines
 
     def _confirm(self, packages: list[str]) -> bool:
-        """Ask the user to agree before heavy work (venv + pip install) begins.
-
-        Args:
-            packages: Package requirement lines to display.
-
-        Returns:
-            True when the user agrees, False to abort creation.
-        """
+        """Ask the user to agree before heavy work (venv + pip install) begins."""
         name = self._scaffold.get("name", "Project")
         body = f"DreamStudio is about to scaffold '{name}'.\n"
         if packages:
@@ -167,9 +142,6 @@ class ScaffoldController:
             if hasattr(explorer, "set_root_path"):
                 explorer.set_root_path(target)
             # NOTE: The explorer was already pointed at this (initially
-            # empty) target before scaffolding ran, so re-pointing at the
-            # same path alone may not rescan. Refresh explicitly so the
-            # newly created template files become visible.
             if hasattr(explorer, "refresh"):
                 explorer.refresh()
             if hasattr(hero._source_control, "set_workspace"):
@@ -201,15 +173,7 @@ class ScaffoldController:
 
 
 class QScaffoldProgressDialog(QDialog):
-    """Blocking progress dialog bound to a running ``ProjectBootstrap``.
-
-    Attributes:
-        success: Whether scaffolding finished successfully.
-        cancelled: Whether the user cancelled the run.
-        failed: Whether any step failed.
-        failed_step: Name of the failed step, if any.
-        error_text: Tail of the failure output, if any.
-    """
+    """Blocking progress dialog bound to a running ``ProjectBootstrap``."""
 
     def __init__(
         self,
@@ -270,11 +234,7 @@ class QScaffoldProgressDialog(QDialog):
         center_on_screen_show(self, event)
 
     def bind(self, bootstrap) -> None:
-        """Connect a ProjectBootstrap instance's signals to the dialog.
-
-        Args:
-            bootstrap: The scaffold-running ProjectBootstrap instance.
-        """
+        """Connect a ProjectBootstrap instance's signals to the dialog."""
         bootstrap.step_changed.connect(self._on_step_changed)
         bootstrap.step_progress.connect(self._on_step_progress)
         bootstrap.step_failed.connect(self._on_step_failed)
@@ -293,7 +253,6 @@ class QScaffoldProgressDialog(QDialog):
         self.failed = True
         self.failed_step = str(_step)
         # NOTE: Keep only a tail of the traceback for the error dialog;
-        # the full trace stays in the application log.
         self.error_text = str(_error)[-2000:]
         self._step_label.setText("Scaffolding failed — rolling back changes...")
 

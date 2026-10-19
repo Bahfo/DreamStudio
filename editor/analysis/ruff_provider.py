@@ -1,18 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Ruff diagnostics provider for the DreamStudio Problems scanner.
-
-Ruff is integrated as a plain :class:`~editor.analysis.types.ProblemProvider`:
-the module owns executable discovery, subprocess execution, JSON
-normalization and severity mapping, and returns isolated ``Problem`` items.
-Nothing here is imported by the UI, so a missing, slow or broken Ruff can
-never take the Problems panel down.
-
-Every Ruff invocation is read-only (``--no-cache``, never ``--fix``) and runs
-with the active workspace as its explicit working directory, which also makes
-Ruff pick up the workspace's own ``pyproject.toml`` / ``ruff.toml`` /
-``.ruff.toml`` configuration instead of an IDE-specific configuration.
 """
 
 from editor import *
@@ -31,46 +19,35 @@ from editor.analysis.types import (
 
 logger = logging.getLogger(__name__)
 
-#: Environment variable holding an explicit Ruff executable path.
 RUFF_PATH_ENV = "DREAMSTUDIO_RUFF"
 
-#: Source tag attached to every diagnostic produced by this provider.
 RUFF_SOURCE = "ruff"
 
-#: Wall-clock budget for a full-workspace Ruff scan.
 WORKSPACE_TIMEOUT_SECONDS = 120
 
-#: Wall-clock budget for a single-buffer (stdin) Ruff run.
 STDIN_TIMEOUT_SECONDS = 15
 
-#: Ruff exit codes that still carry a valid JSON payload.
 _SUCCESS_CODES = (0, 1)
 
-#: Rule-code prefixes mapped to ERROR (blocking) problems.
 _ERROR_PREFIXES = ("E9", "F")
 
-#: Rule-code prefixes mapped to WARNING problems.
 _WARNING_PREFIXES = ("E", "W")
 
-#: Rule codes mapped to CHECK problems. These are correctness checks the IDE
-#: runs on every file: they are neither fatal problems nor plain warnings, so
-#: the UI counts them separately (bare ``except``, blind handlers, …).
 _CHECK_CODES = frozenset(
     {
-        "E722",  # do not use bare except
-        "E731",  # do not assign a lambda
-        "E741",  # ambiguous variable name
-        "BLE001",  # blind except
-        "S110",  # try-except-pass
-        "S112",  # try-except-continue
-        "TRY002",  # raise vanilla Exception
-        "TRY300",  # consider moving return to else block
-        "TRY301",  # abstract raise to an inner function
-        "TRY400",  # use logging.exception instead of logging.error
+        "E722",
+        "E731",
+        "E741",
+        "BLE001",
+        "S110",
+        "S112",
+        "TRY002",
+        "TRY300",
+        "TRY301",
+        "TRY400",
     }
 )
 
-#: Message fragments used when a provider reports a check without a code.
 _CHECK_MESSAGE_MARKERS = (
     "bare `except`",
     "bare except",
@@ -78,10 +55,8 @@ _CHECK_MESSAGE_MARKERS = (
     "blind `except`",
 )
 
-#: Rule codes that describe a physical line-length violation.
 _LINE_LENGTH_CODES = ("E501",)
 
-#: Rule codes that describe a parse failure.
 _SYNTAX_CODES = ("E999", "INVALID-SYNTAX")
 
 _SYNTAX_MESSAGE_MARKERS = ("syntaxerror", "invalid syntax", "expected ", "unterminated")
@@ -93,23 +68,7 @@ _RUFF_BAD_OUTPUT = "ruff returned invalid JSON output"
 
 
 def ruff_command(executable: Optional[list] = None) -> Optional[list]:
-    """Return the Ruff argv prefix to use, or ``None`` when unavailable.
-
-    Resolution order:
-
-    1. An explicit *executable* prefix (used by tests and callers that
-       already resolved one).
-    2. ``DREAMSTUDIO_RUFF`` environment override.
-    3. ``ruff`` on ``PATH``.
-    4. ``python -m ruff`` when the module is importable.
-
-    Args:
-        executable: Explicit argv prefix such as ``["ruff"]`` or
-            ``[sys.executable, "-m", "ruff"]``.
-
-    Returns:
-        Argv prefix, or ``None`` when Ruff cannot be located.
-    """
+    """Return the Ruff argv prefix to use, or ``None`` when unavailable."""
     if executable:
         return list(executable)
 
@@ -134,15 +93,7 @@ def ruff_command(executable: Optional[list] = None) -> Optional[list]:
 
 
 def find_ruff(root: Optional[str] = None) -> Optional[list]:
-    """Discover the Ruff argv prefix for *root*.
-
-    Args:
-        root: Workspace directory searched for a local virtualenv before
-            falling back to ``PATH`` and the Python module.
-
-    Returns:
-        Argv prefix, or ``None`` when Ruff is not installed.
-    """
+    """Discover the Ruff argv prefix for *root*."""
     if root:
         for relative in (
             os.path.join(".venv", "bin", "ruff"),
@@ -157,15 +108,7 @@ def find_ruff(root: Optional[str] = None) -> Optional[list]:
 
 
 def is_syntax_problem(problem: Problem) -> bool:
-    """Return ``True`` when *problem* reports a parse failure.
-
-    Args:
-        problem: Diagnostic to classify.
-
-    Returns:
-        ``True`` for Ruff ``E999``/uncoded syntax errors and for the
-        built-in provider's syntax errors.
-    """
+    """Return ``True`` when *problem* reports a parse failure."""
     if problem.source != RUFF_SOURCE:
         code = (problem.code or "").upper()
         if code in _SYNTAX_CODES:
@@ -181,15 +124,7 @@ def is_syntax_problem(problem: Problem) -> bool:
 
 
 def is_line_length_problem(problem: Problem) -> bool:
-    """Return ``True`` when *problem* is a line-length diagnostic.
-
-    Args:
-        problem: Diagnostic to classify.
-
-    Returns:
-        ``True`` for Ruff ``E501`` and for the built-in "Line too long"
-        style hints.
-    """
+    """Return ``True`` when *problem* is a line-length diagnostic."""
     code = (problem.code or "").upper()
     if code:
         return code in _LINE_LENGTH_CODES
@@ -197,19 +132,7 @@ def is_line_length_problem(problem: Problem) -> bool:
 
 
 def map_severity(code: Optional[str], message: str) -> ProblemSeverity:
-    """Map a Ruff rule code to the IDE severity system.
-
-    Args:
-        code: Ruff rule code such as ``"F401"``; may be ``None`` for parse
-            errors, which Ruff reports without a code.
-        message: Diagnostic message, used when no code is available.
-
-    Returns:
-        ``ERROR`` for parse errors and pyflakes errors, ``WARNING`` for
-        pycodestyle ``E``/``W`` rules, ``CHECK`` for robustness checks such as
-        a bare ``except``, and ``TYPO`` for every remaining style/quality
-        rule.
-    """
+    """Map a Ruff rule code to the IDE severity system."""
     normalized = (code or "").strip().upper()
     lowered = (message or "").lower()
     says_check = any(marker in lowered for marker in _CHECK_MESSAGE_MARKERS)
@@ -218,8 +141,6 @@ def map_severity(code: Optional[str], message: str) -> ProblemSeverity:
     if normalized in _CHECK_CODES:
         return ProblemSeverity.CHECK
     if not normalized:
-        # Without a code the message is the only signal: a check phrasing
-        # still yields CHECK, anything else stays a parse-level ERROR.
         return ProblemSeverity.CHECK if says_check else ProblemSeverity.ERROR
     if any(normalized.startswith(prefix) for prefix in _ERROR_PREFIXES):
         return ProblemSeverity.ERROR
@@ -235,14 +156,7 @@ def map_severity(code: Optional[str], message: str) -> ProblemSeverity:
 
 
 class RuffProvider(ProblemProvider):
-    """Read-only ``ruff check`` provider emitting isolated problems.
-
-    Attributes:
-        root: Workspace directory used as the subprocess working directory.
-        executable: Resolved argv prefix (``None`` auto-discovers).
-        last_error: Failure message of the most recent run, or ``None``.
-        last_note: Capability note (for example "not installed"), or ``None``.
-    """
+    """Read-only ``ruff check`` provider emitting isolated problems."""
 
     def __init__(self, root: str, executable: Optional[list] = None) -> None:
         self.root = os.path.abspath(root or "") or os.getcwd()
@@ -250,27 +164,13 @@ class RuffProvider(ProblemProvider):
         self.last_error: Optional[str] = None
         self.last_note: Optional[str] = None
 
-    # ------------------------------------------------------------------
-    # Public provider API
-    # ------------------------------------------------------------------
 
     def collect(self) -> List[Problem]:
-        """Scan the whole workspace with Ruff.
-
-        Returns:
-            List of :class:`Problem` items. Failures are reported through
-            :attr:`last_error` and return an empty list — never a silent
-            "everything is clean" result.
-        """
+        """Scan the whole workspace with Ruff."""
         return self.scan_workspace().problems
 
     def scan_workspace(self) -> ProviderResult:
-        """Run Ruff over the workspace and normalize its JSON output.
-
-        Returns:
-            A :class:`ProviderResult` whose ``error`` is set when Ruff is
-            missing, fails, times out or emits unusable output.
-        """
+        """Run Ruff over the workspace and normalize its JSON output."""
         command = self.executable or find_ruff(self.root)
         if not command:
             self.last_error = None
@@ -289,16 +189,7 @@ class RuffProvider(ProblemProvider):
         return self._run(argv, stdin_text=None)
 
     def analyze_source(self, path: str, content: str) -> ProviderResult:
-        """Analyze an unsaved buffer through Ruff's stdin mode.
-
-        Args:
-            path: Path reported to Ruff via ``--stdin-filename`` so that
-                per-file ignores and rule config still apply.
-            content: In-memory editor text (may differ from disk).
-
-        Returns:
-            A :class:`ProviderResult` with the buffer's Ruff diagnostics.
-        """
+        """Analyze an unsaved buffer through Ruff's stdin mode."""
         command = self.executable or find_ruff(self.root)
         if not command:
             self.last_error = None
@@ -317,28 +208,16 @@ class RuffProvider(ProblemProvider):
         ]
         return self._run(argv, stdin_text=content)
 
-    # ------------------------------------------------------------------
-    # Internals
-    # ------------------------------------------------------------------
 
     def _run(self, argv: List[str], stdin_text: Optional[str]) -> ProviderResult:
-        """Execute Ruff read-only and normalize the result.
-
-        Args:
-            argv: Full argv for the Ruff invocation.
-            stdin_text: Buffer text for stdin mode, ``None`` for a
-                workspace scan.
-
-        Returns:
-            Normalized :class:`ProviderResult`.
-        """
+        """Execute Ruff read-only and normalize the result."""
         timeout = (
             STDIN_TIMEOUT_SECONDS
             if stdin_text is not None
             else WORKSPACE_TIMEOUT_SECONDS
         )
         try:
-            completed = subprocess.run(  # noqa: S603 - fixed, read-only argv
+            completed = subprocess.run(
                 argv,
                 cwd=self.root,
                 input=stdin_text,
@@ -380,16 +259,7 @@ class RuffProvider(ProblemProvider):
         return ProviderResult(problems)
 
     def normalize(self, payload: List[dict]) -> List[Problem]:
-        """Convert Ruff JSON diagnostics into :class:`Problem` items.
-
-        Args:
-            payload: Decoded ``ruff check --output-format json`` list.
-
-        Returns:
-            Normalized problems with absolute ``file_path``, preserved rule
-            ``code``, 1-based start/end coordinates taken from the analyzer's
-            own range and severity mapped by rule prefix.
-        """
+        """Convert Ruff JSON diagnostics into :class:`Problem` items."""
         problems: List[Problem] = []
         for item in payload:
             if not isinstance(item, dict):

@@ -1,10 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-File Outline panel for DreamStudio.  Displays a tree of symbols parsed
-from the currently active editor's source code.  The panel is agnostic
-about the data source — it receives ``OutlineResult`` objects from the
-backend and renders them.
+File Outline panel for DreamStudio.
 """
 
 from editor import *
@@ -31,12 +27,7 @@ class _OutlineTreeWidget(QTreeWidget):
 
 
 class TreeOutline(PanelShell):
-    """Sidebar panel that renders the file outline tree.
-
-    The outline is populated by calling :meth:`update_outline` with an
-    ``OutlineResult`` produced by the backend.  Clicking a symbol scrolls
-    the editor to the corresponding line.
-    """
+    """Sidebar panel that renders the file outline tree."""
 
     TITLE_TEXT = "File Outline"
 
@@ -85,20 +76,9 @@ class TreeOutline(PanelShell):
 
         self._current_result: Optional[OutlineResult] = None
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def update_outline(self, result: Optional[OutlineResult]) -> None:
-        """Populate the tree from an ``OutlineResult``.
-
-        The per-item expand animation is suppressed for the duration of
-        the rebuild: animating hundreds of freshly created items at once
-        stalls the UI thread.  The final tree state is unchanged.
-
-        Args:
-            result: Parsed outline data, or ``None`` to clear the tree.
-        """
+        """Populate the tree from an ``OutlineResult``."""
         self._current_result = result
 
         tree = self.outline_tree
@@ -130,9 +110,6 @@ class TreeOutline(PanelShell):
         self._current_result = None
         self.outline_tree.clear()
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     def _add_node(self, parent_item: QTreeWidgetItem, node: OutlineNode) -> None:
         """Recursively add an ``OutlineNode`` to the tree."""

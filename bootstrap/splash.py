@@ -1,9 +1,4 @@
-"""
-SplashController: displays startup progress.
-
-The splash screen contains zero business logic. It only receives
-progress updates and renders status text.
-"""
+"""SplashController:"""
 
 import logging
 import time
@@ -126,19 +121,7 @@ def _render_pixmap(status_text: str, progress: float) -> QPixmap:
 
 
 def _with_opacity(source: QPixmap, opacity: float) -> QPixmap:
-    """Return *source* with its overall alpha scaled by *opacity*.
-
-    Paints through an explicit ARGB image so the result carries a real
-    alpha channel on every platform (a plain ``QPixmap`` may be
-    allocated without one, which would fade from black instead).
-
-    Args:
-        source: Fully rendered splash pixmap.
-        opacity: 0.0 (fully transparent) to 1.0 (unchanged).
-
-    Returns:
-        New pixmap with the same size and device pixel ratio.
-    """
+    """Return *source* with its overall alpha scaled by *opacity*."""
     clamped = max(0.0, min(1.0, opacity))
     image = source.toImage().convertToFormat(
         QImage.Format.Format_ARGB32_Premultiplied
@@ -155,29 +138,15 @@ def _with_opacity(source: QPixmap, opacity: float) -> QPixmap:
 
 
 class _ClickThroughSplash(QSplashScreen):
-    """Splash screen that ignores mouse clicks.
-
-    ``QSplashScreen`` hides itself when clicked, which would leave the
-    boot running in the background with no visible feedback. Swallowing
-    the press/double-click events keeps the splash up until the
-    controller closes it programmatically.
-    """
+    """Splash screen that ignores mouse clicks."""
 
     def mousePressEvent(self, event) -> None:
-        """Ignore mouse presses so a click cannot dismiss the splash.
-
-        Args:
-            event: The incoming mouse-press event.
-        """
+        """Ignore mouse presses so a click cannot dismiss the splash."""
         if event is not None:
             event.ignore()
 
     def mouseDoubleClickEvent(self, event) -> None:
-        """Ignore double-clicks for the same reason as single clicks.
-
-        Args:
-            event: The incoming mouse double-click event.
-        """
+        """Ignore double-clicks for the same reason as single clicks."""
         if event is not None:
             event.ignore()
 
@@ -213,18 +182,7 @@ class SplashController:
         logger.info("Splash screen shown")
 
     def _start_fade_in(self, base: QPixmap) -> None:
-        """Fade the splash pixmap from transparent to *base*.
-
-        The fade is painted into the pixmap itself (rather than using
-        window opacity), so it renders identically with or without a
-        compositing window manager. It runs to completion inside
-        ``show()`` via a short nested event loop, since boot phases
-        after ``show()`` perform long blocking work that would
-        otherwise freeze the fade mid-flight.
-
-        Args:
-            base: Fully opaque target pixmap to fade towards.
-        """
+        """Fade the splash pixmap from transparent to *base*."""
         from PyQt6.QtCore import QElapsedTimer, QEventLoop, QTimer
 
         if self._splash is None:
@@ -290,11 +248,7 @@ class SplashController:
             )
 
     def close(self) -> None:
-        """Close and delete the splash screen.
-
-        Keeps the splash visible for at least ``_MIN_VISIBLE_SECONDS``
-        so it stays on screen a bit longer on fast startups.
-        """
+        """Close and delete the splash screen."""
         if self._splash and not self._closed:
             remaining = _MIN_VISIBLE_SECONDS - (time.monotonic() - self._shown_at)
             app = QApplication.instance()

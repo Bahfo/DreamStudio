@@ -2,11 +2,7 @@ from editor import *
 
 
 class PanelShell(QWidget):
-    """
-    Generic shell for sidebar-style panels.
-
-    Subclasses override ``_build_body`` and optionally ``_header_right_widgets``.
-    """
+    """Generic shell for sidebar-style panels."""
 
     close_requested = pyqtSignal()
 

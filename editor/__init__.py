@@ -1,17 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Unified import hub for DreamStudio.
-
-Every project module starts with a single ``from editor import *`` and
-receives the standard library and PyQt6 names below. This file must
-ONLY contain external (standard library / PyQt6) imports - never local
-project imports - so importing any ``editor.*`` submodule stays free of
-circular imports and of GUI-side effects.
-
-Deliberately excluded here (kept as local imports where used):
-heavy or platform-specific stacks such as ``PyQt6.QtWebEngineWidgets``,
-``tkinter``, ``pty`` and ``datetime``.
 """
 
 import ast

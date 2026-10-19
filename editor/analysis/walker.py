@@ -1,13 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Errors analysis module walker for Python files written using `ast` and `os`.
-This error walker scans whole directories and files for problems. It returns
-a detailed dictionary of file path of error, line number, and a description
-of the error provided by `ast` syntax errors.
-
-The walker is a ``ProblemProvider`` plugin: it emits the isolated
-``Problem`` model so the UI widget never needs to import this module.
 """
 
 from editor import *
@@ -22,45 +15,21 @@ from editor.utils.solution.paths import DEFAULT_EXCLUDES
 
 logger = logging.getLogger(__name__)
 
-#: Comment markers that become WARNING diagnostics (yellow squiggle).
 _STYLE_MARKER_RE = re.compile(r"\b(TODO|FIXME|XXX|HACK|BUG)\b", re.IGNORECASE)
 
-#: Lines longer than this become TYPO/style diagnostics (blue squiggle).
 _MAX_LINE_LENGTH = 120
 
-#: Cap for extra (non-error) diagnostics per file so noisy files cannot
-#: flood the Problems tab; syntax errors are never capped.
 _MAX_EXTRA_PER_FILE = 30
 
-#: Files at or above this size are treated as "major" and indexed first.
 _MAJOR_FILE_BYTES = 20 * 1024
 
-#: A file touched within this window is also treated as "major".
 _MAJOR_RECENCY_SECONDS = 3600
 
-#: Hard ceiling per file so one huge module cannot stall a worker thread.
 _MAX_FILE_BYTES = 5 * 1024 * 1024
 
 
 def analyze_source(file_path: str, content: str) -> List[Problem]:
-    """Analyze already-loaded *content* for *file_path*.
-
-    Shared by the workspace walker and by the live-buffer worker so the
-    typing path never touches the disk and both paths emit identical
-    diagnostics.
-
-    Args:
-        file_path: Path reported on every emitted diagnostic.
-        content: Full source text of the file.
-
-    A syntax error never short-circuits the pipeline: the parse diagnostic is
-    reported *and* every recoverable style hint is still emitted, so a file
-    that is temporarily invalid while typing keeps showing its other problems.
-
-    Returns:
-        List of :class:`Problem` items: an optional syntax ERROR followed by
-        the recoverable style hints (overlong lines, marker comments).
-    """
+    """Analyze already-loaded *content* for *file_path*."""
     if len(content.encode("utf-8", "ignore")) > _MAX_FILE_BYTES:
         return []
     problems: List[Problem] = []
@@ -93,16 +62,7 @@ def analyze_source(file_path: str, content: str) -> List[Problem]:
 
 
 class _StyleHints:
-    """Emit cheap WARNING/TYPO diagnostics from an already-read buffer.
-
-    No extra I/O: reuses the source text to flag overlong lines (TYPO) and
-    ``TODO``-style comment markers (WARNING). Diagnostics are capped per
-    file so a noisy module cannot flood the Problems tab.
-
-    Attributes:
-        file_path: Path reported on every diagnostic.
-        content: Source text to inspect.
-    """
+    """Emit cheap WARNING/TYPO diagnostics from an already-read buffer."""
 
     def __init__(self, file_path: str, content: str) -> None:
         self.file_path = file_path
@@ -110,11 +70,7 @@ class _StyleHints:
         self._problems: List[Problem] = []
 
     def problems(self) -> List[Problem]:
-        """Return collected style diagnostics.
-
-        Returns:
-            List of TYPO/WARNING :class:`Problem` items, capped per file.
-        """
+        """Return collected style diagnostics."""
         extra = 0
         try:
             for lineno, line in enumerate(self.content.splitlines(), 1):
@@ -167,23 +123,7 @@ class _StyleHints:
 def index_python_files(
     root: str, known: Optional[dict] = None, seen: Optional[set] = None
 ) -> tuple[List[tuple], int]:
-    """List analyzable Python files under *root*, "major" files first.
-
-    Only ``stat`` calls happen here — no file is opened — so indexing is
-    cheap enough to repeat continuously for change detection.
-
-    Args:
-        root: Directory to walk.
-        known: Optional ``{path: (mtime, size)}`` map of already indexed
-            files. When given, only new or modified files are returned.
-        seen: Optional set filled with every successfully statted file
-            path, so callers can detect deletions without a second walk.
-
-    Returns:
-        Tuple of ``(entries, skipped)`` where each entry is
-        ``(path, mtime, size)`` sorted so large/recently edited files come
-        first, and ``skipped`` counts unreadable or oversized files.
-    """
+    """List analyzable Python files under *root*, "major" files first."""
     entries: List[tuple] = []
     skipped = 0
     now = time.time()
@@ -223,17 +163,7 @@ def index_python_files(
 
 
 class ProblemsAnalyzer(ProblemProvider):
-    """Walk a codebase and emit :class:`Problem` diagnostics.
-
-    This is the built-in Python syntax provider. Additional providers
-    (linters, spell checkers, language servers) implement the same
-    ``ProblemProvider`` contract and feed the same widget with no UI
-    changes.
-
-    Attributes:
-        codebase_path: Root directory to scan.
-        required_extensions: File suffixes considered for analysis.
-    """
+    """Walk a codebase and emit :class:`Problem` diagnostics."""
 
     def __init__(self, codebase_path: str):
         self.codebase_path = codebase_path
@@ -243,12 +173,7 @@ class ProblemsAnalyzer(ProblemProvider):
         self.skipped_files: int = 0
 
     def collect(self) -> List[Problem]:
-        """Walk the codebase and return isolated :class:`Problem` items.
-
-        Returns:
-            List of diagnostics grouped later by the UI. The method is
-            idempotent — repeated calls re-scan from scratch.
-        """
+        """Walk the codebase and return isolated :class:`Problem` items."""
         self._problems = []
         self.skipped_files = 0
         self.dictionary_of_errors = {"errors": [], "warnings": []}
@@ -270,20 +195,11 @@ class ProblemsAnalyzer(ProblemProvider):
         return list(self._problems)
 
     def return_analysis_result(self) -> None:
-        """Legacy entry point — populates ``dictionary_of_errors``.
-
-        Prefer :meth:`collect` for new code. Kept for backward
-        compatibility with older callers.
-        """
+        """Legacy entry point — populates ``dictionary_of_errors``."""
         self.collect()
 
     def return_errors(self) -> dict:
-        """Legacy entry point returning the old dict shape.
-
-        Returns:
-            Dict with ``{"errors": [...], "warnings": [...]}`` derived from
-            the last :meth:`collect` for backward compatibility.
-        """
+        """Legacy entry point returning the old dict shape."""
         if not self._problems:
             self.collect()
         errors = []
@@ -304,15 +220,7 @@ class ProblemsAnalyzer(ProblemProvider):
         return self.dictionary_of_errors
 
     def to_problems(self, result: Optional[dict] = None) -> List[Problem]:
-        """Convert a legacy result dict to :class:`Problem` objects.
-
-        Args:
-            result: Legacy dict from :meth:`return_errors`. When ``None``
-                the last :meth:`collect` result is used.
-
-        Returns:
-            Isolated problem list ready for ``ProblemsWidget.set_problems``.
-        """
+        """Convert a legacy result dict to :class:`Problem` objects."""
         if result is None:
             return list(self._problems)
         from editor.debugger.problems_widget import _normalize_problems

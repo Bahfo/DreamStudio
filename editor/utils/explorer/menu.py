@@ -1,11 +1,6 @@
-# Written by Bahaa Nofal - 8/7/2026
-# menu.py
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Modern Visual Studio–style right-click context menu for the file explorer.
-Extension-friendly: extensions register actions via the public API and the
-menu rebuilds dynamically on each show.
 """
 
 from __future__ import annotations
@@ -24,7 +19,7 @@ class MenuItem:
         shortcut: str = "",
         icon: str = "",
         category: str = "",
-        show_for: str = "all",  # "all" | "file" | "dir"
+        show_for: str = "all",
         enabled: bool | Callable = True,
         checked: bool | Callable = False,
         callback: Callable | None = None,
@@ -90,12 +85,7 @@ class MenuSubmenu:
 
 
 class MenuRegistry:
-    """Holds all registered menu items, separators and submenus.
-
-    Extensions interact with this registry through the public methods.
-    The `ExplorerClickMenu` rebuilds its visual tree from the registry
-    every time it is shown.
-    """
+    """Holds all registered menu items, separators and submenus."""
 
     def __init__(self) -> None:
         self._items: list[MenuItem | MenuSeparator | MenuSubmenu] = []
@@ -132,11 +122,7 @@ class MenuRegistry:
             self.add_action(MenuItem.from_dict(d))
 
     def load_json(self, json_path: str, base_dir: str = "") -> None:
-        """Populate the registry from a JSON file.
-
-        *base_dir* is prepended to relative icon paths so icons resolve
-        correctly regardless of the current working directory.
-        """
+        """Populate the registry from a JSON file."""
         if not os.path.exists(json_path):
             print(f"[menu] registry not found: {json_path}")
             return
@@ -157,19 +143,15 @@ class MenuRegistry:
         icon = entry.get("icon", "")
         if not icon:
             return
-        # already absolute
         if os.path.isabs(icon):
             return
-        # try relative to the json file
         candidate = os.path.join(src_dir, icon)
         if os.path.exists(candidate):
             entry["icon"] = candidate
             return
-        # fall back to CWD-relative (legacy)
         if os.path.exists(icon):
             entry["icon"] = os.path.abspath(icon)
             return
-        # if base_dir is given, try that too
         if base_dir:
             candidate2 = os.path.join(base_dir, icon)
             if os.path.exists(candidate2):
@@ -200,17 +182,7 @@ class MenuRegistry:
 
 
 class ExplorerClickMenu(QMenu):
-    """Right-click context menu with a modern VS Code look.
-
-    Usage::
-
-        registry = MenuRegistry()
-        registry.load_json("menu_registry.json")
-        # extensions can also call registry.add_action(...) etc.
-
-        menu = ExplorerClickMenu(tree, model, registry, parent=self)
-        tree.customContextMenuRequested.connect(menu.show_context_menu)
-    """
+    """Right-click context menu with a modern VS Code look."""
 
     def __init__(
         self,

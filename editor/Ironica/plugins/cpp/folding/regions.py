@@ -1,13 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 AST-accurate fold regions for C++ and C buffers.
-
-Regions derive from libclang cursor extents (never indentation): the
-same pruned walk used elsewhere visits top-level cursors and recurses
-only into main-file nodes. Include runs and conditional blocks come
-from a lightweight directive pass. A brace-matching fallback covers
-unparseable buffers.
 """
 
 from __future__ import annotations
@@ -95,11 +88,7 @@ def _extent_lines(cursor) -> Optional[tuple]:
 
 def _span_from_children(cursor, main_path: Optional[str],
                         bound: int = 2000) -> Optional[tuple]:
-    """Derive a fold span from descendant extents for broken constructs.
-
-    Unterminated namespaces or classes mid-typing carry invalid extents;
-    their children still locate the visible body.
-    """
+    """Derive a fold span from descendant extents for broken constructs."""
     starts: List[int] = []
     ends: List[int] = []
     try:
@@ -238,13 +227,7 @@ def _brace_fallback(lines: List[str]) -> List[FoldRegion]:
 
 
 def _dedupe_spans(regions: List[FoldRegion]) -> List[FoldRegion]:
-    """Collapse exact-duplicate spans to one region.
-
-    libclang exposes some constructs twice (a typedef with its record,
-    a template with its templated declaration). Duplicates double-count
-    fold depth, painting markers on lines that own none and corrupting
-    nesting. On collision the more specific kind wins.
-    """
+    """Collapse exact-duplicate spans to one region."""
     best: dict = {}
     for region in regions:
         key = (region.start_line, region.end_line)
@@ -257,16 +240,7 @@ def _dedupe_spans(regions: List[FoldRegion]) -> List[FoldRegion]:
 
 def compute_fold_regions(source: str, tu=None,
                          main_path: Optional[str] = None) -> List[FoldRegion]:
-    """Return fold regions for *source*, AST-first with brace fallback.
-
-    Args:
-        source: Full editor buffer content.
-        tu: Parsed translation unit, or ``None`` to use the fallback.
-        main_path: Main-file path used for walk pruning.
-
-    Returns:
-        Regions sorted by start line.
-    """
+    """Return fold regions for *source*, AST-first with brace fallback."""
     if not source or not source.strip():
         return []
     lines = source.splitlines()

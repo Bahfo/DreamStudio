@@ -1,13 +1,10 @@
 """
 (C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-
-EditorContainer: Public wrapper around the tab editor that
-exposes a clean interface for toolbar callbacks and the IDE.
+EditorContainer:
 """
 
 from editor import *
 
-# Local Imports
 from editor.Ironica.api import EditorAPI
 from editor.Ironica.tab_editor import DreamTabbedEditor
 from editor.base.user.quickStartMenu import QuickStartMenu
@@ -23,8 +20,7 @@ from editor.utils.workspace import get_workspace_dir as _inherit_workspace
 
 
 class _EditorMethods:
-    """Thin adapter that routes toolbar actions to the
-    tab editor or to the active editor API."""
+    """Thin adapter that routes toolbar actions to the tab editor or to the active editor API."""
 
     def __init__(self, container: "EditorContainer") -> None:
         self._container = container
@@ -46,8 +42,7 @@ class _EditorMethods:
 
 
 class EditorContainer(QWidget):
-    """Thin wrapper that owns the DreamTabbedEditor and QuickStartMenu in a
-    QStackedWidget, exposing public API that the IDE toolbar depends on."""
+    """Thin wrapper that owns the DreamTabbedEditor and QuickStartMenu in a QStackedWidget, exposing public API that the IDE toolbar depends on."""
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)

@@ -1,9 +1,4 @@
-"""
-Startup phases for DreamStudio bootstrap.
-
-Each phase is a callable that receives a PhaseContext and raises
-StartupError on critical failure or RecoverableError on recoverable issues.
-"""
+"""Startup phases for DreamStudio bootstrap."""
 
 import os
 import sys
@@ -73,11 +68,7 @@ class RecoverableError(Exception):
 
 
 class SolutionPromptCancelled(Exception):
-    """Raised when the user closes the solution start window without a choice.
-
-    This is a graceful shutdown signal, not a failure: the IDE quits cleanly
-    instead of entering recovery mode.
-    """
+    """Raised when the user closes the solution start window without a choice."""
 
 
 @dataclass
@@ -96,11 +87,6 @@ class PhaseContext:
     pending_scaffold: dict = field(default_factory=dict)
 
 
-# ------------------------------------------------------------------
-# Phase 1: Application startup
-# ------------------------------------------------------------------
-
-
 def phase_application_startup(ctx: PhaseContext) -> None:
     """Configure existing QApplication, set metadata, initialize logging."""
     logger.info("Phase 1: Application startup")
@@ -115,11 +101,6 @@ def phase_application_startup(ctx: PhaseContext) -> None:
     app.setOrganizationName("EXcellent TechStacks")
     ctx.app = app
     logger.info("Phase 1 completed: QApplication ready")
-
-
-# ------------------------------------------------------------------
-# Phase 2: Bootstrap init
-# ------------------------------------------------------------------
 
 
 def phase_bootstrap_init(ctx: PhaseContext) -> None:
@@ -143,39 +124,19 @@ def phase_bootstrap_init(ctx: PhaseContext) -> None:
     logger.info("Phase 2 completed: Bootstrap services created")
 
 
-# ------------------------------------------------------------------
-# Phase 3: User home directory setup
-# ------------------------------------------------------------------
-
-
 def phase_user_home_setup(ctx: PhaseContext) -> None:
-    """Ensure ~/.dreamstudio/ directory structure exists.
-
-    Creates the following structure if missing:
-        ~/.dreamstudio/
-            remote/
-                configs.json
-            settings/
-                user_settings.json
-            plugins/
-                (can be empty)
-
-    If any file (except plugins directory) is missing, it will be
-    recreated with default values.
-    """
+    """Ensure ~/.dreamstudio/ directory structure exists."""
     logger.info("Phase 3: User home directory setup")
 
     home_dir = Path.home()
     dreamstudio_home = home_dir / ".dreamstudio"
 
-    # Directory structure definitions
     directories = {
         "remote": dreamstudio_home / "remote",
         "settings": dreamstudio_home / "settings",
         "plugins": dreamstudio_home / "plugins",
     }
 
-    # Default file contents
     default_files = {
         "remote": {
             "path": directories["remote"] / "configs.json",
@@ -193,12 +154,10 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
     }
 
     try:
-        # Create all directories
         for dir_name, dir_path in directories.items():
             dir_path.mkdir(parents=True, exist_ok=True)
             logger.debug("Ensured directory exists: %s", dir_path)
 
-        # Create config files if missing
         for file_key, file_info in default_files.items():
             file_path = file_info["path"]
             if not file_path.is_file():
@@ -211,7 +170,6 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
                 with open(file_path, "w", encoding="utf-8") as fh:
                     json.dump(file_info["content"], fh, indent=4)
             else:
-                # Validate file is readable JSON
                 try:
                     with open(file_path, "r", encoding="utf-8") as fh:
                         data = json.load(fh)
@@ -244,11 +202,6 @@ def phase_user_home_setup(ctx: PhaseContext) -> None:
         ) from exc
 
 
-# ------------------------------------------------------------------
-# Phase 4: Configuration
-# ------------------------------------------------------------------
-
-
 def phase_configuration(ctx: PhaseContext) -> None:
     """Load, validate, and repair configuration."""
     logger.info("Phase 4: Configuration")
@@ -269,13 +222,8 @@ def phase_configuration(ctx: PhaseContext) -> None:
         ) from exc
 
 
-# ------------------------------------------------------------------
-# Phase 5: Resources
-# ------------------------------------------------------------------
-
-
 def phase_resources(ctx: PhaseContext) -> None:
-    """Load themes, icons, fonts. Use fallbacks for missing items."""
+    """Load themes, icons, fonts."""
     logger.info("Phase 5: Resource loading")
 
     theme_name = ctx.config_service.get("editor", {}).get("theme", "dark")
@@ -300,8 +248,6 @@ def phase_resources(ctx: PhaseContext) -> None:
             f"Some UI assets are missing: {', '.join(missing_dirs)}",
         )
 
-    # Register bundled fonts so QFont("Space Mono"), QFont("Montserrat"),
-    # etc. resolve to the actual font files rather than system fallbacks.
     try:
         from fonts.font_strapper import Fonts
 
@@ -320,11 +266,6 @@ def phase_resources(ctx: PhaseContext) -> None:
     logger.info("Phase 5 completed: Resources loaded")
 
 
-# ------------------------------------------------------------------
-# Phase 6: Core services
-# ------------------------------------------------------------------
-
-
 def phase_core_services(ctx: PhaseContext) -> None:
     """Initialize startup-critical services only."""
     logger.info("Phase 6: Core services")
@@ -341,18 +282,8 @@ def phase_core_services(ctx: PhaseContext) -> None:
     logger.info("Phase 6 completed: Core services registered")
 
 
-# ------------------------------------------------------------------
-# Phase 7: Solution prompt
-# ------------------------------------------------------------------
-
-
 def _record_workspace_selection(ctx: PhaseContext, path: str) -> None:
-    """Persist a chosen solution path and refresh the config entry.
-
-    Args:
-        ctx: The current boot phase context.
-        path: Absolute solution path selected by the user.
-    """
+    """Persist a chosen solution path and refresh the config entry."""
     try:
         config_service = ctx.registry.get("config_service")
         workspace_cfg = dict(config_service.get("workspace", {}))
@@ -363,17 +294,7 @@ def _record_workspace_selection(ctx: PhaseContext, path: str) -> None:
 
 
 def phase_solution_prompt(ctx: PhaseContext) -> None:
-    """Show the solution start window and block until a solution is chosen.
-
-    When a project path was supplied on the command line (``--project``) the
-    prompt is skipped. Afterwards ``ctx.workspace_path`` holds the selected
-    solution root and ``ctx.pending_scaffold`` describes a created project
-    that still needs scaffolding after the main window is revealed.
-
-    Raises:
-        SolutionPromptCancelled: When the user closes the start window
-            without selecting or creating a solution.
-    """
+    """Show the solution start window and block until a solution is chosen."""
     logger.info("Phase 7: Solution prompt")
 
     if ctx.workspace_path:
@@ -431,11 +352,7 @@ def phase_solution_prompt(ctx: PhaseContext) -> None:
 
 
 def _run_start_window(window, ctx: PhaseContext):
-    """Run the start window's nested event loop and return its choice.
-
-    Returns:
-        Tuple of ``(selection_dict_or_None, scaffold_dict_or_None)``.
-    """
+    """Run the start window's nested event loop and return its choice."""
     from PyQt6.QtCore import QEventLoop
 
     if ctx.splash:
@@ -478,13 +395,7 @@ def _run_start_window(window, ctx: PhaseContext):
 
 
 def _complete_selection(result: dict, selection: dict, loop) -> None:
-    """Store the pending selection and stop the start-window event loop.
-
-    Args:
-        result: Mutable dict shared with the phase's local event loop.
-        selection: The chosen solution metadata dict.
-        loop: The running ``QEventLoop`` to quit.
-    """
+    """Store the pending selection and stop the start-window event loop."""
     result["selection"] = selection
     result["scaffold"] = (
         selection.get("_scaffold") if isinstance(selection, dict) else None
@@ -492,18 +403,8 @@ def _complete_selection(result: dict, selection: dict, loop) -> None:
     loop.quit()
 
 
-# ------------------------------------------------------------------
-# Phase 8: Main window
-# ------------------------------------------------------------------
-
-
 def phase_main_window(ctx: PhaseContext) -> None:
-    """Create DreamStudio main window hidden and disabled until boot completes.
-
-    The registry is injected into DreamStudio so that it can obtain its
-    startup dependencies (config, theme, resource_manager) from the
-    bootstrap kernel rather than locating them independently.
-    """
+    """Create DreamStudio main window hidden and disabled until boot completes."""
     logger.info("Phase 8: Main window creation")
 
     if ctx.base_dir not in sys.path:
@@ -538,19 +439,8 @@ def phase_main_window(ctx: PhaseContext) -> None:
     logger.info("Phase 8 completed: DreamStudio window created (hidden, disabled)")
 
 
-# ------------------------------------------------------------------
-# Phase 9: Language plugins
-# ------------------------------------------------------------------
-
-
 def phase_language_plugins(ctx: PhaseContext) -> None:
-    """Register language plugins with the LanguageRegistry.
-
-    This phase runs after the main window is created and, crucially, after
-    the user has chosen a solution, so plugin/highlighting work is deferred
-    until a project is open. Plugin failures are recoverable — they log
-    warnings but do not prevent the IDE from starting.
-    """
+    """Register language plugins with the LanguageRegistry."""
     logger.info("Phase 9: Language plugins")
 
     try:
@@ -567,13 +457,8 @@ def phase_language_plugins(ctx: PhaseContext) -> None:
     logger.info("Phase 9 completed: Language plugins")
 
 
-# ------------------------------------------------------------------
-# Phase 10: Finish
-# ------------------------------------------------------------------
-
-
 def phase_finish(ctx: PhaseContext) -> None:
-    """Finalize boot. Window stays hidden; caller shows it after run()."""
+    """Finalize boot."""
     logger.info("Phase 10: Finish")
 
     app = QApplication.instance()
@@ -583,11 +468,6 @@ def phase_finish(ctx: PhaseContext) -> None:
     _notify("add_success", "Startup Complete", "DreamStudio is ready.")
 
     logger.info("Phase 10 completed: DreamStudio ready")
-
-
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
 
 
 def _configure_logging() -> None:

@@ -62,16 +62,8 @@ import psutil
 import datetime
 
 
-# ---------------- Command Line Logic ----------------
 class CommandLine(cmd.Cmd):
-    """
-    Command-Line class inherited from `cmd` library.
-    Inside, it has the backend and logic structure for generating
-    responses of commands. It makes usage of the `cmd` library by
-    generating a `do_command` function for each typed function on
-    the user's screen. The text enters from the `GUIStdout` class
-    and leaves towards.
-    """
+    """Command-Line class inherited from `cmd` library."""
 
     def __init__(self, currentDir, stdout=None):
         super().__init__(stdout=stdout)
@@ -81,18 +73,7 @@ class CommandLine(cmd.Cmd):
         self._history_index = None
 
     def set_directory(self, path):
-        """Point this shell's working directory at *path* (no ``os.chdir``).
-
-        Unlike the ``changedir`` command this never mutates the IDE's
-        process-wide working directory; it only updates the prompt shown
-        to the user and the base directory used by relative commands.
-
-        Args:
-            path: The directory to adopt as the current working directory.
-
-        Returns:
-            A confirmation message string.
-        """
+        """Point this shell's working directory at *path* (no ``os.chdir``)."""
         try:
             self.currentDir = os.path.abspath(path)
             self.prompt = f"{self.currentDir}>>> "
@@ -101,13 +82,7 @@ class CommandLine(cmd.Cmd):
             return f"Error 1: {e}"
 
     def parse_args(self, arg):
-        """
-        Parse ``--key=value`` and ``--flag`` arguments with quote awareness.
-
-        :param self: self parameter for class.
-        :param arg: arguments to be parsed in.
-        :return: dictionary of each parameter and its value assigned.
-        """
+        """Parse ``--key=value`` and ``--flag`` arguments with quote awareness."""
         import shlex as _shlex
 
         try:
@@ -126,16 +101,7 @@ class CommandLine(cmd.Cmd):
         return args
 
     def onecmd(self, line):
-        """
-        oneCMD: Interpret the argument as though it had been typed in response
-        to the prompt.
-        The return value is a flag indicating whether interpretation of
-        commands by the interpreter should stop.
-
-        :param self: self parameter for class
-        :param line: command-line typed by the user
-        :return: flag indicating whether interpretation should stop or not.
-        """
+        """oneCMD:"""
         line = line.strip()
         if line:
             self._history.append(line)
@@ -143,30 +109,14 @@ class CommandLine(cmd.Cmd):
         return super().onecmd(line)
 
     def get_previous_command(self):
-        """
-        Scans the history of commands to get the previous commmand, which is
-        a normal behavior in command-line tools after clicking the top-arrow
-        on the keyboard.
-
-        :param self: self parameter for class
-        :return: previous command.
-        :rtype: Any | Literal['']
-        """
+        """Scans the history of commands to get the previous commmand, which is a normal behavior in command-line tools after clicking the top-arrow on the keyboard."""
         if self._history and self._history_index > 0:
             self._history_index -= 1
             return self._history[self._history_index]
         return ""
 
     def get_next_command(self):
-        """
-        Scans the history of commands to get the next command, which is obtained
-        if the user is checking the history. Works fine with `get_previous_command`
-        method.
-
-        :param self: self parameter for class
-        :return: previous command.
-        :rtype: Any | Literal ['']
-        """
+        """Scans the history of commands to get the next command, which is obtained if the user is checking the history."""
         if self._history and self._history_index < len(self._history) - 1:
             self._history_index += 1
             return self._history[self._history_index]
@@ -183,10 +133,7 @@ class CommandLine(cmd.Cmd):
         return self.currentDir or ""
 
     def run_command(self, cmd_list, timeout: float = 30.0):
-        """
-        Runs a command as a list and returns its output.
-        If the command prints to stdout or stderr, it will be captured and returned.
-        """
+        """Runs a command as a list and returns its output."""
         try:
             result = subprocess.run(
                 cmd_list,
@@ -215,41 +162,8 @@ class CommandLine(cmd.Cmd):
             except Exception:
                 pass
 
-    # -------------------- Help --------------------
     def do_help(self, arg):
-        """
-        Help: help    Provides detailed guidance about available commands and topics
-        Usage:
-            help <command_or_topic>
-        Parameters:
-            <command_or_topic>   The name of the command, function, or topic you want help about.
-                                 Example: 'changedir', 'pacman', 'fileinfo', 'syntax'
-        Description:
-            The 'help' command is designed to give you a complete overview and usage instructions
-            for any command available in this terminal environment. It includes:
-              - Purpose and functionality of the command
-              - Syntax and usage patterns
-              - Parameters and their explanations
-              - Optional parameters and default values
-              - Examples showing practical use
-              - Possible output and return values
-              - Error codes and explanations
-              - Related or hot-topic commands
-        Features:
-            1. **Command-level documentation**:
-               - Displays all details about the specified command including usage and parameters.
-            2. **Error guidance**:
-               - Shows the specific error codes associated with the command and their explanations.
-            3. **Examples**:
-               - Provides one or more working examples showing how to execute the command correctly.
-            4. **Cross-references**:
-               - Suggests related commands or topics to explore further for more advanced tasks.
-        Output:
-            - A formatted text block detailing all aspects of the requested command.
-            - If no command is specified, lists all available commands with short descriptions.
-        Examples:
-            help changedir
-        """
+        """Help:"""
         if arg != "":
             import io
 
@@ -265,40 +179,14 @@ class CommandLine(cmd.Cmd):
         else:
             return HELP
 
-    # -------------------- All Commands --------------------
     def do_commands(self, arg):
-        """
-        Help: commands    Displays all available PromptX commands
-        Usage:
-            commands
-        Output:
-            Lists all commands with a brief description of each
-        Errors:
-            Error 0: Invalid usage (command takes no arguments)
-        Hot-topic commands:
-            help
-        """
+        """Help:"""
         if arg:
             return "Error 0: Usage: commands (no arguments allowed)"
         return ALL_COMMANDS
 
-    # -------------------- Changedir --------------------
     def do_changedir(self, arg):
-        """
-        Help: changedir   -- changes the current working directory
-        Usage:
-            changedir     --path=direcotry_path
-        Parameters:
-            --path        path to the new directory
-        Output:
-            If the path to the new directory exists, the screen prompt of the user will be
-            changed to match the new directory's path
-        Errors:
-            Error 1: Exception occured
-            Error 2: No path provided
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         path = args.get("path", None)
         if not path:
@@ -313,43 +201,14 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 1: {e}"
 
-    # -------------------- Clear History --------------------
     def do_clearhistory(self, arg=None):
-        """
-        Help: clearhistory   -- clears previously used commands history
-        Usage:
-            clearhistory
-        Output:
-            - The commands history dictionary will be cleaned, so up and down arrows
-              to access previously used commands will not function
-            - A message (Command history cleared) will be shown after successful cleaning
-        Hot-topic commands:
-            help
-        """
+        """Help:"""
         self._history.clear()
         self._history_index = None
         return "Command history cleared."
 
-    # -------------------- Clone --------------------
     def do_clone(self, arg):
-        """
-        Help: clone   -- clones the specifed file (copy) from src to dst
-        Usage:
-            clone --source=<source_file> --destination=<destination_file_or_dir>
-        Parameters:
-            --source        file source-path
-            --destination   file destination-path
-        Output:
-            - File will be copied from source to destination
-            - An end message will be displayed
-        Errors:
-            Error 3: No source or destination are provided
-            Error 4: Destination directory does not exist
-            Error 5: Source directory does not exist
-            Error 6: Exception error
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         source = args.get("source", None)
         destination = args.get("destination", None)
@@ -372,26 +231,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 6: {e}"
 
-    # -------------------- Copydir --------------------
     def do_copydir(self, arg):
-        """
-        Help: copydir   copies a certain directory from source to destination
-        Usage:
-            copydir --source=<source_workspace> --destination=<destination_path>
-        Parameters:
-            --source        directory source-path
-            --destination   directory destination-path
-        Output:
-            - Directory will be copied from source to destination
-            - An end message will be displayed
-        Errors:
-            Error 7: File existing error
-            Error 8: File not found error
-            Error 9: Permission error
-            Error 10: Exception error
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         raw_source = args.get("source")
         raw_dest = args.get("destination")
@@ -414,30 +255,12 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 10: {e}"
 
-    # -------------------- Cpuinfo --------------------
     def do_cpuinfo(self, arg=None):
-        """
-        Help: cpuinfo   Returns the underlying hardware processor's information
-        Usage:
-            cpuinfo
-        Output:
-            - CPU information will be displayed on terminal's screen
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         return f"CPU: {platform.processor()}"
 
-    # -------------------- Date ---------------------
     def do_date(self, arg=None):
-        """
-        Help: date:
-        Usage:
-            date
-        Output:
-            - Current date and time is displayed
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         current_date = datetime.datetime.now()
         return (
             f"Current date: {current_date.date()}\n"
@@ -445,24 +268,8 @@ class CommandLine(cmd.Cmd):
             f"{current_date}"
         )
 
-    # -------------------- Deletedir -------------------
     def do_deletedir(self, arg):
-        """
-        Help: deletedir    Deletes the current directory specified by a user
-        If no path is given, it simply removes the current directory the terminal
-        is represented at.
-
-        Usage: deletedir --path=<path>     %% removes directory in <path>
-               deletedir                   %% removes current working directory
-
-        Output:
-            - Removing a directory of files and folders
-        Errors:
-            - Privilage Error (42): Mixed exceptions provided by the operating system
-
-        Hot-Topic Commands:
-            erase, help
-        """
+        """Help:"""
         if not arg:
             return (
                 "Error 42: You must provide an explicit --path; refusing to delete cwd."
@@ -477,21 +284,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 42: {e}"
 
-    # -------------------- Diskinfo --------------------
     def do_diskinfo(self, arg):
-        """
-        Help: diskinfo: Returns the hard disk drive (HDD) information
-        Usage:
-            diskinfo [--path=<path>]
-        Parameters:
-            --path      Optional. Path to check disk usage for. Default is current directory
-        Output:
-            - Disk info (HDD) is displayed
-        Errors:
-            Error 43: Path does not exist
-        Hot-topic commands:
-            cpuinfo, meminfo, sysinfo, help
-        """
+        """Help:"""
         try:
             args = self.parse_args(arg) if arg else {}
             path = args.get("path", self.currentDir)
@@ -506,25 +300,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Erase --------------------
     def do_erase(self, arg):
-        """
-        Help: erase   Deletes the specified file by location
-        Usage:
-            erase --file=<filename_or_path>
-        Parameters:
-            --file    file name or file path (if in another directory)
-            default directory to be taken if only the name is provided
-        Output:
-            - File will be deleted
-            - An end message will be displayed
-        Errors:
-            Error 11: File parameter not provided
-            Error 12: File not found error
-            Error 13: Exception error
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         filename = args.get("file", None)
         if not filename:
@@ -537,30 +314,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 13: {e}"
 
-    # -------------------- Find --------------------
     def do_find(self, arg):
-        """
-        Help: find    Searches for files matching patterns in destination
-        Usage:
-            find --file=<file_path>
-        Parameters:
-            --file       Path to the file to inspect. Must exist
-        Output:
-            File: <path>
-            Size: <bytes>
-            Created: <datetime>
-            Modified: <datetime>
-            Absolute Path: <full_path>
-            Type: <file or directory>
-            Readable: <True/False>
-            Writable: <True/False>
-        Errors:
-            Error 14: File path is not provided
-            Error 15: File path does not exist
-            Error 16: Exception error
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         file_path = args.get("file")
         if not file_path:
@@ -589,23 +344,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 16: {e}"
 
-    # -------------------- File Info --------------------
     def do_fileinfo(self, arg):
-        """
-        Help: fileinfo   Shows metadata of the specified file
-        Usage:
-            fileinfo --file=<file>
-        Parameters:
-            --file
-        Output:
-            - Searches for specified patterns, returns them if any
-        Errors:
-            Error 14: Path not provided
-            Error 15: Pattern not specified
-            Error 16: Exception error
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         file_path = args.get("file", self.currentDir)
         if not file_path:
@@ -628,25 +368,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Head --------------------
     def do_head(self, arg):
-        """
-        Help: head    Displays the first n lines of a specified file
-        Usage:
-            head --file=<file_path> [--lines=<n>]
-        Parameters:
-            --file       Path to the file to display
-            --lines      Optional. Number of lines to show from the top of the file. Default is 10
-        Output:
-            Shows the first n lines of the file, line by line
-        Errors:
-            Error 17: File path not provided
-            Error 18: File does not exist
-            Error 19: Lines number must be integers only
-            Error 20: Exception error
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         file_path = args.get("file", None)
         if not file_path:
@@ -664,40 +387,12 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 20: {e}"
 
-    # -------------------- Here --------------------
     def do_here(self, arg=None):
-        """
-        Help: here    Displays the current working directory
-        Usage:
-            here
-        Output:
-            Shows the current working directory
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         return f"\ncurrent working directory: {self.currentDir}"
 
-    # -------------------- Makedir -----------------
     def do_makedir(self, arg):
-        """
-        Help: makedir    Creates a new directory with the specified path
-        If no path specified, it creates an 'untitiled' directory at the given path
-        Usage:
-            makedir [--path=<path>] [--name=<name>]    %% Directory at the specified <path>
-            makedir                                    %% Directory at current path with name 'untitled'
-            makedir [--name=<name>]                    %% A Directory at the current path with <name>
-            makedir [--path=<path>]                    %% Could be a directory with a path containing a name
-                                                       %% or a directory with no name ('untitled' by default)
-        Parameters:
-            --path       Path to create the directory at
-            --name       Name of the directory
-        Output:
-            Creates the directory at the specified location with the given content. Returns a success message including the full file path
-        Errors:
-            Error 44: Exception error
-        Hot-topic commands:
-            peek, head, tail, deletedir, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         path = args.get("path", self.currentDir)
         name = args.get("name", "untitled")
@@ -710,33 +405,12 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 44: {e}"
 
-    # -------------------- Me --------------------
     def do_me(self, arg=None):
-        """
-        Help: me    Displays username
-        Usage:
-            me
-        Output:
-            Shows the user's name
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         return f"Username: {getpass.getuser()}"
 
-    # -------------------- Meminfo --------------------
     def do_meminfo(self, arg=None):
-        """
-        Help: meminfo    Displays main memory information
-        Usage:
-            meminfo
-        Output:
-            Total usage
-            Used
-            Available
-            Usage Percentage
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         try:
             mem = psutil.virtual_memory()
             total = round(mem.total / (1024**2), 2)
@@ -747,39 +421,12 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Mybox --------------------
     def do_mybox(self, arg=None):
-        """
-        Help: mybox    Displays the current hostname
-        Usage:
-            mybox
-        Output:
-            Shows the machine's host name
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         return f"Hostname: {socket.gethostname()}"
 
-    # -------------------- Newbie --------------------
     def do_newbie(self, arg):
-        """
-        Help: newbie    Creates a new file with specified name, path, extension, and content
-        Usage:
-            newbie --name=<file_name> [--path=<directory_path>] [--ext=<file_extension>] [--content="<file_content>"]
-        Parameters:
-            --name       Name of the new file (without extension)
-            --path       Optional. Directory path to create the file in. Default is the current working directory
-            --ext        Optional. File extension. Default is ".txt"
-            --content    Optional. Initial content to write into the file. Default is empty
-        Output:
-            Creates the file at the specified location with the given content. Returns a success message including the full file path
-        Errors:
-            Error 21: File name not provided
-            Error 22: Invalid path or directory does not exist
-            Error 23: Exception error
-        Hot-topic commands:
-            peek, head, tail
-        """
+        """Help:"""
         args = self.parse_args(arg)
         if "name" not in args:
             return "Error 21: You must provide --name=<file_name>"
@@ -800,28 +447,8 @@ class CommandLine(cmd.Cmd):
     def do_pacman(self, arg):
         pass
 
-    # -------------------- Peek --------------------
     def do_peek(self, arg):
-        """
-        Help: peek    Lists the contents of a specified directory
-        Usage:
-            peek [--number=<n>] [--path=<directory_path>]
-        Parameters:
-            --number    Optional. Number of items to list from the directory. Default is all items
-                        (You can type -all to display all files in the directory "Optional")
-            --path      Optional. Path to the directory to inspect. Default is the current working directory
-        Output:
-            Displays the names of files and folders in the specified directory, line by line.
-            If --number is provided, only the first n items are shown.
-        Errors:
-            Error 31: Invalid directory path
-        Examples:
-            peek
-            peek --number=5
-            peek --number=10 --path="C:/Users/Username/Documents"
-        Hot-topic commands:
-            changedir, fileinfo, head, tail
-        """
+        """Help:"""
         args = self.parse_args(arg)
         number = args.get("number", None)
         custom_path = args.get("path", None)
@@ -847,30 +474,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 31: {e}"
 
-    # -------------------- Shift --------------------
     def do_shift(self, arg):
-        """
-        Help: shift    Moves a file from src to dst
-        Usage:
-            shift --old=<old_string> --new=<new_string> --path=<file_path>
-        Parameters:
-            --old       The string to be replaced in the file
-            --new       The string to replace it with
-            --path      Path to the file in which to perform the replacement
-        Output:
-            Modifies the file in-place, replacing all occurrences of --old with --new.
-            Returns a success message indicating the file was updated.
-        Errors:
-            Error 32: File path not provided
-            Error 33: File does not exist
-            Error 34: File not found
-            Error 35: Exception error
-        Examples:
-            shift --old="foo" --new="bar" --path="C:/path/to/file.txt"
-            shift --old="temp" --new="permanent" --path="./data.txt"
-        Hot-topic commands:
-            peek, head, tail, fileinfo
-        """
+        """Help:"""
         args = self.parse_args(arg)
         old_string = args.get("old", None)
         new_string = args.get("new", None)
@@ -891,20 +496,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 35: {e}"
 
-    # -------------------- Systeminfo --------------------
     def do_sysinfo(self, arg=None):
-        """
-        Help: sysinfo    Displays the currnet system information
-        Usage:
-            sysinfo
-        Output:
-            System info
-            Release
-            Version
-            Architecture
-        Hot-topic commands:
-            cpuinfo, meminfo, diskinfo
-        """
+        """Help:"""
         try:
             system = platform.system()
             release = platform.release()
@@ -914,28 +507,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Tail --------------------
     def do_tail(self, arg):
-        """
-        Help: tail    Displays the last n lines of a specified file
-        Usage:
-            tail --file=<file_path> [--lines=<n>]
-        Parameters:
-            --file       Path to the file to display
-            --lines      Optional. Number of lines to show from the end of the file. Default is 10
-        Output:
-            Shows the last n lines of the file, line by line
-        Errors:
-            Error 36: File path not provided
-            Error 37: File does not exist
-            Error 38: Lines number must be an integer
-            Error 39: Exception errors
-        Examples:
-            tail --file=example.txt
-            tail --file=example.txt --lines=5
-        Hot-topic commands:
-            head, peek, fileinfo
-        """
+        """Help:"""
 
         args = self.parse_args(arg)
         file_path = args.get("file", None)
@@ -955,26 +528,7 @@ class CommandLine(cmd.Cmd):
             return f"Error 39: {e}"
 
     def do_zip(self, arg):
-        """
-        Help: zip    Creates a zip archive from a file or directory
-        Usage:
-            zip --source=<file_or_directory> --destination=<zipfile>
-        Parameters:
-            --source       Path to the file or directory to archive
-            --destination  Path to the output zip file
-        Output:
-            Creates a zip archive at the specified destination containing the source content
-            Returns a success message with the archive path
-        Errors:
-            Error 40: Source or destination not provided
-            Error 41: Source path does not exist
-            Error 42: Exception occurred during zipping
-        Examples:
-            zip --source=./project --destination=project.zip
-            zip --source=example.txt --destination=example.zip
-        Hot-topic commands:
-            unzip, peek, fileinfo
-        """
+        """Help:"""
         args = self.parse_args(arg)
         source = args.get("source")
         destination = args.get("destination")
@@ -998,37 +552,12 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 42: {e}"
 
-    # -------------------- Clear --------------------
     def do_clear(self, arg=None):
-        """
-        Help: clear    Clears the terminal screen
-        Usage:
-            clear
-        Output:
-            - All previous output is cleared from the terminal display
-        Hot-topic commands:
-            help
-        """
+        """Help:"""
         return None
 
-    # -------------------- Download --------------------
     def do_download(self, arg):
-        """
-        Help: download    Downloads a file from a URL to the local filesystem
-        Usage:
-            download --url=<url> [--path=<destination_path>]
-        Parameters:
-            --url       URL of the file to download
-            --path      Optional. Destination path to save the file. Default is current directory
-        Output:
-            Downloads the file from the specified URL and saves it to the destination path.
-            Returns a success message with the file location.
-        Errors:
-            Error 50: URL not provided
-            Error 51: Download failed - network or server error
-        Hot-topic commands:
-            ping, pacman, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         url = args.get("url")
         if not url:
@@ -1050,73 +579,27 @@ class CommandLine(cmd.Cmd):
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
             return f"Error 51: Download failed: {e}"
 
-    # -------------------- Echo --------------------
     def do_echo(self, arg):
-        """
-        Help: echo    Prints the given text to the terminal output
-        Usage:
-            echo <text>
-        Parameters:
-            <text>      The text to display. Enclose in quotes if it contains spaces
-        Output:
-            Repeats the provided text back to the terminal
-        Hot-topic commands:
-            help
-        """
+        """Help:"""
         return arg if arg else ""
 
-    # -------------------- Env --------------------
     def do_env(self, arg=None):
-        """
-        Help: env    Displays all environment variables
-        Usage:
-            env
-        Output:
-            Lists all environment variables and their values, one per line
-        Hot-topic commands:
-            sysinfo, me, help
-        """
+        """Help:"""
         try:
             lines = [f"{k}={v}" for k, v in sorted(os.environ.items())]
             return "\n".join(lines)
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- History --------------------
     def do_history(self, arg=None):
-        """
-        Help: history    Displays the recently executed commands history
-        Usage:
-            history
-        Output:
-            Shows all previously executed commands in order, each prefixed by its index
-        Hot-topic commands:
-            clearhistory, help
-        """
+        """Help:"""
         if not self._history:
             return "No commands in history."
         lines = [f"{i:4d}  {cmd}" for i, cmd in enumerate(self._history, 1)]
         return "\n".join(lines)
 
-    # -------------------- Kill --------------------
     def do_kill(self, arg):
-        """
-        Help: kill    Terminates a running process by its PID
-        Usage:
-            kill --pid=<process_id> [--force]
-        Parameters:
-            --pid       Process ID of the process to terminate
-            --force     Optional. Force kill the process (SIGKILL on Unix)
-        Output:
-            Sends a termination signal to the specified process.
-            Returns a success or error message.
-        Errors:
-            Error 52: PID not provided
-            Error 53: Process does not exist
-            Error 54: Permission denied
-        Hot-topic commands:
-            ps, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         pid = args.get("pid")
         if not pid:
@@ -1145,23 +628,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Ping --------------------
     def do_ping(self, arg):
-        """
-        Help: ping    Tests network connectivity to a remote host
-        Usage:
-            ping --host=<hostname_or_ip> [--count=<n>]
-        Parameters:
-            --host      Hostname or IP address to ping
-            --count     Optional. Number of ping requests to send. Default is 4
-        Output:
-            Sends ICMP echo requests to the specified host and returns the results.
-        Errors:
-            Error 55: Host not provided
-            Error 56: Ping command failed
-        Hot-topic commands:
-            download, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         host = args.get("host")
         if not host:
@@ -1186,17 +654,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 56: {e}"
 
-    # -------------------- Ps --------------------
     def do_ps(self, arg=None):
-        """
-        Help: ps    Lists currently running processes on the system
-        Usage:
-            ps
-        Output:
-            Displays a table of running processes with PID, name, and status
-        Hot-topic commands:
-            kill, sysinfo, help
-        """
+        """Help:"""
         try:
             processes = []
             for proc in psutil.process_iter(["pid", "name", "status"]):
@@ -1215,39 +674,12 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Quit --------------------
     def do_quit(self, arg=None):
-        """
-        Help: quit    Exits the terminal environment
-        Usage:
-            quit
-        Output:
-            Prompts the user to close the terminal panel
-        Hot-topic commands:
-            help
-        """
+        """Help:"""
         return "Type 'close' or use the close button to close the terminal panel."
 
-    # -------------------- Rename --------------------
     def do_rename(self, arg):
-        """
-        Help: rename    Renames a file or directory
-        Usage:
-            rename --source=<current_name> --destination=<new_name>
-        Parameters:
-            --source       Current name or path of the file/directory
-            --destination  New name or path for the file/directory
-        Output:
-            Renames the specified file or directory from source to destination.
-            Returns a success message with both old and new names.
-        Errors:
-            Error 57: Source or destination not provided
-            Error 58: Source does not exist
-            Error 59: Destination already exists
-            Error 60: Permission denied
-        Hot-topic commands:
-            shift, clone, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         source = args.get("source")
         destination = args.get("destination")
@@ -1265,30 +697,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Unzip --------------------
     def do_unzip(self, arg):
-        """
-        Help: unzip    Extracts a zip archive to a specified directory
-        Usage:
-            unzip --source=<zipfile> [--destination=<output_dir>]
-        Parameters:
-            --source       Path to the zip file to extract
-            --destination  Optional. Directory to extract contents into.
-                           Default is the current working directory
-        Output:
-            Extracts all files from the zip archive into the destination directory.
-            Returns a success message with the extraction location.
-        Errors:
-            Error 61: Source not provided
-            Error 62: Source file does not exist
-            Error 63: Not a valid zip file
-            Error 64: Exception during extraction
-        Examples:
-            unzip --source=archive.zip
-            unzip --source=archive.zip --destination=./extracted
-        Hot-topic commands:
-            zip, peek, help
-        """
+        """Help:"""
         args = self.parse_args(arg)
         source = args.get("source")
         if not source:
@@ -1315,17 +725,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 64: {e}"
 
-    # -------------------- Uptime --------------------
     def do_uptime(self, arg=None):
-        """
-        Help: uptime    Displays how long the system has been running
-        Usage:
-            uptime
-        Output:
-            Shows the system uptime in days, hours, minutes, and seconds
-        Hot-topic commands:
-            sysinfo, date, help
-        """
+        """Help:"""
         try:
             uptime_seconds = datetime.datetime.now().timestamp() - psutil.boot_time()
             days, remainder = divmod(int(uptime_seconds), 86400)
@@ -1343,39 +744,12 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error: {e}"
 
-    # -------------------- Whoami --------------------
     def do_whoami(self, arg=None):
-        """
-        Help: whoami    Displays the current username
-        Usage:
-            whoami
-        Output:
-            Shows the username of the currently logged-in user
-        Hot-topic commands:
-            me, mybox, help
-        """
+        """Help:"""
         return getpass.getuser()
 
-    # -------------------- Ip Scan --------------------
     def do_ip_scan(self, arg):
-        """
-        Help: ip_scan    Scans the local network and shows all connected devices
-        Usage:
-            ip_scan [--interface=<name>]
-        Parameters:
-            --interface    Optional. Network interface to scan. Default is auto-detected
-        Output:
-            Displays a list of connected devices with their IP and MAC addresses
-            from the local network's ARP table
-        Errors:
-            Error 70: No ARP entries found or network unavailable
-            Error 71: Network scan failed due to an exception
-        Examples:
-            ip_scan
-            ip_scan --interface=eth0
-        Hot-topic commands:
-            netlist, ping, help
-        """
+        """Help:"""
         try:
             if not os.path.exists("/proc/net/arp"):
                 return "Error 70: Network scanning is not supported on this platform."
@@ -1397,22 +771,8 @@ class CommandLine(cmd.Cmd):
         except Exception as e:
             return f"Error 71: Network scan failed: {e}"
 
-    # -------------------- Netlist --------------------
     def do_netlist(self, arg):
-        """
-        Help: netlist    Retrieves information about the current network
-        Usage:
-            netlist
-        Output:
-            Displays network interfaces, IP addresses, and hostname
-        Errors:
-            Error 72: No network interfaces found
-            Error 73: Exception occurred while fetching network data
-        Examples:
-            netlist
-        Hot-topic commands:
-            ip_scan, ping, help
-        """
+        """Help:"""
         try:
             hostname = socket.gethostname()
             lines = [f"Hostname: {hostname}"]

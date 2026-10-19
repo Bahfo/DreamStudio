@@ -2,7 +2,6 @@ from editor import *
 from editor.utils.resource_path import resource_path
 from editor.utils.theme import extract_qss_color as _shared_qss_color
 
-# Local Imports
 from editor.utils.find_replace.find_replace import FindReplace
 from editor.terminal.PythonConsole.console import PythonShell
 from docs.doc_panel import DocumentationWindow
@@ -10,19 +9,11 @@ from node_editor.ui_build import NodeBuilder
 
 
 class EditorAPI:
-    """Mixin that holds all editor API callbacks (toggles, theme setters,
-    file operations, clipboard actions, status updates, etc.).
+    """Mixin that holds all editor API callbacks (toggles, theme setters, file operations, clipboard actions, status updates, etc.)."""
 
-    Designed to be mixed into the DreamStudio QMainWindow so that
-    ``getattr(self, callback_name)`` dispatch still works.
-    """
-
-    # ------------------------------------------------------------------
-    # Panel toggles
-    # ------------------------------------------------------------------
 
     def _toggle_panel(self, panel_id: str, manager) -> None:
-        """Toggle a side panel: if visible bring to front, else activate."""
+        """Toggle a side panel:"""
         api = self.hero_window._vertical_menus_api
         if api.is_visible(panel_id):
             manager.set_current_panel(panel_id)
@@ -140,8 +131,6 @@ class EditorAPI:
             )
             self._find_replace_window.setStyleSheet(self.styleSheet())
         else:
-            # The widget is created once, so keep it pointed at the
-            # workspace directory the title bar currently reports.
             self._find_replace_window.current_directory = self.title_bar.directory
 
         if self._find_replace_window.isVisible():
@@ -149,9 +138,6 @@ class EditorAPI:
         else:
             self._find_replace_window._show()
 
-    # ------------------------------------------------------------------
-    # Sidebar button state
-    # ------------------------------------------------------------------
 
     def _update_left_button_state(self, active_id: str) -> None:
         buttons = self.left_sidebar.findChildren(QPushButton)
@@ -185,9 +171,6 @@ class EditorAPI:
             for btn in buttons:
                 btn.setChecked(False)
 
-    # ------------------------------------------------------------------
-    # File operations
-    # ------------------------------------------------------------------
 
     def _new_file(self) -> None:
         self.hero_window._text_editor_center.methods.open_new_tab()
@@ -208,9 +191,6 @@ class EditorAPI:
     def _make_file_readonly(self) -> None:
         self.hero_window._text_editor_center.tabs._make_file_readonly()
 
-    # ------------------------------------------------------------------
-    # Clipboard & undo/redo
-    # ------------------------------------------------------------------
 
     def _with_editor(self, fn) -> None:
         api = self.hero_window._text_editor_center.methods.current_editor()
@@ -232,18 +212,9 @@ class EditorAPI:
     def _redo_action(self) -> None:
         self._with_editor(lambda a: a.redo())
 
-    # ------------------------------------------------------------------
-    # Theme
-    # ------------------------------------------------------------------
 
     def _apply_theme_content(self, content: str) -> None:
-        """Apply a QSS stylesheet string and propagate colours to child widgets.
-
-        This is the single internal method that all theme application
-        ultimately reaches.  It injects the user-configured font-family
-        into the global ``QMainWindow, QWidget`` rule before applying,
-        so the setting survives theme switches.
-        """
+        """Apply a QSS stylesheet string and propagate colours to child widgets."""
         font_family = self._get_configured_font_family()
         if font_family:
             content = self._inject_font_family(content, font_family)
@@ -273,12 +244,7 @@ class EditorAPI:
         self._retheme_editors()
 
     def _set_theme_by_name(self, name: str) -> None:
-        """Load a theme by name through ResourceManager and apply it.
-
-        When a bootstrap ``ServiceRegistry`` with a ``resource_manager``
-        is available the theme content is obtained from there.  Otherwise
-        falls back to a direct file read via ``_parse_styleSheet``.
-        """
+        """Load a theme by name through ResourceManager and apply it."""
         self._current_theme_name = name
         resource_manager = self._get_resource_manager()
         if resource_manager is not None:
@@ -287,7 +253,6 @@ class EditorAPI:
                 self._apply_theme_content(content)
                 return
 
-        # Fallback: direct file read (e.g. during testing without registry).
         self._parse_styleSheet(resource_path(f"editor/qss/{name}.qss"))
 
     def _toggle_theme(self) -> None:
@@ -337,26 +302,14 @@ class EditorAPI:
         self._set_theme_by_name("material_light")
 
     def _open_color_picker(self) -> str | None:
-        """Open a color dialog and return the selected color as hex string.
-
-        Returns:
-            Hex color string (e.g. ``"#ff0000"``) if valid, else ``None``.
-        """
+        """Open a color dialog and return the selected color as hex string."""
         color = QColorDialog.getColor(parent=self)
         if color.isValid():
             return color.name()
         return None
 
     def _set_titlebar_gradient(self) -> None:
-        """Change the title bar gradient end color for the current theme.
-
-        Opens a color picker and applies the chosen color as the gradient
-        end for whatever theme is currently active (``_current_theme_name``).
-        Works for built-in themes (``dark``, ``light``) and custom themes
-        (``moses``, ``tokyonight``, etc.) by creating or updating an entry
-        in ``DreamStudioTitleBar._TITLE_BAR_BLUE_ENDS``. Triggers a repaint
-        via ``update()``.
-        """
+        """Change the title bar gradient end color for the current theme."""
         color = self._open_color_picker()
         if color is None:
             return
@@ -366,7 +319,6 @@ class EditorAPI:
         theme = getattr(self, "_current_theme_name", None) or getattr(
             self, "current_theme", "dark"
         )
-        # Correct chain per ui_build.py:71 -> self.title_bar
         self.title_bar._TITLE_BAR_BLUE_ENDS[theme] = qcolor
         self.title_bar.update()
 
@@ -393,12 +345,7 @@ class EditorAPI:
         return None
 
     def _parse_styleSheet(self, qss_file: str) -> None:
-        """Load a QSS file and apply it.
-
-        When a bootstrap ``ResourceManager`` is available, the file is
-        loaded through it (benefiting from caching and fallback logic).
-        Otherwise reads directly from disk.
-        """
+        """Load a QSS file and apply it."""
         import os as _os
 
         theme_name = _os.path.splitext(_os.path.basename(qss_file))[0]
@@ -430,16 +377,9 @@ class EditorAPI:
         m = pattern.search(qss_content)
         return m.group(1).strip() if m else None
 
-    # ------------------------------------------------------------------
-    # Global IDE font (applied everywhere except code editors)
-    # ------------------------------------------------------------------
 
     def _get_configured_font_family(self) -> str | None:
-        """Read the configured font family from the bootstrap config.
-
-        Returns the family name string, or ``None`` if no config is
-        available or the value is empty.
-        """
+        """Read the configured font family from the bootstrap config."""
         registry = getattr(self, "_registry", None)
         if registry is None:
             return None
@@ -451,12 +391,7 @@ class EditorAPI:
 
     @staticmethod
     def _inject_font_family(qss: str, family: str) -> str:
-        """Inject or replace ``font-family`` in the global widget rule.
-
-        If a ``font-family`` declaration already exists inside the
-        ``QMainWindow, QWidget`` block it is replaced.  Otherwise the
-        property is appended to that block.
-        """
+        """Inject or replace ``font-family`` in the global widget rule."""
         family_value = f'"{family}", "Segoe UI", "Inter", Arial, sans-serif'
         pattern = re.compile(
             r"(QMainWindow\s*,\s*QWidget\s*\{[^}]*?)" r"font-family\s*:\s*[^;]+;",
@@ -474,25 +409,13 @@ class EditorAPI:
         return qss
 
     def set_global_font(self, font_name: str) -> None:
-        """Set the global UI font across the entire IDE.
-
-        Re-applies the current theme with the new font injected, so
-        all colours, borders, and sizing are preserved.  Code editors
-        are unaffected — they manage their own monospace font
-        independently via ``DreamTabbedEditor.set_editor_font_by_name``.
-
-        Args:
-            font_name: Font family name — use ``Fonts.FONT_INTER``,
-                       ``Fonts.FONT_SEGOE_UI``, or any installed family.
-        """
-        # Persist to config so the choice survives restarts.
+        """Set the global UI font across the entire IDE."""
         registry = getattr(self, "_registry", None)
         if registry is not None and registry.has("config"):
             config = registry.get("config")
             if isinstance(config, dict):
                 config.setdefault("editor", {})["font_family"] = font_name
 
-        # Re-apply the current theme with the new font injected.
         resource_manager = self._get_resource_manager()
         theme_name = getattr(self, "_current_theme_name", None)
         if resource_manager is not None and theme_name:
@@ -503,21 +426,14 @@ class EditorAPI:
                 self._apply_custom_theme()
                 return
 
-        # Fallback: inject into whatever stylesheet is currently active.
         current = self.styleSheet()
         if current:
             self.setStyleSheet(self._inject_font_family(current, font_name))
 
-    # ------------------------------------------------------------------
-    # Editor state & status
-    # ------------------------------------------------------------------
 
     def _get_current_editor(self):
         return self.hero_window._text_editor_center.current_editor()
 
-    # ------------------------------------------------------------------
-    # Run menu (delegates to the RunMenuController)
-    # ------------------------------------------------------------------
 
     def _run_current_file(self) -> None:
         """Run the active Python file in a new integrated terminal session."""
@@ -548,23 +464,9 @@ class EditorAPI:
         line, col = editor.getCursorPosition()
         self.status_bar.lines_and_cols.setText(f"Ln {line + 1} : Col {col + 1}")
 
-    # ------------------------------------------------------------------
-    # Debugging
-    # ------------------------------------------------------------------
 
     def _debug_current_file(self) -> None:
-        """Launch a debug session for the active editor.
-
-        Guard conditions (Edge Case 3 — button state collision):
-        If a debug session is already running, this is a no-op so that
-        switching tabs and re-clicking cannot launch a second session.
-
-        Auto-save (Edge Case 2 — unsaved changes):
-        If the editor buffer is dirty the file is saved to disk before
-        breakpoints are collected so that the on-disk file and the
-        editor display stay in sync.
-        """
-        # Edge Case 3: prevent double-launch while session is active.
+        """Launch a debug session for the active editor."""
         active = getattr(self, "_active_debug_session", None)
         if active is not None and active.is_running():
             return
@@ -572,11 +474,9 @@ class EditorAPI:
         tabs = self.hero_window._text_editor_center.tabs
         widget = tabs.currentWidget()
 
-        # No file open.
         if widget is None:
             return
 
-        # Block execution when read-only.
         if hasattr(widget, "isReadOnly") and widget.isReadOnly():
             from editor.widgets.QExitDialog import ConfirmDialog
 
@@ -595,11 +495,9 @@ class EditorAPI:
         if not file_path:
             return
 
-        # Not a .py file.
         if not file_path.endswith(".py"):
             return
 
-        # Edge Case 2: auto-save dirty buffer before debugging.
         if hasattr(widget, "isModified") and widget.isModified():
             if hasattr(widget, "save"):
                 try:
@@ -619,12 +517,10 @@ class EditorAPI:
                         pass
                     return
 
-        # Gather breakpoints from the editor.
         breakpoints = set()
         if hasattr(widget, "get_breakpoint_lines"):
             breakpoints = widget.get_breakpoint_lines()
 
-        # Warn if no breakpoints are set.
         if not breakpoints:
             from editor.widgets.QExitDialog import ConfirmDialog
 
@@ -643,8 +539,6 @@ class EditorAPI:
         session = DebugSession(file_path, breakpoints, self)
         self._active_debug_session = session
 
-        # Expose the options-bar debug button so the session can
-        # re-enable it on stop (Edge Case 3).
         self._debug_btn_ref = getattr(self.options_menu, "_debug_button", None)
 
         session.start()

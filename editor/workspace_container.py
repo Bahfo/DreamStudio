@@ -1,8 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Main workspace container for DreamStudio: hosts the central text editor
-flanked by left/right utility tab managers and the bottom utilities panel.
+Main workspace container for DreamStudio:
 """
 
 from editor import *
@@ -28,9 +26,7 @@ from editor.Ironica.ui_build import EditorContainer, UtilsContainer
 
 
 class WorkspaceContainer(QWidget):
-    """Main workspace container: Manages real-time state
-    tracking, collapsing, expanding, and floating allocations
-    for side panels."""
+    """Main workspace container:"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -167,12 +163,7 @@ class WorkspaceContainer(QWidget):
         self._vertical_menus_api.activate_panel("properties")
 
     def _goto_problem(self, problem) -> None:
-        """Jump to a diagnostic's file position (go-to-definition).
-
-        Once the editor is on the diagnostic's line the message bubble is
-        shown under the underlined token, mirroring the Problems view row the
-        user just clicked.
-        """
+        """Jump to a diagnostic's file position (go-to-definition)."""
         try:
             path = getattr(problem, "file_path", "") or ""
             if not path or not os.path.isfile(path):
@@ -232,7 +223,6 @@ class WorkspaceContainer(QWidget):
                 end_col,
                 f"{text}",
             )
-            # Colour the bubble like the severity in the Problems view.
             popup = getattr(editor, "_error_message", None)
             if popup is not None:
                 popup.set_severity(severity)

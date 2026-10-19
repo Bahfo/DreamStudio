@@ -199,7 +199,6 @@ class PropertiesExplorer(PanelShell):
             self.config_grid.load_grid_data(project_data)
             self.config_grid.blockSignals(False)
 
-        # Refresh the Languages analysis for the new workspace.
         self.refresh_languages(force=True)
         try:
             QTimer.singleShot(0, self._fit_languages_row)
@@ -297,7 +296,7 @@ class PropertiesExplorer(PanelShell):
             try:
                 from editor.Ironica.utils.minimap import ensure_inner
             except Exception:
-                ensure_inner = None  # type: ignore
+                ensure_inner = None
             editor = None
             if ensure_inner is not None:
                 try:
@@ -342,11 +341,7 @@ class PropertiesExplorer(PanelShell):
         return super().eventFilter(source, event)
 
     def analyze_languages(self) -> LanguageAnalyzer:
-        """Build a LanguageAnalyzer for the active project directory.
-
-        Returns:
-            A populated LanguageAnalyzer widget.
-        """
+        """Build a LanguageAnalyzer for the active project directory."""
         target = self.current_project_dir or os.curdir
         try:
             target = os.path.abspath(target)
@@ -357,11 +352,7 @@ class PropertiesExplorer(PanelShell):
         return analysis_widget
 
     def _find_languages_items(self) -> tuple | tuple[None, None]:
-        """Locate the Languages parent and embedded analyzer widget.
-
-        Returns:
-            Tuple of (parent item, child item, widget) or (None, None).
-        """
+        """Locate the Languages parent and embedded analyzer widget."""
         if not hasattr(self, "env_tree"):
             return None, None
         for i in range(self.env_tree.topLevelItemCount()):
@@ -377,12 +368,7 @@ class PropertiesExplorer(PanelShell):
 
     @staticmethod
     def _languages_fingerprint() -> tuple:
-        """Return a hashable snapshot of registered language ids.
-
-        Returns:
-            Tuple of sorted language identifiers, or an empty tuple
-            when the registry is unavailable.
-        """
+        """Return a hashable snapshot of registered language ids."""
         try:
             from editor.Ironica.language_engine import LanguageRegistry
 
@@ -391,17 +377,7 @@ class PropertiesExplorer(PanelShell):
             return ()
 
     def refresh_languages(self, force: bool = False) -> None:
-        """Rebuild the Languages section when registrations changed.
-
-        Language plugins register after this panel is constructed, so a
-        section built with an empty registry would otherwise stay empty.
-        Rebuilds the tree section and the File-tab combos when the
-        registry fingerprint changed, or unconditionally when ``force``
-        is ``True``.
-
-        Args:
-            force: Rebuild even when the fingerprint is unchanged.
-        """
+        """Rebuild the Languages section when registrations changed."""
         fingerprint = self._languages_fingerprint()
         if not force and fingerprint == getattr(self, "_languages_seen", ()):
             return
@@ -528,10 +504,7 @@ class PropertiesExplorer(PanelShell):
         self._add_languages_section()
 
     def set_active_editor(self, editor: CodeEditor | None) -> None:
-        """
-        Public API method for the main IDE window to update the explorer's
-        active file focus.
-        """
+        """Public API method for the main IDE window to update the explorer's active file focus."""
         if hasattr(self, "file_grid"):
             self.file_grid.set_active_editor(editor)
 

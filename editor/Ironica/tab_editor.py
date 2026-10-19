@@ -1,28 +1,8 @@
 """
 (C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-Developed and Maintained Mainly by DreamStudio Maintainers and Contributors,
-and Supervised by EXcellent TechStacks Co.
-
-Tab management for the DreamStudio code editor.
-
-**Ownership Model:**
-
-The tab manager (``DreamTabbedEditor``) owns:
-
-- Tab titles, positions, and ordering.
-- The ``opened_files`` deduplication map (normalised path → index).
-- Keyboard shortcuts for save / save-as / save-all / format.
-- Close interceptors.
-- The tab bar dirty / read-only indicators.
-
-The editor widget (``CodeEditor``) owns:
-
-- Text content, cursor position, dirty flag.
-- Language and provider state.
-- The ``current_file_path`` (single source of truth for file identity).
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and Supervised by EXcellent TechStacks Co.
 """
 
-# Written by Bahaa Nofal
 
 from editor import *
 
@@ -46,12 +26,7 @@ def _webviewer_cls():
 
 
 class DreamTabbedEditor(QDreamTabEditor):
-    """Tab container that manages the lifecycle of ``CodeEditor`` widgets.
-
-    Handles opening, closing, saving, and deduplication of file tabs,
-    and keeps the tab bar indicators (dirty dot, read-only lock) in
-    sync with the underlying editor state.
-    """
+    """Tab container that manages the lifecycle of ``CodeEditor`` widgets."""
 
     def __init__(self, _parent):
         super().__init__(_parent)
@@ -88,31 +63,25 @@ class DreamTabbedEditor(QDreamTabEditor):
         self._close_interceptors = []
         self.tabCloseRequested.connect(self._on_close_requested)
 
-        # Save Current File
         self._save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         self._save_shortcut.activated.connect(self.save_current_file)
 
-        # Save Current File As
         self._save_as_shortcut = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
         self._save_as_shortcut.activated.connect(self.save_current_file_as)
 
-        # Save All
         self._save_all_shortcut = QShortcut(QKeySequence("Ctrl+Alt+S"), self)
         self._save_all_shortcut.activated.connect(self.save_all_files)
 
-        # Formatting
         self._format_shortcut = QShortcut(QKeySequence("Ctrl+Alt+F"), self)
         self._format_shortcut.activated.connect(self.format_current_file)
 
         self.currentChanged.connect(self._on_editor_tab_changed)
 
-        # --- Corner Widget Container ---
         self._corner_container = QWidget()
         self._corner_layout = QHBoxLayout(self._corner_container)
         self._corner_layout.setContentsMargins(0, 0, 0, 0)
         self._corner_layout.setSpacing(4)
 
-        # HTML Preview Button
         self._preview_tabs: dict[str, int] = {}
         self._preview_button = QPushButton()
         self._preview_button.setIcon(QIcon(resource_path("assets/menus/browser.png")))
@@ -128,7 +97,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         self._preview_button.setVisible(False)
         self._corner_layout.addWidget(self._preview_button)
 
-        # Minimap toggle
         self._minimap_visible = True
         self._minimap_toggle = QPushButton()
         self._minimap_toggle.setIcon(QIcon(resource_path("assets/editor/minimap.png")))
@@ -141,7 +109,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         self._minimap_toggle.setVisible(False)
         self._corner_layout.addWidget(self._minimap_toggle)
 
-        # Set the unified container as the top-right corner widget
         self.setCornerWidget(self._corner_container, Qt.Corner.TopRightCorner)
 
         self.currentChanged.connect(self._update_preview_button_visibility)
@@ -151,9 +118,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             pass
         self.add_close_interceptor(self._on_preview_close_interceptor)
 
-    # ------------------------------------------------------------------
-    # Theme / style
-    # ------------------------------------------------------------------
 
     def _apply_tab_style(self, selected_color: str) -> None:
         self.setStyleSheet(
@@ -194,26 +158,15 @@ class DreamTabbedEditor(QDreamTabEditor):
                 self._in_change_event = False
         super().changeEvent(event)
 
-    # ------------------------------------------------------------------
-    # Tab change
-    # ------------------------------------------------------------------
 
     def _on_editor_tab_changed(self, index: int) -> None:
-        """Update the status bar and route analysis focus on tab change.
-
-        Only the focused editor's requests are allowed through to the
-        shared analysis process; switching focus is a cheap ownership swap
-        (no process spawn / kill).  The newly focused editor re-queues its
-        analysis so its overlays repaint immediately.
-        """
+        """Update the status bar and route analysis focus on tab change."""
         self.return_file_info()
         should_show = self.count() > 0 and index >= 0
         if self._minimap_toggle.isVisible() != should_show:
             self._minimap_toggle.setVisible(should_show)
             QTimer.singleShot(0, self.updateGeometry)
 
-        # Dismiss hover popups on all editors so stale docs never
-        # linger after a tab switch (force=True ignores pin state).
         for i in range(self.count()):
             widget = self.widget(i)
             code = self._unwrap_code_editor(widget)
@@ -262,9 +215,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # HTML Preview
-    # ------------------------------------------------------------------
 
     def _on_tabs_reordered(self, _from: int = -1, _to: int = -1) -> None:
         """Rebuild path→index maps after user drags tabs."""
@@ -272,7 +222,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             new_map: dict[str, int] = {}
             for i in range(self.count()):
                 w = self.widget(i)
-                # Unwrap host to get underlying file path if available
                 fp = None
                 if w is not None:
                     if hasattr(w, "editor") and hasattr(w.editor, "current_file_path"):
@@ -282,11 +231,9 @@ class DreamTabbedEditor(QDreamTabEditor):
                     if fp:
                         new_map[os.path.normpath(fp)] = i
             self.opened_files = new_map
-            # Rebuild preview indices as well (best-effort)
             for k in list(self._preview_tabs.keys()):
                 fp = k
                 if fp in self.opened_files:
-                    # Keep mapping consistent; preview tabs track preview editors separately
                     pass
         except Exception:
             pass
@@ -320,11 +267,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         self._reposition_preview_button()
 
     def open_preview_tab(self) -> None:
-        """Open or focus an HTML preview tab for the active editor.
-
-        If a preview for the same file is already open the existing
-        preview tab is raised instead of creating a duplicate.
-        """
+        """Open or focus an HTML preview tab for the active editor."""
         index = self.currentIndex()
         if index < 0 or index >= self.count():
             return
@@ -372,9 +315,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             self._update_preview_button_visibility()
         return None
 
-    # ------------------------------------------------------------------
-    # Font
-    # ------------------------------------------------------------------
 
     def set_font_size(self, value: int) -> None:
         """Propagate a font-size change to every open editor."""
@@ -391,42 +331,28 @@ class DreamTabbedEditor(QDreamTabEditor):
                 widget.set_editor_font(font_name)
                 widget.font_size = size
 
-    # ------------------------------------------------------------------
-    # Tab creation
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _is_elf_binary(file_path: str) -> bool:
-        """Return ``True`` when *file_path* is an ELF64 executable.
-
-        Uses fast magic check plus native inspector verification.
-        Never raises.
-        """
+        """Return ``True`` when *file_path* is an ELF64 executable."""
         if not file_path or not os.path.isfile(file_path):
             return False
         try:
-            # Fast path: use hex_view helper to avoid ctypes load overhead
             from editor.Ironica.inspector.hex_view import is_elf_file
 
             if not is_elf_file(file_path):
                 return False
-            # Confirm via native inspector for robustness
             try:
                 from editor.Ironica.inspector.binding import get_inspector
 
                 return get_inspector().is_elf(file_path)
             except Exception:
-                # Magic already matched — treat as binary
                 return True
         except Exception:
             return False
 
     def add_new_tab(self, widget: QWidget, title: str):
-        """
-        Constructs and adds an empty tab for later construction.
-        This API is useful for setting up custom tabs such as settings tabs,
-        consoles and command windows, special configuration tabs, and more.
-        """
+        """Constructs and adds an empty tab for later construction."""
         tab = widget(self)
         index = self.addTab(tab, title)
         self.setCurrentIndex(index)
@@ -453,7 +379,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         splitter.addWidget(right_widget)
 
         _layout.addWidget(splitter)
-        return main_widget  # Returns ts to be used in editing widgets content if needed
+        return main_widget
 
     def add_binary_editor(self, file_name: str, file_path: str):
         """Create a tab for a binary/ELF file in read-only hex mode."""
@@ -474,7 +400,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             new_editor = MiniMapHostWidget(code_editor, parent=self)
         except Exception as exc:
             logger.warning("Failed to load binary %s: %s", file_path, exc)
-            # Fallback: try to show hex via text fallback?
             try:
                 from editor.utils.notifications.notification_manager import (
                     get_notification_manager,
@@ -490,7 +415,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             new_editor = FallBack(self)
             new_editor.setText(f"Failed to open binary file: {file_path}\n{exc}")
 
-        # Wire spinner (binary has no analysis but keep for consistency)
         code_editor = getattr(new_editor, "editor", None)
         if code_editor is not None:
             status = getattr(self._parent, "status_bar", None)
@@ -546,22 +470,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         language=None,
         file_path=None,
     ):
-        """Create a new tab containing either a ``MiniMapHostWidget`` (wrapping
-        a ``CodeEditor``) or a ``FallBack`` placeholder.
-
-        If *file_path* is already open the existing tab is raised instead
-        of creating a duplicate.
-
-        Args:
-            file_name: Display name for the tab.  When ``None`` a default
-                ``"untitled - N"`` name is generated.
-            content: Initial text for untitled (no *file_path*) tabs.
-            language: Language identifier for syntax highlighting.
-            file_path: Absolute path to the file on disk.
-
-        Returns:
-            The newly created widget (``MiniMapHostWidget`` or ``FallBack``).
-        """
+        """Create a new tab containing either a ``MiniMapHostWidget`` (wrapping a ``CodeEditor``) or a ``FallBack`` placeholder."""
         key = self.resolve_key(file_path) if file_path else None
 
         if key and key in self.opened_files:
@@ -615,9 +524,6 @@ class DreamTabbedEditor(QDreamTabEditor):
                 )
 
             if provider and hasattr(provider, "create_completion_manager"):
-                # Editor-scoped, exactly like _diag_manager: the provider
-                # is a singleton whose slot would otherwise hold the last
-                # opened (or already destroyed) tab's manager.
                 code_editor._completion_manager = provider.create_completion_manager(
                     editor=code_editor,
                     file_path=file_path,
@@ -638,13 +544,11 @@ class DreamTabbedEditor(QDreamTabEditor):
         index = self.addTab(new_editor, file_name)
         self.setCurrentIndex(index)
 
-        # Stamp the tab-manager-owned key on the editor for dedup tracking.
         new_editor.file_key = key
 
         self.opened_files[key] = index
 
         if isinstance(new_editor, MiniMapHostWidget):
-            # Explicit capture avoids sender() fragility when signal is forwarded
             new_editor.dirty_state_changed.connect(
                 lambda is_dirty, ed=new_editor: self._on_editor_dirty_changed_explicit(
                     ed, is_dirty
@@ -653,7 +557,6 @@ class DreamTabbedEditor(QDreamTabEditor):
 
         self.tabBar().rebuild_dirty_indices()
 
-        # Sync read-only indicator from the editor's own state.
         if isinstance(new_editor, MiniMapHostWidget) and new_editor.isReadOnly():
             self.tabBar().mark_readonly(index, True)
 
@@ -671,12 +574,7 @@ class DreamTabbedEditor(QDreamTabEditor):
 
     @staticmethod
     def _schedule_completion_warmup(code_editor, file_path) -> None:
-        """Prime completion caches once while the fresh tab is idle.
-
-        Skipped when the user typed first (a real request already warms
-        the engine) or the tab closed meanwhile. Warmup results are
-        always discarded, never shown.
-        """
+        """Prime completion caches once while the fresh tab is idle."""
         try:
             import weakref
 
@@ -730,16 +628,9 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.setCurrentIndex(index)
         self.setFocus()
 
-    # ------------------------------------------------------------------
-    # Close interceptors
-    # ------------------------------------------------------------------
 
     def add_close_interceptor(self, callback) -> None:
-        """Register a callback that is invoked before a tab is closed.
-
-        The callback receives ``(index, editor)`` and may return
-        ``False`` to prevent the close.
-        """
+        """Register a callback that is invoked before a tab is closed."""
         self._close_interceptors.append(callback)
 
     def remove_close_interceptor(self, callback) -> None:
@@ -747,16 +638,9 @@ class DreamTabbedEditor(QDreamTabEditor):
         if callback in self._close_interceptors:
             self._close_interceptors.remove(callback)
 
-    # ------------------------------------------------------------------
-    # Tab closing
-    # ------------------------------------------------------------------
 
     def _on_close_requested(self, index: int) -> None:
-        """Handle the ``tabCloseRequested`` signal.
-
-        If the editor is dirty, prompt the user to save, discard,
-        or cancel before proceeding with the close.
-        """
+        """Handle the ``tabCloseRequested`` signal."""
         editor = self.widget(index)
         if editor is None:
             return
@@ -805,12 +689,7 @@ class DreamTabbedEditor(QDreamTabEditor):
             return None
 
     def close_editor(self, index: int) -> None:
-        """Close the tab at *index* and clean up all associated state.
-
-        Runs close interceptors first; if any return ``False`` the close
-        is aborted.  Removes the dirty-tracker watch, disconnects signals,
-        deletes the widget, and adjusts the ``opened_files`` index map.
-        """
+        """Close the tab at *index* and clean up all associated state."""
         editor = self.widget(index)
         if not editor:
             return
@@ -913,9 +792,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         if hasattr(self._parent, "update_editor_visibility"):
             self._parent.update_editor_visibility()
 
-    # ------------------------------------------------------------------
-    # File opening
-    # ------------------------------------------------------------------
 
     def open_file(self) -> None:
         """Open a file chooser dialog and load the selected file."""
@@ -938,15 +814,10 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.open_file_by_path(file_path)
 
     def open_file_by_path(self, file_path: str) -> None:
-        """Open *file_path* in a new (or existing) tab.
-
-        Args:
-            file_path: Absolute path to the file.
-        """
+        """Open *file_path* in a new (or existing) tab."""
         file_name = pathlib.Path(file_path).name
 
         try:
-            # Binary/ELF files are detected via magic/header, not extension
             if self._is_elf_binary(file_path):
                 self.add_binary_editor(file_name=file_name, file_path=file_path)
                 return
@@ -971,12 +842,7 @@ class DreamTabbedEditor(QDreamTabEditor):
                 pass
 
     def open_file_at_line(self, file_path: str, line: int) -> None:
-        """Open *file_path* and jump its underlying editor to *line*.
-
-        Args:
-            file_path: Absolute path to the file to open.
-            line: Zero-based destination line for go-to-definition navigation.
-        """
+        """Open *file_path* and jump its underlying editor to *line*."""
         file_name = pathlib.Path(file_path).name
         destination_line = max(0, int(line))
 
@@ -999,12 +865,7 @@ class DreamTabbedEditor(QDreamTabEditor):
             logger.error("Open file at line failed: %s", e)
 
     def get_editor_for_path(self, file_path: str):
-        """Return the ``CodeEditor`` widget for *file_path*, or ``None``.
-
-        Resolves the path via the dedup key and unwraps
-        ``MiniMapHostWidget`` if needed so that the caller always
-        receives the underlying ``CodeEditor`` directly.
-        """
+        """Return the ``CodeEditor`` widget for *file_path*, or ``None``."""
         key = self.resolve_key(file_path)
         if key is None or key not in self.opened_files:
             return None
@@ -1017,7 +878,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         if widget is None:
             return None
 
-        # Unwrap MiniMapHostWidget → CodeEditor.
         if isinstance(widget, MiniMapHostWidget):
             return widget.editor
 
@@ -1028,25 +888,14 @@ class DreamTabbedEditor(QDreamTabEditor):
 
     @staticmethod
     def set_language(lang: str):
-        """Resolve a file extension to a language identifier.
-
-        Args:
-            lang: File extension including the leading dot (e.g. ``".py"``).
-        """
+        """Resolve a file extension to a language identifier."""
         from editor.Ironica.language_engine import LanguageRegistry
 
         return LanguageRegistry.get_language_by_extension(lang)
 
     @staticmethod
     def set_language_for_file(file_path: str):
-        """Resolve a full file path to a language identifier.
-
-        Exact filename matches (e.g. ``"CMakeLists.txt"``) win over the
-        extension mapping.
-
-        Args:
-            file_path: Absolute path to the file being opened.
-        """
+        """Resolve a full file path to a language identifier."""
         from editor.Ironica.language_engine import LanguageRegistry
 
         return LanguageRegistry.get_language_for_file(file_path)
@@ -1061,24 +910,14 @@ class DreamTabbedEditor(QDreamTabEditor):
 
     @staticmethod
     def resolve_key(file_path):
-        """Normalise a file path for use as a dedup key.
-
-        Returns ``None`` when *file_path* is ``None`` or empty.
-        """
+        """Normalise a file path for use as a dedup key."""
         if not file_path:
             return None
         return os.path.normcase(os.path.normpath(file_path))
 
-    # ------------------------------------------------------------------
-    # Saving
-    # ------------------------------------------------------------------
 
     def save_current_file(self) -> None:
-        """Save the currently active editor's buffer.
-
-        After a successful save of a previously-untitled file, the tab is
-        closed and re-opened to update the tab title and dedup key.
-        """
+        """Save the currently active editor's buffer."""
         editor = self.currentWidget()
         if not editor or not hasattr(editor, "save"):
             return
@@ -1121,8 +960,7 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.tabBar().rebuild_dirty_indices()
 
     def _reopen_saved_tab(self, editor) -> None:
-        """Close the current tab and re-open the file so that the tab
-        title, icon, and dedup key reflect the saved path."""
+        """Close the current tab and re-open the file so that the tab title, icon, and dedup key reflect the saved path."""
         file_path = editor.current_file_path
         current_idx = self.currentIndex()
         self.close_editor(current_idx)
@@ -1151,9 +989,6 @@ class DreamTabbedEditor(QDreamTabEditor):
                     logger.warning("Save-all failed for tab %d", i)
         self.tabBar().rebuild_dirty_indices()
 
-    # ------------------------------------------------------------------
-    # Status bar helpers
-    # ------------------------------------------------------------------
 
     def return_file_info(self) -> None:
         """Push the active editor's EOL and indentation info to the status bar."""

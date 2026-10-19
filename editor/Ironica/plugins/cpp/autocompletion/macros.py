@@ -1,12 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Macro-name collection for guard contexts (``#ifdef`` and family).
-
-A full AST walk visits ~100k cursors through system headers (~2s), so
-this walk visits every *top-level* cursor — where libclang surfaces all
-macro definitions, including headers' — but recurses only into nodes
-located in the main file. Bounded, cached, with a buffer-regex fallback.
 """
 
 from __future__ import annotations
@@ -61,15 +55,7 @@ def _kind_name(cursor) -> str:
 
 
 def collect_macros(tu, main_path: Optional[str]) -> List[str]:
-    """Collect macro names: buffer-speed walk, headers included.
-
-    Args:
-        tu: Parsed translation unit (may be ``None``).
-        main_path: Main-file path used for recursion pruning.
-
-    Returns:
-        Ordered unique macro names, buffer macros first.
-    """
+    """Collect macro names:"""
     ordered: List[str] = []
     seen: set[str] = set()
     if tu is None:
@@ -111,18 +97,7 @@ def complete_guards(
     source: str = "",
     clang_names: Optional[List[str]] = None,
 ) -> List[CppCompletion]:
-    """Complete macro names for ``#ifdef``-family contexts.
-
-    Args:
-        prefix: Partial macro name.
-        tu: Cached translation unit for header-macro collection.
-        main_path: Main-file path for walk pruning.
-        source: Buffer text for the regex fallback path.
-        clang_names: Macro names already returned by ``codeComplete``.
-
-    Returns:
-        Ranked macro completions starting with *prefix*.
-    """
+    """Complete macro names for ``#ifdef``-family contexts."""
     lowered = (prefix or "").lower()
     tu_tag = id(tu) if tu is not None else hash(source)
     cache_key = (main_path or "", tu_tag)
@@ -231,14 +206,7 @@ def _top_entries(tu) -> List[tuple]:
 def complete_macro_body(prefix: str, line_text: str, tu=None,
                         main_path: Optional[str] = None,
                         ) -> List[CppCompletion]:
-    """Complete an expression inside a `#define` body.
-
-    libclang returns nothing inside macro definitions, so names come
-    from the translation unit's top level (functions, globals, types,
-    macros — one level only, never a deep walk), narrowed by an
-    explicit `` qualifier`` when present. Function-like macro
-    parameters rank first.
-    """
+    """Complete an expression inside a `#define` body."""
     from .context import macro_params
 
     lowered = (prefix or "").lower()

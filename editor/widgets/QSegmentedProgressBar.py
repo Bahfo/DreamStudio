@@ -39,10 +39,7 @@ class SegmentedProgressBar(QWidget):
 
 
 class FlowLayout(QLayout):
-    """
-    A layout that automatically wraps items to the
-    next line if they exceed the width.
-    """
+    """A layout that automatically wraps items to the next line if they exceed the width."""
 
     def __init__(self, parent=None, margin=0, spacing=8):
         super().__init__(parent)

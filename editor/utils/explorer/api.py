@@ -1,9 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Filesystem operation APIs for the DreamStudio Solution Explorer.
-Each function is a self-contained operation that can be wired to toolbar
-buttons or context-menu actions.
 """
 
 from __future__ import annotations
@@ -15,11 +12,7 @@ from editor.utils.notifications.notification_manager import get_notification_man
 
 
 class ExplorerAPI:
-    """Stateless helper class that groups all Solution-Explorer file operations.
-
-    Instantiate once per ``SolutionExplorer`` widget and call its methods
-    from toolbar buttons or context-menu callbacks.
-    """
+    """Stateless helper class that groups all Solution-Explorer file operations."""
 
     _clipboard: dict[str, str] = {}
     _clipboard_workspace: str = ""
@@ -55,8 +48,7 @@ class ExplorerAPI:
 
     @staticmethod
     def selected_source_path(tree_view: QTreeView) -> str | None:
-        """Return the absolute filesystem path of the currently selected
-        item, or ``None`` if nothing is selected."""
+        """Return the absolute filesystem path of the currently selected item, or ``None`` if nothing is selected."""
         proxy_index = tree_view.currentIndex()
         if not proxy_index.isValid():
             return None
@@ -84,11 +76,7 @@ class ExplorerAPI:
     def new_file(
         parent: QWidget, directory: str, suggested_name: str = ""
     ) -> str | None:
-        """Create a new empty file inside *directory*.
-
-        Prompts the user for a file name via ``QInputDialog``.  Returns the
-        absolute path of the created file, or ``None`` on cancellation.
-        """
+        """Create a new empty file inside *directory*."""
         name, ok = QInputDialog.getText(
             parent,
             "New File",
@@ -134,11 +122,7 @@ class ExplorerAPI:
 
     @staticmethod
     def new_folder(parent: QWidget, directory: str) -> str | None:
-        """Create a new folder inside *directory*.
-
-        Prompts the user for a folder name.  Returns the absolute path of the
-        created folder, or ``None`` on cancellation.
-        """
+        """Create a new folder inside *directory*."""
         name, ok = QInputDialog.getText(
             parent,
             "New Folder",
@@ -182,11 +166,7 @@ class ExplorerAPI:
 
     @staticmethod
     def delete_item(parent: QWidget, path: str) -> bool:
-        """Permanently delete a file or folder after user confirmation.
-
-        Shows a destructive confirmation dialog before proceeding.
-        Returns ``True`` if the item was deleted, ``False`` otherwise.
-        """
+        """Permanently delete a file or folder after user confirmation."""
         if not os.path.exists(path):
             return False
 
@@ -223,11 +203,7 @@ class ExplorerAPI:
 
     @staticmethod
     def rename_item(parent: QWidget, path: str) -> str | None:
-        """Rename a file or folder via a confirmation dialog.
-
-        Returns the new absolute path on success, or ``None`` if the user
-        cancelled or the rename failed.
-        """
+        """Rename a file or folder via a confirmation dialog."""
         if not os.path.exists(path):
             return None
 
@@ -270,10 +246,7 @@ class ExplorerAPI:
 
     @classmethod
     def copy_item(cls, path: str, workspace: str = "") -> None:
-        """Copy *path* to the internal clipboard (does not modify filesystem).
-
-        A subsequent call to ``paste_item`` will duplicate the item.
-        """
+        """Copy *path* to the internal clipboard (does not modify filesystem)."""
         if not os.path.exists(path):
             return
         cls._clipboard.clear()
@@ -306,13 +279,7 @@ class ExplorerAPI:
 
     @classmethod
     def paste_item(cls, parent: QWidget, destination_dir: str) -> str | None:
-        """Paste the clipboard contents into *destination_dir*.
-
-        - **copy**: duplicates the file / folder into the destination.
-        - **cut**: moves the file / folder into the destination.
-
-        Returns the path of the pasted item, or ``None`` on failure.
-        """
+        """Paste the clipboard contents into *destination_dir*."""
         if not cls._clipboard:
             return None
 
@@ -448,8 +415,6 @@ class ExplorerAPI:
     ) -> None:
         """Filter the tree view using *text* as a fixed-string match."""
         query = (text or "").strip()
-        # Fixed-string filter: traversal sequences are literal text, but
-        # absolute paths outside the root are still rejected.
         if root_path and os.path.isabs(query):
             try:
                 if os.path.commonpath(
@@ -459,7 +424,6 @@ class ExplorerAPI:
             except ValueError:
                 query = ""
 
-        # Proxy uses custom _search_text filtering, not filterFixedString
         if hasattr(proxy_model, "set_search_text"):
             proxy_model.set_search_text(query)
         else:

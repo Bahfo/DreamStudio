@@ -1,14 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Per-machine system-header symbol index for the C++ plugin.
-
-Workspace files change constantly, but third-party headers (SDL, OpenSSL,
-Eigen, …) do not. This module collects the project's transitive include
-graph, parses each header once per machine with the existing cursor walk,
-and persists records under ``~/.dreamstudio/cpp-sysindex/``. Completion
-serves matching rows in milliseconds while the semantic engine converges
-behind them. A failed or partial build simply contributes no rows.
 """
 
 from __future__ import annotations
@@ -54,19 +46,7 @@ def _record_name(header: str) -> str:
 
 
 def collect_graph(seed_files: list, base_flags: list) -> list:
-    """Collect the transitive include graph for *seed_files*.
-
-    Each harvested header is resolved with the shared locator (explicit
-    ``-I`` dirs, system roots, bounded project walk) and its own
-    includes are followed to a fixpoint. Never raises.
-
-    Args:
-        seed_files: Absolute workspace source paths to start from.
-        base_flags: Flags already in effect (their ``-I`` dirs seed it).
-
-    Returns:
-        Sorted absolute header paths (capped).
-    """
+    """Collect the transitive include graph for *seed_files*."""
     try:
         from . import headers as header_resolution
         from . import pch as pch_support
@@ -135,15 +115,7 @@ def _header_includes(header: str) -> list:
 
 
 def _walk_header(header: str, base_flags: list) -> list:
-    """Cursor-walk one header with *base_flags* into symbol dicts.
-
-    Args:
-        header: Absolute header path to parse.
-        base_flags: Flags for the parse.
-
-    Returns:
-        Symbol dicts (possibly empty) — never raises.
-    """
+    """Cursor-walk one header with *base_flags* into symbol dicts."""
     try:
         import clang.cindex as cindex
         from clang.cindex import Index, TranslationUnit
@@ -214,8 +186,6 @@ def _walk_header(header: str, base_flags: list) -> list:
                 for child in cursor.get_children():
                     _record(child, scope)
             elif cursor.kind == CursorKind.LINKAGE_SPEC:
-                # System headers wrap declarations in extern "C" blocks;
-                # their children live in the enclosing scope.
                 for child in cursor.get_children():
                     _record(child, parent_name)
         except Exception:
@@ -237,20 +207,7 @@ def build(
     progress=None,
     cancelled=None,
 ) -> dict:
-    """Build system-index records for the graph under *seed_files*.
-
-    Parses only headers whose mtime changed since their record. Never
-    raises; partial progress persists.
-
-    Args:
-        seed_files: Absolute workspace source paths to start from.
-        base_flags: Flags for header parses.
-        progress: Optional ``(done, total)`` callable per header.
-        cancelled: Optional callable returning ``True`` to abort.
-
-    Returns:
-        ``{"headers": N, "parsed": M}`` counts.
-    """
+    """Build system-index records for the graph under *seed_files*."""
     store = _store_root()
     try:
         os.makedirs(store, exist_ok=True)
@@ -308,11 +265,7 @@ def build(
 
 
 def load() -> dict:
-    """Load every persisted record into ``{header: [symbols]}``.
-
-    Returns:
-        In-memory map of ``header path -> [symbols]`` (possibly empty).
-    """
+    """Load every persisted record into ``{header:"""
     memory: dict = {}
     try:
         store = _store_root()
@@ -345,18 +298,7 @@ def search(
     limit: int = 50,
     exclude_kinds: frozenset | set | None = None,
 ) -> list:
-    """Return index rows from *memory* matching *prefix*.
-
-    Args:
-        memory: Preloaded ``{key: [symbol dicts]}`` map.
-        prefix: Case-insensitive name prefix.
-        limit: Maximum rows returned.
-        exclude_kinds: Kinds skipped as never valid bare identifiers.
-            Defaults to the shared non-global set from ``index``.
-
-    Returns:
-        List of ``CppCompletion`` rows (possibly empty).
-    """
+    """Return index rows from *memory* matching *prefix*."""
     from ..models import CppCompletion
 
     needle = (prefix or "").strip().lower()

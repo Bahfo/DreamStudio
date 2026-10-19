@@ -1,11 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-DocumentationFlyout: interactive, VS Code-like symbol documentation card.
-
-This widget intentionally does not decide when an unpinned flyout should
-close. HoverController owns that state transition.  The flyout only provides
-presentation, scrolling, pinning and positioning.
+DocumentationFlyout:
 """
 
 from __future__ import annotations
@@ -15,20 +10,27 @@ import re
 from typing import Optional
 
 from PyQt6.QtCore import QEvent, QPoint, QTimer, Qt, QSize, pyqtSignal
-from PyQt6.QtGui import QPalette, QTextDocument
+from PyQt6.QtGui import (
+    QColor,
+    QPalette,
+    QTextCursor,
+    QTextDocument,
+    QTextCharFormat,
+)
 from PyQt6.QtWidgets import (
-    QApplication,
     QFrame,
-    QGraphicsDropShadowEffect,
-    QHBoxLayout,
     QLabel,
     QStyle,
-    QTextBrowser,
-    QToolButton,
-    QVBoxLayout,
     QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QToolButton,
+    QApplication,
+    QTextBrowser,
+    QGraphicsDropShadowEffect,
 )
 
+from editor.Ironica.retheme import DEFAULT_DOC_PALETTE, doc_palette
 
 
 def _plain_title_from_markdown(value: str) -> str:
@@ -41,15 +43,30 @@ def _plain_title_from_markdown(value: str) -> str:
     text = re.sub(r"!\[([^]]*)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"\[([^]]+)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"(`{1,3})(.*?)\1", r"\2", text, flags=re.DOTALL)
-    # Strip Markdown emphasis without destroying snake_case identifiers.
-    # ``**bold**`` and ``*italic*`` use asterisks, ``~~strike~~`` uses tildes.
-    # Underscore emphasis (``_italic_``, ``__bold__``) is intentionally not
-    # stripped globally because it would corrupt names like ``my_func``.
+
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
     text = re.sub(r"\*(.*?)\*", r"\1", text)
     text = re.sub(r"~~(.*?)~~", r"\1", text)
     text = re.sub(r"[*~]", "", text)
     return " ".join(text.split())
+
+
+_MONOSPACE_FAMILIES = frozenset(
+    {
+        "monospace",
+        "courier",
+        "courier new",
+        "consolas",
+        "menlo",
+        "dejavu sans mono",
+        "liberation mono",
+        "source code pro",
+        "jetbrains mono",
+        "fira code",
+        "cascadia code",
+        "cascadia mono",
+    }
+)
 
 
 def _split_name_kind(title: str) -> tuple:
@@ -70,10 +87,9 @@ class DocumentationFlyout(QFrame):
     navigate_forward_requested = pyqtSignal()
     jump_to_source_requested = pyqtSignal()
     pin_toggled = pyqtSignal(bool)
+    dismissed = pyqtSignal()
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
-        # Tool gives the card its own window surface so it can sit over the
-        # editor, but it remains associated with the CodeEditor parent.
         super().__init__(
             parent,
             Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint,
@@ -106,8 +122,13 @@ class DocumentationFlyout(QFrame):
         self._header = QFrame(self)
         self._header.setObjectName("documentationFlyoutHeader")
         header_layout = QHBoxLayout(self._header)
-        header_layout.setContentsMargins(13, 10, 9, 9)
-        header_layout.setSpacing(8)
+        header_layout.setContentsMargins(10, 8, 6, 6)
+        header_layout.setSpacing(6)
+
+        self._kind_icon = QLabel(self._header)
+        self._kind_icon.setObjectName("documentationFlyoutKindIcon")
+        self._kind_icon.setFixedSize(9, 9)
+        header_layout.addWidget(self._kind_icon, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._title_label = QLabel(self._header)
         self._title_label.setObjectName("documentationFlyoutTitle")
@@ -122,22 +143,28 @@ class DocumentationFlyout(QFrame):
         self.btn_pin.setObjectName("documentationFlyoutPin")
         self.btn_pin.setCheckable(True)
         self.btn_pin.setAutoRaise(True)
-        self.btn_pin.setFixedSize(24, 24)
+        self.btn_pin.setFixedSize(22, 22)
         self.btn_pin.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarNormalButton)
         )
-        self.btn_pin.setIconSize(QSize(13, 13))
+        self.btn_pin.setIconSize(QSize(12, 12))
         self.btn_pin.setToolTip("Pin documentation")
         self.btn_pin.toggled.connect(self._on_pin_toggled)
-        header_layout.addWidget(self.btn_pin, 0, Qt.AlignmentFlag.AlignTop)
+        header_layout.addWidget(self.btn_pin, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        self.btn_dismiss = QToolButton(self._header)
+        self.btn_dismiss.setObjectName("documentationFlyoutDismiss")
+        self.btn_dismiss.setAutoRaise(True)
+        self.btn_dismiss.setFixedSize(22, 22)
+        self.btn_dismiss.setText("✕")
+        self.btn_dismiss.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_dismiss.setToolTip("Close documentation (Esc)")
+        self.btn_dismiss.clicked.connect(self._on_dismiss_clicked)
+        header_layout.addWidget(self.btn_dismiss, 0, Qt.AlignmentFlag.AlignVCenter)
 
         root.addWidget(self._header)
 
-        self._separator = QFrame(self)
-        self._separator.setObjectName("documentationFlyoutSeparator")
-        self._separator.setFrameShape(QFrame.Shape.HLine)
-        self._separator.setFixedHeight(1)
-        root.addWidget(self._separator)
+        self._separator = None
 
         self.browser = QTextBrowser(self)
         self.browser.setObjectName("documentationFlyoutBrowser")
@@ -147,12 +174,8 @@ class DocumentationFlyout(QFrame):
         self.browser.setOpenExternalLinks(True)
         self.browser.setMouseTracking(True)
         self.browser.setLineWrapMode(QTextBrowser.LineWrapMode.WidgetWidth)
-        self.browser.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self.browser.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
+        self.browser.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.browser.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.browser.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.LinksAccessibleByMouse
@@ -169,18 +192,42 @@ class DocumentationFlyout(QFrame):
         self._apply_card_style()
 
     def _apply_card_style(self) -> None:
-        """Give the card a themed background, hairline border, small radius."""
-        pal = self.palette()
-        bg = pal.color(QPalette.ColorRole.Window)
-        border = pal.color(QPalette.ColorRole.Mid)
-        is_dark = bg.lightness() < 128
-        card = bg.lighter(108).name() if is_dark else "#FFFFFF"
+        """Give the card themed surfaces instead of Qt's stock light palette."""
+        colors = self._doc_colors()
+        surface = colors["surface"]
+        border = colors["border"]
+        text = colors["text"]
+
+        palette = QPalette(self.palette())
+        palette.setColor(QPalette.ColorRole.Window, QColor(surface))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(text))
+        palette.setColor(QPalette.ColorRole.Base, QColor(surface))
+        palette.setColor(QPalette.ColorRole.Text, QColor(text))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(text))
+        palette.setColor(QPalette.ColorRole.Mid, QColor(border))
+        self.setPalette(palette)
+
+        self._title_label.setStyleSheet(f"color: {text};")
+        self.browser.setPalette(palette)
+        self.browser.setStyleSheet(
+            "QTextBrowser {"
+            f" background-color: {surface};"
+            f" color: {text};"
+            " border: none;"
+            "}"
+        )
+        viewport = self.browser.viewport()
+        viewport.setAutoFillBackground(True)
+        viewport.setStyleSheet(f"background-color: {surface};")
         self.setStyleSheet(
             "QFrame#documentationFlyout {"
-            f" background-color: {card};"
-            f" border: 1px solid {border.name()};"
+            f" background-color: {surface};"
+            f" border: 1px solid {border};"
             " border-radius: 6px;"
             "}"
+            f"QToolButton {{ border: none; background: transparent; }}"
+            f"QToolButton:hover {{ background: {colors['rule']}; border-radius: 3px; }}"
+            f"QToolButton:checked {{ background: {colors['rule']}; border-radius: 3px; }}"
         )
 
     def changeEvent(self, event) -> None:
@@ -195,24 +242,38 @@ class DocumentationFlyout(QFrame):
                     self._in_change_event = False
         super().changeEvent(event)
 
-    # ------------------------------------------------------------------
-    # Content
-    # ------------------------------------------------------------------
+
+    def _doc_colors(self) -> dict[str, str]:
+        """Return the active theme's documentation accents.
+
+        Falls back to the built-in dark accents so a theme missing the keys
+        still renders a legible flyout rather than unset colours.
+        """
+        try:
+            return doc_palette()
+        except Exception:
+            return dict(DEFAULT_DOC_PALETTE)
 
     def set_documentation(self, title_markdown: str, body_markdown: str) -> None:
-        """Render documentation as Markdown using Qt's native Markdown engine.
-
-        The hover provider should return Markdown rather than pre-rendered HTML.
-        QTextDocument performs the Markdown -> rich-text conversion, while the
-        default stylesheet below controls the restrained IDE documentation style.
-        """
+        """Render documentation as Markdown using Qt's native Markdown engine."""
         title = _plain_title_from_markdown(title_markdown)
         body = body_markdown or ""
 
         name, kind = _split_name_kind(title or "Documentation")
-        header = f'<span style="font-size:13px; font-weight:600;">{html.escape(name)}</span>'
+        colors = self._doc_colors()
+        self._kind_icon.setStyleSheet(
+            f"background: {colors['kind']}; border-radius: 4px;"
+        )
+        parts = [
+            f'<span style="color:{colors["name"]}; font-size:12.5px;'
+            f' font-weight:600;">{html.escape(name)}</span>'
+        ]
         if kind:
-            header += f' <span style="color:#8b9099;">&#183; {html.escape(kind)}</span>'
+            parts.append(
+                f'<span style="color:{colors["kind"]}; font-size:11.5px;">'
+                f"&#183; {html.escape(kind)}</span>"
+            )
+        header = " ".join(parts)
         self._title_label.setText(header)
         self._last_body = body
 
@@ -220,101 +281,185 @@ class DocumentationFlyout(QFrame):
         document.clear()
         document.setDefaultStyleSheet(self._markdown_stylesheet())
         document.setMarkdown(body)
-        document.setDocumentMargin(14)
+        document.setDocumentMargin(10)
+        self._style_code(document)
 
         self._schedule_update_size()
 
-    @staticmethod
-    def _markdown_stylesheet() -> str:
-        """QTextDocument stylesheet – airy, small-font, human-readable.
+    def _style_code(self, document: QTextDocument) -> None:
+        """Colour code blocks and inline code on the rendered document."""
+        colors = self._doc_colors()
+        limit = max(document.characterCount() - 1, 0)
 
-        Tuned for 11 px body text with generous line-height and paragraph
-        gaps so dense signatures / docstrings do not feel cramped.  The
-        palette (foreground/background) is inherited from the widget palette
-        so dark and light themes both remain legible.
+        edits = []
+        block = document.begin()
+        while block.isValid():
+            existing = self._char_format_at(document, block.position())
+            if self._is_code_format(existing):
+                edits.append(("block", block.position(), block.length(), existing))
+            else:
+                it = block.begin()
+                while not it.atEnd():
+                    fragment = it.fragment()
+                    if not fragment.isValid():
+                        it += 1
+                        continue
+                    fragment_format = fragment.charFormat()
+                    if self._is_code_format(fragment_format):
+                        edits.append(
+                            (
+                                "fragment",
+                                fragment.position(),
+                                fragment.length(),
+                                fragment_format,
+                            )
+                        )
+                    it += 1
+            block = block.next()
+
+        for _kind, position, length, existing in edits:
+            end = min(position + max(length, 1), limit)
+            if end <= position:
+                continue
+            cursor = QTextCursor(document)
+            cursor.setPosition(position)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            char_format = QTextCharFormat(existing)
+            char_format.setForeground(QColor(colors["code"]))
+            cursor.setCharFormat(char_format)
+
+    @staticmethod
+    def _char_format_at(document: QTextDocument, position: int) -> QTextCharFormat:
+        """Return the character format in effect at *position*."""
+        cursor = QTextCursor(document)
+        cursor.setPosition(min(max(position, 0), max(document.characterCount() - 1, 0)))
+        return cursor.charFormat()
+
+    @staticmethod
+    def _doc_colors_for() -> dict:
+        """Return the active theme's documentation palette.
+
+        Returns:
+            Mapping of surface and accent keys to hex colours.
         """
-        return """
-            body {
-                font-size: 11px;
-                line-height: 1.58;
-            }
-            p {
+        try:
+            return doc_palette()
+        except Exception:
+            return dict(DEFAULT_DOC_PALETTE)
+
+    @staticmethod
+    def _is_code_format(fmt: QTextCharFormat) -> bool:
+        """Return whether *fmt* renders text as code."""
+        if fmt.fontFixedPitch():
+            return True
+        return fmt.font().family().strip().lower() in _MONOSPACE_FAMILIES
+
+    def _on_dismiss_clicked(self) -> None:
+        """Close from the in-card dismiss button, even while pinned."""
+        self.set_pinned(False)
+        self.dismiss(force=True)
+        self.dismissed.emit()
+
+    def _markdown_stylesheet(self) -> str:
+        c = self._doc_colors()
+        return f"""
+            body {{
+                font-size: 12px;
+                line-height: 1.45;
+                color: {c["text"]};
+                background: transparent;
+            }}
+            p {{
                 margin-top: 0px;
-                margin-bottom: 11px;
-                line-height: 1.62;
-            }
-            h1 {
-                font-size: 15px;
-                font-weight: 600;
-                margin-top: 4px;
-                margin-bottom: 10px;
-                line-height: 1.35;
-            }
-            h2 {
+                margin-bottom: 8px;
+                line-height: 1.45;
+                color: {c["text"]};
+            }}
+            h1 {{
                 font-size: 13px;
                 font-weight: 600;
-                margin-top: 14px;
-                margin-bottom: 7px;
-                line-height: 1.4;
-            }
-            h3 {
-                font-size: 11.5px;
-                font-weight: 600;
-                margin-top: 13px;
+                color: {c["name"]};
+                margin-top: 0px;
                 margin-bottom: 6px;
-                line-height: 1.45;
-            }
-            h4, h5, h6 {
-                font-size: 11px;
+                line-height: 1.3;
+            }}
+            h2 {{
+                font-size: 12.5px;
                 font-weight: 600;
+                color: {c["name"]};
                 margin-top: 10px;
                 margin-bottom: 5px;
-                line-height: 1.45;
-            }
-            ul, ol {
-                margin-top: 6px;
-                margin-bottom: 12px;
-                padding-left: 22px;
-                line-height: 1.6;
-            }
-            li {
-                margin-bottom: 5px;
-                line-height: 1.58;
-            }
-            blockquote {
-                margin-left: 8px;
+                line-height: 1.3;
+            }}
+            h3 {{
+                font-size: 12px;
+                font-weight: 600;
+                color: {c["muted"]};
+                margin-top: 9px;
+                margin-bottom: 4px;
+                line-height: 1.35;
+            }}
+            h4, h5, h6 {{
+                font-size: 12px;
+                font-weight: 600;
+                color: {c["muted"]};
                 margin-top: 8px;
-                margin-bottom: 10px;
-                padding-left: 12px;
-                line-height: 1.6;
-            }
-            pre {
-                margin-top: 9px;
-                margin-bottom: 12px;
-                padding: 10px 12px;
-                line-height: 1.5;
-                font-size: 10.5px;
-            }
-            code {
+                margin-bottom: 4px;
+                line-height: 1.35;
+            }}
+            ul, ol {{
+                margin-top: 4px;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                line-height: 1.45;
+            }}
+            li {{
+                margin-bottom: 3px;
+                line-height: 1.45;
+            }}
+            blockquote {{
+                margin-left: 6px;
+                margin-top: 6px;
+                margin-bottom: 8px;
+                padding-left: 10px;
+                border-left: 2px solid {c["quote"]};
+                color: {c["muted"]};
+                line-height: 1.45;
+            }}
+            pre {{
+                margin-top: 2px;
+                margin-bottom: 8px;
+                padding: 6px 8px;
+                line-height: 1.4;
+                font-size: 11.5px;
+                color: {c["code"]};
+                background-color: {c["surface_alt"]};
+                border: 1px solid {c["rule"]};
+                border-radius: 4px;
+            }}
+            code {{
                 font-family: monospace;
-                font-size: 10.5px;
-                line-height: 1.5;
-            }
-            table {
+                font-size: 11.5px;
+                line-height: 1.4;
+                color: {c["code"]};
+            }}
+            table {{
+                margin-top: 6px;
+                margin-bottom: 8px;
+                line-height: 1.45;
+            }}
+            th, td {{
+                padding: 3px 8px 3px 0;
+            }}
+            hr {{
                 margin-top: 9px;
-                margin-bottom: 12px;
-                line-height: 1.55;
-            }
-            th, td {
-                padding: 5px 10px 5px 0;
-            }
-            hr {
-                margin-top: 12px;
-                margin-bottom: 12px;
-            }
-            a {
+                margin-bottom: 9px;
+                color: {c["rule"]};
+            }}
+            a {{
+                color: {c["link"]};
                 text-decoration: none;
-            }
+            }}
         """
 
     def clear_documentation(self) -> None:
@@ -322,9 +467,6 @@ class DocumentationFlyout(QFrame):
         self.browser.clear()
         self._schedule_update_size()
 
-    # ------------------------------------------------------------------
-    # Geometry
-    # ------------------------------------------------------------------
 
     def _schedule_update_size(self) -> None:
         if not self._layout_timer.isActive():
@@ -389,9 +531,6 @@ class DocumentationFlyout(QFrame):
         except Exception:
             return bool(self.rect().contains(self.mapFromGlobal(global_pos)))
 
-    # ------------------------------------------------------------------
-    # Pinning / dismissal
-    # ------------------------------------------------------------------
 
     @property
     def is_pinned(self) -> bool:
@@ -415,15 +554,10 @@ class DocumentationFlyout(QFrame):
         self.pin_toggled.emit(self._is_pinned)
 
     def dismiss(self, force: bool = False) -> None:
-        # The controller requests force=True for its ordinary lifetime action.
-        # This method intentionally contains no mouse-position logic.
         if self._is_pinned and not force:
             return
         self.hide()
 
-    # ------------------------------------------------------------------
-    # Qt events
-    # ------------------------------------------------------------------
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape and not self._is_pinned:
@@ -432,16 +566,7 @@ class DocumentationFlyout(QFrame):
             return
         super().keyPressEvent(event)
 
-    # ------------------------------------------------------------------
-    # Interaction – clicks inside the flyout must never destroy it.
-    # This allows embedding richer widgets (buttons, tabs, etc.) later.
-    # ------------------------------------------------------------------
-
     def mousePressEvent(self, event) -> None:
-        # Accept so the event does not propagate to the editor's
-        # focus-out / click-to-dismiss logic.  HoverController's filter
-        # also stops the close timer, but accepting here guarantees the
-        # click is treated as handled inside the card.
         event.accept()
         super().mousePressEvent(event)
 
@@ -454,8 +579,6 @@ class DocumentationFlyout(QFrame):
         super().mouseDoubleClickEvent(event)
 
     def wheelEvent(self, event) -> None:
-        # Let the internal QTextBrowser scroll, but never let the wheel
-        # dismiss the card.
         event.accept()
         super().wheelEvent(event)
 

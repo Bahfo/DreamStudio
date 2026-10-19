@@ -1,11 +1,6 @@
-# Written by Bahaa Nofal - 9/7/2026
-# commit_history.py
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Commit History Graph for DreamStudio: This module code sets up the graph
-widget of Git Source Control. It follows branch history detailed strcuture.
-Alongside the ability to view info about a certain push.
+Commit History Graph for DreamStudio:
 """
 
 from editor import *
@@ -14,10 +9,7 @@ from editor.widgets.QToolTip import ToolTip
 
 
 def compute_commit_graph(commits):
-    """
-    Compute lane assignments and connections for a list of git commits (newest first).
-    Returns a list of dictionaries with row metadata and geometric graph paths.
-    """
+    """Compute lane assignments and connections for a list of git commits (newest first)."""
     if not commits:
         return []
 
@@ -28,7 +20,6 @@ def compute_commit_graph(commits):
     for commit in commits:
         sha = commit.hexsha
 
-        # 1. Determine lane for current commit
         if sha in active_lanes:
             my_lane = active_lanes.index(sha)
         else:
@@ -39,14 +30,11 @@ def compute_commit_graph(commits):
                 my_lane = len(active_lanes)
                 active_lanes.append(sha)
 
-        # Active lanes entering from top of row
         in_lanes = [i for i, l_sha in enumerate(active_lanes) if l_sha is not None]
 
-        # 2. Compute outgoing connections (from center_y to bottom_y)
         next_lanes = list(active_lanes)
         out_connections = []
 
-        # Pass-through connections for other active branches
         for i, l_sha in enumerate(next_lanes):
             if i != my_lane and l_sha is not None:
                 out_connections.append((i, i, i))
@@ -56,7 +44,6 @@ def compute_commit_graph(commits):
         if not parents:
             next_lanes[my_lane] = None
         else:
-            # Primary parent connection
             p0_sha = parents[0].hexsha
             if p0_sha in next_lanes:
                 p0_lane = next_lanes.index(p0_sha)
@@ -66,7 +53,6 @@ def compute_commit_graph(commits):
                 next_lanes[my_lane] = p0_sha
                 out_connections.append((my_lane, my_lane, my_lane))
 
-            # Secondary parents (merge sources)
             for p in parents[1:]:
                 p_sha = p.hexsha
                 if p_sha in next_lanes:
@@ -110,13 +96,13 @@ class GitGraphDelegate(QStyledItemDelegate):
         self.lane_width = 18
         self.padding_left = 12
         self.lane_colors = [
-            QColor("#3b82f6"),  # Blue
-            QColor("#ef4444"),  # Red
-            QColor("#10b981"),  # Emerald
-            QColor("#f59e0b"),  # Amber
-            QColor("#8b5cf6"),  # Purple
-            QColor("#ec4899"),  # Pink
-            QColor("#06b6d4"),  # Cyan
+            QColor("#3b82f6"),
+            QColor("#ef4444"),
+            QColor("#10b981"),
+            QColor("#f59e0b"),
+            QColor("#8b5cf6"),
+            QColor("#ec4899"),
+            QColor("#06b6d4"),
         ]
 
     def paint(self, painter: QPainter, option, index):
@@ -143,14 +129,12 @@ class GitGraphDelegate(QStyledItemDelegate):
         row_h = option.rect.height()
         center_y = row_y + (row_h / 2)
 
-        # 1. Draw top half lines (inbound lanes)
         for l_idx in in_lanes:
             color = self.lane_colors[l_idx % len(self.lane_colors)]
             painter.setPen(QPen(color, 2))
             x = self.padding_left + (l_idx * self.lane_width) + (self.lane_width / 2)
             painter.drawLine(int(x), int(row_y), int(x), int(center_y))
 
-        # 2. Draw bottom half lines (outbound connections)
         for from_lane, to_lane, color_lane in out_connections:
             color = self.lane_colors[color_lane % len(self.lane_colors)]
             painter.setPen(QPen(color, 2))
@@ -173,7 +157,6 @@ class GitGraphDelegate(QStyledItemDelegate):
                     int(start_x), int(center_y), int(end_x), int(row_y + row_h)
                 )
 
-        # 3. Draw commit node
         node_color = self.lane_colors[lane % len(self.lane_colors)]
         node_x = self.padding_left + (lane * self.lane_width) + (self.lane_width / 2)
 
@@ -181,7 +164,6 @@ class GitGraphDelegate(QStyledItemDelegate):
         painter.setBrush(QBrush(node_color))
         painter.drawEllipse(QRectF(node_x - 4.5, center_y - 4.5, 9, 9))
 
-        # 4. Draw commit text aligned to a fixed graph column
         text_start_x = self.padding_left + (max_lanes * self.lane_width) + 12
         font_metrics = painter.fontMetrics()
         font = painter.font()

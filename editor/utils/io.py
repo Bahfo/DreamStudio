@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Atomic JSON/YAML persistence helpers shared by all config services.
 """
 
@@ -67,16 +66,7 @@ def load_json(
     default: Any = None,
     validate: Callable[[Any], Any] | None = None,
 ) -> Any:
-    """Load JSON file with backup and default fallback.
-
-    Args:
-        path: Source file path.
-        default: Value returned when missing or corrupt.
-        validate: Optional transform applied to parsed content.
-
-    Returns:
-        Parsed (and validated) content or *default*.
-    """
+    """Load JSON file with backup and default fallback."""
     try:
         with open(path, "r", encoding="utf-8") as handle:
             data = json.load(handle)

@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Solution start window shown before the DreamStudio main window boots.
 """
 
@@ -38,22 +37,13 @@ _FADE_IN_MS = 150
 
 
 class SolutionStartWindow(QMainWindow):
-    """Two-step Visual-Studio-style solution start window.
-
-    Attributes:
-        solution_selected: Emitted with the chosen solution dict.
-        prompt_cancelled: Emitted when the window closes without a choice.
-    """
+    """Two-step Visual-Studio-style solution start window."""
 
     solution_selected = pyqtSignal(object)
     prompt_cancelled = pyqtSignal()
 
     def __init__(self, registry=None) -> None:
-        """Build the welcome-first start window.
-
-        Args:
-            registry: Optional bootstrap registry for config lookups.
-        """
+        """Build the welcome-first start window."""
         super().__init__()
 
         self._registry = registry
@@ -108,11 +98,7 @@ class SolutionStartWindow(QMainWindow):
         root.addWidget(self._stack, 1)
 
     def _build_topbar(self) -> QWidget:
-        """Build the slim bar with back navigation and theme toggle.
-
-        Returns:
-            The configured top-bar widget.
-        """
+        """Build the slim bar with back navigation and theme toggle."""
         bar = QFrame(self)
         bar.setObjectName("SolutionTopBar")
         bar.setFrameShape(QFrame.Shape.NoFrame)
@@ -156,11 +142,7 @@ class SolutionStartWindow(QMainWindow):
         return bar
 
     def _build_welcome_page(self) -> QWidget:
-        """Build the Visual-Studio-like first screen.
-
-        Returns:
-            Welcome page with create/open actions and recent solutions.
-        """
+        """Build the Visual-Studio-like first screen."""
         page = QWidget(self)
         layout = QHBoxLayout(page)
         layout.setContentsMargins(32, 24, 32, 24)
@@ -261,11 +243,7 @@ class SolutionStartWindow(QMainWindow):
         return page
 
     def _build_create_page(self) -> QWidget:
-        """Build the filterable template picker matching the reference image.
-
-        Returns:
-            Create-project page with search, filters and template cards.
-        """
+        """Build the filterable template picker matching the reference image."""
         page = QWidget(self)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(24, 14, 24, 14)
@@ -425,36 +403,21 @@ class SolutionStartWindow(QMainWindow):
         self._apply_local_theme()
 
     def show_welcome(self, _checked: bool = False, animated: bool = True) -> None:
-        """Show the Visual-Studio-like first screen.
-
-        Args:
-            _checked: Absorbs ``QPushButton.clicked``'s checked flag.
-            animated: Fade out the current page and fade in welcome.
-        """
+        """Show the Visual-Studio-like first screen."""
         self._switch_page(0, animated=animated)
         self._back_btn.setVisible(False)
         if not animated or self._stack.currentIndex() == 0:
             self._recent_list.setFocus()
 
     def show_create(self, _checked: bool = False, animated: bool = True) -> None:
-        """Show the filterable template picker page.
-
-        Args:
-            _checked: Absorbs ``QPushButton.clicked``'s checked flag.
-            animated: Fade out the current page and fade in create.
-        """
+        """Show the filterable template picker page."""
         self._switch_page(1, animated=animated)
         self._back_btn.setVisible(True)
         if not animated or self._stack.currentIndex() == 1:
             self._search_box.setFocus()
 
     def _switch_page(self, index: int, animated: bool = True) -> None:
-        """Cross-fade the stack to *index* via fade-out then fade-in.
-
-        Args:
-            index: Target page inside the stacked widget.
-            animated: Run the opacity animation; otherwise switch instantly.
-        """
+        """Cross-fade the stack to *index* via fade-out then fade-in."""
         if self._stack.currentIndex() == index:
             self._stop_page_animation()
             return
@@ -540,11 +503,7 @@ class SolutionStartWindow(QMainWindow):
                 page.setGraphicsEffect(None)
 
     def _all_languages(self) -> list:
-        """Collect sorted unique languages across manifest entries.
-
-        Returns:
-            Alphabetically sorted language names.
-        """
+        """Collect sorted unique languages across manifest entries."""
         seen: dict = {}
         for entry in self._project_types:
             manifest = entry.get("manifest") or {}
@@ -635,15 +594,7 @@ class SolutionStartWindow(QMainWindow):
             self._selection_hint.setText("No project templates were found.")
 
     def _matches_filters(self, entry: dict, query: str) -> bool:
-        """Check whether *entry* satisfies search text and combo filters.
-
-        Args:
-            entry: Manifest entry under test.
-            query: Case-folded search text (already stripped).
-
-        Returns:
-            ``True`` when the entry should stay visible.
-        """
+        """Check whether *entry* satisfies search text and combo filters."""
         name = str(entry.get("display_name", ""))
         description = str(entry.get("description", ""))
         searchable = f"{name}\n{description}".casefold()
@@ -712,11 +663,7 @@ class SolutionStartWindow(QMainWindow):
         self,
         index: int,
     ) -> None:
-        """Select the template card at *index* when it is visible.
-
-        Args:
-            index: Position inside the loaded project-type list.
-        """
+        """Select the template card at *index* when it is visible."""
         if not (0 <= index < len(self._project_items)):
             self._clear_project_selection()
             return
@@ -735,11 +682,7 @@ class SolutionStartWindow(QMainWindow):
         self,
         entry: dict,
     ) -> None:
-        """Mark *entry* as selected and enable the Next button.
-
-        Args:
-            entry: Manifest entry chosen by the user.
-        """
+        """Mark *entry* as selected and enable the Next button."""
         if not entry:
             self._clear_project_selection()
             return
@@ -780,11 +723,7 @@ class SolutionStartWindow(QMainWindow):
         self,
         entry: dict,
     ) -> None:
-        """Select *entry* then immediately start the create dialog.
-
-        Args:
-            entry: Manifest entry double-clicked by the user.
-        """
+        """Select *entry* then immediately start the create dialog."""
         self._select_project_entry(entry)
         self._start_create_for_selected()
 
@@ -792,11 +731,7 @@ class SolutionStartWindow(QMainWindow):
         self,
         text: str,
     ) -> None:
-        """Filter template cards as the search text changes.
-
-        Args:
-            text: Raw search-box content (combos are read separately).
-        """
+        """Filter template cards as the search text changes."""
         del text
         self._apply_filters()
 
@@ -887,11 +822,7 @@ class SolutionStartWindow(QMainWindow):
                 break
 
     def _open_recent_template_item(self, item) -> None:
-        """Select the catalog card matching a recent-template row.
-
-        Args:
-            item: Activated recent-template list item.
-        """
+        """Select the catalog card matching a recent-template row."""
         entry = item.data(Qt.ItemDataRole.UserRole)
         if isinstance(entry, dict):
             for index, candidate in enumerate(self._project_types):
@@ -915,11 +846,7 @@ class SolutionStartWindow(QMainWindow):
         self._populate_recent_templates()
 
     def _refresh_recent_list(self) -> None:
-        """Reload the welcome recent-solutions list from history.
-
-        The placeholder row carries no path data, so the dismiss menu
-        safely ignores it.
-        """
+        """Reload the welcome recent-solutions list from history."""
         last = self._last_directory()
         self._recent_list.clear()
         paths_in_recent = []
@@ -947,11 +874,7 @@ class SolutionStartWindow(QMainWindow):
                     break
 
     def _show_recent_context_menu(self, position) -> None:
-        """Show the right-click menu for the welcome recent list.
-
-        Args:
-            position: Viewport-local position where the menu was requested.
-        """
+        """Show the right-click menu for the welcome recent list."""
         item = self._recent_list.itemAt(position)
         if item is None:
             return
@@ -965,11 +888,7 @@ class SolutionStartWindow(QMainWindow):
             self._dismiss_recent_path(str(path))
 
     def _dismiss_recent_path(self, path: str) -> None:
-        """Remove *path* from history only, leaving the folder on disk.
-
-        Args:
-            path: Absolute solution path to forget.
-        """
+        """Remove *path* from history only, leaving the folder on disk."""
         try:
             remove_recent(path)
         except Exception:
@@ -978,11 +897,7 @@ class SolutionStartWindow(QMainWindow):
         self._populate_recent_templates()
 
     def _last_directory(self) -> str:
-        """Return the last workspace directory from the registry config.
-
-        Returns:
-            Stored directory path or an empty string.
-        """
+        """Return the last workspace directory from the registry config."""
         try:
             config = self._registry.get("config") if self._registry else {}
 
@@ -994,14 +909,7 @@ class SolutionStartWindow(QMainWindow):
             return ""
 
     def set_tab(self, index: int) -> None:
-        """Show the requested landing page for legacy callers.
-
-        Index 0 focuses project creation.
-        Index 1 focuses recent projects.
-
-        Args:
-            index: Legacy tab number (0 create, 1 open/recent).
-        """
+        """Show the requested landing page for legacy callers."""
         if index == 1:
             self.show_welcome()
         else:
@@ -1043,11 +951,7 @@ class SolutionStartWindow(QMainWindow):
         self,
         item,
     ) -> None:
-        """Open the solution path stored on a recent list *item*.
-
-        Args:
-            item: Activated recent-solution list item.
-        """
+        """Open the solution path stored on a recent list *item*."""
         path = item.data(Qt.ItemDataRole.UserRole)
 
         if path:
@@ -1070,11 +974,7 @@ class SolutionStartWindow(QMainWindow):
         self,
         path: str,
     ) -> None:
-        """Open *path* as a solution, creating a marker when missing.
-
-        Args:
-            path: Filesystem folder selected or restored by the user.
-        """
+        """Open *path* as a solution, creating a marker when missing."""
         absolute = os.path.abspath(path)
 
         if not os.path.isdir(absolute):
@@ -1130,12 +1030,7 @@ class SolutionStartWindow(QMainWindow):
         data: dict,
         scaffold,
     ) -> None:
-        """Emit the final solution choice and remember it locally.
-
-        Args:
-            data: Solution metadata with path, name and project type.
-            scaffold: Optional scaffold payload for a newly created project.
-        """
+        """Emit the final solution choice and remember it locally."""
         selection = {
             "path": data["path"],
             "name": data.get(
@@ -1180,13 +1075,7 @@ def _complete_selection(
     selection: dict,
     loop,
 ) -> None:
-    """Store *selection* in *result* and quit the nested event loop.
-
-    Args:
-        result: Mutable carrier for selection and scaffold payloads.
-        selection: Emitted solution metadata.
-        loop: Nested event loop waiting for the user choice.
-    """
+    """Store *selection* in *result* and quit the nested event loop."""
     result["selection"] = selection
     result["scaffold"] = (
         selection.get("_scaffold") if isinstance(selection, dict) else None
@@ -1195,14 +1084,7 @@ def _complete_selection(
 
 
 def run_start_window_selection(window) -> tuple:
-    """Run *window* modally and return its (selection, scaffold) tuple.
-
-    Args:
-        window: Configured start window to execute.
-
-    Returns:
-        Tuple of selection dict (or ``None``) and scaffold payload.
-    """
+    """Run *window* modally and return its (selection, scaffold) tuple."""
     from PyQt6.QtCore import QEventLoop
 
     result: dict = {}

@@ -1,16 +1,4 @@
-# (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-"""Thread-safe whole-document analysis bridge for DreamStudio.
-
-Computes semantic highlights + fold regions off the main thread while
-rendering the overlays back on the primary window buffer, so typing in
-large files never blocks the UI.
-
-CPU-bound Python analysis (ast / tokenize / jedi) holds the GIL, so it
-cannot be made non-blocking with worker threads alone.  Remote-capable
-providers (``remote_analysis = True``, e.g. the Python plugin) are sent
-to a dedicated analysis-server subprocess; everything else falls back to
-the in-process path, which keeps unit-test dummies dependency-free.
-"""
+"""Thread-safe whole-document analysis bridge for DreamStudio."""
 
 from __future__ import annotations
 
@@ -35,13 +23,7 @@ class _AnalysisRequest:
 
 
 class _AnalysisWorker(threading.Thread):
-    """Runs provider analysis for the latest buffer (latest-wins).
-
-    A plain ``threading.Thread`` (not a ``QThread``) so that an editor
-    garbage-collected mid-analysis can never trip Qt's "QThread destroyed
-    while running" abort; results are shipped back through the owner's
-    signal, which is thread-safe to emit from any thread.
-    """
+    """Runs provider analysis for the latest buffer (latest-wins)."""
 
     def __init__(self, owner: "AnalysisManager") -> None:
         super().__init__(name="DreamStudio-AnalysisWorker", daemon=True)
@@ -78,27 +60,12 @@ class _AnalysisWorker(threading.Thread):
 
     @staticmethod
     def _analyze(provider: object, source: str, file_path: Optional[str] = None):
-        """Compute semantic highlights + fold regions for *source*.
-
-        Args:
-            provider: Language provider queried for overlays.
-            source: Full editor buffer content.
-            file_path: Path of the buffer being analyzed. Passed through
-                only to providers that opt in via ``wants_file_path``;
-                every other provider keeps the one-argument call.
-
-        Returns:
-            ``(highlights, fold_regions)``, or ``(None, None)`` on failure.
-        """
+        """Compute semantic highlights + fold regions for *source*."""
         highlights = None
         fold_regions = None
         try:
             get_semantic = getattr(provider, "get_semantic_highlights", None)
             # NOTE: an explicit capability flag, not a TypeError fallback —
-            # a TypeError raised *inside* a correct call would otherwise be
-            # silently retried with fewer arguments. file_path goes by
-            # keyword because get_semantic_highlights() takes theme_name
-            # as its second parameter.
             scoped = bool(getattr(provider, "wants_file_path", False))
             if callable(get_semantic):
                 highlights = (
@@ -136,16 +103,7 @@ class _AnalysisWorker(threading.Thread):
         return paths
 
     def _remote_analysis(self, request: _AnalysisRequest):
-        """Ask the shared analysis subprocess to compute highlights + folds.
-
-        Providers exposing ``build_remote_request`` choose their own wire
-        payload (Python ``analysis`` vs C ``c_analysis``); otherwise the
-        legacy Python payload is used. Only plain data crosses the wire.
-
-        Returns:
-            ``(highlights, fold_regions)`` — or ``None`` if the request
-            was dropped because this owner is no longer the focused tab.
-        """
+        """Ask the shared analysis subprocess to compute highlights + folds."""
         provider = request.provider
         build = getattr(provider, "build_remote_request", None)
         workspace_paths = self._workspace_paths()
@@ -196,17 +154,15 @@ class _AnalysisWorker(threading.Thread):
                     try:
                         result = self._remote_analysis(request)
                         if result is None:
-                            continue  # dropped — owner is no longer active
+                            continue
                         highlights, fold_regions = result
                     except Exception as exc:
                         if self._is_shutting_down or not process_manager.is_active(
                             self._owner.owner_id
                         ):
-                            # Intentional teardown / lost focus — not a bug.
                             logger.debug("Analysis subprocess failed: %s", exc)
                             continue
                         logger.error("Analysis subprocess failed: %s", exc)
-                        # Graceful degradation: compute in-process instead.
                         highlights, fold_regions = self._analyze(
                             request.provider,
                             request.source,
@@ -222,24 +178,16 @@ class _AnalysisWorker(threading.Thread):
                 logger.error("Analysis failed: %s", exc)
                 highlights, fold_regions = None, None
 
-            # A newer request may have arrived while we worked; only the
-            # newest buffer's result is worth shipping back.
             if not self._is_shutting_down and self._current_request is None:
                 try:
                     self._owner._results_ready.emit(
                         request.request_id, highlights, fold_regions
                     )
                 except RuntimeError:
-                    pass  # Owner torn down while we were computing
+                    pass
 
     def shutdown(self) -> None:
-        """Stop the worker.
-
-        The shared process is deliberately left untouched: it is owned by
-        the process manager and stays warm for other tabs.  The worker is
-        a daemon thread, so it simply exits once its current round-trip
-        finishes — never blocking the caller on a busy child.
-        """
+        """Stop the worker."""
         self._is_shutting_down = True
         self._current_request = None
         self._wake.set()
@@ -251,12 +199,7 @@ class AnalysisManager(QObject):
     _results_ready = pyqtSignal(int, object, object)
 
     def __init__(self, editor, parent: Optional[QObject] = None) -> None:
-        """Create the manager, spawning a worker owned by this object.
-
-        Args:
-            editor: The ``CodeEditor`` whose text is analysed.
-            parent: Optional Qt parent.
-        """
+        """Create the manager, spawning a worker owned by this object."""
         super().__init__(parent)
         self._editor = editor
         self._owner_id = id(editor)
@@ -285,14 +228,7 @@ class AnalysisManager(QObject):
 
     @pyqtSlot(str)
     def request_analysis(self, source: str) -> None:
-        """Hand the latest buffer to the worker thread.
-
-        Every submission gets a fresh request id so a slower (stale)
-        evaluation can never be applied over a newer buffer.
-
-        Args:
-            source: The full editor buffer content.
-        """
+        """Hand the latest buffer to the worker thread."""
         if not self._enabled:
             return
         if not source:
@@ -312,9 +248,6 @@ class AnalysisManager(QObject):
             except Exception as exc:
                 logger.debug("Unable to resolve language config: %s", exc)
         theme_name = getattr(editor, "_theme_name", None)
-        # Providers that resolve compile flags per buffer (C++) need to
-        # know *which* file this text came from; the provider instance is
-        # a process singleton shared by every open tab.
         file_path = getattr(editor, "current_file_path", None) or None
 
         self._request_counter += 1
@@ -325,18 +258,9 @@ class AnalysisManager(QObject):
 
     @pyqtSlot(int, object, object)
     def _apply_results(self, request_id: int, highlights, fold_regions) -> None:
-        """Render worker results back on the UI thread.
-
-        Results for superseded requests are dropped so stale overlays
-        never repaint a newer buffer.
-
-        Args:
-            request_id: Id of the request that produced these results.
-            highlights: Semantic overlay list, or ``None``.
-            fold_regions: Fold-region list, or ``None``.
-        """
+        """Render worker results back on the UI thread."""
         if request_id < self._request_counter:
-            return  # Drop out-of-order evaluations
+            return
 
         editor = self._editor
         try:

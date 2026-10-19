@@ -1,11 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Central workspace/solution service that tracks the active project path and
-re-points every path-dependent subsystem of the IDE when it changes.
-
-Registered as ``workspace`` in the bootstrap ServiceRegistry. This is the
-single source of truth for the currently opened solution.
+Central workspace/solution service that tracks the active project path and re-points every path-dependent subsystem of the IDE when it changes.
 """
 
 from editor import *
@@ -32,13 +27,7 @@ def _lazy_solution_marker():
 
 
 class WorkspaceService(QObject):
-    """Track the active solution path and coordinate full workspace switches.
-
-    Attributes:
-        current_path (str): Absolute path of the active solution root.
-        current_solution (dict): Metadata from ``.ds/solution.yaml`` when the
-            active root carries a solution marker, otherwise an empty dict.
-    """
+    """Track the active solution path and coordinate full workspace switches."""
 
     workspace_changed = pyqtSignal(str)
 
@@ -49,16 +38,9 @@ class WorkspaceService(QObject):
         self.current_solution: dict = {}
         self._generation = 0
 
-    # ------------------------------------------------------------------
-    # Window attachment
-    # ------------------------------------------------------------------
 
     def attach_window(self, window) -> None:
-        """Bind the main IDE window that the hub re-points on every switch.
-
-        Args:
-            window: The DreamStudio QMainWindow instance.
-        """
+        """Bind the main IDE window that the hub re-points on every switch."""
         self._window = window
         if self.current_path and os.path.isdir(self.current_path):
             try:
@@ -80,19 +62,9 @@ class WorkspaceService(QObject):
             return os.path.basename(self.current_path) or self.current_path
         return "DreamStudio"
 
-    # ------------------------------------------------------------------
-    # Workspace switching
-    # ------------------------------------------------------------------
 
     def open_workspace(self, path: str) -> None:
-        """Record *path* as active and run the full re-point hub.
-
-        Args:
-            path: Absolute path to the solution/folder to open.
-
-        Raises:
-            ValueError: When path is not an existing directory.
-        """
+        """Record *path* as active and run the full re-point hub."""
         if not path or not os.path.isdir(str(path)):
             raise ValueError(f"Invalid workspace directory: {path}")
         self.current_path = os.path.abspath(path)
@@ -102,14 +74,7 @@ class WorkspaceService(QObject):
         logger.info("Workspace opened: %s", self.current_path)
 
     def reset_workspace(self, path: str) -> None:
-        """Re-point every path-dependent subsystem of the attached IDE.
-
-        Args:
-            path: Absolute path to the solution/folder to activate.
-
-        Raises:
-            ValueError: When path is not an existing directory.
-        """
+        """Re-point every path-dependent subsystem of the attached IDE."""
         if not path or not os.path.isdir(str(path)):
             raise ValueError(f"Invalid workspace directory: {path}")
         path = os.path.abspath(path)
@@ -155,9 +120,6 @@ class WorkspaceService(QObject):
         self._defer_problems_analysis(window, path)
         logger.info("Workspace re-pointed to: %s", path)
 
-    # ------------------------------------------------------------------
-    # Internal re-point helpers
-    # ------------------------------------------------------------------
 
     def _reload_solution_marker(self) -> None:
         """Reload the active solution metadata from its marker file."""
@@ -213,7 +175,6 @@ class WorkspaceService(QObject):
             except Exception:
                 pass
 
-        # Properties panel — re-point to analyze the new workspace.
         properties = getattr(hero, "_properties_explorer", None)
         if properties is not None and hasattr(
             properties, "set_active_project_directory"
@@ -223,7 +184,6 @@ class WorkspaceService(QObject):
             except Exception as exc:
                 logger.warning("Properties explorer re-point failed: %s", exc)
 
-        # Server explorer — keep its base path in sync (placeholder panel).
         server = getattr(hero, "_server_explorer", None)
         if server is not None and hasattr(server, "set_workspace"):
             try:

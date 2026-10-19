@@ -1,24 +1,13 @@
 """
 (C) COPYRIGHT 2026 - EXcellent TechStacks : All Rights Reserved
-
-A Tkinter CLI Tool that comes with DreamStudio IDE: The main purpose of the
-tool is to interact directly with the build_utils (Build Utilities) that are
-responsible for building the project.
-
-DayDream Builder is also available as an embedded tool inside DreamStudio IDE
-itself, but it can also come as a standalone system that helps developers write
-building commands and scripts faster with autocompletion, syntax highlighting,
-and a very responsive system.
-
-Developed and Maintained by DreamStudio Team - EXcellent TechStacks. 2026
+A Tkinter CLI Tool that comes with DreamStudio IDE:
 """
 
-# Written by Bahaa Nofal - 5/2026
 
 try:
     import tkinter as tk
-except ImportError:  # frozen builds exclude Tk; DayDream degrades gracefully
-    tk = None  # type: ignore
+except ImportError:
+    tk = None
 
 from editor import *
 import psutil

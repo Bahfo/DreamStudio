@@ -1,8 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
-Dialog for creating and editing DreamStudio run configurations
-(File Path, First Argument, Parameters) consumed by `ConfigRun`.
+Dialog for creating and editing DreamStudio run configurations (File Path, First Argument, Parameters) consumed by `ConfigRun`.
 """
 
 import os
@@ -18,18 +16,7 @@ from editor.debugger.run.python_resolver import (
 
 
 def parse_parameters(text: str) -> list[str]:
-    """Split a raw parameters string into separate command-line arguments.
-
-    Args:
-        text: Raw parameters input, e.g. ``--verbose --port 8080``.
-
-    Returns:
-        A list of individual parameter strings (empty when blank).
-
-    Raises:
-        ValueError: If the text uses unbalanced quoting that cannot be
-          tokenized into arguments.
-    """
+    """Split a raw parameters string into separate command-line arguments."""
     text = (text or "").strip()
     if not text:
         return []
@@ -40,11 +27,7 @@ def parse_parameters(text: str) -> list[str]:
 
 
 class RunConfigDialog(QDialog):
-    """Modal editor for a single run configuration.
-
-    Produces a plain dict compatible with the `ConfigRun` JSON format:
-    ``config_name``, ``file_path``, ``Arg``, ``Parameters``.
-    """
+    """Modal editor for a single run configuration."""
 
     def __init__(
         self,
@@ -63,9 +46,6 @@ class RunConfigDialog(QDialog):
         self._build_ui(initial)
         self._apply_styles()
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
 
     def _build_ui(self, initial: dict) -> None:
         layout = QVBoxLayout(self)
@@ -140,9 +120,6 @@ class RunConfigDialog(QDialog):
             QPushButton:hover { background-color: #555555; }
             """)
 
-    # ------------------------------------------------------------------
-    # Actions
-    # ------------------------------------------------------------------
 
     def _browse_file(self) -> None:
         """Open a native file picker and fill the File Path (Full) field."""
@@ -168,16 +145,7 @@ class RunConfigDialog(QDialog):
         self.accept()
 
     def get_config(self) -> dict:
-        """Collect and validate the dialog fields.
-
-        Returns:
-            A dict in the `ConfigRun` format: ``config_name``,
-            ``file_path``, ``Arg``, ``Parameters`` (argv list).
-
-        Raises:
-            ValueError: When required fields are missing or the
-              parameters string cannot be tokenized.
-        """
+        """Collect and validate the dialog fields."""
         name = self.name_edit.text().strip() or "dsconfig"
         file_path = self.path_edit.text().strip()
         first_arg = self.arg_edit.text().strip()

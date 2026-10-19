@@ -1,7 +1,6 @@
 from editor import *
 from editor.utils.resource_path import resource_path
 
-# Ironica APIs and Modules
 from editor.Ironica.api import *
 from editor.Ironica.regex import *
 from editor.Ironica.utils.minimap import *

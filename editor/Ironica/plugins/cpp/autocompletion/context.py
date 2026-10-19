@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Completion context classifier for C++ plugin.
 """
 
@@ -31,17 +30,7 @@ _IDENT = re.compile(r"[A-Za-z_]\w*$")
 
 
 def line_comment_at(line_text: str) -> int:
-    """Return the index where a real ``//`` comment starts, or ``-1``.
-
-    A ``//`` inside single- or double-quoted spans (e.g. ``"http://…"`` in
-    a string literal) does not start a comment.
-
-    Args:
-        line_text: Full text of the current line.
-
-    Returns:
-        Comment start index, or ``-1`` when the line has no comment.
-    """
+    """Return the index where a real ``//`` comment starts, or ``-1``."""
     quote = ""
     index = 0
     while index < len(line_text):
@@ -64,19 +53,7 @@ def line_comment_at(line_text: str) -> int:
 
 
 def classify(line_text: str, col: int) -> Tuple[str, str]:
-    """
-    Classify the completion context at *col* on *line_text*.
-
-    Args:
-        line_text: Full text of the current line.
-        col: Zero-indexed cursor column.
-
-    Returns:
-        ``(kind, prefix)`` where kind is one of ``none``,
-        ``identifier``, ``member``, ``construction``, ``call``,
-        ``template_args``, ``include``, ``directive``, ``macro_guard``,
-        ``macro_body``, ``preprocessor``, or ``comment``.
-    """
+    """Classify the completion context at *col* on *line_text*."""
 
     before = line_text[: max(0, col)]
     include_match = _INCLUDE.search(before)

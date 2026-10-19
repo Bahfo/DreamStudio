@@ -1,39 +1,6 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Dynamic plugin registration system for DreamStudio languages.
-
-A language plugin is one directory shaped like this:
-
-    <plugin-id>/
-        plugin.json
-        keywords/<language>.json
-        snippets/<language>.json
-        provider.py
-        vendor/
-        bin/
-
-``plugin.json`` is plain JSON:
-
-    {
-        "id": "python",
-        "display_name": "Python",
-        "minimum_studio_version": "1.0",
-        "requires": [],
-        "keywords": "keywords/python.json",
-        "snippets": "snippets/python.json",
-        "provider": {"file": "provider.py", "function": "create_provider"},
-        "vendor": ["vendor"],
-        "native_libraries": ["bin/library.so"]
-    }
-
-The IDE scans bundled, user-installed, and ``DS_PLUGIN_PATH`` plugin
-directories. Copying and removing plugin directories is owned by the
-external installer; this module only discovers, validates, loads, and
-registers the plugins it finds.
-
-This module is the only file in the plugin package that imports from
-the editor core — it keeps provider code fully decoupled.
 """
 
 from editor import *
@@ -49,10 +16,6 @@ logger = logging.getLogger(__name__)
 STUDIO_VERSION = "1.0"
 PLUGIN_MANIFEST_FILENAME = "plugin.json"
 PLUGIN_PATH_ENVIRONMENT = "DS_PLUGIN_PATH"
-
-# ------------------------------------------------------------------
-# Path helpers
-# ------------------------------------------------------------------
 
 
 def _get_ironica_dir() -> str:
@@ -76,12 +39,7 @@ _PLUGINS_JSON_VERSION = 1
 
 
 def _plugin_roots() -> list[str]:
-    """Return plugin directories in precedence order.
-
-    Returns:
-        Explicit ``DS_PLUGIN_PATH`` directories first, then user-installed
-        packages, then the bundled plugin package.
-    """
+    """Return plugin directories in precedence order."""
     candidates = [
         candidate.strip()
         for candidate in os.environ.get(PLUGIN_PATH_ENVIRONMENT, "").split(os.pathsep)
@@ -97,25 +55,12 @@ def _plugin_roots() -> list[str]:
 
 
 def _is_bundled_root(root: str) -> bool:
-    """Return ``True`` when *root* is the bundled plugin package.
-
-    Args:
-        root: Directory path being checked.
-    """
+    """Return ``True`` when *root* is the bundled plugin package."""
     return os.path.abspath(root) == os.path.abspath(_PLUGINS_PKG_DIR)
 
 
-# ------------------------------------------------------------------
-# Auto-discovery
-# ------------------------------------------------------------------
-
-
 def _scan_keywords() -> dict[str, str]:
-    """Scan ``keywords/*.json`` and return ``{lang_name: relative_json_path}``.
-
-    Paths are stored relative to the Ironica directory so that
-    ``plugins.json`` is portable across machines and users.
-    """
+    """Scan ``keywords/*.json`` and return ``{lang_name:"""
     result: dict[str, str] = {}
     kw_dir = Path(_KEYWORDS_DIR)
     if not kw_dir.is_dir():
@@ -133,25 +78,14 @@ def _scan_keywords() -> dict[str, str]:
 
 
 def _is_plugin_directory(path: Path) -> bool:
-    """Return ``True`` when *path* contains a plugin manifest or provider.
-
-    Args:
-        path: Directory being inspected.
-    """
+    """Return ``True`` when *path* contains a plugin manifest or provider."""
     return path.is_dir() and (
         (path / PLUGIN_MANIFEST_FILENAME).is_file() or (path / "provider.py").is_file()
     )
 
 
 def _plugin_directories() -> list[Path]:
-    """List plugin directories from every plugin root.
-
-    A root can either be one plugin itself or a folder containing one
-    plugin per subdirectory.
-
-    Returns:
-        Plugin directories in root-precedence order without duplicates.
-    """
+    """List plugin directories from every plugin root."""
     directories: list[Path] = []
     seen: set[str] = set()
     for root in _plugin_roots():
@@ -177,14 +111,7 @@ def _plugin_directories() -> list[Path]:
 
 
 def _read_plugin_manifest(plugin_dir: Path) -> dict[str, Any]:
-    """Read a plugin manifest without raising on malformed input.
-
-    Args:
-        plugin_dir: Directory that may contain ``plugin.json``.
-
-    Returns:
-        The manifest dictionary, or an empty dictionary.
-    """
+    """Read a plugin manifest without raising on malformed input."""
     manifest_path = plugin_dir / PLUGIN_MANIFEST_FILENAME
     if not manifest_path.is_file():
         return {}
@@ -208,13 +135,7 @@ def _read_plugin_manifest(plugin_dir: Path) -> dict[str, Any]:
 
 
 def _keyword_language_id(plugin_root: str, keywords_value: str, fallback: str) -> str:
-    """Read the language identifier from a keyword config when available.
-
-    Args:
-        plugin_root: Plugin directory used for relative keyword paths.
-        keywords_value: Keyword config path from the manifest.
-        fallback: Identifier used when the keyword config cannot be read.
-    """
+    """Read the language identifier from a keyword config when available."""
     keywords_file = (
         keywords_value
         if os.path.isabs(keywords_value)
@@ -236,15 +157,7 @@ def _manifest_text(
     label: str,
     required: bool = True,
 ) -> Optional[str]:
-    """Return validated manifest text, or ``None`` when invalid.
-
-    Args:
-        manifest: Parsed plugin manifest.
-        plugin_dir: Directory containing ``plugin.json``.
-        key: Manifest field name.
-        label: Human-readable field name used in diagnostics.
-        required: Whether an empty value is rejected.
-    """
+    """Return validated manifest text, or ``None`` when invalid."""
     value = manifest.get(key, "")
     if value == "" and not required:
         return ""
@@ -261,15 +174,7 @@ def _manifest_list(
     label: str,
     item: str = "paths",
 ) -> Optional[list[str]]:
-    """Return a validated list of manifest strings, or ``None`` when invalid.
-
-    Args:
-        manifest: Parsed plugin manifest.
-        plugin_dir: Directory containing ``plugin.json``.
-        key: Manifest field name.
-        label: Human-readable field name used in diagnostics.
-        item: Human-readable list-item name used in diagnostics.
-    """
+    """Return a validated list of manifest strings, or ``None`` when invalid."""
     value = manifest.get(key, [])
     if not isinstance(value, list) or any(
         not isinstance(entry, str) for entry in value
@@ -282,15 +187,7 @@ def _manifest_list(
 def _manifest_language_spec(
     plugin_dir: Path, manifest: dict[str, Any]
 ) -> Optional[tuple[str, dict[str, Any]]]:
-    """Convert an explicit manifest into one language specification.
-
-    Args:
-        plugin_dir: Directory containing ``plugin.json``.
-        manifest: Parsed manifest dictionary.
-
-    Returns:
-        A ``(language, spec)`` tuple, or ``None`` when invalid.
-    """
+    """Convert an explicit manifest into one language specification."""
     if "id" in manifest:
         plugin_id = _manifest_text(manifest, plugin_dir, "id", "manifest id")
     else:
@@ -379,13 +276,7 @@ def _manifest_language_spec(
 def _legacy_language_spec(
     plugin_dir: Path, bundled: bool, bundled_keywords: dict[str, str]
 ) -> Optional[tuple[str, dict[str, Any]]]:
-    """Describe an older provider directory without a manifest.
-
-    Args:
-        plugin_dir: Directory containing ``provider.py``.
-        bundled: Whether the directory lives in the bundled package.
-        bundled_keywords: Bundled keyword configs by language.
-    """
+    """Describe an older provider directory without a manifest."""
     provider_file = plugin_dir / "provider.py"
     if not provider_file.is_file():
         return None
@@ -412,12 +303,7 @@ def _legacy_language_spec(
 
 
 def _conventional_snippet_file(plugin_root: str, lang: str) -> Optional[str]:
-    """Find a snippet file using ordinary plugin-layout conventions.
-
-    Args:
-        plugin_root: Plugin directory containing an optional snippets folder.
-        lang: Registered language identifier.
-    """
+    """Find a snippet file using ordinary plugin-layout conventions."""
     config = LanguageRegistry.get_config(lang) or {}
     extensions = config.get("extensions", [])
     candidates = [os.path.join(plugin_root, "snippets", f"{lang}.json")]
@@ -433,11 +319,7 @@ def _conventional_snippet_file(plugin_root: str, lang: str) -> Optional[str]:
 
 
 def _discover_plugin_specs() -> dict[str, dict[str, Any]]:
-    """Discover one specification per available language.
-
-    Returns:
-        Language specifications in root-precedence order.
-    """
+    """Discover one specification per available language."""
     specs: dict[str, dict[str, Any]] = {}
     bundled_keywords = _scan_keywords()
 
@@ -465,28 +347,14 @@ def _discover_plugin_specs() -> dict[str, dict[str, Any]]:
 
 
 def _auto_discover() -> dict[str, Any]:
-    """Build a plugins config dict by scanning the filesystem.
-
-    Returns:
-        A dict with ``"version"`` and ``"plugins"`` keys, suitable for
-        writing to ``plugins.json``.
-    """
+    """Build a plugins config dict by scanning the filesystem."""
     specs = _discover_plugin_specs()
     plugins = {lang: specs[lang] for lang in sorted(specs)}
     return {"version": _PLUGINS_JSON_VERSION, "plugins": plugins}
 
 
-# ------------------------------------------------------------------
-# Config management
-# ------------------------------------------------------------------
-
-
 def _ensure_plugins_json() -> dict[str, Any]:
-    """Auto-discover plugins and write ``plugins.json``.
-
-    Returns:
-        The newly written config dict.
-    """
+    """Auto-discover plugins and write ``plugins.json``."""
     config = _auto_discover()
     try:
         _PLUGINS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -502,11 +370,7 @@ def _ensure_plugins_json() -> dict[str, Any]:
 
 
 def _persist_plugins_config(config: dict[str, Any]) -> None:
-    """Write *config* to ``plugins.json`` on disk.
-
-    Logs an error on failure but never raises — callers treat this as
-    best-effort bookkeeping.
-    """
+    """Write *config* to ``plugins.json`` on disk."""
     try:
         _PLUGINS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(_PLUGINS_JSON_PATH, "w", encoding="utf-8") as fh:
@@ -516,12 +380,7 @@ def _persist_plugins_config(config: dict[str, Any]) -> None:
 
 
 def _merge_spec(spec: dict[str, Any], saved_spec: Any) -> dict[str, Any]:
-    """Merge a discovered spec with the saved enablement choice.
-
-    Args:
-        spec: Freshly discovered plugin specification.
-        saved_spec: Previously saved specification, if any.
-    """
+    """Merge a discovered spec with the saved enablement choice."""
     merged = dict(spec)
     if isinstance(saved_spec, dict):
         merged["enabled"] = saved_spec.get("enabled", spec.get("enabled", True))
@@ -531,15 +390,7 @@ def _merge_spec(spec: dict[str, Any], saved_spec: Any) -> dict[str, Any]:
 
 
 def load_plugins_config() -> dict[str, Any]:
-    """Load and validate the plugins config, auto-creating if needed.
-
-    The external installer owns plugin directories. This cache records
-    discovered specifications and preserves local ``enabled`` choices.
-    Languages whose directories disappear are pruned.
-
-    Returns:
-        The validated config dict.
-    """
+    """Load and validate the plugins config, auto-creating if needed."""
     if not _PLUGINS_JSON_PATH.is_file():
         logger.info("plugins.json not found, auto-discovering plugins")
         return _ensure_plugins_json()
@@ -555,7 +406,6 @@ def load_plugins_config() -> dict[str, Any]:
         logger.warning("plugins.json has invalid structure, regenerating")
         return _ensure_plugins_json()
 
-    # Refresh discovered specifications without changing local enablement.
     discovered = _auto_discover()
     saved_plugins = raw.setdefault("plugins", {})
     merged = False
@@ -576,17 +426,8 @@ def load_plugins_config() -> dict[str, Any]:
     return raw
 
 
-# ------------------------------------------------------------------
-# Compatibility and requirements
-# ------------------------------------------------------------------
-
-
 def _version_numbers(value: str) -> tuple[int, ...]:
-    """Return the numeric release components in a version string.
-
-    Args:
-        value: A dotted version such as ``"1.2"``.
-    """
+    """Return the numeric release components in a version string."""
     numbers: list[int] = []
     for chunk in str(value).split("."):
         digits = ""
@@ -601,12 +442,7 @@ def _version_numbers(value: str) -> tuple[int, ...]:
 
 
 def _studio_supports(minimum_version: Optional[str], lang: str) -> bool:
-    """Return whether the running Studio meets a plugin minimum.
-
-    Args:
-        minimum_version: Minimum Studio version, or ``None``.
-        lang: Language requesting the check, used in diagnostics.
-    """
+    """Return whether the running Studio meets a plugin minimum."""
     if not minimum_version:
         return True
     current = _version_numbers(STUDIO_VERSION)
@@ -634,15 +470,7 @@ def _include_plugin(
     selected: dict[str, Any],
     chain: tuple[str, ...] = (),
 ) -> Optional[str]:
-    """Add one plugin and its requirements to the load order.
-
-    Args:
-        lang: Language being considered.
-        plugins: All discovered plugin specifications.
-        by_plugin: Plugin-id to language mapping.
-        selected: Specifications already accepted, in load order.
-        chain: Languages above the current requirement.
-    """
+    """Add one plugin and its requirements to the load order."""
     if lang in selected:
         return None
     spec = plugins.get(lang)
@@ -676,11 +504,7 @@ def _include_plugin(
 
 
 def _select_plugins(plugins: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-    """Choose loadable plugins in dependency order.
-
-    Args:
-        plugins: Discovered plugin specifications by language.
-    """
+    """Choose loadable plugins in dependency order."""
     if not isinstance(plugins, dict):
         return {}, ["Invalid plugin configuration"]
     by_plugin = {
@@ -700,18 +524,8 @@ def _select_plugins(plugins: dict[str, Any]) -> tuple[dict[str, Any], list[str]]
     return selected, warnings
 
 
-# ------------------------------------------------------------------
-# Provider import
-# ------------------------------------------------------------------
-
-
 def _plugin_path(root: str, value: Any) -> str:
-    """Join a manifest path to its plugin directory.
-
-    Args:
-        root: Absolute plugin directory.
-        value: Relative or absolute manifest path.
-    """
+    """Join a manifest path to its plugin directory."""
     if not isinstance(value, str) or not value:
         return ""
     if os.path.isabs(value):
@@ -720,13 +534,7 @@ def _plugin_path(root: str, value: Any) -> str:
 
 
 def _resolve_plugin_path(root: str, value: Any, kind: str) -> Optional[str]:
-    """Resolve a manifest path against its plugin directory.
-
-    Args:
-        root: Absolute plugin directory.
-        value: Relative or absolute path from the manifest.
-        kind: Human-readable path purpose used in diagnostics.
-    """
+    """Resolve a manifest path against its plugin directory."""
     if not isinstance(value, str) or not value:
         return None
     path = value if os.path.isabs(value) else os.path.abspath(os.path.join(root, value))
@@ -737,12 +545,7 @@ def _resolve_plugin_path(root: str, value: Any, kind: str) -> Optional[str]:
 
 
 def _prepare_plugin_environment(plugin_root: str, spec: dict[str, Any]) -> None:
-    """Expose a plugin's bundled dependencies to the running process.
-
-    Args:
-        plugin_root: Absolute plugin directory.
-        spec: Plugin specification from discovery.
-    """
+    """Expose a plugin's bundled dependencies to the running process."""
     vendor = spec.get("vendor", [])
     if isinstance(vendor, list):
         for entry in vendor:
@@ -761,14 +564,7 @@ def _prepare_plugin_environment(plugin_root: str, spec: dict[str, Any]) -> None:
 
 
 def _import_dotted_factory(dotted_path: str) -> Optional[Any]:
-    """Import and return the callable at *dotted_path*.
-
-    Args:
-        dotted_path: Dotted Python path to a provider factory.
-
-    Returns:
-        The factory function, or ``None`` if import fails.
-    """
+    """Import and return the callable at *dotted_path*."""
     try:
         module_path, _, attr_name = dotted_path.rpartition(".")
         module = importlib.import_module(module_path)
@@ -782,13 +578,7 @@ def _import_dotted_factory(dotted_path: str) -> Optional[Any]:
 def _import_file_factory(
     plugin_id: str, plugin_root: str, entry: dict[str, Any]
 ) -> Optional[Any]:
-    """Import a provider factory from a file inside a plugin directory.
-
-    Args:
-        plugin_id: Plugin identifier used for a unique module name.
-        plugin_root: Absolute plugin directory.
-        entry: Mapping with ``file`` and ``function`` keys.
-    """
+    """Import a provider factory from a file inside a plugin directory."""
     file_name = entry.get("file")
     function_name = entry.get("function")
     if not isinstance(file_name, str) or not file_name:
@@ -831,13 +621,7 @@ def _import_file_factory(
 def _import_factory(
     provider: Any, plugin_id: str = "", plugin_root: str = ""
 ) -> Optional[Any]:
-    """Import a provider factory from either a dotted path or plugin file.
-
-    Args:
-        provider: Dotted path or ``{"file", "function"}`` mapping.
-        plugin_id: Plugin identifier for file-based module names.
-        plugin_root: Plugin directory for file-based imports.
-    """
+    """Import a provider factory from either a dotted path or plugin file."""
     if isinstance(provider, dict):
         return _import_file_factory(plugin_id, plugin_root, provider)
     if isinstance(provider, str):
@@ -846,18 +630,8 @@ def _import_factory(
     return None
 
 
-# ------------------------------------------------------------------
-# Registration
-# ------------------------------------------------------------------
-
-
 def _register_outline_parser(lang: str, provider: Optional[Any]) -> None:
-    """Connect a provider's outline implementation to the outline backend.
-
-    Args:
-        lang: Language identifier receiving outline support.
-        provider: Intelligence provider created for the language.
-    """
+    """Connect a provider's outline implementation to the outline backend."""
     if provider is None:
         return
     try:
@@ -868,13 +642,7 @@ def _register_outline_parser(lang: str, provider: Optional[Any]) -> None:
 
 
 def _register_snippets(lang: str, plugin_root: str, spec: dict[str, Any]) -> None:
-    """Attach snippet bodies for a language when a snippet file exists.
-
-    Args:
-        lang: Registered language identifier.
-        plugin_root: Plugin directory used for relative snippet paths.
-        spec: Plugin specification from discovery.
-    """
+    """Attach snippet bodies for a language when a snippet file exists."""
     snippet_file = _plugin_path(plugin_root, spec.get("snippets", ""))
     if not snippet_file:
         snippet_file = _conventional_snippet_file(plugin_root, lang) or ""
@@ -884,15 +652,7 @@ def _register_snippets(lang: str, plugin_root: str, spec: dict[str, Any]) -> Non
 
 
 def _register_one(lang: str, spec: dict[str, Any]) -> tuple[bool, Optional[str]]:
-    """Register a single language from its config spec.
-
-    Args:
-        lang: Language identifier (e.g. ``"python"``).
-        spec: Plugin spec with ``"keywords"`` and optional ``"provider"`` paths.
-
-    Returns:
-        ``(success, warning_message_or_None)``
-    """
+    """Register a single language from its config spec."""
     if spec.get("enabled", True) is False:
         logger.info("Skipping disabled language %r", lang)
         return True, None
@@ -949,14 +709,7 @@ def _register_one(lang: str, spec: dict[str, Any]) -> tuple[bool, Optional[str]]
 
 
 def register_all_languages() -> list[str]:
-    """Register every enabled language defined in ``plugins.json``.
-
-    The external installer owns plugin directories. If ``plugins.json``
-    is missing, it is auto-generated by scanning the filesystem.
-
-    Returns:
-        A list of warning messages (empty on full success).
-    """
+    """Register every enabled language defined in ``plugins.json``."""
     config = load_plugins_config()
     plugins = config.get("plugins", {})
     selected, warnings = _select_plugins(plugins)
@@ -969,20 +722,8 @@ def register_all_languages() -> list[str]:
     return warnings
 
 
-# ------------------------------------------------------------------
-# Legacy API (used by tests)
-# ------------------------------------------------------------------
-
-
 def register_python_language() -> bool:
-    """Register the discovered Python language plugin.
-
-    Uses the same discovery, compatibility, and dependency checks as normal
-    startup. This helper remains for tests that need only Python.
-
-    Returns:
-        ``True`` on success, ``False`` on any failure.
-    """
+    """Register the discovered Python language plugin."""
     try:
         spec = _discover_plugin_specs().get("python")
         if not isinstance(spec, dict):
@@ -1006,11 +747,7 @@ def register_python_language() -> bool:
 
 
 def unregister_python_language() -> bool:
-    """Remove the Python language from the LanguageRegistry.
-
-    Returns:
-        ``True`` if Python was registered and has been removed.
-    """
+    """Remove the Python language from the LanguageRegistry."""
     try:
         unregister_parser("python")
     except Exception as exc:

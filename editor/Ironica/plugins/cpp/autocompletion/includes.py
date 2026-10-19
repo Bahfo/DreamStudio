@@ -1,6 +1,5 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-
 Header-path completion for `#include` lines (project + system headers).
 """
 
@@ -12,7 +11,6 @@ import logging
 import subprocess
 from typing import List, Optional, Tuple
 
-# Local Imports
 from ..models import CppCompletion
 
 logger = logging.getLogger("DreamStudio.Cpp.Includes")
@@ -39,13 +37,7 @@ _SYSTEM_DIRS: Optional[List[str]] = None
 
 
 def parse_include(line_text: str, col: int) -> Optional[Tuple[str, str]]:
-    """
-    Parse an `#include` line up to *col*.
-
-    Returns:
-        ``(open_char, partial)`` where open char is `<` or `"`, or
-        ``None`` when the cursor is not inside an include path.
-    """
+    """Parse an `#include` line up to *col*."""
     match = _INCLUDE_LINE.search(line_text[: max(0, col)])
     if not match:
         return None
@@ -56,9 +48,7 @@ def project_include_dirs(
     file_path: Optional[str],
     compile_args: Optional[List[str]] = None,
 ) -> List[str]:
-    """
-    Return project search dirs: buffer dir plus `-I` flag values.
-    """
+    """Return project search dirs:"""
     dirs: List[str] = []
     if file_path:
         buffer_dir = os.path.dirname(os.path.abspath(file_path))

@@ -1,6 +1,5 @@
 from editor import *
 
-# Local Imports
 from editor.widgets.QSegmentedProgressBar import (
     SegmentedProgressBar,
     FlowLayout,
@@ -21,11 +20,7 @@ def _badge_color(value: object) -> str:
 
 
 def get_interpreter_info() -> dict:
-    """
-    Extracts the Python interpreter engine configurations and
-    runtime variables, then returns a dictionary containing all
-    these information.
-    """
+    """Extracts the Python interpreter engine configurations and runtime variables, then returns a dictionary containing all these information."""
     version = platform.python_version()
     compiler = platform.python_compiler()
     implementation = platform.python_implementation()
@@ -64,13 +59,7 @@ class LanguageBadge(QWidget):
 
 
 class LanguageAnalyzer(QWidget):
-    """Visual breakdown of project languages by bytes on disk.
-
-    Main attributes:
-        bar: Segmented progress bar showing per-language share.
-        legend_layout: Flow layout holding one badge per language.
-        empty_label: Placeholder shown when no recognized files exist.
-    """
+    """Visual breakdown of project languages by bytes on disk."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -123,16 +112,7 @@ class LanguageAnalyzer(QWidget):
         return patterns
 
     def _is_ignored(self, name: str, rel_path: str, patterns: list) -> bool:
-        """Return True when a file/dir matches gitignore-style patterns.
-
-        Args:
-            name: Basename being tested.
-            rel_path: Path relative to the analysis root (posix style).
-            patterns: Ignore patterns from `_get_ignore_patterns`.
-
-        Returns:
-            True when either the basename or the relative path matches.
-        """
+        """Return True when a file/dir matches gitignore-style patterns."""
         for pattern in patterns:
             if "/" in pattern:
                 if fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(
@@ -156,14 +136,7 @@ class LanguageAnalyzer(QWidget):
         self.legend_container.setVisible(True)
 
     def content_height_for_width(self, width: int) -> int:
-        """Return the height needed to display the bar plus all badges.
-
-        Args:
-            width: Available width for the legend flow layout.
-
-        Returns:
-            Required height in pixels, at least the widget minimum.
-        """
+        """Return the height needed to display the bar plus all badges."""
         margins = self.main_layout.contentsMargins()
         spacing = self.main_layout.spacing()
         bar_height = 8
@@ -183,14 +156,7 @@ class LanguageAnalyzer(QWidget):
         return max(65, total)
 
     def analyze_directory(self, target_dir: str) -> dict:
-        """Scan a directory and render per-language byte shares.
-
-        Args:
-            target_dir: Project root to walk.
-
-        Returns:
-            Mapping of ``(lang_id, display_name)`` to byte counts.
-        """
+        """Scan a directory and render per-language byte shares."""
         self.clear_analysis()
         stats: dict = {}
         total_bytes = 0

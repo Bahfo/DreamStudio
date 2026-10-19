@@ -1,11 +1,4 @@
-"""
-ServiceRegistry: central service container for DreamStudio.
-
-Owns all core and startup-critical services. Future services
-(Python intelligence, diagnostics, workspace, extensions, terminals,
-debugger, language providers) will register here without modifying
-BootstrapManager.
-"""
+"""ServiceRegistry:"""
 
 import logging
 from typing import Any
@@ -22,9 +15,6 @@ class ServiceRegistry:
         self._initialized: set[str] = set()
         logger.info("ServiceRegistry created")
 
-    # ------------------------------------------------------------------
-    # Registration
-    # ------------------------------------------------------------------
 
     def register(self, name: str, service: Any) -> None:
         """Register an already-instantiated service."""
@@ -51,9 +41,6 @@ class ServiceRegistry:
         logger.info("Service instantiated from factory: %s", name)
         return service
 
-    # ------------------------------------------------------------------
-    # Retrieval
-    # ------------------------------------------------------------------
 
     def get(self, name: str) -> Any:
         """Retrieve a service by name, instantiating from factory if needed."""
@@ -69,9 +56,6 @@ class ServiceRegistry:
     def is_initialized(self, name: str) -> bool:
         return name in self._initialized
 
-    # ------------------------------------------------------------------
-    # Introspection
-    # ------------------------------------------------------------------
 
     def registered_names(self) -> list[str]:
         """Return all registered service names (both live and deferred)."""
@@ -81,7 +65,7 @@ class ServiceRegistry:
         return sorted(self._initialized)
 
     def clear(self) -> None:
-        """Remove all services. Primarily for testing."""
+        """Remove all services."""
         self._services.clear()
         self._factories.clear()
         self._initialized.clear()

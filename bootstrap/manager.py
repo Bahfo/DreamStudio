@@ -1,10 +1,4 @@
-"""
-BootstrapManager: startup orchestrator for DreamStudio.
-
-Coordinates all startup phases, handles errors at the appropriate
-severity level, and decides whether to proceed normally or enter
-recovery mode.
-"""
+"""BootstrapManager:"""
 
 import os
 import sys
@@ -50,15 +44,8 @@ class StartupResult:
 
 
 class BootstrapManager:
-    """
-    Orchestrates the startup pipeline.
+    """Orchestrates the startup pipeline."""
 
-    Phases execute in strict order. A critical failure at any phase
-    stops the pipeline and routes to RecoveryWindow. Recoverable failures
-    are logged and appended to warnings without halting startup.
-    """
-
-    # Default phase pipeline in execution order.
     _DEFAULT_PHASES: list[tuple[str, Callable]] = [
         ("application_startup", phase_application_startup),
         ("bootstrap_init", phase_bootstrap_init),
@@ -86,18 +73,11 @@ class BootstrapManager:
         self._recovery_window = None
         logger.info("BootstrapManager created (base_dir=%s)", self._base_dir)
 
-    # ------------------------------------------------------------------
-    # Phase registration (extensibility)
-    # ------------------------------------------------------------------
 
     def add_phase(
         self, name: str, phase_fn: Callable, after: str | None = None
     ) -> None:
-        """Insert a custom phase into the pipeline.
-
-        If *after* is given, the phase is placed immediately after the
-        named phase. Otherwise it is appended before the 'finish' phase.
-        """
+        """Insert a custom phase into the pipeline."""
         entry = (name, phase_fn)
         if after is None:
             insert_idx = len(self._phases) - 1
@@ -113,15 +93,9 @@ class BootstrapManager:
         self._custom_phases.append(entry)
         logger.info("Custom phase registered: %s (after=%s)", name, after)
 
-    # ------------------------------------------------------------------
-    # Startup execution
-    # ------------------------------------------------------------------
 
     def run(self, splash: Any = None) -> StartupResult:
-        """Execute the full startup pipeline.
-
-        Returns a StartupResult indicating success or failure.
-        """
+        """Execute the full startup pipeline."""
         result = StartupResult()
         self._ctx.splash = splash
 
@@ -178,9 +152,6 @@ class BootstrapManager:
         )
         return result
 
-    # ------------------------------------------------------------------
-    # Recovery
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _shutdown_splash(splash: Any = None) -> None:
@@ -238,10 +209,8 @@ class BootstrapManager:
                     w.close()
                 except Exception:
                     pass
-            # Avoid re-entrancy: reset phases to defaults without duplicating custom phases
             self._phases = list(self._DEFAULT_PHASES)
             for name, fn in self._custom_phases:
-                # re-insert custom phases before finish
                 self._phases.insert(len(self._phases) - 1, (name, fn))
 
         self._ctx = PhaseContext(base_dir=self._base_dir)
@@ -262,12 +231,8 @@ class BootstrapManager:
             except Exception:
                 pass
 
-        # Run asynchronously to avoid recursion depth growth inside signal handler
         QTimer.singleShot(0, _run_retry)
 
-    # ------------------------------------------------------------------
-    # Context access (for testing / introspection)
-    # ------------------------------------------------------------------
 
     @property
     def context(self) -> PhaseContext:

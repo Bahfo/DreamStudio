@@ -5,18 +5,12 @@ from editor.widgets.QToolButton import ToolbarButton
 from editor.widgets.QIndexingProgress import IndexingProgress
 from editor.utils.git_control.git_control import *
 
-#: Severity groups that own a diagnostic status-bar button, in display order.
-#: The label is what the right-click menu shows; the group name is what the
-#: Problems panel understands.
 DIAGNOSTIC_GROUPS = (
     ("errors", "Problems"),
     ("warnings", "Warnings"),
     ("checks", "Checks"),
 )
 
-#: Labels for the groups the panel knows but that own no button. They are
-#: listed in the same menu, after the button-backed groups, so a diagnostic of
-#: such a group can still be switched off.
 UNBUTTONED_GROUP_LABELS = {
     "typos": "Typos & Notes",
 }
@@ -77,7 +71,6 @@ class StatusBar(QFrame):
 
         self.repository = return_repository(self.currentDirectory)
 
-        ############## REPOSITORY ACTIONS ##############
         self.repoActions = ToolbarButton(
             icon_path=resource_path("assets/system/git.png"),
             tooltip="",
@@ -125,8 +118,6 @@ class StatusBar(QFrame):
         self.checksBtn.setText("0")
         statusbar_layout.addWidget(self.checksBtn)
 
-        # Right-clicking any diagnostic button opens the display options for
-        # the three groups (list them in the tree / underline them).
         self._problems_panel = None
         self._group_buttons = {
             "errors": self.errorsBtn,
@@ -283,15 +274,7 @@ class StatusBar(QFrame):
         self.setStyleSheet("")
 
     def attach_problems_panel(self, panel) -> None:
-        """Bind the Problems panel whose display options these buttons drive.
-
-        Also wires the panel's indexing signals to the status-bar progress
-        indicator, so a repository scan shows a loader bar until it ends.
-
-        Args:
-            panel: The ``ProblemsWidget`` the menu reads and updates. When it
-                is ``None`` the menu reports that the panel is unavailable.
-        """
+        """Bind the Problems panel whose display options these buttons drive."""
         self._problems_panel = panel
         try:
             if panel is None:
@@ -313,13 +296,7 @@ class StatusBar(QFrame):
             pass
 
     def attach_cpp_indexer(self, indexer) -> None:
-        """Wire a C++ indexer trio into the shared progress coordinator.
-
-        Args:
-            indexer: Object emitting ``indexing_started(int)``,
-                ``indexing_progress(int, int)`` and ``indexing_finished()``.
-                ``None`` detaches nothing and is ignored.
-        """
+        """Wire a C++ indexer trio into the shared progress coordinator."""
         try:
             if indexer is None:
                 return
@@ -356,20 +333,7 @@ class StatusBar(QFrame):
         menu.exec(button.mapToGlobal(position))
 
     def _menu_groups(self, clicked_group: str) -> list:
-        """Return the ``(group, label)`` pairs the display menu lists.
-
-        The button-backed groups come first — the right-clicked one ahead of
-        the others — followed by every remaining group the Problems panel
-        knows. A group owning no button must still be listed: otherwise its
-        diagnostics would stay underlined in the editor with no switch able to
-        turn them off.
-
-        Args:
-            clicked_group: Group of the right-clicked button, if any.
-
-        Returns:
-            Ordered ``(group, label)`` tuples, one per severity group.
-        """
+        """Return the ``(group, label)`` pairs the display menu lists."""
         ordered = sorted(DIAGNOSTIC_GROUPS, key=lambda item: item[0] != clicked_group)
         known = {group for group, _label in ordered}
         panel = self._problems_panel
@@ -384,20 +348,7 @@ class StatusBar(QFrame):
         return ordered
 
     def build_diagnostics_menu(self, button=None) -> QMenu:
-        """Build the display-options menu of the diagnostic buttons.
-
-        Each group owns two independent switches: whether its rows are listed
-        in the Problems panel, and whether it is underlined in the code
-        editor. The group of the right-clicked *button* comes first, and every
-        group the Problems panel knows is listed — not only the button-backed
-        ones — so each diagnostic type can be switched off.
-
-        Args:
-            button: The button that was clicked, used to order the groups.
-
-        Returns:
-            A ready-to-exec :class:`QMenu`; the caller owns it.
-        """
+        """Build the display-options menu of the diagnostic buttons."""
         panel = self._problems_panel
         menu = QMenu(self)
         clicked_group = self._group_of_button(button)
@@ -449,11 +400,7 @@ class StatusBar(QFrame):
             self._problems_panel.set_group_underlined(group, enabled)
 
     def _set_all_groups(self, enabled: bool) -> None:
-        """Show or hide every severity group in the Problems panel.
-
-        "All" covers every group the panel knows, including the ones without a
-        status-bar button, so the panel decides what that means.
-        """
+        """Show or hide every severity group in the Problems panel."""
         panel = self._problems_panel
         if panel is None:
             return
@@ -478,13 +425,7 @@ class StatusBar(QFrame):
             self._problems_panel.reset_display_options()
 
     def set_problem_counts(self, errors: int, warnings: int, checks: int = 0) -> None:
-        """Publish the Problems-panel counts on the diagnostic buttons.
-
-        Args:
-            errors: Number of error-severity diagnostics.
-            warnings: Number of warning-severity diagnostics.
-            checks: Number of failed non-fatal checks (bare ``except``, …).
-        """
+        """Publish the Problems-panel counts on the diagnostic buttons."""
         try:
             error_count = max(0, int(errors))
             warning_count = max(0, int(warnings))
@@ -503,15 +444,7 @@ class StatusBar(QFrame):
         )
 
     def set_workspace(self, directory: str) -> None:
-        """Re-bind the status bar to a new workspace directory.
-
-        Resolves the Git repository for the new directory, refreshes the
-        repository/branch label and toggles the branch-switch button so it
-        never dereferences a stale or missing repository handle.
-
-        Args:
-            directory: Absolute path of the active solution/workspace.
-        """
+        """Re-bind the status bar to a new workspace directory."""
         self.currentDirectory = directory
         self.repository = return_repository(directory) if directory else None
         self._branch_menu_no_repo_notified = False
@@ -546,7 +479,6 @@ class StatusBar(QFrame):
                 return os.path.basename(self.repository.working_tree_dir)
             except Exception:
                 pass
-        # Fallback: use current directory name when not a git repo (e.g. /tmp)
         if not self.currentDirectory:
             return "No Repo"
         try:
@@ -555,12 +487,7 @@ class StatusBar(QFrame):
             return "No Repo"
 
     def show_branches_menu(self):
-        """Spawns a QMenu with all available branches.
-
-        Guards against a missing repository: when the workspace is not a
-        Git repository the menu is replaced by a single informational
-        action instead of dereferencing ``None``.
-        """
+        """Spawns a QMenu with all available branches."""
         menu = QMenu(self)
 
         if self.repository is None:
@@ -596,7 +523,6 @@ class StatusBar(QFrame):
 
             action = QAction(branch_name, self)
 
-            # Highlight the current branch
             if (
                 branch_name == current_branch
                 or branch_name == f"heads/{current_branch}"
@@ -620,7 +546,7 @@ class StatusBar(QFrame):
                 get_notification_manager,
             )
         except Exception:
-            get_notification_manager = None  # type: ignore
+            get_notification_manager = None
         if self.repository is None:
             if get_notification_manager is not None:
                 get_notification_manager().add_error(

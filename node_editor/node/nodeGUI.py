@@ -62,14 +62,7 @@ class _Plug(QWidget):
     DIAMETER: int = 12
 
     def __init__(self, kind: str, index: int, parent=None) -> None:
-        """Create a plug marker.
-
-        Args:
-            kind: ``"input"`` for left-edge plugs, anything else for
-                right-edge output plugs.
-            index: Zero-based plug number used for the tooltip.
-            parent: Parent widget, expected to be the owning node.
-        """
+        """Create a plug marker."""
         super().__init__(parent)
         self._fill = QColor("#6BA368") if kind == "input" else QColor("#C98A3D")
         self.setFixedSize(self.DIAMETER, self.DIAMETER)
@@ -187,12 +180,7 @@ class Node(QWidget):
         self._position_plugs()
 
     def _build_tool_row(self) -> None:
-        """Build the Tool selector row beneath the title bar.
-
-        Creates a ``Tool:`` label paired with a themed combo box
-        offering the six pipeline actions. The selection is exposed
-        via :attr:`selected_tool` and the :attr:`tool_changed` signal.
-        """
+        """Build the Tool selector row beneath the title bar."""
         self.tool_row = QWidget()
         self.tool_row.setObjectName("ToolRow")
         self.tool_row.setStyleSheet("""
@@ -303,15 +291,7 @@ class Node(QWidget):
             return ""
 
     def _on_tool_changed(self, name: str) -> None:
-        """Handle tool selection changes and build the matching node body.
-
-        Args:
-            name: Newly selected tool name from :attr:`tool_combo`.
-
-        Returns:
-            None. Emits :attr:`tool_changed`, updates the title, and
-            builds or clears the options area with a smooth resize.
-        """
+        """Handle tool selection changes and build the matching node body."""
         self.tool_changed.emit(name)
 
         if not name:
@@ -327,12 +307,7 @@ class Node(QWidget):
         self._build_options(json_path)
 
     def _init_options_container(self) -> None:
-        """Create the hidden container that hosts JSON-built option rows.
-
-        Returns:
-            None. Inserts an empty hidden widget just above the bottom
-            stretch so later builds expand the node downwards.
-        """
+        """Create the hidden container that hosts JSON-built option rows."""
         self._options_container = QWidget()
         self._options_container.setObjectName("OptionsContainer")
         self._options_container.setStyleSheet("""
@@ -349,16 +324,7 @@ class Node(QWidget):
 
 
     def _set_gradient(self, end_color: str = "#4D2E2E") -> None:
-        """Apply the title-bar gradient via stylesheet.
-
-        Args:
-            end_color: Hex color of the gradient's right stop, taken
-                from the active tool's JSON ``color`` entry. Invalid
-                values fall back to the default maroon.
-
-        Returns:
-            None. Kept stylesheet-driven so it persists across repaints.
-        """
+        """Apply the title-bar gradient via stylesheet."""
         if not QColor(end_color).isValid():
             end_color = "#4D2E2E"
         self.title_widget.setStyleSheet(f"""
@@ -369,26 +335,7 @@ class Node(QWidget):
         """)
 
     def _build_options(self, json_file: str | Path) -> dict:
-        """Build node option widgets from a static JSON description file.
-
-        Reads files shaped like ``json/compile.json``::
-
-            {"name": "compile", "color": "#4D2E2E",
-             "properties": {"output-name": {"type": "QLineEdit", ...}, ...}}
-
-        Supported ``type`` values are ``QLineEdit``, ``QCheckBox``,
-        ``QComboBox`` and ``QListWidget`` (a checkable multi-select
-        list). A ``nodes`` entry holding ``input``/``output`` counts
-        defines the side plugs instead of an option row. Previous
-        option rows are discarded first so the builder is idempotent.
-
-        Args:
-            json_file: Path to the JSON file describing the node options.
-
-        Returns:
-            Mapping of property key to the created input widget. Empty
-            when the file is missing, invalid, or holds no properties.
-        """
+        """Build node option widgets from a static JSON description file."""
         self._reset_options_layout()
 
         try:
@@ -493,12 +440,7 @@ class Node(QWidget):
         return dict(self._option_widgets)
 
     def _clear_options(self) -> None:
-        """Remove built option rows and shrink the node back down.
-
-        Returns:
-            None. Hides the options container and animates the node
-            back to its collapsed height.
-        """
+        """Remove built option rows and shrink the node back down."""
         self._reset_options_layout()
         self._clear_plugs()
         self._set_gradient()
@@ -507,11 +449,7 @@ class Node(QWidget):
         self._animate_collapse()
 
     def _reset_options_layout(self) -> None:
-        """Discard existing option rows and widget references.
-
-        Returns:
-            None.
-        """
+        """Discard existing option rows and widget references."""
         self._option_widgets = {}
         if self._options_layout is None:
             return
@@ -524,16 +462,7 @@ class Node(QWidget):
                 widget.deleteLater()
 
     def _place_option_row(self, widget: QWidget) -> None:
-        """Insert a row widget into the options layout and show it.
-
-        Args:
-            widget: Row, checkbox, label, or list to display.
-
-        Returns:
-            None. Showing explicitly keeps the row counted in size
-            hints even when the container is already visible, so the
-            node measures and animates to the true content height.
-        """
+        """Insert a row widget into the options layout and show it."""
         if self._options_layout is None:
             return
         self._options_layout.addWidget(widget)
@@ -541,31 +470,15 @@ class Node(QWidget):
 
 
     def _parse_plug_count(self, raw: object) -> int:
-        """Normalize a plug count from JSON into a safe integer.
-
-        Args:
-            raw: Raw ``input``/``output`` value from the ``nodes``
-                JSON entry.
-
-        Returns:
-            Count clamped to the 0..8 range; 0 for non-numeric input.
-        """
+        """Normalize a plug count from JSON into a safe integer."""
         try:
-            count = int(raw)  # type: ignore[arg-type]
+            count = int(raw)
         except (TypeError, ValueError):
             return 0
         return max(0, min(8, count))
 
     def _build_plugs(self, input_count: int, output_count: int) -> None:
-        """Create input plugs on the left edge and outputs on the right.
-
-        Args:
-            input_count: Number of left-edge input plugs to render.
-            output_count: Number of right-edge output plugs to render.
-
-        Returns:
-            None. Replaces any previously built plugs.
-        """
+        """Create input plugs on the left edge and outputs on the right."""
         self._clear_plugs()
         for index in range(input_count):
             plug = _Plug("input", index, self)
@@ -578,11 +491,7 @@ class Node(QWidget):
         self._position_plugs()
 
     def _clear_plugs(self) -> None:
-        """Remove all rendered side plugs.
-
-        Returns:
-            None.
-        """
+        """Remove all rendered side plugs."""
         for plug in self._input_plugs + self._output_plugs:
             plug.setVisible(False)
             plug.setParent(None)
@@ -591,12 +500,7 @@ class Node(QWidget):
         self._output_plugs = []
 
     def _position_plugs(self) -> None:
-        """Spread plugs evenly along the left and right node edges.
-
-        Returns:
-            None. Called after builds and on every resize so plugs
-            track the animated node height.
-        """
+        """Spread plugs evenly along the left and right node edges."""
         if not self._input_plugs and not self._output_plugs:
             return
         top = (
@@ -620,15 +524,7 @@ class Node(QWidget):
                 plug.move(x, y)
 
     def _make_label_row(self, label_text: str) -> QWidget:
-        """Create a horizontal ``label + stretch`` row for an option.
-
-        Args:
-            label_text: Display name shown on the left of the row.
-
-        Returns:
-            Container widget whose layout the caller extends with an
-            input widget.
-        """
+        """Create a horizontal ``label + stretch`` row for an option."""
         row = QWidget()
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(2, 0, 2, 0)
@@ -643,11 +539,7 @@ class Node(QWidget):
         return row
 
     def _input_style(self) -> str:
-        """Return the shared dark stylesheet for line-edit inputs.
-
-        Returns:
-            Stylesheet string applied to ``QLineEdit`` option widgets.
-        """
+        """Return the shared dark stylesheet for line-edit inputs."""
         return """
             QLineEdit {
                 background-color: #1F1F1F;
@@ -663,11 +555,7 @@ class Node(QWidget):
         """
 
     def _checkbox_style(self) -> str:
-        """Return the shared dark stylesheet for checkbox options.
-
-        Returns:
-            Stylesheet string applied to ``QCheckBox`` option widgets.
-        """
+        """Return the shared dark stylesheet for checkbox options."""
         return """
             QCheckBox {
                 background: transparent;
@@ -689,11 +577,7 @@ class Node(QWidget):
         """
 
     def _combo_style(self) -> str:
-        """Return the shared dark stylesheet for combo option widgets.
-
-        Returns:
-            Stylesheet string applied to ``QComboBox`` option widgets.
-        """
+        """Return the shared dark stylesheet for combo option widgets."""
         return """
             QComboBox {
                 background-color: #1F1F1F;
@@ -709,11 +593,7 @@ class Node(QWidget):
         """
 
     def _list_style(self) -> str:
-        """Return the shared dark stylesheet for checkable list options.
-
-        Returns:
-            Stylesheet string applied to ``QListWidget`` option widgets.
-        """
+        """Return the shared dark stylesheet for checkable list options."""
         return """
             QListWidget {
                 background-color: #1F1F1F;
@@ -746,13 +626,7 @@ class Node(QWidget):
         """
 
     def _animate_expand(self) -> None:
-        """Smoothly resize the node to fit the freshly built options.
-
-        Returns:
-            None. Starts a short ``InOutCubic`` size animation aimed
-            exactly at the layout's current size hint, growing or
-            shrinking so the height always fits the contents.
-        """
+        """Smoothly resize the node to fit the freshly built options."""
         if self._options_container is None:
             return
         self._options_container.updateGeometry()
@@ -762,26 +636,14 @@ class Node(QWidget):
         self._animate_resize(target)
 
     def _animate_collapse(self) -> None:
-        """Smoothly shrink the node after its options were cleared.
-
-        Returns:
-            None. Animates back to the collapsed size hint while
-            keeping the current width.
-        """
+        """Smoothly shrink the node after its options were cleared."""
         self._layout.activate()
         hint = self.sizeHint()
         target = QSize(self.width(), max(hint.height(), self.minimumSizeHint().height()))
         self._animate_resize(target)
 
     def _animate_resize(self, target: QSize) -> None:
-        """Animate the node ``size`` property towards *target*.
-
-        Args:
-            target: Desired final node size after the animation.
-
-        Returns:
-            None.
-        """
+        """Animate the node ``size`` property towards *target*."""
         try:
             if self._resize_animation is not None:
                 self._resize_animation.stop()

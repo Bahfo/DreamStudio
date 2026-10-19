@@ -3,7 +3,6 @@ from __future__ import annotations
 from editor import *
 from editor.utils.resource_path import resource_path
 
-# Local Imports
 from editor.utils.explorer.proxy import (
     ExplorerFilterProxy,
     DreamTreeView,
@@ -25,12 +24,12 @@ from editor.utils.panel_shell import PanelShell
 from editor.utils.workspace import get_workspace_dir as _inherit_workspace
 
 try:
-    import sip  # type: ignore
+    import sip
 except ImportError:
     try:
-        from PyQt6 import sip  # type: ignore
+        from PyQt6 import sip
     except ImportError:
-        sip = None  # type: ignore
+        sip = None
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +47,6 @@ TOOLBAR_BUTTONS: dict[str, tuple[str, str]] = {
     "Expand All": ("_toolbar_expand_all", resource_path("assets/menus/expand.png")),
 }
 
-#: New-file dropdown entries: ``(label, icon, suggested_name)``.
-#: A ``None`` label marks a separator. The suggested name pre-fills the
-#: creation popup so the chosen type defines the file extension.
 NEW_FILE_TEMPLATES: tuple = (
     ("Python File", "assets/types/python.png", "New.py"),
     ("C Code File", "assets/types/c.png", "New.c"),
@@ -77,10 +73,7 @@ class ExplorerSelection:
 
 
 class SolutionExplorer(PanelShell):
-    """
-    IDE sidebar management component managing local project workspaces and
-    package systems via a clean, multi-tab layout interface.
-    """
+    """IDE sidebar management component managing local project workspaces and package systems via a clean, multi-tab layout interface."""
 
     PANEL_OBJECT_NAME = "SolutionExplorer"
     FRAME_OBJECT_NAME = "ExplorerFrame"
@@ -93,10 +86,7 @@ class SolutionExplorer(PanelShell):
     SEARCH_DEBOUNCE_MS = 180
 
     def __init__(self, parent=None):
-        """
-        Initializes internal core system variables, views, proxies,
-        and selection systems.
-        """
+        """Initializes internal core system variables, views, proxies, and selection systems."""
         self._menu_registry = MenuRegistry()
         self._context_menu: ExplorerClickMenu | None = None
 
@@ -122,10 +112,7 @@ class SolutionExplorer(PanelShell):
         self.setMinimumWidth(235)
 
     def _build_shell(self) -> None:
-        """
-        Constructs core view layouts and wires stacked view pages
-        together natively.
-        """
+        """Constructs core view layouts and wires stacked view pages together natively."""
         self._main_layout = QVBoxLayout(self)
         self._main_layout.setContentsMargins(0, 0, 0, 0)
         self._main_layout.setSpacing(0)
@@ -149,10 +136,7 @@ class SolutionExplorer(PanelShell):
         self._frame_layout.addWidget(self.view_stack)
 
     def _build_tab_navigation(self) -> None:
-        """
-        Creates top-level tab buttons to switch between file and
-        package subsystems.
-        """
+        """Creates top-level tab buttons to switch between file and package subsystems."""
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
@@ -170,10 +154,7 @@ class SolutionExplorer(PanelShell):
         self._frame_layout.addLayout(layout)
 
     def _build_explorer_page(self) -> None:
-        """
-        Constructs the primary file workspace navigator page for the
-        stacked view layout.
-        """
+        """Constructs the primary file workspace navigator page for the stacked view layout."""
         page = QWidget(self)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -233,10 +214,7 @@ class SolutionExplorer(PanelShell):
         self.view_stack.addWidget(page)
 
     def _build_packages_page(self) -> None:
-        """
-        Constructs the runtime metadata dependencies page view for the stacked
-        widget.
-        """
+        """Constructs the runtime metadata dependencies page view for the stacked widget."""
         page = QWidget(self)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -248,10 +226,7 @@ class SolutionExplorer(PanelShell):
         self.view_stack.addWidget(page)
 
     def _header_right_widgets(self) -> list[QWidget]:
-        """
-        Provides optional system panel context items for the structural view
-        parent frame.
-        """
+        """Provides optional system panel context items for the structural view parent frame."""
         return [
             ToolbarButton(
                 resource_path("editor/utils/explorer/assets/icons/dropdown.png"),
@@ -262,10 +237,7 @@ class SolutionExplorer(PanelShell):
         ]
 
     def _setup_models(self) -> None:
-        """
-        Configures core file system models, mapping sorting filters and
-        tree configurations.
-        """
+        """Configures core file system models, mapping sorting filters and tree configurations."""
         self.base_model = QFileSystemModel(self)
         self.base_model.setReadOnly(False)
         self.base_model.setIconProvider(DreamStudioIconProvider())
@@ -290,10 +262,7 @@ class SolutionExplorer(PanelShell):
             selection_model.currentChanged.connect(self._on_selection_changed)
 
     def _setup_context_menu(self) -> None:
-        """
-        Loads contextual metadata registries and binds platform menu
-        request mechanisms.
-        """
+        """Loads contextual metadata registries and binds platform menu request mechanisms."""
         try:
             self._menu_registry.load_json(str(MENU_JSON))
         except Exception:
@@ -314,10 +283,7 @@ class SolutionExplorer(PanelShell):
         )
 
     def _setup_signals(self) -> None:
-        """
-        Hooks search entry triggers and synchronizes application engine
-        window focus tracks.
-        """
+        """Hooks search entry triggers and synchronizes application engine window focus tracks."""
         self.search_bar.textChanged.connect(self._on_search_text_changed)
 
         if not self._focus_connected:
@@ -339,13 +305,7 @@ class SolutionExplorer(PanelShell):
         self._setup_gitignore_service()
 
     def _on_vcs_statuses_updated(self, repo_root: str, snapshot: dict) -> None:
-        """
-        Translate a published snapshot into the proxy color index.
-
-        Args:
-            repo_root: Repository working directory from the scan.
-            snapshot: Repo-relative path to ``M``/``U``/``A`` symbols.
-        """
+        """Translate a published snapshot into the proxy color index."""
         if not repo_root or not snapshot:
             self.proxy_model.apply_vcs_index({})
             return
@@ -382,14 +342,7 @@ class SolutionExplorer(PanelShell):
             pass
 
     def _connect_dirty_tracker(self) -> None:
-        """Wire dirty-state changes from code editors to VCS activity.
-
-        Covers requirements:
-        1. Dirty state true for a file inside the code editor.
-        2. Dirty state updated (true->false or false->true).
-        This hooks every ``dirty_state_changed`` signal found in the
-        application, including future editors created after startup.
-        """
+        """Wire dirty-state changes from code editors to VCS activity."""
 
         def _hook() -> None:
             if not hasattr(self, "_dirty_hook_timer") or self._dirty_hook_timer is None:
@@ -400,15 +353,13 @@ class SolutionExplorer(PanelShell):
             for w in app.allWidgets():
                 if hasattr(w, "dirty_state_changed"):
                     try:
-                        # Skip deleted wrappers
                         if not w:
                             continue
                         if sip is not None and sip.isdeleted(w):
                             continue
                         if not getattr(w, "_vcs_dirty_connected", False):
                             w.dirty_state_changed.connect(self._notify_vcs_activity)
-                            w._vcs_dirty_connected = True  # type: ignore
-                            # Auto-cleanup on destruction
+                            w._vcs_dirty_connected = True
                             try:
                                 w.destroyed.connect(
                                     lambda _=None, ww=w: self._on_editor_destroyed_for_vcs(
@@ -454,14 +405,7 @@ class SolutionExplorer(PanelShell):
         super().closeEvent(event)
 
     def _setup_gitignore_service(self) -> None:
-        """Wire the gitignore parser service to the proxy model.
-
-        - Reads ``.gitignore`` line by line via :mod:`editor.utils.explorer.gitignore`.
-        - Highlights ignored files with a faded-gray text color (VSCode-like).
-        - Updates each time ``.gitignore`` is modified (resaved).
-        - If no ``.gitignore`` exists the service emits ``[]`` and stays
-          idle until the file is created for the first time.
-        """
+        """Wire the gitignore parser service to the proxy model."""
         try:
             service = get_gitignore_service()
             try:
@@ -477,12 +421,7 @@ class SolutionExplorer(PanelShell):
             logger.debug("GitIgnore setup failed: %s", exc)
 
     def _on_gitignore_updated(self, patterns: list) -> None:
-        """Apply new gitignore patterns to the proxy and repaint.
-
-        Args:
-            patterns: Raw pattern list emitted by :class:`GitIgnoreService`.
-                Empty list means no ``.gitignore`` – highlighting disabled.
-        """
+        """Apply new gitignore patterns to the proxy and repaint."""
         try:
             self.proxy_model.apply_gitignore_patterns(patterns or [])
             if self.tree_view is not None:
@@ -526,10 +465,7 @@ class SolutionExplorer(PanelShell):
             self._context_menu.register_callback(action_name, handler)
 
     def set_workspace(self, root_path: str) -> None:
-        """
-        Sets, cleans, and updates the local repository system directory
-        path context.
-        """
+        """Sets, cleans, and updates the local repository system directory path context."""
         if not root_path:
             return
         resolved = os.path.abspath(os.path.expanduser(root_path))
@@ -544,10 +480,6 @@ class SolutionExplorer(PanelShell):
         self.proxy_model.set_root_path(self._root_path)
         if same_root:
             # NOTE: QFileSystemModel.setRootPath() with an unchanged path is
-            # a no-op, so files created after the first scan (e.g. project
-            # scaffolding writing templates into the already-pointed root)
-            # never appear. Bouncing through an empty root forces a genuine
-            # re-fetch from disk.
             try:
                 self.base_model.setRootPath("")
             except Exception:
@@ -569,7 +501,6 @@ class SolutionExplorer(PanelShell):
             get_gitignore_service().set_root(self._root_path)
         except Exception:
             pass
-        # Propagate workspace to the Packages tab so pip operations run in the right directory.
         if hasattr(self, "packages_view") and self.packages_view is not None:
             try:
                 self.packages_view.set_workspace(self._root_path)
@@ -595,10 +526,7 @@ class SolutionExplorer(PanelShell):
         return name or normalized
 
     def _workspace_name(self) -> str:
-        """
-        Retrieves user-friendly representation text of current directory
-        context.
-        """
+        """Retrieves user-friendly representation text of current directory context."""
         return self._display_name(self._root_path)
 
     def _update_directory_label(self) -> None:
@@ -608,10 +536,7 @@ class SolutionExplorer(PanelShell):
         self._dir_label.setText(f"Workspace: {self._workspace_name()}")
 
     def _selected_selection(self) -> Optional[ExplorerSelection]:
-        """
-        Resolves active index references into complete path metrics data
-        snapshots.
-        """
+        """Resolves active index references into complete path metrics data snapshots."""
         index = self.current_index()
         if not index.isValid():
             return None
@@ -732,7 +657,7 @@ class SolutionExplorer(PanelShell):
         try:
             from editor.utils.icons import get_qicon
         except Exception:
-            get_qicon = None  # type: ignore
+            get_qicon = None
 
         for label, icon_path, suggested in NEW_FILE_TEMPLATES:
             if label is None:
@@ -810,19 +735,13 @@ class SolutionExplorer(PanelShell):
         self._notify_vcs_activity()
 
     def set_show_hidden(self, show_hidden: bool) -> None:
-        """
-        Toggles system node filtering configs for operating system hidden
-        attributes.
-        """
+        """Toggles system node filtering configs for operating system hidden attributes."""
         self.proxy_model.set_show_hidden(show_hidden)
         self._ensure_root_visible()
         self._update_status_label()
 
     def _ensure_root_visible(self) -> None:
-        """
-        Enforces structural alignment to guarantee project root directories
-        map cleanly.
-        """
+        """Enforces structural alignment to guarantee project root directories map cleanly."""
         source_index = self.base_model.index(self._root_path)
         proxy_index = self.proxy_model.mapFromSource(source_index)
         if proxy_index.isValid():
@@ -874,10 +793,7 @@ class SolutionExplorer(PanelShell):
         self._frame.style().polish(self._frame)
 
     def populate_toolbar(self, buttons_dict: dict[str, tuple[str, str]]) -> None:
-        """
-        Purges and rebuilds toolbar actions from structured navigation
-        dictionaries.
-        """
+        """Purges and rebuilds toolbar actions from structured navigation dictionaries."""
         for btn in list(self._explr_toolbox._buttons):
             self._explr_toolbox.removeWidget(btn)
             btn.deleteLater()
