@@ -35,6 +35,25 @@ class RightClickMenu(QMenu):
                 "key": "go_to_definition",
             },
             {
+                "label": "Go to Declaration",
+                "action": self.go_to_declaration,
+                "shortcut": "Ctrl+F12",
+                "key": "go_to_declaration",
+            },
+            {
+                "label": "Go to Implementation",
+                "action": self.go_to_implementation,
+                "shortcut": "Alt+F12",
+                "key": "go_to_implementation",
+            },
+            {
+                "label": "Find References",
+                "action": self.find_references,
+                "shortcut": "Shift+F12",
+                "key": "find_references",
+            },
+            None,
+            {
                 "label": "Go to Usage",
                 "action": self.go_to_usage,
                 "shortcut": "Ctrl+Alt+B",
@@ -187,11 +206,20 @@ class RightClickMenu(QMenu):
         can_redo = editor.isRedoAvailable()
         has_clipboard = bool(QApplication.clipboard().text())
         has_provider = editor.current_provider is not None
+        has_nav_provider = has_provider and (
+            hasattr(editor.current_provider, "get_definition_location") or
+            hasattr(editor.current_provider, "get_declaration_location") or
+            hasattr(editor.current_provider, "get_implementation_location") or
+            hasattr(editor.current_provider, "get_references")
+        )
         has_file = bool(editor.current_file_path)
         has_folds = hasattr(editor, "_fold_manager") and editor._fold_manager is not None
         is_readonly = editor.isReadOnly() if hasattr(editor, "isReadOnly") else False
 
-        self._set_enabled("go_to_definition", has_provider)
+        self._set_enabled("go_to_definition", has_nav_provider)
+        self._set_enabled("go_to_declaration", has_nav_provider)
+        self._set_enabled("go_to_implementation", has_nav_provider)
+        self._set_enabled("find_references", has_nav_provider)
         self._set_enabled("undo", can_undo and not is_readonly)
         self._set_enabled("redo", can_redo and not is_readonly)
         self._set_enabled("cut", has_selection and not is_readonly)
@@ -218,6 +246,21 @@ class RightClickMenu(QMenu):
         editor = self._editor()
         if editor:
             editor.execute_goto_definition()
+
+    def go_to_declaration(self):
+        editor = self._editor()
+        if editor:
+            editor.execute_goto_declaration()
+
+    def go_to_implementation(self):
+        editor = self._editor()
+        if editor:
+            editor.execute_goto_implementation()
+
+    def find_references(self):
+        editor = self._editor()
+        if editor:
+            editor.execute_find_references()
 
     def go_to_usage(self):
         pass

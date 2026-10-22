@@ -1650,25 +1650,157 @@ class CodeEditor(QsciScintilla):
                 project_root = get_workspace_dir(self) or None
             except Exception:
                 project_root = None
+
+            targets = []
             try:
-                target = self.current_provider.get_definition_location(
+                targets = self.current_provider.get_definition_location(
                     self.text(), line, col, file_path, project_root
                 )
             except TypeError:
-                target = self.current_provider.get_definition_location(
+                targets = self.current_provider.get_definition_location(
                     self.text(), line, col
                 )
 
-            if not target:
+            if not targets:
                 return
 
-            file_path, target_line, target_col = target
+            self._navigate_to_targets(targets, line, file_path)
+        except Exception as exc:
+            logger.debug("Go-to-definition failed: %s", exc)
 
+    def execute_goto_declaration(self, line: int = None, col: int = None) -> None:
+        """Resolve the symbol under the cursor and navigate to its declaration."""
+        self._dismiss_hover_flyout(force=True)
+        try:
+            controller = getattr(self, "_hover_controller", None)
+            if controller is not None:
+                controller.cancel_pending_hover()
+        except Exception:
+            pass
+
+        if not self.current_provider:
+            return
+
+        try:
+            if line is None or col is None:
+                line, col = self.getCursorPosition()
+            file_path = getattr(self, "current_file_path", None) or None
+            try:
+                from editor.utils.workspace import get_workspace_dir
+
+                project_root = get_workspace_dir(self) or None
+            except Exception:
+                project_root = None
+
+            targets = []
+            try:
+                targets = self.current_provider.get_declaration_location(
+                    self.text(), line, col, file_path, project_root
+                )
+            except TypeError:
+                targets = self.current_provider.get_declaration_location(
+                    self.text(), line, col
+                )
+
+            if not targets:
+                return
+
+            self._navigate_to_targets(targets, line, file_path)
+        except Exception as exc:
+            logger.debug("Go-to-declaration failed: %s", exc)
+
+    def execute_goto_implementation(self, line: int = None, col: int = None) -> None:
+        """Resolve the symbol under the cursor and navigate to its implementation(s)."""
+        self._dismiss_hover_flyout(force=True)
+        try:
+            controller = getattr(self, "_hover_controller", None)
+            if controller is not None:
+                controller.cancel_pending_hover()
+        except Exception:
+            pass
+
+        if not self.current_provider:
+            return
+
+        try:
+            if line is None or col is None:
+                line, col = self.getCursorPosition()
+            file_path = getattr(self, "current_file_path", None) or None
+            try:
+                from editor.utils.workspace import get_workspace_dir
+
+                project_root = get_workspace_dir(self) or None
+            except Exception:
+                project_root = None
+
+            targets = []
+            try:
+                targets = self.current_provider.get_implementation_location(
+                    self.text(), line, col, file_path, project_root
+                )
+            except TypeError:
+                targets = self.current_provider.get_implementation_location(
+                    self.text(), line, col
+                )
+
+            if not targets:
+                return
+
+            self._navigate_to_targets(targets, line, file_path)
+        except Exception as exc:
+            logger.debug("Go-to-implementation failed: %s", exc)
+
+    def execute_find_references(self, line: int = None, col: int = None) -> None:
+        """Find all references to the symbol under the cursor."""
+        self._dismiss_hover_flyout(force=True)
+        try:
+            controller = getattr(self, "_hover_controller", None)
+            if controller is not None:
+                controller.cancel_pending_hover()
+        except Exception:
+            pass
+
+        if not self.current_provider:
+            return
+
+        try:
+            if line is None or col is None:
+                line, col = self.getCursorPosition()
+            file_path = getattr(self, "current_file_path", None) or None
+            try:
+                from editor.utils.workspace import get_workspace_dir
+
+                project_root = get_workspace_dir(self) or None
+            except Exception:
+                project_root = None
+
+            targets = []
+            try:
+                targets = self.current_provider.get_references(
+                    self.text(), line, col, file_path, project_root
+                )
+            except TypeError:
+                targets = self.current_provider.get_references(
+                    self.text(), line, col
+                )
+
+            if not targets:
+                return
+
+            self._navigate_to_targets(targets, line, file_path)
+        except Exception as exc:
+            logger.debug("Find-references failed: %s", exc)
+
+    def _navigate_to_targets(self, targets: list, current_line: int, current_file: str) -> None:
+        """Navigate to a target or show popup for multiple targets."""
+        if not targets:
+            return
+
+        if len(targets) == 1:
+            file_path, target_line, target_col = targets[0]
             if not file_path:
                 return
-
-            current_path = getattr(self, "current_file_path", "") or ""
-            if file_path == current_path and target_line == line:
+            if file_path == current_file and target_line == current_line:
                 return
 
             tab_widget = self._parent
@@ -1678,8 +1810,45 @@ class CodeEditor(QsciScintilla):
                 current_editor = tab_widget.currentWidget()
                 if current_editor and hasattr(current_editor, "setCursorPosition"):
                     current_editor.setCursorPosition(target_line, target_col)
+            return
+
+        self._show_navigation_popup(targets)
+
+    def _show_navigation_popup(self, targets: list) -> None:
+        """Show a popup with multiple navigation targets."""
+        try:
+            from editor.Ironica.plugins.cpp.navigation.popup import NavigationPopup
+            from editor.Ironica.plugins.cpp.navigation.engine import NavigationResult
+
+            nav_results = []
+            for target in targets:
+                file_path, target_line, target_col = target
+                nav_results.append(NavigationResult(
+                    file_path=file_path,
+                    line=target_line + 1,
+                    col=target_col + 1,
+                    display_name=f"{file_path}:{target_line + 1}",
+                    kind="target",
+                ))
+
+            popup = NavigationPopup(self.window())
+            popup.set_results(nav_results, on_select=lambda r: self._navigate_to_result(r))
+            popup.show_at_cursor(self)
         except Exception as exc:
-            logger.debug("Go-to-definition failed: %s", exc)
+            logger.debug("Failed to show navigation popup: %s", exc)
+
+    def _navigate_to_result(self, result) -> None:
+        """Navigate to a specific navigation result."""
+        try:
+            tab_widget = self._parent
+            if tab_widget and hasattr(tab_widget, "open_file_at_line"):
+                tab_widget.open_file_at_line(result.file_path, result.line - 1)
+
+                current_editor = tab_widget.currentWidget()
+                if current_editor and hasattr(current_editor, "setCursorPosition"):
+                    current_editor.setCursorPosition(result.line - 1, result.col - 1)
+        except Exception as exc:
+            logger.debug("Navigation to result failed: %s", exc)
 
     def apply_visual_language(self, lang: str) -> None:
         """Preview *lang* highlighting without touching disk or session state."""

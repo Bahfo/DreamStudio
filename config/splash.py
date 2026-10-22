@@ -32,10 +32,10 @@ def _get_icon_src_path() -> str:
     import sys
 
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, "icon_src", "blue_geometry.svg")
+        return os.path.join(sys._MEIPASS, "assets", "blue_geometry.svg")
     return os.path.normpath(
         os.path.join(
-            os.path.dirname(__file__), os.pardir, "icon_src", "blue_geometry.svg"
+            os.path.dirname(__file__), os.pardir, "assets", "blue_geometry.svg"
         )
     )
 

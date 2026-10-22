@@ -7,7 +7,7 @@ from editor import *
 from editor.utils.resource_path import resource_path
 
 logger = logging.getLogger(__name__)
-_PROJECTS_DIR = "manifests/projects"
+_PROJECTS_DIR = "assets/manifests/projects"
 _REQUIRED_KEYS = (
     "project_type",
     "display_name",

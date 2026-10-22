@@ -178,6 +178,24 @@ class BaseLanguageProvider(ABC):
         """Return `(file_path, line, col)` for the symbol's definition."""
         return None
 
+    def get_declaration_location(
+        self, text: str, line: int, col: int
+    ) -> Optional[list]:
+        """Return list of `(file_path, line, col, display_name)` for declarations."""
+        return []
+
+    def get_implementation_location(
+        self, text: str, line: int, col: int
+    ) -> Optional[list]:
+        """Return list of `(file_path, line, col, display_name)` for implementations."""
+        return []
+
+    def get_references(
+        self, text: str, line: int, col: int
+    ) -> Optional[list]:
+        """Return list of `(file_path, line, col, display_name)` for references."""
+        return []
+
     @abstractmethod
     def format_source(self, source_code: str) -> str:
         """Format *source_code* and return the formatted text."""

@@ -18,6 +18,7 @@ from .autocompletion import (
     classify,
     CppCompletionManager,
 )
+from .navigation import NavigationEngine, NavigationResult
 
 
 class CppProvider(BaseLanguageProvider):
@@ -38,6 +39,7 @@ class CppProvider(BaseLanguageProvider):
         self._completion_manager = None
         self._fold_engine = None
         self._highlight_cache = None
+        self._nav_engine_instance: NavigationEngine | None = None
 
     def get_semantic_highlights(
         self, text: str, theme_name: str | None = None,
@@ -251,6 +253,66 @@ class CppProvider(BaseLanguageProvider):
         from .intellisense.engine import CppEngine
 
         return CppEngine(shared_index=self._shared_index)
+
+    def _nav_engine(self) -> NavigationEngine:
+        """Get or create the navigation engine."""
+        if self._nav_engine_instance is None:
+            self._nav_engine_instance = NavigationEngine(self._make_engine())
+        return self._nav_engine_instance
+
+    def _create_context(self, text: str, line: int, col: int, file_path: str | None = None) -> CppContext:
+        """Create a CppContext for navigation."""
+        return CppContext(
+            source_code=text,
+            line=line + 1,
+            col=col + 1,
+            file_path=file_path or self._file_path,
+            compile_args=cpp_args.args_for_file(file_path or self._file_path, text),
+        )
+
+    def _results_to_locations(self, results: list[NavigationResult]) -> list[tuple]:
+        """Convert NavigationResult list to location tuples."""
+        return [(r.file_path, r.line - 1, r.col - 1) for r in results]
+
+    def get_definition_location(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+        """Return list of (file_path, line, col) for the symbol's definition(s)."""
+        ctx = self._create_context(text, line, col, file_path)
+        try:
+            results = self._nav_engine().get_definition(ctx)
+            return self._results_to_locations(results)
+        except Exception as exc:
+            logger.debug("get_definition_location failed: %s", exc)
+            return []
+
+    def get_declaration_location(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+        """Return list of (file_path, line, col) for the symbol's declaration(s)."""
+        ctx = self._create_context(text, line, col, file_path)
+        try:
+            results = self._nav_engine().get_declaration(ctx)
+            return self._results_to_locations(results)
+        except Exception as exc:
+            logger.debug("get_declaration_location failed: %s", exc)
+            return []
+
+    def get_implementation_location(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+        """Return list of (file_path, line, col) for the symbol's implementation(s)."""
+        ctx = self._create_context(text, line, col, file_path)
+        try:
+            results = self._nav_engine().get_implementation(ctx)
+            return self._results_to_locations(results)
+        except Exception as exc:
+            logger.debug("get_implementation_location failed: %s", exc)
+            return []
+
+    def get_references(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+        """Return list of (file_path, line, col) for the symbol's reference(s)."""
+        ctx = self._create_context(text, line, col, file_path)
+        try:
+            results = self._nav_engine().get_references(ctx)
+            return self._results_to_locations(results)
+        except Exception as exc:
+            logger.debug("get_references failed: %s", exc)
+            return []
 
     def create_completion_manager(self, editor, file_path, parent):
         """Called by tab_editor.py:597."""
