@@ -13,7 +13,10 @@
 - `.poly` files, if any found, are the build files for the system. These must NOT be updated unless it is explicitly said to update them. 
 
 ## Specific Rules: 
-- All other rules are contained inside `.ai/` folder. It contains `styles.md` and `styles.yaml`. 
+- All other rules are contained inside the `.agents/` folder:
+  - `.agents/style_rules.md` and `.agents/style_rules.yaml` — mandatory styling rules.
+  - `.agents/context/` — repository documentation: `repository-map.md`, `architecture.md`, `invariants.md`, `build-and-test.md`, `dependencies.md`, `ui-layout.md`, `editor-model.md`.
+  - `.agents/skills/` — reusable playbooks: `qt-development.md`, `debugging.md`, `cpp.md`, `python.md`.
 
 - **Tests**: All tests are `.py` files starting with the word `test`. After each change. Run tests accompanying to the change made.
 
@@ -24,7 +27,7 @@
 - Ignore any failed tests that are pre-failing.
 
 ### Code Providing
-- Read `.ai/` folder for styling rules.
+- Read `.agents/` folder for styling rules.
 - Auto-format.
 - Normalize (structure or whitespace).
 - Add a trailing newline at the end of file.
