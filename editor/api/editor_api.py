@@ -5,12 +5,11 @@ from editor.utils.theme import extract_qss_color as _shared_qss_color
 from editor.utils.find_replace.find_replace import FindReplace
 from editor.terminal.PythonConsole.console import PythonShell
 from docs.doc_panel import DocumentationWindow
-from node_editor.ui_build import NodeBuilder
+from editor.utils.node_editor.ui_build import NodeBuilder
 
 
 class EditorAPI:
     """Mixin that holds all editor API callbacks (toggles, theme setters, file operations, clipboard actions, status updates, etc.)."""
-
 
     def _toggle_panel(self, panel_id: str, manager) -> None:
         """Toggle a side panel:"""
@@ -138,7 +137,6 @@ class EditorAPI:
         else:
             self._find_replace_window._show()
 
-
     def _update_left_button_state(self, active_id: str) -> None:
         buttons = self.left_sidebar.findChildren(QPushButton)
         for btn in buttons:
@@ -171,7 +169,6 @@ class EditorAPI:
             for btn in buttons:
                 btn.setChecked(False)
 
-
     def _new_file(self) -> None:
         self.hero_window._text_editor_center.methods.open_new_tab()
 
@@ -190,7 +187,6 @@ class EditorAPI:
 
     def _make_file_readonly(self) -> None:
         self.hero_window._text_editor_center.tabs._make_file_readonly()
-
 
     def _with_editor(self, fn) -> None:
         api = self.hero_window._text_editor_center.methods.current_editor()
@@ -211,7 +207,6 @@ class EditorAPI:
 
     def _redo_action(self) -> None:
         self._with_editor(lambda a: a.redo())
-
 
     def _apply_theme_content(self, content: str) -> None:
         """Apply a QSS stylesheet string and propagate colours to child widgets."""
@@ -377,7 +372,6 @@ class EditorAPI:
         m = pattern.search(qss_content)
         return m.group(1).strip() if m else None
 
-
     def _get_configured_font_family(self) -> str | None:
         """Read the configured font family from the bootstrap config."""
         registry = getattr(self, "_registry", None)
@@ -430,10 +424,8 @@ class EditorAPI:
         if current:
             self.setStyleSheet(self._inject_font_family(current, font_name))
 
-
     def _get_current_editor(self):
         return self.hero_window._text_editor_center.current_editor()
-
 
     def _run_current_file(self) -> None:
         """Run the active Python file in a new integrated terminal session."""
@@ -463,7 +455,6 @@ class EditorAPI:
         editor = api.editor
         line, col = editor.getCursorPosition()
         self.status_bar.lines_and_cols.setText(f"Ln {line + 1} : Col {col + 1}")
-
 
     def _debug_current_file(self) -> None:
         """Launch a debug session for the active editor."""

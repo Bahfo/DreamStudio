@@ -107,10 +107,10 @@ def phase_bootstrap_init(ctx: PhaseContext) -> None:
     """Initialize BootstrapManager dependencies."""
     logger.info("Phase 2: Bootstrap initialization")
 
-    from bootstrap.registry import ServiceRegistry
-    from bootstrap.config import ConfigurationService
-    from bootstrap.resources import ResourceManager
-    from bootstrap.splash import SplashController
+    from config.registry import ServiceRegistry
+    from config.config import ConfigurationService
+    from config.resources import ResourceManager
+    from config.splash import SplashController
 
     ctx.registry = ServiceRegistry()
     ctx.config_service = ConfigurationService(ctx.base_dir)
@@ -249,7 +249,7 @@ def phase_resources(ctx: PhaseContext) -> None:
         )
 
     try:
-        from fonts.font_strapper import Fonts
+        from assets.fonts.font_strapper import Fonts
 
         Fonts.init()
         logger.info("Bundled fonts registered")

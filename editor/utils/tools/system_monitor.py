@@ -5,7 +5,7 @@ import psutil
 from editor.widgets.QSystemGraphWidget import SystemGraphUtil
 from editor.utils.tools.port_info import fetch_pid_to_ports, service_name
 
-from fonts.font_strapper import Fonts
+from assets.fonts.font_strapper import Fonts
 
 
 class SystemMonitor(QWidget):
@@ -145,8 +145,7 @@ class SystemMonitor(QWidget):
 
     def _apply_tab_styling(self):
         """Style the inner QTabWidget to match the monitor palette."""
-        self.tabs.setStyleSheet(
-            f"""
+        self.tabs.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: 1px solid {self._grid_color};
                 background-color: {self._bg_color};
@@ -162,13 +161,11 @@ class SystemMonitor(QWidget):
                 color: #D4D4D4;
                 border-bottom: 2px solid #61AFEF;
             }}
-            """
-        )
+            """)
 
     def _apply_table_styling(self):
         """Style the process table to match the monitor palette."""
-        self.process_table.setStyleSheet(
-            f"""
+        self.process_table.setStyleSheet(f"""
             QTableWidget {{
                 background-color: {self._bg_color};
                 alternate-background-color: {self._grid_color};
@@ -185,8 +182,7 @@ class SystemMonitor(QWidget):
             QTableWidget::item:selected {{
                 background-color: #3A3F44;
             }}
-            """
-        )
+            """)
 
     def _collect(self):
         self._collect_cpu()

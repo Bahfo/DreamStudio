@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from PyQt6.QtCore import QTimer
 
-from bootstrap.phases import (
+from config.phases import (
     PhaseContext,
     StartupError,
     RecoverableError,
@@ -73,7 +73,6 @@ class BootstrapManager:
         self._recovery_window = None
         logger.info("BootstrapManager created (base_dir=%s)", self._base_dir)
 
-
     def add_phase(
         self, name: str, phase_fn: Callable, after: str | None = None
     ) -> None:
@@ -92,7 +91,6 @@ class BootstrapManager:
                 self._phases.insert(len(self._phases) - 1, entry)
         self._custom_phases.append(entry)
         logger.info("Custom phase registered: %s (after=%s)", name, after)
-
 
     def run(self, splash: Any = None) -> StartupResult:
         """Execute the full startup pipeline."""
@@ -152,7 +150,6 @@ class BootstrapManager:
         )
         return result
 
-
     @staticmethod
     def _shutdown_splash(splash: Any = None) -> None:
         """Close the boot splash best-effort."""
@@ -171,7 +168,7 @@ class BootstrapManager:
         if splash and splash.is_visible:
             splash.close()
 
-        from bootstrap.recovery import RecoveryWindow
+        from config.recovery import RecoveryWindow
 
         self._recovery_window = RecoveryWindow(
             message=message,
@@ -232,7 +229,6 @@ class BootstrapManager:
                 pass
 
         QTimer.singleShot(0, _run_retry)
-
 
     @property
     def context(self) -> PhaseContext:

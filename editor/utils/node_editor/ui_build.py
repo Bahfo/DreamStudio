@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 
-from node_editor.node.nodeGUI import Node
+from editor.utils.node_editor.node.nodeGUI import Node
 
 
 class NodeBuilder(QWidget):

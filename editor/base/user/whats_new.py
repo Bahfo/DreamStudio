@@ -1,6 +1,6 @@
 from editor import *
 
-from fonts.font_strapper import Fonts
+from assets.fonts.font_strapper import Fonts
 
 from editor.base.user.gradient import GradientBanner
 

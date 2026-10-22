@@ -2,7 +2,7 @@
 // Inspector Module Source Code for DreamStudio ELF Inspection.
 // Code is licensed under the GPLv3 License.
 
-#include "inspector.h"
+#include "inspector.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,26 +72,36 @@ static uint64_t read_u64(
 }
 
 
+static size_t elf_header_size(uint8_t elf_class) {
+    return (elf_class == 1) ? 52 : 64;
+}
+
+
+static size_t elf_section_header_size(uint8_t elf_class) {
+    return (elf_class == 1) ? 40 : 64;
+}
+
+
 BinaryFile *binary_file_open(const char *path) {
     if (path == NULL) return NULL;
 
     FILE *handle = fopen(path, "rb");
     if (handle == NULL) return NULL;
 
-    BinaryFile *file = malloc(sizeof(BinaryFile));
+    BinaryFile *file = static_cast<BinaryFile *>(malloc(sizeof(BinaryFile)));
     if (file == NULL) {
         fclose(handle);
         return NULL;
     }
 
-    file -> handle = handle;
+    file->handle = handle;
     return file;
 }
 
 
 void binary_file_close(BinaryFile *file) {
     if (file == NULL) return;
-    if (file -> handle != NULL) fclose(file -> handle);
+    if (file->handle != NULL) fclose(file->handle);
     free(file);
 }
 
@@ -103,60 +113,61 @@ int binary_file_read_elf_header(
     if (file == NULL || file->handle == NULL || header == NULL)
         return 0;
 
-    unsigned char header_data[64];
-
     if (fseek(file->handle, 0, SEEK_SET) != 0)
         return 0;
 
-    if (fread(header_data, sizeof(header_data), 1, file->handle) != 1)
+    unsigned char ident[16];
+    if (fread(ident, sizeof(ident), 1, file->handle) != 1)
         return 0;
 
-    if (header_data[0] != 0x7F ||
-        header_data[1] != 'E' ||
-        header_data[2] != 'L' ||
-        header_data[3] != 'F') return 0;
-
-    header->elf_class = header_data[4];
-    header->elf_data = header_data[5];
-
-    if (header->elf_data != 1 && header->elf_data != 2)
+    if (ident[0] != 0x7F || ident[1] != 'E' || ident[2] != 'L' || ident[3] != 'F')
         return 0;
 
-    if (header->elf_class != 2)
+    uint8_t elf_class = ident[4];
+    uint8_t elf_data = ident[5];
+
+    if (elf_data != 1 && elf_data != 2)
         return 0;
 
-    header->type = read_u16(
-        &header_data[16],
-        header->elf_data);
+    if (elf_class != 1 && elf_class != 2)
+        return 0;
 
-    header->machine = read_u16(
-        &header_data[18],
-        header->elf_data);
+    size_t hdr_size = elf_header_size(elf_class);
+    unsigned char *header_data = static_cast<unsigned char *>(malloc(hdr_size));
+    if (header_data == NULL)
+        return 0;
 
-    header->entry = read_u64(
-        &header_data[24],
-        header->elf_data);
+    memcpy(header_data, ident, 16);
 
-    header->program_header_offset = read_u64(
-        &header_data[32],
-        header->elf_data);
+    if (fread(header_data + 16, hdr_size - 16, 1, file->handle) != 1) {
+        free(header_data);
+        return 0;
+    }
 
-    header->section_header_offset = read_u64(
-        &header_data[40],
-        header->elf_data);
+    header->elf_class = elf_class;
+    header->elf_data = elf_data;
 
-    header->program_header_count = read_u16(
-        &header_data[56],
-        header->elf_data);
+    if (elf_class == 1) {
+        header->type = read_u16(&header_data[16], elf_data);
+        header->machine = read_u16(&header_data[18], elf_data);
+        header->entry = read_u32(&header_data[24], elf_data);
+        header->program_header_offset = read_u32(&header_data[28], elf_data);
+        header->section_header_offset = read_u32(&header_data[32], elf_data);
+        header->program_header_count = read_u16(&header_data[44], elf_data);
+        header->section_header_count = read_u16(&header_data[46], elf_data);
+        header->section_name_string_table_index = read_u16(&header_data[48], elf_data);
+    } else {
+        header->type = read_u16(&header_data[16], elf_data);
+        header->machine = read_u16(&header_data[18], elf_data);
+        header->entry = read_u64(&header_data[24], elf_data);
+        header->program_header_offset = read_u64(&header_data[32], elf_data);
+        header->section_header_offset = read_u64(&header_data[40], elf_data);
+        header->program_header_count = read_u16(&header_data[56], elf_data);
+        header->section_header_count = read_u16(&header_data[60], elf_data);
+        header->section_name_string_table_index = read_u16(&header_data[62], elf_data);
+    }
 
-    header->section_header_count = read_u16(
-        &header_data[60],
-        header->elf_data);
-
-    header->section_name_string_table_index = read_u16(
-        &header_data[62],
-        header->elf_data);
-
+    free(header_data);
     return 1;
 }
 
@@ -223,47 +234,46 @@ int binary_file_read_section(
 
     if (index >= header->section_header_count) return 0;
 
-    const uint64_t section_header_size = 64;
+    size_t section_header_size = elf_section_header_size(header->elf_class);
 
     uint64_t section_offset =
         header->section_header_offset +
         ((uint64_t)index * section_header_size);
 
-    unsigned char data[64];
+    unsigned char *data = static_cast<unsigned char *>(malloc(section_header_size));
+    if (data == NULL) return 0;
 
     if (fseek(
             file->handle,
             (long)section_offset,
             SEEK_SET
-        ) != 0) return 0;
-
-    if (fread(data, sizeof(data), 1, file->handle) != 1)
+        ) != 0) {
+        free(data);
         return 0;
+    }
 
-    section->name_offset = read_u32(
-        &data[0],
-        header->elf_data);
+    if (fread(data, section_header_size, 1, file->handle) != 1) {
+        free(data);
+        return 0;
+    }
 
-    section->type = read_u32(
-        &data[4],
-        header->elf_data);
+    if (header->elf_class == 1) {
+        section->name_offset = read_u32(&data[0], header->elf_data);
+        section->type = read_u32(&data[4], header->elf_data);
+        section->flags = read_u32(&data[8], header->elf_data);
+        section->address = read_u32(&data[12], header->elf_data);
+        section->offset = read_u32(&data[16], header->elf_data);
+        section->size = read_u32(&data[20], header->elf_data);
+    } else {
+        section->name_offset = read_u32(&data[0], header->elf_data);
+        section->type = read_u32(&data[4], header->elf_data);
+        section->flags = read_u64(&data[8], header->elf_data);
+        section->address = read_u64(&data[16], header->elf_data);
+        section->offset = read_u64(&data[24], header->elf_data);
+        section->size = read_u64(&data[32], header->elf_data);
+    }
 
-    section->flags = read_u64(
-        &data[8],
-        header->elf_data);
-
-    section->address = read_u64(
-        &data[16],
-        header->elf_data);
-
-    section->offset = read_u64(
-        &data[24],
-        header->elf_data);
-
-    section->size = read_u64(
-        &data[32],
-        header->elf_data);
-
+    free(data);
     return 1;
 }
 
@@ -304,41 +314,34 @@ char *binary_file_read_section_name(
             section->name_offset
         );
 
-    char *buffer = malloc(maximum_length);
+    if (maximum_length == 0)
+        return NULL;
 
+    char *buffer = static_cast<char *>(malloc(maximum_length + 1));
     if (buffer == NULL) return NULL;
 
-    if (fread(
-            buffer,
-            1,
-            maximum_length,
-            file->handle
-        ) != maximum_length) {
+    size_t bytes_read = fread(buffer, 1, maximum_length, file->handle);
+    if (bytes_read == 0) {
         free(buffer);
         return NULL;
     }
 
+    buffer[bytes_read] = '\0';
+
     size_t name_length = 0;
+    while (name_length < bytes_read && buffer[name_length] != '\0')
+        name_length++;
 
-    while (
-        name_length < maximum_length &&
-        buffer[name_length] != '\0'
-    ) name_length++;
-
-    char *name = malloc(name_length + 1);
-
+    char *name = static_cast<char *>(malloc(name_length + 1));
     if (name == NULL) {
         free(buffer);
         return NULL;
     }
 
-    for (size_t i = 0; i < name_length; i++)
-        name[i] = buffer[i];
-
+    memcpy(name, buffer, name_length);
     name[name_length] = '\0';
 
     free(buffer);
-
     return name;
 }
 

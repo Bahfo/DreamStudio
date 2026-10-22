@@ -6,7 +6,7 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 from PyQt6.QtWidgets import QApplication, QMainWindow
-from node_editor.ui_build import NodeBuilder
+from editor.utils.node_editor.ui_build import NodeBuilder
 
 
 def main() -> None:

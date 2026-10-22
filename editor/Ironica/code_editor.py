@@ -3,7 +3,6 @@
 Ironica Code Editor - Lightweight static text editor for DreamStudio.
 """
 
-
 from editor import *
 
 from editor.Ironica.language_engine import LanguageRegistry, BaseLanguageProvider
@@ -15,7 +14,7 @@ from editor.Ironica.analysis_worker import AnalysisManager
 from editor.Ironica.right_click import RightClickMenu
 from editor.Ironica.regex import *
 
-from fonts.font_strapper import Fonts
+from assets.fonts.font_strapper import Fonts
 from editor.utils.resource_path import resource_path
 
 logger = logging.getLogger(__name__)
@@ -210,11 +209,9 @@ class CodeEditor(QsciScintilla):
         self._elf_button: QPushButton | None = None
         self._binary_drag_enabled = True
 
-
     def show_context_menu(self, pos):
         menu = RightClickMenu(self)
         menu.exec(QCursor.pos())
-
 
     def _on_text_changed(self) -> None:
         if getattr(self, "_binary_mode", False):
@@ -285,7 +282,6 @@ class CodeEditor(QsciScintilla):
         """Return ``True`` if the editor buffer has been modified."""
         return self._is_dirty
 
-
     def load_snippets(self, snippets_path: str) -> None:
         """Load snippet definitions from a JSON file into ``snippet_map``."""
         self.snippet_map.clear()
@@ -339,7 +335,6 @@ class CodeEditor(QsciScintilla):
         self.setCursorPosition(end_line, end_col)
         self.endUndoAction()
         self._is_replacing = False
-
 
     def _schedule_fold_recompute(self) -> None:
         """Debounce fold recomputation on text change, backing off on size."""
@@ -532,7 +527,6 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Fold application failed: %s", exc)
 
-
     def _get_zoom_level(self) -> int:
         """
         A helper method to return zoom level in current editor.
@@ -554,7 +548,6 @@ class CodeEditor(QsciScintilla):
         A public API to reset current editor instance zoom level.
         """
         self.zoomTo(0)
-
 
     def _setup_hover_engine(self) -> None:
         """Create and attach the DocumentationFlyout."""
@@ -606,7 +599,6 @@ class CodeEditor(QsciScintilla):
                     pop.hide()
         except Exception:
             pass
-
 
     def _setup_indentation(self) -> None:
         """Configure indentation, tab width, and backspace behaviour."""
@@ -793,7 +785,6 @@ class CodeEditor(QsciScintilla):
         if not enabled:
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
-
     def _handle_text_modification(self):
         """
         Mark the current line with modified color when modified.
@@ -815,7 +806,6 @@ class CodeEditor(QsciScintilla):
     def clear_save_indicators(self) -> None:
         self.markerDeleteAll(self.MARKER_SAVED)
         self.markerDeleteAll(self.MARKER_MODIFIED)
-
 
     def _setup_brace_highlight(self) -> None:
         """Configure the smooth, theme-aware bracket-pair highlight."""
@@ -932,7 +922,6 @@ class CodeEditor(QsciScintilla):
         """Return True when two char codes form a valid bracket pair."""
         pairs = {0x28: 0x29, 0x29: 0x28, 0x5B: 0x5D, 0x5D: 0x5B, 0x7B: 0x7D, 0x7D: 0x7B}
         return pairs.get(active_ch) == match_ch
-
 
     def _setup_occurrence_highlight(self) -> None:
         """Configure VS Code-style word-occurrence highlight."""
@@ -1062,7 +1051,6 @@ class CodeEditor(QsciScintilla):
             self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, pos, length)
         self._occurrence_ranges = ranges
 
-
     def _emit_position(self, line: int, col: int) -> None:
         """Forward cursor position changes to the ``position_changed`` signal."""
         self.position_changed.emit(line, col)
@@ -1158,7 +1146,6 @@ class CodeEditor(QsciScintilla):
         self._dismiss_hover_flyout(force=True)
         super().focusOutEvent(event)
 
-
     @property
     def font_size(self) -> int:
         """Current font point size."""
@@ -1192,7 +1179,6 @@ class CodeEditor(QsciScintilla):
     def set_editor_font_size(self, font_size: int) -> None:
         """Set the editor font point size."""
         self.font_size = int(font_size)
-
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         """Intercept key events for goto definition and enhanced enter/return behaviour."""
@@ -1275,7 +1261,6 @@ class CodeEditor(QsciScintilla):
 
         super().keyPressEvent(e)
 
-
     def mouseMoveEvent(self, e):
         """Track cursor movement for breakpoint margin hover."""
         super().mouseMoveEvent(e)
@@ -1326,7 +1311,6 @@ class CodeEditor(QsciScintilla):
                 return
 
         super().mousePressEvent(e)
-
 
     @staticmethod
     def _create_circle_image(size: int, radius: int, color: QColor) -> QImage:
@@ -1487,7 +1471,6 @@ class CodeEditor(QsciScintilla):
                 frame_x, frame_y, frame_width, frame_height
             )
 
-
     def _get_color_by_line(self, line_number: int) -> tuple[Any, str, int, int] | None:
         """Scans a specific line and extracts the indicated color from it by using a set of compiled regular expressions (COLOR_REGEX)"""
         line_text = self.text(line_number)
@@ -1644,7 +1627,6 @@ class CodeEditor(QsciScintilla):
 
         return hex_str.upper() if is_uppercase else hex_str
 
-
     def execute_goto_definition(self, line: int = None, col: int = None) -> None:
         """Resolve the symbol under the cursor and navigate to its definition."""
         self._dismiss_hover_flyout(force=True)
@@ -1698,7 +1680,6 @@ class CodeEditor(QsciScintilla):
                     current_editor.setCursorPosition(target_line, target_col)
         except Exception as exc:
             logger.debug("Go-to-definition failed: %s", exc)
-
 
     def apply_visual_language(self, lang: str) -> None:
         """Preview *lang* highlighting without touching disk or session state."""
@@ -1758,7 +1739,6 @@ class CodeEditor(QsciScintilla):
     def _create_lexer(self, lang: str, config: dict):
         """Create an ``IronicaLexer`` for *lang*."""
         return IronicaLexer(self, config)
-
 
     def _active_theme(self) -> str:
         """Return the current IDE theme name, falling back to the active one."""
@@ -1865,7 +1845,6 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-
     @staticmethod
     def _scintilla_rgb(hex_color: str) -> int:
         """Convert a ``#RRGGBB`` CSS colour to Scintilla's ``0x00BBGGRR``."""
@@ -1881,7 +1860,6 @@ class CodeEditor(QsciScintilla):
         if self._defer_rival_paint(self._import_highlight_timer):
             return
         self._request_analysis()
-
 
     def load_from_file(self, file_path: str) -> None:
         """Load file contents into the editor."""
@@ -2044,14 +2022,12 @@ class CodeEditor(QsciScintilla):
             logger.error("Save failed for %s: %s", file_path, exc)
             return False
 
-
     def copy_selection_as_plain_text(self) -> None:
         """Copy the current selection to the system clipboard as plain text."""
         selected_text = self.selectedText()
         if selected_text:
             clipboard = QApplication.clipboard()
             clipboard.setText(selected_text)
-
 
     def make_file_readonly(self) -> None:
         """Toggle the file's read-only permission on disk and in the editor."""
@@ -2136,7 +2112,6 @@ class CodeEditor(QsciScintilla):
                     break
             except Exception:
                 pass
-
 
     def is_binary_mode(self) -> bool:
         """Return ``True`` when editor is in binary read-only mode."""
@@ -2391,7 +2366,6 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
 
-
     def format_current_file(self) -> None:
         """Pass the buffer through the current provider's formatter."""
         if self.isReadOnly():
@@ -2441,7 +2415,6 @@ class CodeEditor(QsciScintilla):
                 self.SendScintilla(QsciScintilla.SCI_SETFIRSTVISIBLELINE, first_visible)
         except Exception as exc:
             logger.debug("Format query failed: %s", exc)
-
 
     _INDIC_SQUIGGLE = getattr(QsciScintilla, "INDIC_SQUIGGLE", 1)
 
@@ -2513,14 +2486,13 @@ class CodeEditor(QsciScintilla):
             self.SendScintilla(
                 QsciScintilla.SCI_INDICSETHOVERSTYLE, slot, self._INDIC_SQUIGGLE
             )
-            self.SendScintilla(
-                QsciScintilla.SCI_INDICSETHOVERFORE, slot, colour
-            )
+            self.SendScintilla(QsciScintilla.SCI_INDICSETHOVERFORE, slot, colour)
             self.SendScintilla(
                 QsciScintilla.SCI_INDICSETALPHA, slot, self._DIAGNOSTIC_ALPHA
             )
             self.SendScintilla(
-                QsciScintilla.SCI_INDICSETOUTLINEALPHA, slot,
+                QsciScintilla.SCI_INDICSETOUTLINEALPHA,
+                slot,
                 self._DIAGNOSTIC_ALPHA,
             )
             self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, slot, 1)
@@ -2772,7 +2744,6 @@ class CodeEditor(QsciScintilla):
             self._set_diagnostic_ticks([])
         except Exception:
             pass
-
 
     def show_error_message(
         self,
@@ -3031,7 +3002,6 @@ class CodeEditor(QsciScintilla):
         except Exception:
             pass
 
-
     def set_ghost_text(self, line: int, text: str, color_hex: str = "#8a8a8a") -> None:
         """Renders light gray overlay annotation text directly beneath or after a target line."""
         if line < 0 or line >= self.lines():
@@ -3077,7 +3047,6 @@ class CodeEditor(QsciScintilla):
         """Clear every active ghost text annotation throughout the entire document buffer."""
         self.SendScintilla(QsciScintilla.SCI_ANNOTATIONCLEARALL)
 
-
     def deleteLater(self) -> None:
         """Shut down the analysis worker before destroying the widget."""
         try:
@@ -3103,7 +3072,6 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 pass
         super().deleteLater()
-
 
     def _set_diagnostic_ticks(self, ticks) -> None:
         """Replace the overview-ruler ticks and notify listeners."""

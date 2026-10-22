@@ -8,7 +8,7 @@ import platform
 import getpass
 from typing import Any
 
-from fonts.font_strapper import Fonts
+from assets.fonts.font_strapper import Fonts
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,6 @@ class ConfigurationService:
         self._config_path = os.path.join(self._config_dir, CONFIG_FILE_NAME)
         self._data: dict[str, Any] = {}
         logger.info("ConfigurationService initialized for %s", self._config_dir)
-
 
     def load(self) -> dict[str, Any]:
         """Load configuration, repairing or regenerating as needed."""
@@ -127,7 +126,6 @@ class ConfigurationService:
     @property
     def data(self) -> dict[str, Any]:
         return self._data
-
 
     def _ensure_config_dir(self) -> None:
         try:

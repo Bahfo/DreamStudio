@@ -105,8 +105,8 @@ def main() -> None:
 
     app.setWindowIcon(QIcon(resource_path("assets/dreamStudio_icon.png")))
 
-    from bootstrap.splash import SplashController
-    from bootstrap.manager import BootstrapManager
+    from config.splash import SplashController
+    from config.manager import BootstrapManager
 
     splash = SplashController()
     splash.show()

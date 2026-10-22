@@ -56,8 +56,8 @@ a = Analysis(
     pathex=[str(PROJECT_ROOT)],
     binaries=[
         (
-            str(PROJECT_ROOT / "native" / "build" / "lib" / "libinspector.so"),
-            "native/build/lib",
+            str(PROJECT_ROOT / "release" / "native" / "build" / "lib" / "libinspector.so"),
+            "release/native/build/lib/libinspector.so",
         ),
         (
             str(PROJECT_ROOT / "hex-editor" / "build" / "libinspector.so"),

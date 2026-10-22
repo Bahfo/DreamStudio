@@ -5,6 +5,9 @@
 #ifndef INSPECTOR_H
 #define INSPECTOR_H
 
+#include <cstdlib>
+#include <cstddef>
+#include <iostream>
 #include <stdint.h>
 #include <stddef.h>
 

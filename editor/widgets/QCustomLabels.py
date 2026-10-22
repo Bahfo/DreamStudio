@@ -3,10 +3,9 @@
 Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and Supervised by EXcellent TechStacks Co.
 """
 
-
 from editor import *
 
-from fonts.font_strapper import Fonts
+from assets.fonts.font_strapper import Fonts
 
 
 class AnimatedGradientLabel(QLabel):

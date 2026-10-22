@@ -16,7 +16,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QSplashScreen, QApplication
 
-from fonts.font_strapper import Fonts
+from assets.fonts.font_strapper import Fonts
 
 logger = logging.getLogger(__name__)
 
@@ -123,13 +123,9 @@ def _render_pixmap(status_text: str, progress: float) -> QPixmap:
 def _with_opacity(source: QPixmap, opacity: float) -> QPixmap:
     """Return *source* with its overall alpha scaled by *opacity*."""
     clamped = max(0.0, min(1.0, opacity))
-    image = source.toImage().convertToFormat(
-        QImage.Format.Format_ARGB32_Premultiplied
-    )
+    image = source.toImage().convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
     painter = QPainter(image)
-    painter.setCompositionMode(
-        QPainter.CompositionMode.CompositionMode_DestinationIn
-    )
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationIn)
     painter.fillRect(image.rect(), QColor(0, 0, 0, round(255 * clamped)))
     painter.end()
     faded = QPixmap.fromImage(image)
