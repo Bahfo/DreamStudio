@@ -10,6 +10,7 @@ SOLUTION_FILE = "solution.yaml"
 RUN_SUBDIR = "run"
 CPP_SUBDIR = "cpp"
 CPP_INDEX_SUBDIR = "index"
+CPP_SYMBOL_INDEX_FILENAME = "symbols.sqlite"
 COMPILE_COMMANDS_FILENAME = "compile_commands.json"
 COMPILE_FLAGS_FILENAME = "compile_flags.txt"
 CPP_PCH_FILENAME = "stable.pch"
@@ -73,6 +74,11 @@ def cpp_index_dir(root: str, ensure: bool = False) -> str:
     if ensure:
         os.makedirs(directory, exist_ok=True)
     return directory
+
+
+def cpp_symbol_index_path(root: str) -> str:
+    """Return absolute symbol-index database path for workspace *root*."""
+    return os.path.join(cpp_index_dir(root), CPP_SYMBOL_INDEX_FILENAME)
 
 
 def compile_commands_path(root: str) -> str:

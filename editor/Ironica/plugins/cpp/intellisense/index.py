@@ -19,11 +19,51 @@ from editor.utils.solution.paths import (
     is_solution,
 )
 
+from .symbol_index import (
+    FileIndexData,
+    IndexedReference,
+    IndexedSymbol,
+    PREDICATE_BASE_OF,
+    PREDICATE_OVERRIDDEN_BY,
+    SymbolIndex,
+)
+
 logger = logging.getLogger("DreamStudio.Cpp.Indexer")
 
 _INDEX_VERSION = 3
 _MAX_FILES = 2000
 _MAX_CURSORS_PER_FILE = 3000
+_MAX_INDEX_SYMBOLS_PER_FILE = 60000
+_MAX_INDEX_REFERENCES_PER_FILE = 60000
+
+_COMPLETION_FUNCTION_KINDS = frozenset(
+    {
+        "FUNCTION_DECL",
+        "FUNCTION_TEMPLATE",
+        "CXX_METHOD",
+        "CONSTRUCTOR",
+        "DESTRUCTOR",
+        "CXX_CONSTRUCTOR",
+        "CXX_DESTRUCTOR",
+        "CXX_CONVERSION",
+        "LAMBDA_EXPR",
+    }
+)
+
+_CONSTRUCTOR_KINDS = frozenset({"CONSTRUCTOR", "CXX_CONSTRUCTOR"})
+
+_REFERENCE_KIND_NAMES = (
+    "DECL_REF_EXPR",
+    "MEMBER_REF_EXPR",
+    "MEMBER_REF",
+    "CALL_EXPR",
+    "OVERLOADED_DECL_REF",
+    "TYPE_REF",
+    "TEMPLATE_REF",
+    "NAMESPACE_REF",
+    "VARIABLE_REF",
+    "MACRO_INSTANTIATION",
+)
 
 _KIND_BY_CURSOR = {
     "FUNCTION_DECL": "function",
@@ -118,6 +158,9 @@ class CppIndexer(QObject):
         self._generation = 0
         self._memory: dict = {}
         self._sysmemory: dict = {}
+        self._save_lock = threading.Lock()
+        self._save_pending: set[str] = set()
+        self._save_thread: threading.Thread | None = None
         try:
             from . import sysindex as sysindex_support
 
@@ -240,12 +283,18 @@ class CppIndexer(QObject):
         files = self._collect_files(root)
         self.indexing_started.emit(max(1, len(files)))
         cached = self._memory.setdefault(os.path.abspath(root), {})
+        symbol_index = self._symbol_index(root)
         done = 0
         for path in files:
             if generation != self._generation:
                 break
             try:
-                cached[path] = self._symbols_for(root, path)
+                symbols, data = self._index_file(root, path)
+                cached[path] = symbols
+                if data is not None:
+                    if symbol_index is not None:
+                        symbol_index.replace_file(data)
+                    self._write_completion_record(root, path, symbols)
             except Exception as exc:
                 logger.debug("c++ index skipped %s: %s", path, exc)
             done += 1
@@ -253,6 +302,10 @@ class CppIndexer(QObject):
                 self.indexing_progress.emit(done, len(files))
             except RuntimeError:
                 return
+        if generation == self._generation and symbol_index is not None:
+            if len(files) < _MAX_FILES:
+                symbol_index.prune_files({os.path.abspath(path) for path in files})
+            symbol_index.mark_ready(generation)
         if generation == self._generation:
             self._refresh_pch(root, files)
         if generation == self._generation:
@@ -398,28 +451,79 @@ class CppIndexer(QObject):
                         return sorted(found)
         return sorted(found)
 
-    def _symbols_for(self, root: str, path: str) -> list:
-        """Return cached-or-fresh index symbols for *path*."""
-        record_path = _record_name(root, path)
+    def _symbol_index(self, root: str) -> SymbolIndex | None:
+        """Return an initialized symbol index for the solution owning *root*."""
+        try:
+            solution_root = _solution_root_for(root) or os.path.abspath(root)
+            symbol_index = SymbolIndex(solution_root)
+            if symbol_index.initialize():
+                return symbol_index
+        except Exception as exc:
+            logger.debug("symbol index initialization failed: %s", exc)
+        return None
+
+    def note_saved(self, path: str) -> None:
+        """Queue one saved C/C++ file for incremental index maintenance."""
+        if not path:
+            return
+        absolute = os.path.abspath(path)
+        if os.path.basename(absolute) in {
+            "CMakeLists.txt",
+            "compile_commands.json",
+        }:
+            root = _solution_root_for(absolute) or os.path.dirname(absolute)
+            self.run(root)
+            return
+        if os.path.splitext(absolute)[1].lower() not in _cpp_suffixes():
+            return
+        if not os.path.isfile(absolute):
+            return
+        with self._save_lock:
+            self._save_pending.add(absolute)
+            if self._save_thread is not None and self._save_thread.is_alive():
+                return
+            self._save_thread = threading.Thread(
+                name="DreamStudio-CppIndexer-Save",
+                target=self._run_saved_files,
+                daemon=True,
+            )
+            self._save_thread.start()
+
+    def _run_saved_files(self) -> None:
+        """Drain the incremental save queue on a single worker thread."""
+        while True:
+            with self._save_lock:
+                if not self._save_pending:
+                    self._save_thread = None
+                    return
+                path = self._save_pending.pop()
+            try:
+                self._index_saved_file(path)
+            except Exception as exc:
+                logger.debug("incremental index failed for %s: %s", path, exc)
+
+    def _index_saved_file(self, path: str) -> None:
+        """Refresh the index and completion cache for one saved file."""
+        root = _solution_root_for(path)
+        if root is None:
+            return
+        symbols, data = self._index_file(root, path)
+        if data is None:
+            return
+        symbol_index = self._symbol_index(root)
+        if symbol_index is not None:
+            symbol_index.replace_file(data)
+        self._write_completion_record(root, path, symbols)
+        with self._lock:
+            self._memory.setdefault(os.path.abspath(root), {})[path] = symbols
+
+    def _write_completion_record(
+        self, root: str, path: str, symbols: list
+    ) -> None:
+        """Persist the lightweight completion record for *path*."""
         try:
             mtime = os.path.getmtime(path)
-        except OSError:
-            return []
-        try:
-            if os.path.isfile(record_path):
-                with open(record_path, encoding="utf-8") as handle:
-                    record = json.load(handle)
-                if (
-                    isinstance(record, dict)
-                    and record.get("version") == _INDEX_VERSION
-                    and record.get("mtime") == mtime
-                    and isinstance(record.get("symbols"), list)
-                ):
-                    return record["symbols"]
-        except Exception:
-            pass
-        symbols = self._walk_file(path)
-        try:
+            record_path = _record_name(root, path)
             os.makedirs(os.path.dirname(record_path), exist_ok=True)
             tmp_path = record_path + ".tmp"
             with open(tmp_path, "w", encoding="utf-8") as handle:
@@ -430,26 +534,30 @@ class CppIndexer(QObject):
             os.replace(tmp_path, record_path)
         except OSError:
             pass
-        return symbols
 
-    def _walk_file(self, path: str) -> list:
-        """Cursor-walk one file's TU for top-level + member symbols."""
+    def _index_file(
+        self, root: str, path: str
+    ) -> tuple[list, FileIndexData | None]:
+        """Parse one file once and return completion plus navigation records."""
         try:
-            import clang.cindex as cindex
+            file_stat = os.stat(path)
+        except OSError:
+            return [], None
+        try:
             from clang.cindex import CursorKind, Index, TranslationUnit
         except Exception as exc:
             logger.debug("libclang unavailable for indexing: %s", exc)
-            return []
+            return [], None
         try:
             from . import args as cpp_args
         except Exception:
             cpp_args = None
+        flags = (
+            cpp_args.args_for_file(path, "", solution_root=root)
+            if cpp_args is not None
+            else ["-x", "c++", "-std=c++20"]
+        )
         try:
-            flags = (
-                cpp_args.args_for_file(path, "")
-                if cpp_args is not None
-                else ["-x", "c++", "-std=c++20"]
-            )
             index = Index.create()
             tu = index.parse(
                 path,
@@ -458,70 +566,264 @@ class CppIndexer(QObject):
             )
         except Exception as exc:
             logger.debug("index parse failed %s: %s", path, exc)
-            return []
-        _ = cindex
-        symbols: list = []
-        seen: set = set()
+            return [], None
+        if tu is None:
+            return [], None
 
-        def _record(cursor, parent_name: str = "") -> None:
-            """Record one cursor and recurse into namespaces and records."""
-            if len(symbols) >= _MAX_CURSORS_PER_FILE:
-                return
+        absolute = os.path.abspath(path)
+        same_file = os.path.normcase(absolute)
+        reference_kinds = {
+            getattr(CursorKind, name)
+            for name in _REFERENCE_KIND_NAMES
+            if hasattr(CursorKind, name)
+        }
+        method_kinds = {
+            getattr(CursorKind, name)
+            for name in ("CXX_METHOD", "CXX_CONVERSION")
+            if hasattr(CursorKind, name)
+        }
+        class_kinds = {
+            getattr(CursorKind, name)
+            for name in ("CLASS_DECL", "STRUCT_DECL", "CLASS_TEMPLATE")
+            if hasattr(CursorKind, name)
+        }
+        base_specifier = getattr(CursorKind, "CXX_BASE_SPECIFIER", None)
+        completion_symbols: list = []
+        completion_seen: set[str] = set()
+        symbols: list[IndexedSymbol] = []
+        symbol_seen: set[tuple] = set()
+        relations: list[tuple[str, str, str]] = []
+        relation_seen: set[tuple[str, str, str]] = set()
+        references: list[IndexedReference] = []
+        reference_seen: set[tuple[str, int, int, str]] = set()
+
+        children: list = []
+        try:
+            children = list(tu.cursor.get_children())
+        except Exception:
+            children = []
+        stack = [
+            (child, "", True)
+            for child in reversed(children)
+        ]
+        while stack:
+            cursor, parent_name, completion_scope = stack.pop()
             try:
+                location = cursor.location
                 location_file = (
-                    cursor.location.file.name
-                    if cursor.location and cursor.location.file
-                    else ""
+                    location.file.name if location and location.file else ""
                 )
             except Exception:
-                return
-            if os.path.abspath(location_file or "") != os.path.abspath(path):
-                return
+                continue
+            if not location_file:
+                continue
+            if os.path.normcase(os.path.abspath(location_file)) != same_file:
+                continue
+            kind_name = getattr(cursor.kind, "name", "")
             spelling = getattr(cursor, "spelling", "") or ""
-            if spelling and spelling not in seen:
-                kind_name = getattr(cursor.kind, "name", "")
-                icon = _KIND_BY_CURSOR.get(kind_name)
-                if icon is not None:
-                    seen.add(spelling)
-                    try:
-                        line = int(cursor.location.line or 0)
-                    except Exception:
-                        line = 0
-                    detail = parent_name or getattr(cursor, "displayname", "")
-                    symbols.append(
-                        {
-                            "name": spelling,
-                            "kind": icon,
-                            "line": line,
-                            "detail": str(detail or "")[:160],
-                        }
-                    )
+            icon = _KIND_BY_CURSOR.get(kind_name)
             try:
-                kind = cursor.kind
-                if kind in (
-                    CursorKind.NAMESPACE,
-                    CursorKind.CLASS_DECL,
-                    CursorKind.STRUCT_DECL,
-                    CursorKind.CLASS_TEMPLATE,
-                    CursorKind.ENUM_DECL,
-                ):
-                    scope = f"{parent_name}{spelling}::" if spelling else parent_name
-                    for child in cursor.get_children():
-                        _record(child, scope)
-                elif kind == CursorKind.LINKAGE_SPEC:
-                    for child in cursor.get_children():
-                        _record(child, parent_name)
+                line = int(location.line or 0)
+                column = int(location.column or 0)
             except Exception:
-                pass
+                line = 0
+                column = 0
 
+            if (
+                spelling
+                and icon is not None
+                and completion_scope
+                and len(completion_symbols) < _MAX_CURSORS_PER_FILE
+                and spelling not in completion_seen
+            ):
+                completion_seen.add(spelling)
+                detail = parent_name or getattr(cursor, "displayname", "")
+                completion_symbols.append(
+                    {
+                        "name": spelling,
+                        "kind": icon,
+                        "line": line,
+                        "detail": str(detail or "")[:160],
+                    }
+                )
+
+            usr = self._cursor_usr(cursor)
+            if (
+                spelling
+                and icon is not None
+                and usr
+                and len(symbols) < _MAX_INDEX_SYMBOLS_PER_FILE
+            ):
+                key = (usr, same_file, line, column, kind_name)
+                if key not in symbol_seen:
+                    symbol_seen.add(key)
+                    extent = getattr(cursor, "extent", None)
+                    end = getattr(extent, "end", None) if extent else None
+                    end_line = max(0, int(getattr(end, "line", 1) or 1) - 1)
+                    end_col = max(0, int(getattr(end, "column", 1) or 1) - 1)
+                    is_virtual = False
+                    if kind_name in method_kinds:
+                        try:
+                            is_virtual = bool(cursor.is_virtual_method())
+                        except Exception:
+                            is_virtual = False
+                    qualname = f"{parent_name}{spelling}".rstrip(":")
+                    parent_usr = self._cursor_parent_usr(cursor)
+                    symbols.append(
+                        IndexedSymbol(
+                            usr=usr,
+                            cursor_kind=kind_name,
+                            kind=icon,
+                            name=spelling,
+                            qualname=qualname,
+                            file=absolute,
+                            line=max(0, line - 1),
+                            col=max(0, column - 1),
+                            end_line=end_line,
+                            end_col=end_col,
+                            is_definition=self._cursor_is_definition(cursor),
+                            is_virtual=is_virtual,
+                            is_constructor=kind_name in _CONSTRUCTOR_KINDS,
+                            parent_usr=parent_usr,
+                        )
+                    )
+
+            if cursor.kind in method_kinds and kind_name not in _CONSTRUCTOR_KINDS:
+                for base_cursor in self._overridden_cursors(cursor):
+                    base_usr = self._cursor_usr(base_cursor)
+                    relation = (usr, PREDICATE_OVERRIDDEN_BY, base_usr)
+                    if base_usr and usr and relation not in relation_seen:
+                        relation_seen.add(relation)
+                        relations.append(relation)
+
+            try:
+                cursor_children = list(cursor.get_children())
+            except Exception:
+                cursor_children = []
+
+            if cursor.kind in class_kinds and base_specifier is not None:
+                for child in cursor_children:
+                    if child.kind != base_specifier:
+                        continue
+                    base_usr = self._base_usr(child)
+                    relation = (usr, PREDICATE_BASE_OF, base_usr)
+                    if base_usr and usr and relation not in relation_seen:
+                        relation_seen.add(relation)
+                        relations.append(relation)
+
+            if (
+                cursor.kind in reference_kinds
+                and len(references) < _MAX_INDEX_REFERENCES_PER_FILE
+            ):
+                referenced_usr = self._referenced_usr(cursor)
+                key = (
+                    referenced_usr,
+                    max(0, line - 1),
+                    max(0, column - 1),
+                    kind_name,
+                )
+                if referenced_usr and key not in reference_seen:
+                    reference_seen.add(key)
+                    references.append(
+                        IndexedReference(
+                            usr=referenced_usr,
+                            line=max(0, line - 1),
+                            col=max(0, column - 1),
+                            kind=kind_name,
+                        )
+                    )
+
+            child_scope = (
+                completion_scope and kind_name not in _COMPLETION_FUNCTION_KINDS
+            )
+            if kind_name in {
+                "NAMESPACE",
+                "CLASS_DECL",
+                "STRUCT_DECL",
+                "CLASS_TEMPLATE",
+                "CLASS_TEMPLATE_PARTIAL_SPEC",
+                "ENUM_DECL",
+            }:
+                child_parent = (
+                    f"{parent_name}{spelling}::" if spelling else parent_name
+                )
+            elif spelling and kind_name in _COMPLETION_FUNCTION_KINDS:
+                child_parent = f"{parent_name}{spelling}::"
+            else:
+                child_parent = parent_name
+            for child in reversed(cursor_children):
+                stack.append((child, child_parent, child_scope))
+
+        digest = hashlib.sha1("\0".join(flags).encode("utf-8")).hexdigest()
+        data = FileIndexData(
+            path=absolute,
+            mtime_ns=file_stat.st_mtime_ns,
+            size=file_stat.st_size,
+            args_digest=digest,
+            symbols=tuple(symbols),
+            relations=tuple(relations),
+            references=tuple(references),
+        )
+        return completion_symbols, data
+
+    @staticmethod
+    def _cursor_usr(cursor) -> str:
+        """Return a cursor USR without propagating libclang failures."""
         try:
-            for child in tu.cursor.get_children():
-                _record(child)
-                if len(symbols) >= _MAX_CURSORS_PER_FILE:
-                    break
-        except Exception as exc:
-            logger.debug("index walk failed %s: %s", path, exc)
-        return symbols
+            return str(cursor.get_usr() or "")
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _cursor_parent_usr(cursor) -> str:
+        """Return the semantic parent USR for *cursor*."""
+        try:
+            parent = cursor.semantic_parent
+            return str(parent.get_usr() or "") if parent is not None else ""
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _cursor_is_definition(cursor) -> bool:
+        """Return whether *cursor* is a definition."""
+        try:
+            return bool(cursor.is_definition())
+        except Exception:
+            return False
+
+    @staticmethod
+    def _overridden_cursors(cursor) -> list:
+        """Return base methods overridden by *cursor*."""
+        try:
+            return list(cursor.get_overridden_cursors())
+        except Exception:
+            return []
+
+    @staticmethod
+    def _referenced_usr(cursor) -> str:
+        """Return the USR targeted by a reference cursor."""
+        try:
+            referenced = cursor.referenced
+            return str(referenced.get_usr() or "") if referenced is not None else ""
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _base_usr(specifier) -> str:
+        """Return the base-class USR for a base specifier cursor."""
+        try:
+            referenced = specifier.referenced
+            if referenced is not None:
+                usr = referenced.get_usr()
+                if usr:
+                    return str(usr)
+        except Exception:
+            pass
+        try:
+            declaration = specifier.type.get_declaration()
+            return str(declaration.get_usr() or "") if declaration is not None else ""
+        except Exception:
+            return ""
 
 
 def search_for_file(
