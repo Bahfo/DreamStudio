@@ -1,27 +1,27 @@
-"""
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Navigation engine for C++ GoTo functionality.
-"""
-
 from __future__ import annotations
 
-import logging
 import os
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
+import json
+import re
+import shlex
+import logging
 
-from clang.cindex import Cursor, CursorKind, TranslationUnit, File
+from pathlib import Path
+from dataclasses import dataclass
+from typing import Iterator, Optional, Sequence
+
+from clang import cindex
+from clang.cindex import Cursor, CursorKind, Index, TranslationUnit
 
 from ..intellisense.engine import CppEngine
 from ..models import CppContext
+from ..intellisense import args as cpp_args
 
-logger = logging.getLogger("DreamStudio.Cpp.Navigation")
+logger = logging.getLogger("DreamStudio.CPP.Navigation")
 
 
 @dataclass(frozen=True)
 class NavigationResult:
-    """A single navigation target."""
-
     file_path: str
     line: int
     col: int
@@ -31,8 +31,6 @@ class NavigationResult:
 
 @dataclass(frozen=True)
 class SymbolContext:
-    """Resolved symbol at a cursor position."""
-
     cursor: Cursor
     tu: TranslationUnit
     file_path: str
@@ -42,595 +40,1150 @@ class SymbolContext:
     canonical_cursor: Cursor
 
 
+_REFERENCE_KIND_NAMES = (
+    "DECL_REF_EXPR",
+    "MEMBER_REF_EXPR",
+    "MEMBER_REF",
+    "CALL_EXPR",
+    "OVERLOADED_DECL_REF",
+    "TYPE_REF",
+    "TEMPLATE_REF",
+    "NAMESPACE_REF",
+    "VARIABLE_REF",
+    "MACRO_INSTANTIATION",
+)
+_REFERENCE_KINDS = {
+    getattr(CursorKind, name)
+    for name in _REFERENCE_KIND_NAMES
+    if hasattr(CursorKind, name)
+}
+_DECLARATION_KIND_NAMES = (
+    "FUNCTION_DECL",
+    "CXX_METHOD",
+    "CONSTRUCTOR",
+    "DESTRUCTOR",
+    "FUNCTION_TEMPLATE",
+    "FIELD_DECL",
+    "VAR_DECL",
+    "PARM_DECL",
+    "CLASS_DECL",
+    "STRUCT_DECL",
+    "CLASS_TEMPLATE",
+    "ENUM_DECL",
+    "ENUM_CONSTANT_DECL",
+    "TYPEDEF_DECL",
+    "TYPE_ALIAS_DECL",
+    "NAMESPACE",
+    "MACRO_DEFINITION",
+)
+_DECLARATION_KINDS = {
+    getattr(CursorKind, name)
+    for name in _DECLARATION_KIND_NAMES
+    if hasattr(CursorKind, name)
+}
+
+
 class NavigationEngine:
-    """Core navigation logic using libclang and workspace index."""
+    """Adapt the IDE's editor context to libclang navigation results."""
 
     def __init__(self, cpp_engine: CppEngine) -> None:
         self._engine = cpp_engine
+        self._database_cache: dict[str, dict[str, tuple[str, list[str]]]] = {}
+        self._database_path_cache: dict[str, str] = {}
+        self._unit_cache: dict[
+            tuple[str, tuple[str, ...], int, tuple[str, int]],
+            tuple[Index, TranslationUnit],
+        ] = {}
 
-    def _get_cursor_at(
+    def _active_translation_unit(
         self, ctx: CppContext
-    ) -> Optional[Tuple[Cursor, TranslationUnit, str]]:
-        """Get the libclang cursor at the given position."""
-        tu = self._engine._tu(ctx)
-        if tu is None:
-            return None
-        clang_path = ctx.file_path or self._engine._cache_key(ctx)
+    ) -> tuple[Optional[TranslationUnit], str]:
         try:
-            # Use UTF-8 byte offset to match libclang's source locations
-            offset = self._line_col_to_byte_offset(ctx.source_code, ctx.line, ctx.col)
-            location = tu.get_location(clang_path, offset)
-            cursor = Cursor.from_location(tu, location)
-            if cursor is None or cursor.kind == CursorKind.NO_DECL_FOUND:
-                # If no cursor at exact position, try to find include directive on same line
-                if self._is_on_include_directive(ctx):
-                    inc_cursor = self._find_include_directive_on_line(tu, clang_path, ctx.line, ctx.source_code)
-                    if inc_cursor:
-                        return inc_cursor, tu, clang_path
-                return None
-            return cursor, tu, clang_path
-        except Exception as exc:
-            logger.debug("Failed to get cursor at position: %s", exc)
-            return None
+            tu = self._engine._tu(ctx)
+        except Exception:
+            logger.debug("Could not obtain the active translation unit", exc_info=True)
+            tu = None
 
-    def _is_on_include_directive(self, ctx: CppContext) -> bool:
-        """Check if the cursor position is on an include directive line."""
-        lines = ctx.source_code.splitlines()
-        if ctx.line - 1 < 0 or ctx.line - 1 >= len(lines):
+        path_value = getattr(ctx, "file_path", None)
+        if not path_value and tu is not None:
+            path_value = getattr(tu, "spelling", "")
+        if not path_value:
+            try:
+                path_value = self._engine._cache_key(ctx)
+            except Exception:
+                path_value = ""
+        path = self._normalise_path(path_value)
+
+        if tu is None and path:
+            command = self._compile_commands(path).get(path)
+            if command is not None:
+                _, working_directory, arguments = command
+                tu = self._parse_translation_unit(
+                    path, working_directory, arguments, ctx, path
+                )
+            else:
+                arguments = cpp_args.args_for_file(path, "")
+                tu = self._parse_translation_unit(
+                    path, os.path.dirname(path), arguments, ctx, path
+                )
+
+        if tu is not None and path:
+            missing = self._missing_includes(tu)
+            if missing:
+                arguments = list(getattr(ctx, "compile_args", []) or [])
+                if not arguments:
+                    arguments = cpp_args.args_for_file(
+                        path, getattr(ctx, "source_code", "") or ""
+                    )
+                if self._resolve_missing(path, missing, arguments):
+                    reparsed = self._parse_translation_unit(
+                        path, os.path.dirname(path), arguments, ctx, path
+                    )
+                    if reparsed is not None:
+                        tu = reparsed
+
+        return (tu, path) if tu is not None and path else (None, path)
+
+    @staticmethod
+    def _normalise_path(path: str | os.PathLike[str] | None) -> str:
+        if not path:
+            return ""
+        try:
+            return os.path.normcase(os.path.realpath(os.path.abspath(os.fspath(path))))
+        except (OSError, TypeError, ValueError):
+            return ""
+
+    @staticmethod
+    def _valid(cursor: Optional[Cursor]) -> bool:
+        if cursor is None:
             return False
-        line_text = lines[ctx.line - 1].lstrip()
-        return line_text.startswith("#include")
-
-    def _find_include_directive_on_line(
-        self, tu: TranslationUnit, clang_path: str, line: int, source: str
-    ) -> Optional[Cursor]:
-        """Find an INCLUSION_DIRECTIVE cursor on the given line."""
         try:
-            # Walk the TU to find inclusion directive on this line
-            for child in tu.cursor.get_children():
-                if child.kind == CursorKind.INCLUSION_DIRECTIVE:
-                    loc = child.location
-                    if loc.line == line and loc.file and str(loc.file.name) == clang_path:
-                        return child
-        except Exception as exc:
-            logger.debug("Failed to find include directive on line %d: %s", line, exc)
-        return None
+            return cursor.kind not in {
+                getattr(CursorKind, "NO_DECL_FOUND", None),
+                getattr(CursorKind, "INVALID_FILE", None),
+                getattr(CursorKind, "INVALID_CODE", None),
+                getattr(CursorKind, "INVALID", None),
+            }
+        except Exception:
+            return False
 
     @staticmethod
     def _line_col_to_byte_offset(source: str, line: int, col: int) -> int:
-        """Convert 1-based line/col to 0-based UTF-8 byte offset."""
-        # Source is a Python string (UTF-16 internally), we need byte offset for libclang
-        # Split preserving newlines
+        """Convert the context's one-based line/column to a UTF-8 byte offset."""
+        if int(line) < 1:
+            return -1
         lines = source.splitlines(keepends=True)
-        line_idx = line - 1
-        if line_idx < 0:
-            line_idx = 0
-        if line_idx >= len(lines):
-            line_idx = len(lines) - 1
-        # Sum byte lengths of preceding lines
-        offset = 0
-        for i in range(line_idx):
-            offset += len(lines[i].encode("utf-8"))
-        # col is 1-based character index, convert to 0-based
-        col_idx = col - 1
-        if col_idx < 0:
-            col_idx = 0
-        # Get byte offset within the line
-        if col_idx < len(lines[line_idx]):
-            line_text = lines[line_idx]
-            char_bytes = line_text[:col_idx].encode("utf-8")
-            offset += len(char_bytes)
-        else:
-            offset += len(lines[line_idx].encode("utf-8"))
-        return offset
+        if not lines:
+            return 0
+        if source.endswith(("\n", "\r")):
+            lines.append("")
 
-    def _resolve_symbol_context(
-        self, cursor: Cursor, tu: TranslationUnit, file_path: str
-    ) -> SymbolContext:
-        """Resolve the symbol context (definition/declaration/reference)."""
-        # Handle include directive specially
-        if cursor.kind == CursorKind.INCLUSION_DIRECTIVE:
-            return SymbolContext(
-                cursor=cursor,
-                tu=tu,
-                file_path=file_path,
-                is_definition=False,
-                is_declaration=False,
-                is_reference=True,
-                canonical_cursor=cursor,
+        line_index = int(line) - 1
+        if line_index >= len(lines):
+            return -1
+        line_text = lines[line_index].rstrip("\r\n")
+        character_column = min(max(int(col) - 1, 0), len(line_text))
+        prefix = "".join(lines[:line_index]) + line_text[:character_column]
+        return len(prefix.encode("utf-8"))
+
+    @staticmethod
+    def _token_for_offset(tu: TranslationUnit, cursor: Cursor, offset: int):
+        try:
+            for token in tu.get_tokens(extent=cursor.extent):
+                start = int(token.extent.start.offset)
+                end = int(token.extent.end.offset)
+                if start <= offset < end:
+                    return token
+        except Exception:
+            return None
+        return None
+
+    def _include_cursor_at_offset(
+        self, tu: TranslationUnit, path: str, offset: int
+    ) -> Optional[Cursor]:
+        include_kind = getattr(CursorKind, "INCLUSION_DIRECTIVE", None)
+        try:
+            for cursor in tu.cursor.get_children():
+                if cursor.kind != include_kind or cursor.location.file is None:
+                    continue
+                if self._normalise_path(cursor.location.file.name) != path:
+                    continue
+                for token in tu.get_tokens(extent=cursor.extent):
+                    start = int(token.extent.start.offset)
+                    end = int(token.extent.end.offset)
+                    if start <= offset < end:
+                        return cursor
+        except Exception:
+            logger.debug("Could not resolve an include token", exc_info=True)
+        return None
+
+    def _cursor_at(
+        self, ctx: CppContext
+    ) -> Optional[tuple[Cursor, TranslationUnit, str]]:
+        tu, path = self._active_translation_unit(ctx)
+        if tu is None:
+            return None
+
+        source = getattr(ctx, "source_code", "") or ""
+        offset = self._line_col_to_byte_offset(source, ctx.line, ctx.col)
+
+        for probe in (offset, offset - 1):
+            if probe < 0:
+                continue
+            try:
+                location = tu.get_location(path, probe)
+                cursor = Cursor.from_location(tu, location)
+            except Exception:
+                cursor = None
+
+            if not self._valid(cursor):
+                include_cursor = self._include_cursor_at_offset(tu, path, probe)
+                if include_cursor is not None:
+                    return include_cursor, tu, path
+                continue
+
+            token = self._token_for_offset(tu, cursor, probe)
+            if token is None:
+                if cursor.kind == getattr(CursorKind, "TRANSLATION_UNIT", None):
+                    include_cursor = self._include_cursor_at_offset(tu, path, probe)
+                    if include_cursor is not None:
+                        return include_cursor, tu, path
+                continue
+
+            is_include = cursor.kind == getattr(CursorKind, "INCLUSION_DIRECTIVE", None)
+            if is_include:
+                return cursor, tu, path
+            is_translation_unit = cursor.kind == getattr(
+                CursorKind, "TRANSLATION_UNIT", None
             )
+            is_include_name = is_include and token.kind in {
+                getattr(cindex.TokenKind, "LITERAL", None),
+                getattr(cindex.TokenKind, "IDENTIFIER", None),
+            }
+            is_identifier = token.kind == getattr(cindex.TokenKind, "IDENTIFIER", None)
+            if (
+                is_include_name
+                or token.kind == getattr(cindex.TokenKind, "LITERAL", None)
+                or (is_translation_unit and is_identifier)
+            ):
+                include_cursor = self._include_cursor_at_offset(tu, path, probe)
+                if include_cursor is not None:
+                    return include_cursor, tu, path
+            if not is_include_name and not is_identifier:
+                referenced = self._safe_cursor(cursor, "referenced")
+                operator_name = (
+                    getattr(cursor, "spelling", "")
+                    or getattr(referenced, "spelling", "")
+                    or ""
+                )
+                if not operator_name.startswith("operator"):
+                    continue
 
-        # Check if cursor is a reference expression kind
-        ref_kinds = (
-            CursorKind.DECL_REF_EXPR,
-            CursorKind.MEMBER_REF_EXPR,
-            CursorKind.CALL_EXPR,
-            CursorKind.OVERLOADED_DECL_REF,
-            CursorKind.TYPE_REF,
-            CursorKind.TEMPLATE_REF,
-            CursorKind.NAMESPACE_REF,
-            CursorKind.VARIABLE_REF,
-        )
+            if is_include:
+                return cursor, tu, path
 
-        is_reference_expr = cursor.kind in ref_kinds
+            try:
+                token_cursor = Cursor.from_location(tu, token.location)
+            except Exception:
+                token_cursor = cursor
+            if self._valid(token_cursor):
+                return token_cursor, tu, path
+            return cursor, tu, path
 
-        canonical = cursor.referenced
-        if canonical is None:
-            canonical = cursor
+        return None
 
-        # Use canonical cursor for classification
-        is_def = canonical.is_definition()
-        is_decl = not is_def and canonical.kind in (
-            CursorKind.FUNCTION_DECL,
-            CursorKind.CXX_METHOD,
-            CursorKind.CONSTRUCTOR,
-            CursorKind.DESTRUCTOR,
-            CursorKind.FIELD_DECL,
-            CursorKind.VAR_DECL,
-            CursorKind.CLASS_DECL,
-            CursorKind.STRUCT_DECL,
-            CursorKind.ENUM_DECL,
-            CursorKind.TYPEDEF_DECL,
-            CursorKind.TYPE_ALIAS_DECL,
-            CursorKind.NAMESPACE,
-        )
-        # Reference if it's a reference expression, or neither def nor decl
-        is_ref = is_reference_expr or (not is_def and not is_decl)
+    def resolve_at(self, ctx: CppContext) -> Optional[SymbolContext]:
+        found = self._cursor_at(ctx)
+        if found is None:
+            return None
+
+        cursor, tu, path = found
+        if cursor.kind == getattr(CursorKind, "INCLUSION_DIRECTIVE", None):
+            return SymbolContext(cursor, tu, path, False, False, True, cursor)
+
+        referenced = self._safe_cursor(cursor, "referenced")
+        target = referenced if self._valid(referenced) else cursor
+        canonical = self._safe_cursor(target, "canonical")
+        if not self._valid(canonical):
+            canonical = target
+
+        try:
+            is_definition = bool(target.is_definition())
+        except Exception:
+            is_definition = False
+
+        try:
+            is_reference = cursor.kind in _REFERENCE_KINDS or cursor != target
+        except Exception:
+            is_reference = cursor.kind in _REFERENCE_KINDS
 
         return SymbolContext(
             cursor=cursor,
             tu=tu,
-            file_path=file_path,
-            is_definition=is_def,
-            is_declaration=is_decl,
-            is_reference=is_ref,
+            file_path=path,
+            is_definition=is_definition,
+            is_declaration=target.kind in _DECLARATION_KINDS,
+            is_reference=is_reference,
             canonical_cursor=canonical,
         )
 
-    def _cursor_to_result(
-        self, cursor: Cursor, tu: TranslationUnit, file_path: str, kind: str
-    ) -> Optional[NavigationResult]:
-        """Convert a cursor to a navigation result."""
+    @staticmethod
+    def _safe_cursor(cursor: Cursor, attribute: str) -> Optional[Cursor]:
+        try:
+            return getattr(cursor, attribute)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _get_definition_cursor(cursor: Cursor) -> Optional[Cursor]:
+        try:
+            return cursor.get_definition()
+        except Exception:
+            return None
+
+    @staticmethod
+    def _usr(cursor: Optional[Cursor]) -> str:
+        if cursor is None:
+            return ""
+        try:
+            return cursor.get_usr() or ""
+        except Exception:
+            return ""
+
+    def _result(self, cursor: Cursor, kind: str) -> Optional[NavigationResult]:
+        if not self._valid(cursor):
+            return None
         try:
             location = cursor.location
-            if location.file is None:
+            if location.file is None or location.line < 1 or location.column < 1:
                 return None
-            cursor_file = str(location.file.name)
-            line = int(location.line)
-            col = int(location.column)
-            if line <= 0:
+            path = self._normalise_path(location.file.name)
+            if not path:
                 return None
-            display = cursor.spelling or cursor.displayname or "<unknown>"
             return NavigationResult(
-                file_path=cursor_file,
-                line=line,
-                col=max(1, col),
-                display_name=display,
+                file_path=path,
+                line=int(location.line) - 1,
+                col=int(location.column) - 1,
+                display_name=cursor.spelling
+                or cursor.displayname
+                or token_spelling(cursor),
                 kind=kind,
             )
-        except Exception as exc:
-            logger.debug("Failed to convert cursor to result: %s", exc)
+        except Exception:
+            logger.debug(
+                "Could not convert a libclang location to a navigation result",
+                exc_info=True,
+            )
             return None
 
-    def _inclusion_directive_to_result(
-        self, cursor: Cursor, tu: TranslationUnit, file_path: str
-    ) -> Optional[NavigationResult]:
-        """Convert an INCLUSION_DIRECTIVE cursor to a navigation result."""
+    def _include_result(self, cursor: Cursor) -> list[NavigationResult]:
         try:
             included_file = cursor.get_included_file()
-            if not included_file:
-                return None
-            included_path = str(included_file.name)
-            # Resolve the path using realpath to handle relative paths like /../lib/...
-            try:
-                real_path = os.path.realpath(included_path)
-                if os.path.exists(real_path):
-                    included_path = real_path
-            except Exception:
-                pass
-            # If still not found, try to resolve relative to the current file
-            if not os.path.exists(included_path):
-                base_dir = os.path.dirname(file_path) if file_path else "."
-                candidate = os.path.normpath(os.path.join(base_dir, included_path))
-                if os.path.exists(candidate):
-                    included_path = candidate
-            display = cursor.spelling or cursor.displayname or os.path.basename(included_path)
-            return NavigationResult(
-                file_path=included_path,
-                line=1,
-                col=1,
-                display_name=display,
-                kind="include",
-            )
-        except Exception as exc:
-            logger.debug("Failed to convert inclusion directive to result: %s", exc)
-            return None
+        except Exception:
+            included_file = None
+        if included_file is None:
+            return []
+        path = self._normalise_path(included_file.name)
+        if not path:
+            return []
+        return [NavigationResult(path, 0, 0, Path(path).name, "include")]
 
-    def _find_definition(
-        self, canonical: Cursor, tu: TranslationUnit, file_path: str
-    ) -> List[NavigationResult]:
-        """Find definition(s) of the canonical cursor."""
-        results: List[NavigationResult] = []
-        try:
-            def_cursor = canonical.get_definition()
-            if def_cursor and def_cursor.kind != CursorKind.NO_DECL_FOUND:
-                result = self._cursor_to_result(def_cursor, tu, file_path, "definition")
-                if result:
-                    results.append(result)
-        except Exception as exc:
-            logger.debug("get_definition failed: %s", exc)
-        return results
+    def get_definition(self, ctx: CppContext) -> list[NavigationResult]:
+        symbol = self.resolve_at(ctx)
+        if symbol is None:
+            return []
+        if symbol.cursor.kind == getattr(CursorKind, "INCLUSION_DIRECTIVE", None):
+            return self._include_result(symbol.cursor)
 
-    def _find_declaration(
-        self, canonical: Cursor, tu: TranslationUnit, file_path: str
-    ) -> List[NavigationResult]:
-        """Find declaration(s) of the canonical cursor."""
-        results: List[NavigationResult] = []
-        try:
-            if canonical.is_definition():
-                decl = canonical.referenced
-                if decl and decl != canonical and decl.kind != CursorKind.NO_DECL_FOUND:
-                    result = self._cursor_to_result(decl, tu, file_path, "declaration")
-                    if result:
-                        results.append(result)
-            else:
-                result = self._cursor_to_result(canonical, tu, file_path, "declaration")
-                if result:
-                    results.append(result)
-        except Exception as exc:
-            logger.debug("find_declaration failed: %s", exc)
-        return results
-
-    def _find_implementations(
-        self, canonical: Cursor, tu: TranslationUnit, file_path: str, ctx: CppContext
-    ) -> List[NavigationResult]:
-        """Find implementations (overrides) of a virtual method."""
-        results: List[NavigationResult] = []
-        seen: set = set()
-
-        def add_result(cursor: Cursor, kind: str = "implementation"):
-            result = self._cursor_to_result(cursor, tu, file_path, kind)
+        direct = self._get_definition_cursor(symbol.canonical_cursor)
+        if self._valid(direct):
+            result = self._result(direct, "definition")
             if result:
-                key = (result.file_path, result.line, result.col)
-                if key not in seen:
-                    seen.add(key)
-                    results.append(result)
+                return [result]
 
+        return self._find_in_units(ctx, symbol, "definition")
+
+    def get_declaration(self, ctx: CppContext) -> list[NavigationResult]:
+        symbol = self.resolve_at(ctx)
+        if symbol is None:
+            return []
+        if symbol.cursor.kind == getattr(CursorKind, "INCLUSION_DIRECTIVE", None):
+            return self._include_result(symbol.cursor)
+
+        direct = symbol.canonical_cursor
+        if self._valid(direct) and not self._is_definition(direct):
+            result = self._result(direct, "declaration")
+            if result:
+                return [result]
+
+        return self._find_in_units(ctx, symbol, "declaration")
+
+    def get_implementation(self, ctx: CppContext) -> list[NavigationResult]:
+        symbol = self.resolve_at(ctx)
+        if symbol is None or symbol.cursor.kind == getattr(
+            CursorKind, "INCLUSION_DIRECTIVE", None
+        ):
+            return []
+        return self._find_in_units(ctx, symbol, "implementation")
+
+    def get_references(self, ctx: CppContext) -> list[NavigationResult]:
+        symbol = self.resolve_at(ctx)
+        if symbol is None or symbol.cursor.kind == getattr(
+            CursorKind, "INCLUSION_DIRECTIVE", None
+        ):
+            return []
+        return self._find_in_units(ctx, symbol, "reference")
+
+    @staticmethod
+    def _is_definition(cursor: Cursor) -> bool:
         try:
-            if canonical.kind not in (
-                CursorKind.CXX_METHOD,
-                CursorKind.FUNCTION_DECL,
-                CursorKind.FUNCTION_TEMPLATE,
+            return bool(cursor.is_definition())
+        except Exception:
+            return False
+
+    @staticmethod
+    def _cursors(tu: TranslationUnit) -> Iterator[Cursor]:
+        try:
+            yield from tu.cursor.walk_preorder()
+        except Exception:
+            return
+
+    def _find_in_units(
+        self, ctx: CppContext, symbol: SymbolContext, mode: str
+    ) -> list[NavigationResult]:
+        target = symbol.canonical_cursor
+        target_usr = self._usr(target) or self._usr(symbol.cursor)
+        if not target_usr:
+            return []
+
+        active_path = symbol.file_path
+        results: list[NavigationResult] = []
+        seen: set[tuple[str, int, int]] = set()
+        active_tu = symbol.tu
+
+        def append(cursor: Cursor, kind: str) -> None:
+            result = self._result(cursor, kind)
+            if not result:
+                return
+            key = (result.file_path, result.line, result.col)
+            if key not in seen:
+                seen.add(key)
+                results.append(result)
+
+        for cursor in self._cursors(active_tu):
+            if mode == "reference":
+                referenced = self._safe_cursor(cursor, "referenced")
+                matches = self._usr(referenced) == target_usr
+                if matches:
+                    append(cursor, "reference")
+                continue
+
+            if self._usr(cursor) != target_usr:
+                continue
+            definition = self._is_definition(cursor)
+            if mode == "definition" and definition:
+                append(cursor, "definition")
+            elif mode == "declaration" and not definition:
+                append(cursor, "declaration")
+            elif mode == "implementation" and definition:
+                append(cursor, "implementation")
+
+        if mode != "reference" and results:
+            other_file_results = [
+                item for item in results if item.file_path != active_path
+            ]
+            if other_file_results:
+                return other_file_results
+            if mode == "definition" and any(
+                self._is_definition(cursor) for cursor in (target,)
             ):
                 return results
 
-            is_virtual = False
-            try:
-                is_virtual = canonical.is_virtual_method()
-            except Exception:
-                pass
+        for candidate_path, working_directory, arguments in self._compile_commands(
+            active_path
+        ).values():
+            if self._normalise_path(candidate_path) == active_path:
+                continue
+            tu = self._parse_translation_unit(
+                candidate_path, working_directory, arguments, ctx, active_path
+            )
+            if tu is None:
+                continue
 
-            if not is_virtual:
-                return results
+            for cursor in self._cursors(tu):
+                if mode == "reference":
+                    referenced = self._safe_cursor(cursor, "referenced")
+                    if self._usr(referenced) == target_usr:
+                        append(cursor, "reference")
+                    continue
 
-            # Search within current TU for overrides
-            def visit(cursor: Cursor):
-                try:
-                    if cursor.kind == CursorKind.CXX_METHOD and cursor != canonical:
-                        if self._is_override_of(cursor, canonical):
-                            add_result(cursor)
-                    for child in cursor.get_children():
-                        visit(child)
-                except Exception:
-                    pass
+                candidate_usr = self._usr(cursor)
+                definition = self._is_definition(cursor)
+                if candidate_usr == target_usr:
+                    if mode == "definition" and definition:
+                        append(cursor, "definition")
+                    elif mode == "declaration" and not definition:
+                        append(cursor, "declaration")
+                    elif mode == "implementation" and definition:
+                        append(cursor, "implementation")
 
-            visit(tu.cursor)
-
-            # Also search workspace index for cross-file overrides
-            from ..intellisense.index import get_cpp_indexer
-
-            indexer = get_cpp_indexer()
-            solution_root = self._get_solution_root(file_path)
-            if solution_root:
-                name = canonical.spelling
-                if name:
-                    symbols = indexer.search(
-                        solution_root, name, limit=200, exclude_kinds=set()
-                    )
-                    for sym in symbols:
-                        if sym.kind in ("method", "function") and sym.text == name:
-                            try:
-                                result = NavigationResult(
-                                    file_path=(
-                                        sym.signature.split(":")[0]
-                                        if ":" in sym.signature
-                                        else file_path
-                                    ),
-                                    line=(
-                                        int(sym.signature.split(":")[1])
-                                        if ":" in sym.signature
-                                        and sym.signature.split(":")[1].isdigit()
-                                        else 1
-                                    ),
-                                    col=1,
-                                    display_name=f"{sym.text} (override)",
-                                    kind="implementation",
-                                )
-                                key = (result.file_path, result.line, result.col)
-                                if key not in seen:
-                                    seen.add(key)
-                                    results.append(result)
-                            except Exception:
-                                continue
-        except Exception as exc:
-            logger.debug("find_implementations failed: %s", exc)
-        return results
-
-    def _find_references_in_tu(
-        self, canonical: Cursor, tu: TranslationUnit, file_path: str
-    ) -> List[NavigationResult]:
-        """Find references within the current translation unit."""
-        results: List[NavigationResult] = []
-        seen: set = set()
-
-        def visit(cursor: Cursor):
-            try:
-                if cursor.kind in (
-                    CursorKind.DECL_REF_EXPR,
-                    CursorKind.MEMBER_REF_EXPR,
-                    CursorKind.MEMBER_REF,
-                    CursorKind.CALL_EXPR,
-                    CursorKind.OVERLOADED_DECL_REF,
-                    CursorKind.TYPE_REF,
-                ):
-                    ref = cursor.referenced
-                    if ref and (
-                        self._cursors_equivalent(ref, canonical)
-                        or self._is_override_of(ref, canonical)
-                        or self._is_override_of(canonical, ref)
+                if mode == "implementation" and definition:
+                    overridden = self._safe_overridden(cursor)
+                    if (
+                        target_usr in {self._usr(item) for item in overridden}
+                        or self._overrides_target(cursor, target)
                     ):
-                        result = self._cursor_to_result(
-                            cursor, tu, file_path, "reference"
-                        )
-                        if result:
-                            key = (result.file_path, result.line, result.col)
-                            if key not in seen:
-                                seen.add(key)
-                                results.append(result)
-            except Exception:
-                pass
-            try:
-                for child in cursor.get_children():
-                    visit(child)
-            except Exception:
-                pass
+                        append(cursor, "implementation")
 
-        try:
-            visit(tu.cursor)
-        except Exception as exc:
-            logger.debug("TU reference search failed: %s", exc)
+            if mode in {"definition", "declaration"} and any(
+                item.file_path != active_path for item in results
+            ):
+                return [item for item in results if item.file_path != active_path]
+
+        # Fallback: search in project source files when compile_commands.json is not available
+        project_files = self._find_project_files(active_path)
+        for candidate_path in project_files:
+            if self._normalise_path(candidate_path) == active_path:
+                continue
+            tu = self._parse_project_file(candidate_path, ctx, active_path)
+            if tu is None:
+                continue
+
+            for cursor in self._cursors(tu):
+                if mode == "reference":
+                    referenced = self._safe_cursor(cursor, "referenced")
+                    if self._usr(referenced) == target_usr:
+                        append(cursor, "reference")
+                    continue
+
+                candidate_usr = self._usr(cursor)
+                definition = self._is_definition(cursor)
+                if candidate_usr == target_usr:
+                    if mode == "definition" and definition:
+                        append(cursor, "definition")
+                    elif mode == "declaration" and not definition:
+                        append(cursor, "declaration")
+                    elif mode == "implementation" and definition:
+                        append(cursor, "implementation")
+
+                if mode == "implementation" and definition:
+                    overridden = self._safe_overridden(cursor)
+                    if (
+                        target_usr in {self._usr(item) for item in overridden}
+                        or self._overrides_target(cursor, target)
+                    ):
+                        append(cursor, "implementation")
+
+            if mode in {"definition", "declaration"} and any(
+                item.file_path != active_path for item in results
+            ):
+                return [item for item in results if item.file_path != active_path]
 
         return results
 
-    def _cursors_equivalent(self, a: Cursor, b: Cursor) -> bool:
-        """Check if two cursors refer to the same entity or override chain."""
+    @staticmethod
+    def _safe_overridden(cursor: Cursor) -> tuple[Cursor, ...]:
         try:
-            usr_a = a.get_usr()
-            usr_b = b.get_usr()
-            if usr_a and usr_a == usr_b:
-                return True
+            return tuple(cursor.get_overridden_cursors())
         except Exception:
-            pass
-        try:
-            return a.hash == b.hash
-        except Exception:
-            return False
+            return ()
 
-    def _is_override_of(self, cursor: Cursor, base: Cursor) -> bool:
-        """Check if cursor is an override of base virtual method."""
-        if cursor.kind != base.kind:
-            return False
-        if cursor.spelling != base.spelling:
-            return False
-        if cursor == base:
-            return False
-        # Both must be virtual methods
+    @staticmethod
+    def _safe_base_classes(cursor: Cursor) -> list:
         try:
-            if not (cursor.is_virtual_method() and base.is_virtual_method()):
-                return False
+            bases = []
+            for child in cursor.get_children():
+                if child.kind != getattr(CursorKind, "CXX_BASE_SPECIFIER", None):
+                    continue
+                base = NavigationEngine._safe_cursor(child, "referenced")
+                if base is None or not NavigationEngine._valid(base):
+                    base = child.type.get_declaration()
+                if base is not None and NavigationEngine._valid(base):
+                    bases.append(base)
+            return bases
         except Exception:
-            return False
-        # Must be in different classes
-        try:
-            cursor_class = cursor.semantic_parent
-            base_class = base.semantic_parent
-            if not (cursor_class and base_class):
-                return False
-            if cursor_class == base_class:
-                return False
-            if cursor_class.spelling == base_class.spelling:
-                return False
-            if cursor_class.kind not in (
-                CursorKind.CLASS_DECL,
-                CursorKind.STRUCT_DECL,
-            ) or base_class.kind not in (
-                CursorKind.CLASS_DECL,
-                CursorKind.STRUCT_DECL,
-            ):
-                return False
-            # Check inheritance: cursor_class must inherit from base_class (directly or indirectly)
-            # Walk the inheritance chain of cursor_class to find base_class
-            return self._class_inherits_from(cursor_class, base_class)
-        except Exception:
-            return False
+            return []
 
-    def _class_inherits_from(self, derived: Cursor, base: Cursor) -> bool:
-        """Check if derived class inherits from base class (directly or indirectly)."""
-        try:
-            # Get base specifiers of derived class
-            for child in derived.get_children():
-                if child.kind == CursorKind.CXX_BASE_SPECIFIER:
-                    base_type = child.type
-                    if base_type.spelling == base.spelling:
-                        return True
-                    # Recursively check the base class's bases
-                    base_decl = base_type.get_declaration()
-                    if base_decl and self._class_inherits_from(base_decl, base):
-                        return True
-        except Exception:
-            pass
+    def _class_derives_from(self, cursor: Cursor, target_usr: str) -> bool:
+        """Return whether *cursor*'s class inherits from *target_usr*."""
+        if not target_usr:
+            return False
+        pending = [cursor]
+        seen: set = set()
+        while pending and len(seen) < 64:
+            current = pending.pop()
+            current_usr = self._usr(current)
+            if not current_usr or current_usr in seen:
+                continue
+            seen.add(current_usr)
+            for base in self._safe_base_classes(current):
+                if self._usr(base) == target_usr:
+                    return True
+                pending.append(base)
         return False
 
-    def _get_solution_root(self, file_path: str) -> Optional[str]:
-        """Find the solution root for a file."""
+    def _overrides_target(self, candidate: Cursor, target: Cursor) -> bool:
+        """Fallback override check when libclang reports no overridden cursors."""
         try:
-            from editor.utils.solution.paths import is_solution
+            method_kinds = {
+                getattr(CursorKind, "CXX_METHOD", None),
+                getattr(CursorKind, "FUNCTION_TEMPLATE", None),
+            }
+            if target.kind not in method_kinds or candidate.kind not in method_kinds:
+                return False
+            if not target.is_virtual_method():
+                return False
+            if not self._method_signature_matches(candidate, target):
+                return False
+            parent = candidate.semantic_parent
+            target_parent = target.semantic_parent
+            if parent is None or target_parent is None:
+                return False
+            return self._class_derives_from(parent, self._usr(target_parent))
+        except Exception:
+            return False
 
-            current = os.path.abspath(file_path)
-            if os.path.isfile(current):
-                current = os.path.dirname(current)
-            while True:
-                if is_solution(current):
-                    return current
-                parent = os.path.dirname(current)
-                if parent == current:
+    @staticmethod
+    def _method_signature_matches(candidate: Cursor, target: Cursor) -> bool:
+        """Return whether two method cursors share name and signature."""
+        try:
+            if candidate.spelling != target.spelling:
+                return False
+            if candidate.is_static_method() != target.is_static_method():
+                return False
+            if candidate.is_const_method() != target.is_const_method():
+                return False
+            candidate_args = candidate.type.argument_types()
+            target_args = target.type.argument_types()
+            return [item.spelling for item in candidate_args] == [
+                item.spelling for item in target_args
+            ]
+        except Exception:
+            return False
+
+    def _find_project_files(self, source_path: str) -> list[str]:
+        """Find C++ files in the owning project for a last-resort symbol scan.
+
+        Args:
+            source_path: File whose project should be scanned.
+
+        Returns:
+            Normalised paths of indexable C/C++ files (bounded).
+        """
+        if not source_path:
+            return []
+        try:
+            excluded = self._excluded_directories()
+            root = Path(source_path).parent
+            cmake_root = None
+            try:
+                from editor.Ironica.plugins.cmake.cmake.scanner import (
+                    find_cmake_root,
+                )
+
+                cmake_root = find_cmake_root(source_path)
+            except Exception:
+                cmake_root = None
+            if cmake_root:
+                root = Path(cmake_root)
+            else:
+                for parent in (root, *root.parents):
+                    if (
+                        (parent / "compile_commands.json").is_file()
+                        or (parent / ".ds").is_dir()
+                        or (parent / ".git").is_dir()
+                    ):
+                        root = parent
+                        break
+
+            suffixes = {
+                ".c", ".cc", ".cpp", ".cxx", ".c++",
+                ".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp", ".tpp",
+            }
+            files: list[str] = []
+            for current, dirs, filenames in os.walk(root, followlinks=False):
+                dirs[:] = [
+                    name for name in dirs if name not in excluded
+                ]
+                for filename in filenames:
+                    if os.path.splitext(filename)[1].lower() in suffixes:
+                        files.append(
+                            self._normalise_path(os.path.join(current, filename))
+                        )
+                        if len(files) >= 400:
+                            return sorted(files)
+            return sorted(files)
+        except Exception:
+            return []
+
+    @staticmethod
+    def _excluded_directories() -> frozenset:
+        """Return directory names skipped while scanning for project files."""
+        try:
+            from editor.utils.solution.paths import DEFAULT_EXCLUDES
+
+            return frozenset(DEFAULT_EXCLUDES)
+        except Exception:
+            return frozenset({".git", ".ds", "__pycache__", "node_modules"})
+
+    def _parse_project_file(
+        self,
+        source_path: str,
+        ctx: CppContext,
+        active_path: str,
+    ) -> Optional[TranslationUnit]:
+        """Parse a project file using the same flags as the active file."""
+        active_source = getattr(ctx, "source_code", "") or ""
+        try:
+            mtime = os.stat(source_path).st_mtime_ns
+        except OSError:
+            if source_path != active_path or not active_source:
+                return None
+            mtime = 0
+
+        # Use the same flags as the active context
+        flags = tuple(cpp_args.args_for_file(source_path, ""))
+        buffer_key = (active_path, hash(active_source))
+        key = (
+            source_path,
+            flags + ("-working-directory=" + os.path.dirname(source_path),),
+            mtime,
+            buffer_key,
+        )
+        cached = self._unit_cache.get(key)
+        if cached is not None:
+            return cached[1]
+
+        index = Index.create()
+        parse_args = ["-working-directory=" + os.path.dirname(source_path), *flags]
+        unsaved_files = (
+            [(active_path, active_source)] if active_path and active_source else []
+        )
+        tu = self._parse_index(index, source_path, parse_args, unsaved_files)
+        if tu is None:
+            return None
+
+        if len(self._unit_cache) >= 16:
+            self._unit_cache.pop(next(iter(self._unit_cache)))
+        self._unit_cache[key] = (index, tu)
+        return tu
+
+    def _compile_commands(
+        self, source_path: str
+    ) -> dict[str, tuple[str, str, list[str]]]:
+        database_path = self._find_compilation_database(source_path)
+        if not database_path:
+            return {}
+
+        cached = self._database_cache.get(database_path)
+        if cached is not None:
+            return {
+                path: (path, directory, arguments)
+                for path, (directory, arguments) in cached.items()
+            }
+
+        try:
+            with open(database_path, "r", encoding="utf-8") as stream:
+                entries = json.load(stream)
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            logger.debug(
+                "Could not read compilation database %s", database_path, exc_info=True
+            )
+            return {}
+
+        commands: dict[str, tuple[str, list[str]]] = {}
+        if not isinstance(entries, list):
+            return {}
+
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            directory = entry.get("directory")
+            source = entry.get("file")
+            if (
+                not isinstance(directory, str)
+                or not isinstance(source, str)
+                or not source
+            ):
+                continue
+            working_directory = self._normalise_path(directory)
+            source_file = (
+                source
+                if os.path.isabs(source)
+                else os.path.join(working_directory, source)
+            )
+            source_file = self._normalise_path(source_file)
+            raw_arguments = entry.get("arguments")
+            if not isinstance(raw_arguments, list):
+                command = entry.get("command")
+                if not isinstance(command, str):
+                    continue
+                try:
+                    raw_arguments = shlex.split(command, posix=os.name != "nt")
+                except ValueError:
+                    continue
+            arguments = self._clean_arguments(
+                raw_arguments, source_file, working_directory
+            )
+            commands.setdefault(source_file, (working_directory, arguments))
+
+        self._database_cache[database_path] = commands
+        return {
+            path: (path, directory, arguments)
+            for path, (directory, arguments) in commands.items()
+        }
+
+    def _find_compilation_database(self, source_path: str) -> str:
+        if not source_path:
+            return ""
+        if source_path in self._database_path_cache:
+            return self._database_path_cache[source_path]
+
+        source_directory = Path(source_path).parent
+        inspected: set[Path] = set()
+        candidates: list[Path] = []
+        for parent in (source_directory, *source_directory.parents):
+            direct = parent / "compile_commands.json"
+            if direct not in inspected:
+                inspected.add(direct)
+                if direct.is_file():
+                    candidates.append(direct)
+            try:
+                for child in parent.iterdir():
+                    if not child.is_dir():
+                        continue
+                    candidate = child / "compile_commands.json"
+                    if candidate in inspected:
+                        continue
+                    inspected.add(candidate)
+                    if candidate.is_file():
+                        candidates.append(candidate)
+            except OSError:
+                continue
+
+        for extra in self._extra_databases(source_path):
+            candidate = Path(extra)
+            if candidate not in inspected and candidate.is_file():
+                inspected.add(candidate)
+                candidates.append(candidate)
+
+        best_path = ""
+        best_score = (-1, -1)
+        for candidate in candidates:
+            try:
+                with candidate.open("r", encoding="utf-8") as stream:
+                    entries = json.load(stream)
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                continue
+            if not isinstance(entries, list) or not entries:
+                continue
+
+            score = (-1, -1)
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                directory = entry.get("directory")
+                source = entry.get("file")
+                if (
+                    not isinstance(directory, str)
+                    or not isinstance(source, str)
+                    or not source
+                ):
+                    continue
+                if not isinstance(entry.get("arguments"), list) and not isinstance(
+                    entry.get("command"), str
+                ):
+                    continue
+                command_directory = self._normalise_path(directory)
+                command_source = (
+                    source
+                    if os.path.isabs(source)
+                    else os.path.join(command_directory, source)
+                )
+                command_source = self._normalise_path(command_source)
+                try:
+                    common = os.path.commonpath((source_path, command_source))
+                    common_depth = len(Path(common).parts)
+                except (OSError, ValueError):
+                    common_depth = 0
+                exact_match = int(command_source == source_path)
+                candidate_score = (exact_match, common_depth)
+                if candidate_score > score:
+                    score = candidate_score
+
+            if score > best_score:
+                best_score = score
+                best_path = self._normalise_path(candidate)
+
+        self._database_path_cache[source_path] = best_path
+        return best_path
+
+    @staticmethod
+    def _extra_databases(source_path: str) -> list[str]:
+        """Return solution-generated and CMake build databases for *source_path*.
+
+        Args:
+            source_path: File whose databases should be discovered.
+
+        Returns:
+            Existing ``compile_commands.json`` paths outside the ancestor walk.
+        """
+        extras: list[str] = []
+        try:
+            from editor.utils.solution.paths import (
+                compile_commands_path,
+                is_solution,
+            )
+
+            current = Path(source_path).parent
+            for parent in (current, *current.parents):
+                if is_solution(str(parent)):
+                    candidate = compile_commands_path(str(parent))
+                    if os.path.isfile(candidate):
+                        extras.append(candidate)
                     break
-                current = parent
         except Exception:
             pass
-        return None
-
-    def _find_references_in_workspace(
-        self, canonical: Cursor, file_path: str, ctx: CppContext
-    ) -> List[NavigationResult]:
-        """Find references in the workspace using the indexer."""
-        results: List[NavigationResult] = []
         try:
-            from ..intellisense.index import get_cpp_indexer, search_for_file
+            from editor.Ironica.plugins.cmake.cmake import builddb
+            from editor.Ironica.plugins.cmake.cmake.scanner import find_cmake_root
 
-            name = canonical.spelling or canonical.displayname
-            if not name:
-                return results
+            cmake_root = find_cmake_root(source_path)
+            if cmake_root:
+                build_dir = builddb.find_build_directory(cmake_root)
+                if build_dir:
+                    candidate = os.path.join(
+                        build_dir, "compile_commands.json"
+                    )
+                    if os.path.isfile(candidate):
+                        extras.append(candidate)
+        except Exception:
+            pass
+        return extras
 
-            solution_root = self._get_solution_root(file_path)
-            if not solution_root:
-                return results
+    @staticmethod
+    def _clean_arguments(
+        raw_arguments: Sequence[str], source_path: str, working_directory: str
+    ) -> list[str]:
+        arguments = [str(value) for value in raw_arguments]
+        while arguments and Path(arguments[0]).name.lower() in {
+            "ccache",
+            "sccache",
+            "distcc",
+            "icecc",
+        }:
+            arguments.pop(0)
+        if arguments and not arguments[0].startswith("-"):
+            arguments.pop(0)
 
-            symbols = search_for_file(file_path, name, limit=200)
-            for sym in symbols:
-                try:
-                    file_part = (
-                        sym.signature.split(":")[0]
-                        if ":" in sym.signature
-                        else file_path
-                    )
-                    line_part = (
-                        int(sym.signature.split(":")[1])
-                        if ":" in sym.signature
-                        and sym.signature.split(":")[1].isdigit()
-                        else 1
-                    )
-                    result = NavigationResult(
-                        file_path=file_part,
-                        line=line_part,
-                        col=1,
-                        display_name=f"{sym.text} ({sym.kind})",
-                        kind="reference",
-                    )
-                    results.append(result)
-                except Exception:
+        drop_single = {"-c", "-S", "-E", "-MD", "-MMD", "-MP", "-MG"}
+        drop_value = {
+            "-o",
+            "-MF",
+            "-MT",
+            "-MQ",
+            "-MJ",
+            "-serialize-diagnostics",
+            "--serialize-diagnostics",
+        }
+        cleaned: list[str] = []
+        skip_next = False
+
+        for argument in arguments:
+            if skip_next:
+                skip_next = False
+                continue
+            if argument in drop_single:
+                continue
+            if argument in drop_value:
+                skip_next = True
+                continue
+            if argument.startswith(("-MF", "-MT", "-MQ", "-MJ")) and len(argument) > 3:
+                continue
+            if (
+                argument.startswith("-o")
+                and len(argument) > 2
+                and not argument.startswith(
+                    ("-openmp", "-object", "-opaque", "-opt", "-order-file")
+                )
+            ):
+                continue
+            if not argument.startswith("-"):
+                candidate = (
+                    argument
+                    if os.path.isabs(argument)
+                    else os.path.join(working_directory, argument)
+                )
+                if NavigationEngine._normalise_path(candidate) == source_path:
                     continue
-        except Exception as exc:
-            logger.debug("Workspace reference search failed: %s", exc)
-        return results
+            cleaned.append(argument)
 
-    def resolve_at(self, ctx: CppContext) -> Optional[SymbolContext]:
-        """Resolve the symbol at the given context position."""
-        cursor_data = self._get_cursor_at(ctx)
-        if cursor_data is None:
-            return None
-        cursor, tu, file_path = cursor_data
-        return self._resolve_symbol_context(cursor, tu, file_path)
+        return cleaned
 
-    def get_definition(self, ctx: CppContext) -> List[NavigationResult]:
-        """Get definition location(s) for symbol at context."""
-        sym = self.resolve_at(ctx)
-        if sym is None:
-            return []
-        if sym.cursor.kind == CursorKind.INCLUSION_DIRECTIVE:
-            result = self._inclusion_directive_to_result(sym.cursor, sym.tu, sym.file_path)
-            return [result] if result else []
-        return self._find_definition(sym.canonical_cursor, sym.tu, sym.file_path)
-
-    def get_declaration(self, ctx: CppContext) -> List[NavigationResult]:
-        """Get declaration location(s) for symbol at context."""
-        sym = self.resolve_at(ctx)
-        if sym is None:
-            return []
-        if sym.cursor.kind == CursorKind.INCLUSION_DIRECTIVE:
-            # For include directives, "declaration" is the same as definition
-            result = self._inclusion_directive_to_result(sym.cursor, sym.tu, sym.file_path)
-            return [result] if result else []
-        return self._find_declaration(sym.canonical_cursor, sym.tu, sym.file_path)
-
-    def get_implementation(self, ctx: CppContext) -> List[NavigationResult]:
-        """Get implementation location(s) for symbol at context."""
-        sym = self.resolve_at(ctx)
-        if sym is None:
-            return []
-        return self._find_implementations(
-            sym.canonical_cursor, sym.tu, sym.file_path, ctx
-        )
-
-    def get_references(self, ctx: CppContext) -> List[NavigationResult]:
-        """Get all reference locations for symbol at context."""
-        sym = self.resolve_at(ctx)
-        if sym is None:
-            return []
-        if sym.cursor.kind == CursorKind.INCLUSION_DIRECTIVE:
-            # For include directives, find other inclusions of the same header
-            return self._find_include_references(sym.cursor, sym.tu, sym.file_path)
-
-        results: List[NavigationResult] = []
-        seen: set = set()
-
-        tu_refs = self._find_references_in_tu(
-            sym.canonical_cursor, sym.tu, sym.file_path
-        )
-        for r in tu_refs:
-            key = (r.file_path, r.line, r.col)
-            if key not in seen:
-                seen.add(key)
-                results.append(r)
-
-        ws_refs = self._find_references_in_workspace(
-            sym.canonical_cursor, sym.file_path, ctx
-        )
-        for r in ws_refs:
-            key = (r.file_path, r.line, r.col)
-            if key not in seen:
-                seen.add(key)
-                results.append(r)
-
-        return results
-
-    def _find_include_references(
-        self, cursor: Cursor, tu: TranslationUnit, file_path: str
-    ) -> List[NavigationResult]:
-        """Find other inclusions of the same header."""
-        results: List[NavigationResult] = []
-        seen: set = set()
+    def _parse_translation_unit(
+        self,
+        source_path: str,
+        working_directory: str,
+        arguments: Sequence[str],
+        ctx: CppContext,
+        active_path: str,
+    ) -> Optional[TranslationUnit]:
+        active_source = getattr(ctx, "source_code", "") or ""
         try:
-            target_name = cursor.spelling
-            for child in tu.cursor.get_children():
-                if child.kind == CursorKind.INCLUSION_DIRECTIVE:
-                    if child.spelling == target_name and child != cursor:
-                        result = self._inclusion_directive_to_result(child, tu, file_path)
-                        if result:
-                            key = (result.file_path, result.line, result.col)
-                            if key not in seen:
-                                seen.add(key)
-                                results.append(result)
-        except Exception as exc:
-            logger.debug("Include reference search failed: %s", exc)
-        return results
+            mtime = os.stat(source_path).st_mtime_ns
+        except OSError:
+            if source_path != active_path or not active_source:
+                return None
+            mtime = 0
+
+        extra = self._header_extra_flags(active_path)
+        buffer_key = (active_path, hash(active_source))
+        key = (
+            source_path,
+            tuple(arguments) + tuple(extra)
+            + ("-working-directory=" + working_directory,),
+            mtime,
+            buffer_key,
+        )
+        cached = self._unit_cache.get(key)
+        if cached is not None:
+            return cached[1]
+
+        index = Index.create()
+        parse_args = [
+            "-working-directory=" + working_directory,
+            *arguments,
+            *extra,
+        ]
+        unsaved_files = (
+            [(active_path, active_source)] if active_path and active_source else []
+        )
+        tu = self._parse_index(index, source_path, parse_args, unsaved_files)
+        if tu is None:
+            return None
+
+        missing = self._missing_includes(tu)
+        if missing and self._resolve_missing(active_path, missing, arguments):
+            refreshed = self._header_extra_flags(active_path)
+            if refreshed != extra:
+                extra = refreshed
+                tu = self._parse_index(
+                    index,
+                    source_path,
+                    [
+                        "-working-directory=" + working_directory,
+                        *arguments,
+                        *extra,
+                    ],
+                    unsaved_files,
+                )
+
+        if len(self._unit_cache) >= 16:
+            self._unit_cache.pop(next(iter(self._unit_cache)))
+        self._unit_cache[key] = (index, tu)
+        return tu
+
+    @staticmethod
+    def _strip_pch(arguments: Sequence[str]) -> list[str]:
+        """Return *arguments* with any ``-include-pch`` pair removed."""
+        stripped: list[str] = []
+        index = 0
+        while index < len(arguments):
+            argument = arguments[index]
+            if argument == "-include-pch":
+                index += 2
+                continue
+            if argument.startswith("-include-pch"):
+                index += 1
+                continue
+            stripped.append(argument)
+            index += 1
+        return stripped
+
+    def _parse_index(
+        self,
+        index: Index,
+        source_path: str,
+        parse_args: Sequence[str],
+        unsaved_files: Sequence[tuple[str, str]],
+    ) -> Optional[TranslationUnit]:
+        """Parse *source_path*, retrying without a stale precompiled header."""
+        try:
+            return index.parse(
+                source_path,
+                args=list(parse_args),
+                unsaved_files=list(unsaved_files),
+                options=TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD,
+            )
+        except Exception:
+            has_pch = any(
+                argument == "-include-pch" or argument.startswith("-include-pch")
+                for argument in parse_args
+            )
+            if not has_pch:
+                logger.debug(
+                    "Could not parse translation unit %s",
+                    source_path,
+                    exc_info=True,
+                )
+                return None
+        try:
+            return index.parse(
+                source_path,
+                args=self._strip_pch(parse_args),
+                unsaved_files=list(unsaved_files),
+                options=TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD,
+            )
+        except Exception:
+            logger.debug(
+                "Could not parse translation unit %s without PCH",
+                source_path,
+                exc_info=True,
+            )
+            return None
+
+    @staticmethod
+    def _header_extra_flags(active_path: str) -> list[str]:
+        """Return include flags discovered by the C++ header resolver."""
+        try:
+            from ..intellisense import headers as header_resolution
+
+            return list(header_resolution.extra_flags_for(active_path))
+        except Exception:
+            return []
+
+    @staticmethod
+    def _missing_includes(tu: TranslationUnit) -> list[str]:
+        """Return header names the TU reports as not found."""
+        missing: set = set()
+        try:
+            for diagnostic in getattr(tu, "diagnostics", []) or []:
+                spelling = getattr(diagnostic, "spelling", "") or ""
+                match = re.search(r"'([^']+)' file not found", spelling)
+                if match:
+                    missing.add(match.group(1))
+        except Exception:
+            return []
+        return sorted(missing)
+
+    def _resolve_missing(
+        self, active_path: str, missing: list[str], arguments: Sequence[str]
+    ) -> bool:
+        """Ask the header resolver to locate *missing* includes."""
+        try:
+            from ..intellisense import headers as header_resolution
+
+            return bool(
+                header_resolution.resolve_missing(
+                    missing, active_path, list(arguments)
+                )
+            )
+        except Exception:
+            return False
+
+
+def token_spelling(cursor: Cursor) -> str:
+    try:
+        return cursor.spelling or cursor.displayname or ""
+    except Exception:
+        return ""

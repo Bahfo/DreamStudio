@@ -1662,6 +1662,7 @@ class CodeEditor(QsciScintilla):
                 )
 
             if not targets:
+                self._show_navigation_failure("Go to Definition", file_path)
                 return
 
             self._navigate_to_targets(targets, line, file_path)
@@ -1703,6 +1704,7 @@ class CodeEditor(QsciScintilla):
                 )
 
             if not targets:
+                self._show_navigation_failure("Go to Declaration", file_path)
                 return
 
             self._navigate_to_targets(targets, line, file_path)
@@ -1744,6 +1746,7 @@ class CodeEditor(QsciScintilla):
                 )
 
             if not targets:
+                self._show_navigation_failure("Go to Implementation", file_path)
                 return
 
             self._navigate_to_targets(targets, line, file_path)
@@ -1780,9 +1783,7 @@ class CodeEditor(QsciScintilla):
                     self.text(), line, col, file_path, project_root
                 )
             except TypeError:
-                targets = self.current_provider.get_references(
-                    self.text(), line, col
-                )
+                targets = self.current_provider.get_references(self.text(), line, col)
 
             if not targets:
                 return
@@ -1791,7 +1792,9 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Find-references failed: %s", exc)
 
-    def _navigate_to_targets(self, targets: list, current_line: int, current_file: str) -> None:
+    def _navigate_to_targets(
+        self, targets: list, current_line: int, current_file: str
+    ) -> None:
         """Navigate to a target or show popup for multiple targets."""
         if not targets:
             return
@@ -1823,16 +1826,20 @@ class CodeEditor(QsciScintilla):
             nav_results = []
             for target in targets:
                 file_path, target_line, target_col = target
-                nav_results.append(NavigationResult(
-                    file_path=file_path,
-                    line=target_line + 1,
-                    col=target_col + 1,
-                    display_name=f"{file_path}:{target_line + 1}",
-                    kind="target",
-                ))
+                nav_results.append(
+                    NavigationResult(
+                        file_path=file_path,
+                        line=target_line + 1,
+                        col=target_col + 1,
+                        display_name=f"{file_path}:{target_line + 1}",
+                        kind="target",
+                    )
+                )
 
             popup = NavigationPopup(self.window())
-            popup.set_results(nav_results, on_select=lambda r: self._navigate_to_result(r))
+            popup.set_results(
+                nav_results, on_select=lambda r: self._navigate_to_result(r)
+            )
             popup.show_at_cursor(self)
         except Exception as exc:
             logger.debug("Failed to show navigation popup: %s", exc)
@@ -1849,6 +1856,25 @@ class CodeEditor(QsciScintilla):
                     current_editor.setCursorPosition(result.line - 1, result.col - 1)
         except Exception as exc:
             logger.debug("Navigation to result failed: %s", exc)
+
+    def _show_navigation_failure(self, action_name: str, file_path: str | None) -> None:
+        """Show a user-friendly notification when navigation fails."""
+        try:
+            from editor.utils.notifications.notification_manager import (
+                get_notification_manager,
+            )
+
+            if file_path:
+                message = f"Could not find {action_name.lower()} target."
+            else:
+                message = f"Could not find {action_name.lower()} target."
+            get_notification_manager().add_warning(
+                f"{action_name} Failed",
+                message,
+                source="CppNavigation",
+            )
+        except Exception:
+            pass
 
     def apply_visual_language(self, lang: str) -> None:
         """Preview *lang* highlighting without touching disk or session state."""

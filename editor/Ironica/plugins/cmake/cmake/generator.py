@@ -67,7 +67,7 @@ def _model_flags(model: CmakeModel) -> tuple[list, list, list]:
         if directory and os.path.isdir(directory):
             include_flags += ["-I", directory]
     extra_flags: list = []
-    defines: list = []
+    defines: list = list(model.definitions)
     for package in model.packages:
         for flag in _pkg_cflags(package):
             if flag.startswith("-I"):
@@ -79,6 +79,69 @@ def _model_flags(model: CmakeModel) -> tuple[list, list, list]:
             elif flag and flag not in extra_flags:
                 extra_flags.append(flag)
     return std_flags, include_flags, extra_flags + defines
+
+
+def _target_flags(model: CmakeModel, target) -> list:
+    """Return include/define/option flags for one target."""
+    flags: list = []
+    for directory in target.include_dirs:
+        if directory and os.path.isdir(directory):
+            flags += ["-I", directory]
+    flags += list(target.definitions)
+    flags += list(target.compile_options)
+    flags += list(model.compile_options)
+    return flags
+
+
+def _dedupe_flags(flags: list) -> list:
+    """Remove repeated flags while preserving order (path pairs included)."""
+    result: list = []
+    seen: set = set()
+    index = 0
+    while index < len(flags):
+        if flags[index] == "-I" and index + 1 < len(flags):
+            pair = ("-I", flags[index + 1])
+            index += 2
+            if pair in seen:
+                continue
+            seen.add(pair)
+            result.extend(pair)
+            continue
+        value = flags[index]
+        index += 1
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def _entries_for_model(model: CmakeModel, compiler: str) -> list:
+    """Build compile database entries for one CMake model."""
+    std_flags, include_flags, extra_flags = _model_flags(model)
+    entries: list = []
+    seen: set = set()
+    for target in model.targets:
+        target_flags = _target_flags(model, target)
+        for source in target.sources:
+            if source in seen:
+                continue
+            seen.add(source)
+            arguments = _dedupe_flags(
+                [compiler]
+                + std_flags
+                + include_flags
+                + target_flags
+                + extra_flags
+            ) + [source]
+            entries.append(
+                {
+                    "directory": model.root or os.path.abspath(model.root),
+                    "file": source,
+                    "arguments": arguments,
+                }
+            )
+    return entries
 
 
 def _atomic_write_text(path: str, content: str) -> bool:
@@ -98,54 +161,80 @@ def _atomic_write_text(path: str, content: str) -> bool:
         return False
 
 
-def generate(root: str, model: CmakeModel) -> dict:
-    """Write the compile database and flags file for *model*."""
+def generate_many(root: str, models: list) -> dict:
+    """Write a merged compile database for several CMake projects.
+
+    Args:
+        root: Solution root that owns the ``.ds`` artefact directory.
+        models: Scanned :class:`CmakeModel` instances to merge.
+
+    Returns:
+        A dict describing the generated paths and entry count.
+    """
     directory = cpp_dir(root, ensure=True)
     commands_path = os.path.join(directory, COMPILE_COMMANDS_FILENAME)
     flags_path = os.path.join(directory, COMPILE_FLAGS_FILENAME)
-
     compiler = _probe_compiler()
-    std_flags, include_flags, extra_flags = _model_flags(model)
 
     entries: list = []
     seen: set = set()
-    for target in model.targets:
-        target_flags = list(include_flags)
-        for directory_flag in target.include_dirs:
-            if os.path.isdir(directory_flag):
-                target_flags += ["-I", directory_flag]
-        for source in target.sources:
+    include_flags: list = []
+    std_flags: list = []
+    extra_flags: list = []
+    for model in models:
+        if model is None:
+            continue
+        model_std, model_include, model_extra = _model_flags(model)
+        for flag in model_std:
+            if flag not in std_flags:
+                std_flags.append(flag)
+        for index in range(0, len(model_include), 2):
+            pair = model_include[index:index + 2]
+            if len(pair) == 2 and pair not in [include_flags[i:i + 2]
+                                                for i in range(0, len(include_flags), 2)]:
+                include_flags.extend(pair)
+        for flag in model_extra:
+            if flag not in extra_flags:
+                extra_flags.append(flag)
+        for entry in _entries_for_model(model, compiler):
+            source = entry["file"]
             if source in seen:
                 continue
             seen.add(source)
-            entries.append(
-                {
-                    "directory": model.root or os.path.abspath(root),
-                    "file": source,
-                    "arguments": (
-                        [compiler]
-                        + std_flags
-                        + target_flags
-                        + extra_flags
-                        + [source]
-                    ),
-                }
-            )
+            entries.append(entry)
 
+    entries.sort(key=lambda item: str(item.get("file", "")).lower())
     commands_content = json.dumps(entries, indent=2) + "\n"
     _atomic_write_text(commands_path, commands_content)
 
-    flag_lines: list = []
-    flag_lines += std_flags
+    flag_lines: list = list(std_flags)
     for index in range(0, len(include_flags), 2):
         pair = include_flags[index:index + 2]
         flag_lines.append("".join(pair) if len(pair) == 2 else pair[0])
     flag_lines += extra_flags
     _atomic_write_text(flags_path, "\n".join(flag_lines) + "\n")
 
-    logger.info("cmake database generated: %d entries at %s", len(entries), commands_path)
+    logger.info(
+        "cmake database generated: %d entries at %s", len(entries), commands_path
+    )
     return {
         "compile_commands": commands_path,
         "compile_flags": flags_path,
         "entries": len(entries),
     }
+
+
+def generate(root: str, model: CmakeModel) -> dict:
+    """Write the compile database and flags file for *model*.
+
+    Args:
+        root: Solution root that owns the ``.ds`` artefact directory.
+        model: Scanned :class:`CmakeModel`.
+
+    Returns:
+        A dict describing the generated paths and entry count.
+    """
+    return generate_many(root, [model])
+
+
+__all__ = ["generate", "generate_many"]

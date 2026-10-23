@@ -67,19 +67,27 @@ def project_include_dirs(
 
 def system_include_dirs() -> List[str]:
     """
-    Return cached system include dirs (libstdc++/libc++ + fallback).
+    Return cached system include dirs probed from the active compiler.
     """
     global _SYSTEM_DIRS
     if _SYSTEM_DIRS is not None:
         return list(_SYSTEM_DIRS)
-    found: List[str] = []
-    try:
-        proc = subprocess.run(
-            ["clang++", "-E", "-x", "c++", "-", "-v"],
-            input=b"",
-            capture_output=True,
-            timeout=5,
-        )
+    candidates = [os.environ.get("CXX", ""), "clang++", "g++", "c++", "clang"]
+    drivers: List[str] = []
+    for driver in candidates:
+        if driver and driver not in drivers:
+            drivers.append(driver)
+    directories: List[str] = []
+    for driver in drivers:
+        try:
+            proc = subprocess.run(
+                [driver, "-E", "-x", "c++", "-", "-v"],
+                input=b"",
+                capture_output=True,
+                timeout=10,
+            )
+        except Exception:
+            continue
         capture = False
         for line in proc.stderr.decode(errors="replace").splitlines():
             stripped = line.strip()
@@ -88,15 +96,14 @@ def system_include_dirs() -> List[str]:
                 continue
             if "End of search list" in stripped:
                 break
-            if capture and os.path.isdir(stripped) and stripped not in found:
-                found.append(stripped)
-    except Exception as exc:
-        logger.debug("system include probing failed: %s", exc)
-    for fallback in ("/usr/include/c++", "/usr/include", "/usr/local/include"):
-        if os.path.isdir(fallback) and fallback not in found:
-            found.append(fallback)
-    _SYSTEM_DIRS = found
-    return list(found)
+            if capture and os.path.isdir(stripped):
+                resolved = os.path.realpath(stripped)
+                if resolved not in directories:
+                    directories.append(resolved)
+        if directories:
+            break
+    _SYSTEM_DIRS = directories
+    return list(directories)
 
 
 def complete_include(

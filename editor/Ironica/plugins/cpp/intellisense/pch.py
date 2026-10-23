@@ -66,7 +66,11 @@ def _base_flags(root: str) -> list:
     try:
         from . import args as cpp_args
 
-        base = list(cpp_args._DEFAULTS) + cpp_args.resource_args()
+        base = (
+            list(cpp_args._DEFAULTS)
+            + cpp_args.resource_args()
+            + cpp_args._system_include_args()
+        )
     except Exception:
         base = ["-x", "c++", "-std=c++20"]
     try:
@@ -154,6 +158,14 @@ def is_valid(root: str, files: list | None = None) -> bool:
         return False
 
 
+def _flags_digest(base: list, includes: list) -> str:
+    """Return the sha1 digest of *base* flags and *includes* used in PCH keys."""
+    digest = hashlib.sha1()
+    digest.update(json.dumps(base, sort_keys=True).encode("utf-8"))
+    digest.update(json.dumps(includes, sort_keys=True).encode("utf-8"))
+    return digest.hexdigest()
+
+
 def include_args(root: str | None) -> list:
     """Return ``-include-pch`` args for *root* when its PCH is usable."""
     try:
@@ -161,6 +173,11 @@ def include_args(root: str | None) -> list:
             return []
         stored = _read_key(root)
         if stored is None or not stored.get("built_at"):
+            return []
+        includes = stored.get("includes")
+        if not isinstance(includes, list):
+            return []
+        if stored.get("flags") != _flags_digest(_base_flags(root), includes):
             return []
         path = _pch_path(root)
         if not os.path.isfile(path):

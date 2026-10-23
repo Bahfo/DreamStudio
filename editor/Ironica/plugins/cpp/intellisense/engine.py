@@ -405,17 +405,9 @@ class CppEngine:
         hit = self._cache.get(key)
         if hit and hit[2] == flags:
             return hit[0]
-        try:
-            tu = self._index.parse(
-                clang_path,
-                args=list(flags),
-                unsaved_files=[(clang_path, ctx.source_code)],
-                options=_PARSE_OPTIONS,
-            )
-        except Exception as exc:
-            logger.warning("parse failed: %s", exc)
-            return None
-        self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
+        tu = self._parse_with_fallback(clang_path, ctx.source_code, flags, ctx)
+        if tu is not None:
+            self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
         return tu
 
     def _tu(self, ctx: CppContext):
@@ -436,15 +428,91 @@ class CppEngine:
                 return tu
             except Exception:
                 pass
-        try:
-            tu = self._index.parse(
-                clang_path,
-                args=list(flags),
-                unsaved_files=[(clang_path, ctx.source_code)],
-                options=_PARSE_OPTIONS,
-            )
-        except Exception as exc:
-            logger.warning("parse failed: %s", exc)
-            return None
-        self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
+        tu = self._parse_with_fallback(clang_path, ctx.source_code, flags, ctx)
+        if tu is not None:
+            self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
         return tu
+
+    def _parse_with_fallback(self, clang_path: str, source: str, flags: tuple, ctx: CppContext):
+        """Parse translation unit with fallback strategies on failure."""
+        def _try_parse(opts, label, active_flags=None):
+            parse_flags = list(flags if active_flags is None else active_flags)
+            try:
+                tu = self._index.parse(
+                    clang_path,
+                    args=parse_flags,
+                    unsaved_files=[(clang_path, source)],
+                    options=opts,
+                )
+                if tu is not None:
+                    diagnostics = getattr(tu, "diagnostics", [])
+                    fatal_errors = [
+                        d for d in diagnostics
+                        if getattr(d, "severity", 0) >= 3
+                        and ("file not found" in str(d).lower()
+                             or "cannot open" in str(d).lower()
+                             or "no such file" in str(d).lower())
+                    ]
+                    if fatal_errors:
+                        logger.debug(
+                            "Parse %s: TU created but has fatal diagnostics for %s: %s",
+                            label, clang_path, [str(d) for d in fatal_errors[:3]]
+                        )
+                    else:
+                        logger.debug("Parse %s succeeded for %s", label, clang_path)
+                return tu
+            except Exception as exc:
+                logger.debug("Parse %s failed for %s: %s", label, clang_path, exc)
+                if label == "primary" and _has_pch(parse_flags):
+                    return _try_parse(
+                        opts, "without-pch", _strip_pch(parse_flags)
+                    )
+                return None
+
+        tu = _try_parse(_PARSE_OPTIONS, "primary")
+        if tu is not None:
+            return tu
+
+        fallback_opts = (
+            TranslationUnit.PARSE_INCOMPLETE
+            | TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
+        )
+        tu = _try_parse(fallback_opts, "fallback-incomplete")
+        if tu is not None:
+            return tu
+
+        fallback_opts2 = TranslationUnit.PARSE_INCOMPLETE
+        tu = _try_parse(fallback_opts2, "fallback-minimal")
+        if tu is not None:
+            return tu
+
+        logger.warning(
+            "parse failed for %s with flags: %s",
+            clang_path, " ".join(flags)
+        )
+        return None
+
+
+def _has_pch(flags: list) -> bool:
+    """Return whether *flags* request a precompiled header."""
+    return any(
+        flag == "-include-pch" or flag.startswith("-include-pch")
+        for flag in flags
+    )
+
+
+def _strip_pch(flags: list) -> list:
+    """Return *flags* with any ``-include-pch`` pair removed."""
+    stripped: list = []
+    index = 0
+    while index < len(flags):
+        flag = flags[index]
+        if flag == "-include-pch":
+            index += 2
+            continue
+        if flag.startswith("-include-pch"):
+            index += 1
+            continue
+        stripped.append(flag)
+        index += 1
+    return stripped

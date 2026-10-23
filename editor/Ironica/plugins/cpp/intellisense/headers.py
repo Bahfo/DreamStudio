@@ -15,6 +15,7 @@ _MAX_PROJECT_FILES = 20000
 _MAX_SYSTEM_SUBDIRS = 400
 
 _resolved: dict = {}
+_unresolved: set = set()
 
 
 def _project_root_for(file_path: str | None) -> str:
@@ -28,7 +29,10 @@ def _project_root_for(file_path: str | None) -> str:
     if os.path.isfile(current):
         current = os.path.dirname(current)
     while True:
-        if os.path.isfile(os.path.join(current, "CMakeLists.txt")):
+        if os.path.isfile(os.path.join(current, "CMakeLists.txt")) or \
+           os.path.isfile(os.path.join(current, "compile_commands.json")) or \
+           os.path.isdir(os.path.join(current, ".git")) or \
+           os.path.isdir(os.path.join(current, ".ds")):
             return current
         parent = os.path.dirname(current)
         if parent == current:
@@ -78,6 +82,8 @@ def _find_in_dirs(header: str, dirs: list) -> list:
     found: list = []
     for root in dirs:
         if os.path.isfile(os.path.join(root, header)):
+            if root not in found:
+                found.append(root)
             continue
         try:
             subdirs = sorted(
@@ -95,19 +101,28 @@ def _find_in_dirs(header: str, dirs: list) -> list:
     return found
 
 
+def _excluded_directories() -> frozenset:
+    """Return directory names skipped while walking a project tree."""
+    try:
+        from editor.utils.solution.paths import DEFAULT_EXCLUDES
+
+        return frozenset(DEFAULT_EXCLUDES)
+    except Exception:
+        return frozenset({".git", ".ds", "__pycache__", "node_modules"})
+
+
 def _find_in_project(header: str, anchor: str) -> list:
     """Walk the project tree under *anchor* for *header* (bounded)."""
     name = os.path.basename(header)
     if not name or not anchor or not os.path.isdir(anchor):
         return []
+    excluded = _excluded_directories()
     found: list = []
     visited = 0
     base_depth = anchor.rstrip(os.sep).count(os.sep)
     for current, directories, files in os.walk(anchor, followlinks=False):
         directories[:] = [
-            item
-            for item in directories
-            if not item.startswith(".") and item not in ("build", "out")
+            item for item in directories if item not in excluded
         ]
         if current.count(os.sep) - base_depth > _MAX_PROJECT_DEPTH:
             directories[:] = []
@@ -132,7 +147,14 @@ def locate_header(header: str, search_dirs: list, anchor: str) -> list:
         if not found:
             found = _find_in_system(name)
         if not found:
-            found = _find_in_project(name, anchor)
+            # Also try to find relative to anchor if header contains path separators
+            if "/" in name or "\\" in name:
+                # Try to find it relative to anchor
+                candidate = os.path.join(anchor, name)
+                if os.path.isfile(candidate):
+                    found = [os.path.dirname(candidate)]
+            if not found:
+                found = _find_in_project(name, anchor)
         return found
     except Exception as exc:
         logger.debug("header locate failed: %s", exc)
@@ -160,9 +182,19 @@ def resolve_missing(
         anchor = _project_root_for(file_path)
         known = set(_resolved.get(anchor, []))
         search_dirs = _known_include_dirs(compile_args or [])
+        search_key = tuple(search_dirs)
         grown = False
         for header in headers:
-            for directory in locate_header(header, search_dirs, anchor):
+            cache_key = (anchor, header, search_key)
+            if cache_key in _unresolved:
+                continue
+            directories = locate_header(header, search_dirs, anchor)
+            if not directories:
+                if len(_unresolved) > 512:
+                    _unresolved.clear()
+                _unresolved.add(cache_key)
+                continue
+            for directory in directories:
                 flag = f"-I{directory}"
                 if flag not in known:
                     known.add(flag)

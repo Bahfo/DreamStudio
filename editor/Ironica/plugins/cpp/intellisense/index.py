@@ -305,27 +305,83 @@ class CppIndexer(QObject):
             logger.debug("pch refresh failed: %s", exc)
 
     def _refresh_compile_db(self, root: str) -> None:
-        """Regenerate ``.ds/cpp`` artefacts from ``CMakeLists.txt``."""
+        """Regenerate ``.ds/cpp`` artefacts from every CMake project below *root*.
+
+        Args:
+            root: Workspace root to scan for ``CMakeLists.txt`` projects.
+        """
         try:
-            from editor.Ironica.plugins.cmake.cmake.scanner import (
-                find_cmake_root,
-                scan_project,
-            )
-            from editor.Ironica.plugins.cmake.cmake.generator import generate
+            from editor.Ironica.plugins.cmake.cmake.scanner import scan_project
+            from editor.Ironica.plugins.cmake.cmake.generator import generate_many
         except Exception as exc:
             logger.debug("cmake bridge unavailable: %s", exc)
             return
         try:
             solution_root = _solution_root_for(root) or os.path.abspath(root)
-            cmake_root = find_cmake_root(root)
-            if cmake_root is None:
-                return
-            model = scan_project(cmake_root)
-            if not model.targets and not model.packages:
-                return
-            generate(solution_root, model)
+            models = []
+            for cmake_root in self._cmake_project_roots(root):
+                model = scan_project(cmake_root)
+                if model.targets or model.include_dirs or model.packages:
+                    models.append(model)
+                self._refresh_external_build(cmake_root)
+            if models:
+                result = generate_many(solution_root, models)
+                logger.info(
+                    "cmake database refreshed: %d entries at %s",
+                    result.get("entries", 0),
+                    result.get("compile_commands", ""),
+                )
         except Exception as exc:
             logger.debug("cmake generate failed: %s", exc)
+
+    def _refresh_external_build(self, cmake_root: str) -> None:
+        """Export ``compile_commands.json`` from a configured build tree.
+
+        Args:
+            cmake_root: Directory holding the project's ``CMakeLists.txt``.
+        """
+        try:
+            from editor.Ironica.plugins.cmake.cmake import builddb
+
+            build_dir = builddb.find_build_directory(cmake_root)
+            if build_dir:
+                builddb.ensure_compile_commands(cmake_root, build_dir)
+        except Exception as exc:
+            logger.debug("cmake build export skipped for %s: %s", cmake_root, exc)
+
+    @staticmethod
+    def _cmake_project_roots(root: str) -> list:
+        """Return directories under *root* that declare a CMake project.
+
+        Args:
+            root: Workspace root to walk.
+
+        Returns:
+            Topmost absolute project directories containing ``CMakeLists.txt``
+            (bounded); nested ``add_subdirectory`` projects are folded into
+            their owning root.
+        """
+        found: list = []
+        try:
+            for current, directories, files in os.walk(root):
+                directories[:] = [
+                    item for item in directories if item not in DEFAULT_EXCLUDES
+                ]
+                if "CMakeLists.txt" in files:
+                    found.append(os.path.abspath(current))
+                    if len(found) >= 50:
+                        break
+        except Exception as exc:
+            logger.debug("cmake project discovery failed: %s", exc)
+        roots: list = []
+        for candidate in sorted(found, key=lambda item: item.count(os.sep)):
+            if any(
+                candidate.startswith(root_path + os.sep)
+                for root_path in roots
+            ):
+                continue
+            roots.append(candidate)
+        return roots
 
     def _collect_files(self, root: str) -> list:
         """List indexable C/C++ files under *root*, honouring excludes."""
