@@ -8,25 +8,27 @@ from __future__ import annotations
 import functools
 import os
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 
 from editor.utils.solution.paths import cpp_symbol_index_path, is_solution
 
+
+@functools.lru_cache(maxsize=16)
 def _load_sql(filename: str) -> str:
     """Read a .sql file relative to this module's directory."""
-    base = os.path.dirname(__file__)  # editor/Ironica/plugins/cpp/intellisense
+    base = os.path.dirname(__file__)
     path = os.path.join(base, "queries", filename)
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 
 SCHEMA_VERSION = 1
-_SCHEMA = _load_sql('schema.sql')
+_SCHEMA = _load_sql("schema.sql")
 
 PREDICATE_BASE_OF = "base_of"
 PREDICATE_OVERRIDDEN_BY = "overridden_by"
-
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,9 @@ class SymbolIndex:
         """Bind this index to workspace *root*."""
         self.root = os.path.abspath(root)
         self.path = cpp_symbol_index_path(self.root)
+        self._cache_epoch = 0
+        self._query_cache: dict[tuple, list] = {}
+        self._cache_lock = threading.Lock()
 
     def exists(self) -> bool:
         """Return ``True`` when the database file is present."""
@@ -160,6 +165,7 @@ class SymbolIndex:
                 entries.items(),
             )
             connection.commit()
+            self._invalidate_cache()
         except sqlite3.DatabaseError:
             connection.rollback()
         finally:
@@ -222,6 +228,7 @@ class SymbolIndex:
                 (path, data.mtime_ns, data.size, data.args_digest),
             )
             connection.commit()
+            self._invalidate_cache()
             return True
         except sqlite3.DatabaseError:
             connection.rollback()
@@ -243,6 +250,7 @@ class SymbolIndex:
             connection.execute("DELETE FROM refs WHERE file = ?", (absolute,))
             connection.execute("DELETE FROM files WHERE path = ?", (absolute,))
             connection.commit()
+            self._invalidate_cache()
         except sqlite3.DatabaseError:
             connection.rollback()
         finally:
@@ -268,6 +276,8 @@ class SymbolIndex:
                 connection.execute("DELETE FROM files WHERE path = ?", (path,))
                 removed += 1
             connection.commit()
+            if removed:
+                self._invalidate_cache()
         except sqlite3.DatabaseError:
             connection.rollback()
             return 0
@@ -277,34 +287,35 @@ class SymbolIndex:
 
     def definitions(self, usr: str) -> list[IndexedSymbol]:
         """Return definition locations for *usr*."""
-        return self._locations(usr, definition=True)
+        return self._query_from_file("definitions.sql", (usr,))
 
     def declarations(self, usr: str) -> list[IndexedSymbol]:
         """Return declaration locations for *usr*."""
-        return self._locations(usr, definition=False)
+        return self._query_from_file("declarations.sql", (usr,))
 
     def overrides(self, usr: str) -> list[IndexedSymbol]:
         """Return definitions of methods overriding *usr*."""
-        subjects = self._relation_objects(usr, PREDICATE_OVERRIDDEN_BY)
-        return self._locations_for_usrs(subjects, definitions_first=True)
+        return self._query_from_file(
+            "overrides.sql", (usr, PREDICATE_OVERRIDDEN_BY)
+        )
 
     def derived_types(self, usr: str) -> list[IndexedSymbol]:
         """Return definitions of classes derived from *usr*."""
-        subjects = self._relation_objects(usr, PREDICATE_BASE_OF)
+        subjects = self._relation_subjects(usr, PREDICATE_BASE_OF)
         return self._locations_for_usrs(subjects, definitions_first=True)
 
     def references(self, usr: str) -> list[IndexedReference]:
         """Return stored project references to *usr*."""
+        cache_key = ("references.sql", (usr,), self._cache_epoch)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return list(cached)
         connection = self._read_connect()
         if connection is None:
             return []
         try:
-            rows = connection.execute(
-                "SELECT file, line, col, kind FROM refs "
-                "WHERE usr = ? ORDER BY file, line, col",
-                (usr,),
-            )
-            return [
+            rows = connection.execute(_load_sql("references.sql"), (usr,))
+            references = [
                 IndexedReference(
                     usr=usr,
                     line=int(row[1]),
@@ -317,6 +328,8 @@ class SymbolIndex:
             return []
         finally:
             connection.close()
+        self._cache_put(cache_key, references)
+        return references
 
     def reference_locations(self, usr: str) -> list[tuple[str, int, int]]:
         """Return ``(file, line, col)`` tuples for references to *usr*."""
@@ -352,25 +365,42 @@ class SymbolIndex:
         finally:
             connection.close()
 
-    def _locations(self, usr: str, definition: bool) -> list[IndexedSymbol]:
-        """Return indexed locations for *usr* filtered by definition state."""
+    def _query_from_file(self, filename: str, params: tuple) -> list[IndexedSymbol]:
+        """Run one symbol query file and cache the parsed rows."""
+        cache_key = (filename, params, self._cache_epoch)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return list(cached)
         connection = self._read_connect()
         if connection is None:
             return []
         try:
-            rows = connection.execute(
-                "SELECT usr, cursor_kind, kind, name, qualname, file, line, col, "
-                "end_line, end_col, is_definition, is_virtual, is_constructor, "
-                "parent_usr FROM symbols "
-                "WHERE usr = ? AND is_definition = ? "
-                "ORDER BY file, line, col",
-                (usr, int(definition)),
-            )
-            return [self._symbol_from_row(row) for row in rows]
+            rows = connection.execute(_load_sql(filename), params)
+            symbols = [self._symbol_from_row(row) for row in rows]
         except sqlite3.DatabaseError:
             return []
         finally:
             connection.close()
+        self._cache_put(cache_key, symbols)
+        return symbols
+
+    def _cache_get(self, key: tuple) -> list | None:
+        """Return a cached result when the index epoch still matches."""
+        with self._cache_lock:
+            return self._query_cache.get(key)
+
+    def _cache_put(self, key: tuple, value: list) -> None:
+        """Store a query result in the bounded per-instance cache."""
+        with self._cache_lock:
+            if len(self._query_cache) >= 256:
+                self._query_cache.clear()
+            self._query_cache[key] = list(value)
+
+    def _invalidate_cache(self) -> None:
+        """Discard cached query results after an index mutation."""
+        with self._cache_lock:
+            self._cache_epoch += 1
+            self._query_cache.clear()
 
     def _locations_for_usrs(
         self, usrs: list[str], definitions_first: bool = False
@@ -406,15 +436,15 @@ class SymbolIndex:
         finally:
             connection.close()
 
-    def _relation_objects(self, usr: str, predicate: str) -> list[str]:
-        """Return object USRs for one relation predicate."""
+    def _relation_subjects(self, usr: str, predicate: str) -> list[str]:
+        """Return subject USRs whose relation object is *usr*."""
         connection = self._read_connect()
         if connection is None:
             return []
         try:
             rows = connection.execute(
-                "SELECT DISTINCT object_usr FROM relations "
-                "WHERE subject_usr = ? AND predicate = ?",
+                "SELECT DISTINCT subject_usr FROM relations "
+                "WHERE object_usr = ? AND predicate = ?",
                 (usr, predicate),
             )
             return [str(row[0]) for row in rows]
@@ -474,6 +504,7 @@ class SymbolIndex:
 
     def _remove_files(self) -> None:
         """Delete the database and its WAL sidecars."""
+        self._invalidate_cache()
         for suffix in ("", "-wal", "-shm"):
             try:
                 os.remove(self.path + suffix)

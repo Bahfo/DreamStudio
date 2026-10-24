@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-import os
 import json
+import logging
+import os
 import re
 import shlex
-import logging
-
-from pathlib import Path
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterator, Optional, Sequence
 
 from clang import cindex
 from clang.cindex import Cursor, CursorKind, Index, TranslationUnit
 
-from ..intellisense.engine import CppEngine
-from ..models import CppContext
 from ..intellisense import args as cpp_args
+from ..intellisense.engine import CppEngine
+from ..intellisense.symbol_index import SymbolIndex
+from ..models import CppContext
 
 logger = logging.getLogger("DreamStudio.CPP.Navigation")
 
@@ -94,6 +95,16 @@ class NavigationEngine:
             tuple[str, tuple[str, ...], int, tuple[str, int]],
             tuple[Index, TranslationUnit],
         ] = {}
+        self._symbol_index = None  # type: SymbolIndex | None
+
+    def set_symbol_index(self, symbol_index: SymbolIndex) -> None:
+        """
+        Attach a SymbolIndex for fast navigation queries.
+
+        Args:
+            symbol_index: Index facade owned by the current solution.
+        """
+        self._symbol_index = symbol_index
 
     def _active_translation_unit(
         self, ctx: CppContext
@@ -388,6 +399,40 @@ class NavigationEngine:
             return []
         return [NavigationResult(path, 0, 0, Path(path).name, "include")]
 
+    def _query_symbol_index(self, usr: str, action: str) -> list[NavigationResult]:
+        """Query the SymbolIndex for navigation results if available and ready."""
+        if self._symbol_index is None or not self._symbol_index.is_ready():
+            return []
+        try:
+            if action == "definition":
+                symbols = self._symbol_index.definitions(usr)
+            elif action == "declaration":
+                symbols = self._symbol_index.declarations(usr)
+            elif action == "implementation":
+                symbols = list(self._symbol_index.definitions(usr))
+                seen = {(item.file, item.line, item.col) for item in symbols}
+                for override in self._symbol_index.overrides(usr):
+                    key = (override.file, override.line, override.col)
+                    if key not in seen:
+                        seen.add(key)
+                        symbols.append(override)
+            elif action == "reference":
+                refs = self._symbol_index.reference_locations(usr)
+                return [
+                    NavigationResult(path, line, col, "reference", "reference")
+                    for path, line, col in refs
+                ]
+            else:
+                return []
+
+            return [
+                NavigationResult(s.file, s.line, s.col, s.name, action)
+                for s in symbols
+            ]
+        except Exception as exc:
+            logger.debug("SymbolIndex query failed for %s: %s", action, exc)
+            return []
+
     def get_definition(self, ctx: CppContext) -> list[NavigationResult]:
         symbol = self.resolve_at(ctx)
         if symbol is None:
@@ -395,13 +440,19 @@ class NavigationEngine:
         if symbol.cursor.kind == getattr(CursorKind, "INCLUSION_DIRECTIVE", None):
             return self._include_result(symbol.cursor)
 
+        target_usr = self._usr(symbol.canonical_cursor) or self._usr(symbol.cursor)
+        if target_usr:
+            idx_results = self._query_symbol_index(target_usr, "definition")
+            if idx_results:
+                return idx_results
+
         direct = self._get_definition_cursor(symbol.canonical_cursor)
         if self._valid(direct):
             result = self._result(direct, "definition")
             if result:
                 return [result]
 
-        return self._find_in_units(ctx, symbol, "definition")
+        return self._find_in_units(ctx, symbol, "definition", deadline=time.monotonic() + 4.0)
 
     def get_declaration(self, ctx: CppContext) -> list[NavigationResult]:
         symbol = self.resolve_at(ctx)
@@ -410,13 +461,19 @@ class NavigationEngine:
         if symbol.cursor.kind == getattr(CursorKind, "INCLUSION_DIRECTIVE", None):
             return self._include_result(symbol.cursor)
 
+        target_usr = self._usr(symbol.canonical_cursor) or self._usr(symbol.cursor)
+        if target_usr:
+            idx_results = self._query_symbol_index(target_usr, "declaration")
+            if idx_results:
+                return idx_results
+
         direct = symbol.canonical_cursor
         if self._valid(direct) and not self._is_definition(direct):
             result = self._result(direct, "declaration")
             if result:
                 return [result]
 
-        return self._find_in_units(ctx, symbol, "declaration")
+        return self._find_in_units(ctx, symbol, "declaration", deadline=time.monotonic() + 4.0)
 
     def get_implementation(self, ctx: CppContext) -> list[NavigationResult]:
         symbol = self.resolve_at(ctx)
@@ -424,7 +481,14 @@ class NavigationEngine:
             CursorKind, "INCLUSION_DIRECTIVE", None
         ):
             return []
-        return self._find_in_units(ctx, symbol, "implementation")
+
+        target_usr = self._usr(symbol.canonical_cursor) or self._usr(symbol.cursor)
+        if target_usr:
+            idx_results = self._query_symbol_index(target_usr, "implementation")
+            if idx_results:
+                return idx_results
+
+        return self._find_in_units(ctx, symbol, "implementation", deadline=time.monotonic() + 4.0)
 
     def get_references(self, ctx: CppContext) -> list[NavigationResult]:
         symbol = self.resolve_at(ctx)
@@ -432,7 +496,14 @@ class NavigationEngine:
             CursorKind, "INCLUSION_DIRECTIVE", None
         ):
             return []
-        return self._find_in_units(ctx, symbol, "reference")
+
+        target_usr = self._usr(symbol.canonical_cursor) or self._usr(symbol.cursor)
+        if target_usr:
+            idx_results = self._query_symbol_index(target_usr, "reference")
+            if idx_results:
+                return idx_results
+
+        return self._find_in_units(ctx, symbol, "reference", deadline=time.monotonic() + 4.0)
 
     @staticmethod
     def _is_definition(cursor: Cursor) -> bool:
@@ -449,7 +520,7 @@ class NavigationEngine:
             return
 
     def _find_in_units(
-        self, ctx: CppContext, symbol: SymbolContext, mode: str
+        self, ctx: CppContext, symbol: SymbolContext, mode: str, deadline: float | None = None
     ) -> list[NavigationResult]:
         target = symbol.canonical_cursor
         target_usr = self._usr(target) or self._usr(symbol.cursor)
@@ -470,7 +541,12 @@ class NavigationEngine:
                 seen.add(key)
                 results.append(result)
 
+        def check_deadline() -> bool:
+            return deadline is not None and time.monotonic() >= deadline
+
         for cursor in self._cursors(active_tu):
+            if check_deadline():
+                break
             if mode == "reference":
                 referenced = self._safe_cursor(cursor, "referenced")
                 matches = self._usr(referenced) == target_usr
@@ -502,6 +578,8 @@ class NavigationEngine:
         for candidate_path, working_directory, arguments in self._compile_commands(
             active_path
         ).values():
+            if check_deadline():
+                break
             if self._normalise_path(candidate_path) == active_path:
                 continue
             tu = self._parse_translation_unit(
@@ -511,6 +589,8 @@ class NavigationEngine:
                 continue
 
             for cursor in self._cursors(tu):
+                if check_deadline():
+                    break
                 if mode == "reference":
                     referenced = self._safe_cursor(cursor, "referenced")
                     if self._usr(referenced) == target_usr:
@@ -543,6 +623,8 @@ class NavigationEngine:
         # Fallback: search in project source files when compile_commands.json is not available
         project_files = self._find_project_files(active_path)
         for candidate_path in project_files:
+            if check_deadline():
+                break
             if self._normalise_path(candidate_path) == active_path:
                 continue
             tu = self._parse_project_file(candidate_path, ctx, active_path)
@@ -550,6 +632,8 @@ class NavigationEngine:
                 continue
 
             for cursor in self._cursors(tu):
+                if check_deadline():
+                    break
                 if mode == "reference":
                     referenced = self._safe_cursor(cursor, "referenced")
                     if self._usr(referenced) == target_usr:

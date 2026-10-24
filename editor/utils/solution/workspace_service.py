@@ -1,6 +1,7 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Central workspace/solution service that tracks the active project path and re-points every path-dependent subsystem of the IDE when it changes.
+Central workspace/solution service that tracks the active project path and
+re-points every path-dependent subsystem of the IDE when it changes.
 """
 
 from editor import *

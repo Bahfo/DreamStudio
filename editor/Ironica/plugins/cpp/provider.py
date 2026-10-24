@@ -9,16 +9,18 @@ import logging
 
 from editor.Ironica.language_engine import BaseLanguageProvider
 
-logger = logging.getLogger("DreamStudio.Cpp.Provider")
-
-from .models import CppContext
-from .intellisense import args as cpp_args
-from .intellisense import CppEngine
 from .autocompletion import (
-    classify,
     CppCompletionManager,
+    classify,
 )
+from .intellisense import CppEngine
+from .intellisense import args as cpp_args
+from .intellisense.symbol_index import SymbolIndex, symbol_index_for_path
+from .models import CppContext
 from .navigation import NavigationEngine, NavigationResult
+from .navigation.service import NavigationManager, create_navigation_manager
+
+logger = logging.getLogger("DreamStudio.Cpp.Provider")
 
 
 class CppProvider(BaseLanguageProvider):
@@ -40,6 +42,7 @@ class CppProvider(BaseLanguageProvider):
         self._fold_engine = None
         self._highlight_cache = None
         self._nav_engine_instance: NavigationEngine | None = None
+        self._navigation_manager: NavigationManager | None = None
 
     def get_semantic_highlights(
         self, text: str, theme_name: str | None = None,
@@ -101,10 +104,6 @@ class CppProvider(BaseLanguageProvider):
 
     def get_hover_hint(self, text, line, col):
         """Return an HTML hover tooltip for the symbol at the cursor."""
-        return None
-
-    def get_definition_location(self, text, line, col):
-        """Return ``(file_path, line, col)`` for the symbol at the cursor."""
         return None
 
     def format_source(self, source_code):
@@ -254,11 +253,34 @@ class CppProvider(BaseLanguageProvider):
 
         return CppEngine(shared_index=self._shared_index)
 
-    def _nav_engine(self) -> NavigationEngine:
-        """Get or create the navigation engine."""
+    def _nav_engine(self, file_path: str | None = None) -> NavigationEngine:
+        """Get or create the navigation engine for *file_path*."""
         if self._nav_engine_instance is None:
             self._nav_engine_instance = NavigationEngine(self._make_engine())
+        symbol_index = self._get_symbol_index(file_path)
+        if symbol_index is not None:
+            self._nav_engine_instance.set_symbol_index(symbol_index)
         return self._nav_engine_instance
+
+    def _get_symbol_index(self, file_path: str | None = None) -> SymbolIndex | None:
+        """Get the SymbolIndex for *file_path* or the current file."""
+        path = file_path or self._file_path
+        if not path:
+            return None
+        return symbol_index_for_path(path)
+
+    def get_symbol_index(self, file_path: str | None = None) -> SymbolIndex | None:
+        """
+        Return the SymbolIndex that owns *file_path*.
+
+        Args:
+            file_path: File used to locate the owning solution. When omitted,
+                the provider's most recently opened file is used.
+
+        Returns:
+            The ready symbol index facade, or ``None`` when unavailable.
+        """
+        return self._get_symbol_index(file_path)
 
     def _create_context(self, text: str, line: int, col: int, file_path: str | None = None) -> CppContext:
         """Create a CppContext for navigation."""
@@ -271,44 +293,72 @@ class CppProvider(BaseLanguageProvider):
         )
 
     def _results_to_locations(self, results: list[NavigationResult]) -> list[tuple]:
-        """Convert NavigationResult list to location tuples."""
-        return [(r.file_path, r.line - 1, r.col - 1) for r in results]
+        """Convert NavigationResult list to zero-based location tuples."""
+        return [(r.file_path, r.line, r.col) for r in results]
 
-    def get_definition_location(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+    def get_definition_location(
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: str | None = None,
+        project_root: str | None = None,
+    ) -> list[tuple]:
         """Return list of (file_path, line, col) for the symbol's definition(s)."""
         ctx = self._create_context(text, line, col, file_path)
         try:
-            results = self._nav_engine().get_definition(ctx)
+            results = self._nav_engine(file_path).get_definition(ctx)
             return self._results_to_locations(results)
         except Exception as exc:
             logger.debug("get_definition_location failed: %s", exc)
             return []
 
-    def get_declaration_location(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+    def get_declaration_location(
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: str | None = None,
+        project_root: str | None = None,
+    ) -> list[tuple]:
         """Return list of (file_path, line, col) for the symbol's declaration(s)."""
         ctx = self._create_context(text, line, col, file_path)
         try:
-            results = self._nav_engine().get_declaration(ctx)
+            results = self._nav_engine(file_path).get_declaration(ctx)
             return self._results_to_locations(results)
         except Exception as exc:
             logger.debug("get_declaration_location failed: %s", exc)
             return []
 
-    def get_implementation_location(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+    def get_implementation_location(
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: str | None = None,
+        project_root: str | None = None,
+    ) -> list[tuple]:
         """Return list of (file_path, line, col) for the symbol's implementation(s)."""
         ctx = self._create_context(text, line, col, file_path)
         try:
-            results = self._nav_engine().get_implementation(ctx)
+            results = self._nav_engine(file_path).get_implementation(ctx)
             return self._results_to_locations(results)
         except Exception as exc:
             logger.debug("get_implementation_location failed: %s", exc)
             return []
 
-    def get_references(self, text: str, line: int, col: int, file_path: str | None = None, project_root: str | None = None) -> list[tuple]:
+    def get_references(
+        self,
+        text: str,
+        line: int,
+        col: int,
+        file_path: str | None = None,
+        project_root: str | None = None,
+    ) -> list[tuple]:
         """Return list of (file_path, line, col) for the symbol's reference(s)."""
         ctx = self._create_context(text, line, col, file_path)
         try:
-            results = self._nav_engine().get_references(ctx)
+            results = self._nav_engine(file_path).get_references(ctx)
             return self._results_to_locations(results)
         except Exception as exc:
             logger.debug("get_references failed: %s", exc)
@@ -317,7 +367,8 @@ class CppProvider(BaseLanguageProvider):
     def create_completion_manager(self, editor, file_path, parent):
         """Called by tab_editor.py:597."""
 
-        # NOTE: assign unconditionally — keeping the previous value for a
+        # NOTE: assign unconditionally so the most recently opened editor
+        # provides the fallback path for callers that omit file_path.
         self._file_path = file_path or None
         engine = CppEngine(
             shared_index=self._shared_index,
@@ -328,10 +379,58 @@ class CppProvider(BaseLanguageProvider):
         self._completion_manager = CppCompletionManager(
             editor=editor, engine=engine, file_path=file_path, parent=parent
         )
+        self._replace_navigation_manager(editor, file_path, parent)
         return self._completion_manager
 
-@property
-def completion_manager(self):
+    def create_navigation_manager(
+        self, editor, file_path: str | None, parent
+    ) -> NavigationManager:
+        """Create an async navigation manager for the given editor."""
+        return self._replace_navigation_manager(editor, file_path, parent)
+
+    def _replace_navigation_manager(
+        self, editor, file_path: str | None, parent
+    ) -> NavigationManager:
+        """Replace any previous manager so editor threads do not leak."""
+        previous = getattr(editor, "_navigation_manager", None)
+        if previous is not None and hasattr(previous, "shutdown"):
+            previous.shutdown()
+        manager = create_navigation_manager(editor, file_path, parent, provider=self)
+        editor._navigation_manager = manager
+        handler = getattr(editor, "_on_navigation_ready", None)
+        if callable(handler):
+            manager.navigation_ready.connect(handler)
+        self._navigation_manager = manager
+        return manager
+
+    def request_navigation(
+        self,
+        action: str,
+        text: str,
+        line: int,
+        col: int,
+        file_path: str | None = None,
+    ) -> bool:
+        """Queue an async navigation request for the most recent editor."""
+        manager = self._navigation_manager
+        if manager is None:
+            return False
+        return manager.request(action, text, line, col, file_path)
+
+    def on_file_saved(self, file_path: str) -> None:
+        """
+        Called when a C++ file is saved.  Triggers incremental index update.
+        """
+        try:
+            from .intellisense.index import get_cpp_indexer
+
+            indexer = get_cpp_indexer()
+            indexer.note_saved(file_path)
+        except Exception as exc:
+            logger.debug("on_file_saved failed for %s: %s", file_path, exc)
+
+    @property
+    def completion_manager(self):
         """Return the most recently created per-editor completion manager."""
         return self._completion_manager
 

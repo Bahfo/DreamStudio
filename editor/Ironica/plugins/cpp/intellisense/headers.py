@@ -25,14 +25,31 @@ def _project_root_for(file_path: str | None) -> str:
             return os.path.abspath(os.sep)
         except Exception:
             return ""
+    try:
+        from editor.utils.solution.paths import is_solution
+    except Exception:
+        pass
+    else:
+        current = os.path.abspath(file_path)
+        if os.path.isfile(current):
+            current = os.path.dirname(current)
+        while True:
+            if is_solution(current):
+                return current
+            parent = os.path.dirname(current)
+            if parent == current:
+                break
+            current = parent
+    # Fallback: look for common project markers
     current = os.path.abspath(file_path)
     if os.path.isfile(current):
         current = os.path.dirname(current)
     while True:
-        if os.path.isfile(os.path.join(current, "CMakeLists.txt")) or \
-           os.path.isfile(os.path.join(current, "compile_commands.json")) or \
-           os.path.isdir(os.path.join(current, ".git")) or \
-           os.path.isdir(os.path.join(current, ".ds")):
+        if (
+            os.path.isfile(os.path.join(current, "CMakeLists.txt"))
+            or os.path.isfile(os.path.join(current, "compile_commands.json"))
+            or os.path.isdir(os.path.join(current, ".git"))
+        ):
             return current
         parent = os.path.dirname(current)
         if parent == current:

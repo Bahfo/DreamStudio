@@ -19,11 +19,22 @@ _MAX_HEADERS = 2000
 _INDEX_VERSION = 3
 
 
+def _dreamstudio_home() -> str:
+    """Return the configured DreamStudio home directory."""
+    override = os.environ.get("DREAMSTUDIO_HOME")
+    if override:
+        return os.path.abspath(os.path.expanduser(override))
+    return os.path.join(Path.home(), ".dreamstudio")
+
+
 def _store_root() -> str:
     """Return the per-machine system-index directory (uncreated)."""
-    return os.path.join(
-        Path.home(), ".dreamstudio", "cpp-sysindex", _roots_hash()
-    )
+    override = os.environ.get("DREAMSTUDIO_SYSINDEX_DIR")
+    if override:
+        base = os.path.abspath(os.path.expanduser(override))
+    else:
+        base = os.path.join(_dreamstudio_home(), "cpp-sysindex")
+    return os.path.join(base, _roots_hash())
 
 
 def _roots_hash() -> str:

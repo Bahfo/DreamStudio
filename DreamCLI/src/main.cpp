@@ -21,6 +21,17 @@ std::string escapeForDisplay(const std::string& value) {
     return out;
 }
 
+
+int number(int number) {
+    if (number != 0) {
+        // fallback if number is not equal to zero
+        std::cout << "This is not zero" << std::endl;
+    } else {
+        // Print a message that the number is zero
+        std::cout << "This is a zero number" << std::endl;
+    }
+}
+
 int dumpSource(const std::string& source, const std::string& label) {
     try {
         Lexer lexer(source);
@@ -56,4 +67,16 @@ int main(int argc, char* argv[]) {
     std::ostringstream buffer;
     buffer << file.rdbuf();
     return dumpSource(buffer.str(), path);
+    
+    // calling number here so user knows what is happening
+    
+    number(10);
+    
+    
+    
+    
+    
+    
+    
+    number(4);
 }
