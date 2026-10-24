@@ -33,6 +33,13 @@ class CodeEditor(QsciScintilla):
 
     _INDENTATION_SPACING = 4
 
+    _NAVIGATION_LABELS = {
+        "definition": "Go to Definition",
+        "declaration": "Go to Declaration",
+        "implementation": "Go to Implementation",
+        "reference": "Find References",
+    }
+
     BRACKET_HL_SLOT = 16
     BRACKET_BAD_SLOT = 17
 
@@ -76,6 +83,7 @@ class CodeEditor(QsciScintilla):
         self._lexer = None
         self._parent = _parent
         self.current_file_path = None
+        self._navigation_manager = None
         self._font_size = 10
         self._is_dirty = False
         self._diagnostic_ranges: list = []
@@ -1627,6 +1635,38 @@ class CodeEditor(QsciScintilla):
 
         return hex_str.upper() if is_uppercase else hex_str
 
+    def _request_async_navigation(
+        self, action: str, line: int, col: int, file_path: str | None
+    ) -> bool:
+        """Queue an async navigation request for this editor when available."""
+        manager = getattr(self, "_navigation_manager", None)
+        provider = getattr(self, "current_provider", None)
+        if manager is None or provider is None:
+            return False
+        if getattr(manager, "provider", None) is not provider:
+            return False
+        try:
+            return bool(manager.request(action, self.text(), line, col, file_path))
+        except Exception as exc:
+            logger.debug("Async %s request failed: %s", action, exc)
+            return False
+
+    def _on_navigation_ready(
+        self,
+        request_id: int,
+        action: str,
+        targets: list,
+        line: int,
+        file_path: str,
+    ) -> None:
+        """Handle completed async navigation results from the worker thread."""
+        if not targets:
+            if action != "reference":
+                label = self._NAVIGATION_LABELS.get(action, "Navigation")
+                self._show_navigation_failure(label, file_path)
+            return
+        self._navigate_to_targets(targets, line, file_path)
+
     def execute_goto_definition(self, line: int = None, col: int = None) -> None:
         """Resolve the symbol under the cursor and navigate to its definition."""
         self._dismiss_hover_flyout(force=True)
@@ -1650,6 +1690,9 @@ class CodeEditor(QsciScintilla):
                 project_root = get_workspace_dir(self) or None
             except Exception:
                 project_root = None
+
+            if self._request_async_navigation("definition", line, col, file_path):
+                return
 
             targets = []
             try:
@@ -1693,6 +1736,9 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 project_root = None
 
+            if self._request_async_navigation("declaration", line, col, file_path):
+                return
+
             targets = []
             try:
                 targets = self.current_provider.get_declaration_location(
@@ -1735,6 +1781,9 @@ class CodeEditor(QsciScintilla):
             except Exception:
                 project_root = None
 
+            if self._request_async_navigation("implementation", line, col, file_path):
+                return
+
             targets = []
             try:
                 targets = self.current_provider.get_implementation_location(
@@ -1776,6 +1825,9 @@ class CodeEditor(QsciScintilla):
                 project_root = get_workspace_dir(self) or None
             except Exception:
                 project_root = None
+
+            if self._request_async_navigation("reference", line, col, file_path):
+                return
 
             targets = []
             try:
@@ -2212,10 +2264,23 @@ class CodeEditor(QsciScintilla):
                     get_status_service().request_scan("editor:save")
             except Exception:
                 pass
+            # Notify provider of successful save (for incremental indexing)
+            self._notify_provider_file_saved(file_path)
             return True
         except OSError as exc:
             logger.error("Save failed for %s: %s", file_path, exc)
             return False
+
+    def _notify_provider_file_saved(self, file_path: str) -> None:
+        """Notify the current provider that a file was saved (for incremental indexing)."""
+        provider = getattr(self, "current_provider", None)
+        if provider is not None:
+            hook = getattr(provider, "on_file_saved", None)
+            if callable(hook):
+                try:
+                    hook(file_path)
+                except Exception as exc:
+                    logger.debug("Provider on_file_saved hook failed: %s", exc)
 
     def copy_selection_as_plain_text(self) -> None:
         """Copy the current selection to the system clipboard as plain text."""

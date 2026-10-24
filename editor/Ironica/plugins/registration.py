@@ -31,7 +31,12 @@ _IRONICA_DIR = _get_ironica_dir()
 _KEYWORDS_DIR = os.path.join(_IRONICA_DIR, "keywords")
 _PLUGINS_PKG_DIR = os.path.dirname(__file__)
 
-_DREAMSTUDIO_HOME = Path.home() / ".dreamstudio"
+_HOME_OVERRIDE = os.environ.get("DREAMSTUDIO_HOME")
+_DREAMSTUDIO_HOME = (
+    Path(_HOME_OVERRIDE).expanduser()
+    if _HOME_OVERRIDE
+    else Path.home() / ".dreamstudio"
+)
 _USER_PLUGINS_DIR = _DREAMSTUDIO_HOME / "plugins" / "packages"
 _PLUGINS_JSON_PATH = _DREAMSTUDIO_HOME / "plugins" / "plugins.json"
 

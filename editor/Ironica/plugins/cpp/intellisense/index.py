@@ -26,6 +26,7 @@ from .symbol_index import (
     PREDICATE_BASE_OF,
     PREDICATE_OVERRIDDEN_BY,
     SymbolIndex,
+    symbol_index_for_root,
 )
 
 logger = logging.getLogger("DreamStudio.Cpp.Indexer")
@@ -454,8 +455,13 @@ class CppIndexer(QObject):
     def _symbol_index(self, root: str) -> SymbolIndex | None:
         """Return an initialized symbol index for the solution owning *root*."""
         try:
-            solution_root = _solution_root_for(root) or os.path.abspath(root)
-            symbol_index = SymbolIndex(solution_root)
+            solution_root = _solution_root_for(root)
+            if solution_root:
+                # Share the process-wide facade so navigation sees cache
+                # invalidations performed by the indexer.
+                symbol_index = symbol_index_for_root(solution_root)
+            else:
+                symbol_index = SymbolIndex(os.path.abspath(root))
             if symbol_index.initialize():
                 return symbol_index
         except Exception as exc:
@@ -795,9 +801,109 @@ class CppIndexer(QObject):
     def _overridden_cursors(cursor) -> list:
         """Return base methods overridden by *cursor*."""
         try:
-            return list(cursor.get_overridden_cursors())
+            getter = getattr(cursor, "get_overridden_cursors", None)
+            if getter is not None:
+                return list(getter())
+        except Exception:
+            pass
+        try:
+            return CppIndexer._fallback_overridden_cursors(cursor)
         except Exception:
             return []
+
+    @staticmethod
+    def _fallback_overridden_cursors(cursor) -> list:
+        """Find overridden methods when libclang lacks the helper API."""
+        try:
+            from clang.cindex import CursorKind
+        except Exception:
+            return []
+        method_kinds = {
+            getattr(CursorKind, name)
+            for name in ("CXX_METHOD", "CXX_CONVERSION")
+            if hasattr(CursorKind, name)
+        }
+        parent = getattr(cursor, "semantic_parent", None)
+        if parent is None:
+            return []
+        matches: list = []
+        seen_methods: set[str] = set()
+        pending = CppIndexer._base_class_cursors(parent)
+        seen_classes: set[str] = set()
+        while pending and len(seen_classes) < 64:
+            current = pending.pop()
+            current_usr = CppIndexer._cursor_usr(current)
+            if not current_usr or current_usr in seen_classes:
+                continue
+            seen_classes.add(current_usr)
+            try:
+                children = list(current.get_children())
+            except Exception:
+                children = []
+            for child in children:
+                if child.kind not in method_kinds:
+                    continue
+                try:
+                    if not child.is_virtual_method():
+                        continue
+                except Exception:
+                    pass
+                if not CppIndexer._method_signature_matches(child, cursor):
+                    continue
+                child_usr = CppIndexer._cursor_usr(child)
+                if child_usr and child_usr not in seen_methods:
+                    seen_methods.add(child_usr)
+                    matches.append(child)
+            pending.extend(CppIndexer._base_class_cursors(current))
+        return matches
+
+    @staticmethod
+    def _base_class_cursors(cursor) -> list:
+        """Return direct base-class cursors for *cursor*."""
+        try:
+            from clang.cindex import CursorKind
+        except Exception:
+            return []
+        base_kind = getattr(CursorKind, "CXX_BASE_SPECIFIER", None)
+        bases: list = []
+        try:
+            children = list(cursor.get_children())
+        except Exception:
+            return bases
+        for child in children:
+            if child.kind != base_kind:
+                continue
+            base = None
+            try:
+                base = child.referenced
+            except Exception:
+                base = None
+            if base is None:
+                try:
+                    base = child.type.get_declaration()
+                except Exception:
+                    base = None
+            if base is not None:
+                bases.append(base)
+        return bases
+
+    @staticmethod
+    def _method_signature_matches(candidate, target) -> bool:
+        """Return whether two method cursors share name and signature."""
+        try:
+            if candidate.spelling != target.spelling:
+                return False
+            if candidate.is_static_method() != target.is_static_method():
+                return False
+            if candidate.is_const_method() != target.is_const_method():
+                return False
+            candidate_args = candidate.type.argument_types()
+            target_args = target.type.argument_types()
+            return [item.spelling for item in candidate_args] == [
+                item.spelling for item in target_args
+            ]
+        except Exception:
+            return False
 
     @staticmethod
     def _referenced_usr(cursor) -> str:
