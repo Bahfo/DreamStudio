@@ -12,9 +12,10 @@ import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
 
 from ..models import CppContext
+from .buffers import collect_modified_buffers
 from .engine import NavigationEngine
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class _NavigationRequest:
     line: int
     col: int
     file_path: str | None
+    unsaved_files: tuple[tuple[str, str], ...] = ()
 
 
 class _NavigationWorker(QObject):
@@ -46,7 +48,9 @@ class _NavigationWorker(QObject):
     `navigation_ready` with the request ID so the owner can discard stale results.
     """
 
-    navigation_ready = pyqtSignal(int, str, list, int, str)  # request_id, action, targets, line, file_path
+    navigation_ready = pyqtSignal(
+        int, str, list, int, str
+    )  # request_id, action, targets, line, file_path
 
     navigation_started = pyqtSignal(str)
 
@@ -67,11 +71,14 @@ class _NavigationWorker(QObject):
         line: int,
         col: int,
         file_path: str | None,
+        unsaved_files: tuple[tuple[str, str], ...] = (),
     ) -> None:
         """
         Enqueue a new navigation request.  The worker thread will pick it up.
 
-        Called from the GUI thread (via NavigationManager.request).
+        Called from the GUI thread (via NavigationManager.request).  The
+        unsaved-buffer snapshot is captured before this call so the worker
+        never touches editor widgets.
         """
         req = _NavigationRequest(
             request_id=request_id,
@@ -80,6 +87,9 @@ class _NavigationWorker(QObject):
             line=line,
             col=col,
             file_path=file_path,
+            unsaved_files=tuple(
+                (str(path), str(source)) for path, source in unsaved_files
+            ),
         )
         with self._cv:
             self._pending.clear()
@@ -124,8 +134,11 @@ class _NavigationWorker(QObject):
                     req.file_path or "",
                 )
 
-    def _execute_navigation(self, req: _NavigationRequest) -> list[tuple[str, int, int]]:
+    def _execute_navigation(
+        self, req: _NavigationRequest
+    ) -> list[tuple[str, int, int]]:
         """Execute the requested navigation action and return target locations."""
+        self._engine.set_unsaved_buffers(req.unsaved_files)
         ctx = self._make_context(req)
         if req.action == "implementation":
             results = self._engine.get_implementation(ctx)
@@ -172,7 +185,7 @@ class NavigationManager(QObject):
     immediately; results arrive via the `navigation_ready` signal.
 
     Usage:
-        manager = NavigationManager(editor, file_path, parent, provider)
+        manager = NavigationManager(editor, file_path, parent, provider, tab_editor)
         manager.navigation_ready.connect(editor._on_navigation_ready)
         manager.request("implementation", text, line, col, file_path)
     """
@@ -186,6 +199,7 @@ class NavigationManager(QObject):
         file_path: str | None = None,
         parent: QObject | None = None,
         provider: CppProvider | None = None,
+        tab_editor: QObject | None = None,
     ) -> None:
         """
         Create a navigation manager for the given editor.
@@ -195,6 +209,7 @@ class NavigationManager(QObject):
             file_path: Current file path (may be None for unsaved buffers).
             parent: Optional QObject parent (typically the editor itself).
             provider: Optional provider that owns the shared C++ index.
+            tab_editor: Optional tab editor containing all open editors.
         """
         super().__init__(parent)
         self._editor = editor
@@ -204,6 +219,7 @@ class NavigationManager(QObject):
         self._symbol_index = None
         self._worker: _NavigationWorker | None = None
         self._worker_thread: threading.Thread | None = None
+        self._tab_editor = tab_editor
 
         from ..provider import CppProvider
 
@@ -259,6 +275,23 @@ class NavigationManager(QObject):
             self._engine.set_symbol_index(index)
             self._symbol_index = index
 
+    def _snapshot_unsaved_files(self) -> tuple[tuple[str, str], ...]:
+        """Capture modified editor buffers on the GUI thread."""
+        if self._tab_editor is None:
+            return ()
+        try:
+            return collect_modified_buffers(self._tab_editor)
+        except Exception:
+            logger.warning("Could not snapshot unsaved editor buffers", exc_info=True)
+            return ()
+
+    def _on_gui_thread(self) -> bool:
+        """Return ``True`` when called from the manager's owning thread."""
+        try:
+            return QThread.currentThread() is self.thread()
+        except RuntimeError:
+            return False
+
     def request(
         self,
         action: str,
@@ -270,6 +303,9 @@ class NavigationManager(QObject):
         """
         Submit a navigation request.  Returns True if the request was
         accepted (always True unless the manager is shutting down).
+
+        The unsaved-buffer snapshot is taken here, on the GUI thread, and
+        travels with the request so the worker never reads editor widgets.
         """
         if self._worker is None or self._worker.is_shutdown():
             return False
@@ -277,11 +313,14 @@ class NavigationManager(QObject):
         if file_path is not None:
             self._file_path = file_path
         self._refresh_symbol_index()
+        unsaved_files = self._snapshot_unsaved_files()
 
         self._request_counter += 1
         req_id = self._request_counter
 
-        self._worker.process_request(req_id, action, text, line, col, self._file_path)
+        self._worker.process_request(
+            req_id, action, text, line, col, self._file_path, unsaved_files
+        )
         return True
 
     @pyqtSlot(int, str, list, int, str)
@@ -319,9 +358,17 @@ def create_navigation_manager(
     file_path: str | None = None,
     parent: QObject | None = None,
     provider: CppProvider | None = None,
+    tab_editor: QObject | None = None,
 ) -> NavigationManager:
     """
     Factory function to create a NavigationManager for the given editor.
     This is the preferred way to instantiate the manager.
+
+    Args:
+        editor: The editor instance that owns this manager.
+        file_path: Current file path (may be None for unsaved buffers).
+        parent: Optional QObject parent (typically the editor itself).
+        provider: Optional provider that owns the shared C++ index.
+        tab_editor: Optional tab editor containing all open editors.
     """
-    return NavigationManager(editor, file_path, parent, provider)
+    return NavigationManager(editor, file_path, parent, provider, tab_editor)

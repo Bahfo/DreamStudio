@@ -45,3 +45,9 @@ std::vector<string> ListFiles(const Arguments &args) {
     bool path_provided = false;
     bool options_enabled = true;
 }
+
+
+void main() {
+    GetCurrentDirectory()
+    string value;
+    std::vector<string> value;

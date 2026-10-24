@@ -1639,6 +1639,7 @@ class CodeEditor(QsciScintilla):
         self, action: str, line: int, col: int, file_path: str | None
     ) -> bool:
         """Queue an async navigation request for this editor when available."""
+        self._ensure_navigation_manager()
         manager = getattr(self, "_navigation_manager", None)
         provider = getattr(self, "current_provider", None)
         if manager is None or provider is None:
@@ -1650,6 +1651,25 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Async %s request failed: %s", action, exc)
             return False
+
+    def _ensure_navigation_manager(self) -> None:
+        """Create the C++ navigation manager when this editor has none yet."""
+        if getattr(self, "_navigation_manager", None) is not None:
+            return
+        provider = getattr(self, "current_provider", None)
+        factory = getattr(provider, "create_navigation_manager", None)
+        if not callable(factory):
+            return
+        tab_editor = getattr(self, "_parent", None)
+        try:
+            factory(
+                self,
+                self.current_file_path,
+                self,
+                tab_editor=tab_editor,
+            )
+        except Exception as exc:
+            logger.warning("Could not initialize C++ navigation manager: %s", exc)
 
     def _on_navigation_ready(
         self,
@@ -1881,8 +1901,8 @@ class CodeEditor(QsciScintilla):
                 nav_results.append(
                     NavigationResult(
                         file_path=file_path,
-                        line=target_line + 1,
-                        col=target_col + 1,
+                        line=target_line,
+                        col=target_col,
                         display_name=f"{file_path}:{target_line + 1}",
                         kind="target",
                     )
@@ -1901,11 +1921,11 @@ class CodeEditor(QsciScintilla):
         try:
             tab_widget = self._parent
             if tab_widget and hasattr(tab_widget, "open_file_at_line"):
-                tab_widget.open_file_at_line(result.file_path, result.line - 1)
+                tab_widget.open_file_at_line(result.file_path, result.line)
 
                 current_editor = tab_widget.currentWidget()
                 if current_editor and hasattr(current_editor, "setCursorPosition"):
-                    current_editor.setCursorPosition(result.line - 1, result.col - 1)
+                    current_editor.setCursorPosition(result.line, result.col)
         except Exception as exc:
             logger.debug("Navigation to result failed: %s", exc)
 
