@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -92,10 +93,11 @@ class NavigationEngine:
         self._database_cache: dict[str, dict[str, tuple[str, list[str]]]] = {}
         self._database_path_cache: dict[str, str] = {}
         self._unit_cache: dict[
-            tuple[str, tuple[str, ...], int, tuple[str, int]],
+            tuple[str, tuple[str, ...], int, tuple[str, int, str]],
             tuple[Index, TranslationUnit],
         ] = {}
         self._symbol_index = None  # type: SymbolIndex | None
+        self._unsaved_buffers: tuple[tuple[str, str], ...] = ()
 
     def set_symbol_index(self, symbol_index: SymbolIndex) -> None:
         """
@@ -106,26 +108,93 @@ class NavigationEngine:
         """
         self._symbol_index = symbol_index
 
+    def set_unsaved_buffers(self, buffers: Sequence[tuple[str, str]]) -> None:
+        """
+        Attach the GUI-thread snapshot of modified editor buffers.
+
+        Args:
+            buffers: ``(absolute_path, buffer_text)`` pairs captured before
+                the navigation request was handed to the worker thread.
+        """
+        self._unsaved_buffers = tuple(
+            (str(path), str(source)) for path, source in buffers if path
+        )
+
+    def _unsaved_snapshot(
+        self, active_path: str, active_source: str
+    ) -> list[tuple[str, str]]:
+        """
+        Return unsaved buffers with the active editor taking precedence.
+
+        Args:
+            active_path: Normalised path of the file being navigated.
+            active_source: Current text of the active editor buffer.
+
+        Returns:
+            One entry per file, ordered by normalised path, with no duplicates.
+        """
+        merged: dict[str, tuple[str, str]] = {}
+        for path, source in self._unsaved_buffers:
+            if not path:
+                continue
+            merged[self._buffer_identity(path)] = (path, source)
+        if active_path:
+            merged[self._buffer_identity(active_path)] = (
+                active_path,
+                active_source or "",
+            )
+        return [merged[key] for key in sorted(merged)]
+
+    @staticmethod
+    def _buffer_identity(path: str) -> str:
+        """Return a canonical identity used to de-duplicate buffers."""
+        try:
+            return os.path.normcase(os.path.normpath(os.path.realpath(path)))
+        except (OSError, TypeError, ValueError):
+            return str(path)
+
+    @staticmethod
+    def _unsaved_digest(unsaved: Sequence[tuple[str, str]]) -> str:
+        """Return a stable digest identifying *unsaved* inputs."""
+        digest = hashlib.blake2b(digest_size=16)
+        for path, source in unsaved:
+            digest.update(path.encode("utf-8", "surrogatepass"))
+            digest.update(b"\0")
+            digest.update(source.encode("utf-8", "surrogatepass"))
+            digest.update(b"\0")
+        return digest.hexdigest()
+
     def _active_translation_unit(
         self, ctx: CppContext
     ) -> tuple[Optional[TranslationUnit], str]:
-        try:
-            tu = self._engine._tu(ctx)
-        except Exception:
-            logger.debug("Could not obtain the active translation unit", exc_info=True)
-            tu = None
-
         path_value = getattr(ctx, "file_path", None)
+        path = self._normalise_path(path_value)
+        source = getattr(ctx, "source_code", "") or ""
+        attempted_unsaved = False
+
+        if path and self._has_extra_unsaved(path):
+            attempted_unsaved = True
+            tu = self._parse_active_with_unsaved(ctx, path, source)
+        else:
+            try:
+                tu = self._engine._tu(ctx)
+            except Exception:
+                logger.debug(
+                    "Could not obtain the active translation unit", exc_info=True
+                )
+                tu = None
+
         if not path_value and tu is not None:
             path_value = getattr(tu, "spelling", "")
-        if not path_value:
+        if not path:
+            path = self._normalise_path(path_value)
+        if not path:
             try:
-                path_value = self._engine._cache_key(ctx)
+                path = self._normalise_path(self._engine._cache_key(ctx))
             except Exception:
-                path_value = ""
-        path = self._normalise_path(path_value)
+                path = ""
 
-        if tu is None and path:
+        if tu is None and path and not attempted_unsaved:
             command = self._compile_commands(path).get(path)
             if command is not None:
                 _, working_directory, arguments = command
@@ -154,6 +223,31 @@ class NavigationEngine:
                         tu = reparsed
 
         return (tu, path) if tu is not None and path else (None, path)
+
+    def _has_extra_unsaved(self, active_path: str) -> bool:
+        """Return ``True`` when another open buffer differs from *active_path*."""
+        identity = self._buffer_identity(active_path)
+        return any(
+            self._buffer_identity(path) != identity
+            for path, _ in self._unsaved_buffers
+            if path
+        )
+
+    def _parse_active_with_unsaved(
+        self, ctx: CppContext, active_path: str, active_source: str
+    ) -> Optional[TranslationUnit]:
+        """Parse the active file with every snapshot buffer visible to libclang."""
+        command = self._compile_commands(active_path).get(active_path)
+        if command is not None:
+            _, working_directory, arguments = command
+        else:
+            working_directory = os.path.dirname(active_path)
+            arguments = list(getattr(ctx, "compile_args", []) or [])
+            if not arguments:
+                arguments = cpp_args.args_for_file(active_path, active_source)
+        return self._parse_translation_unit(
+            active_path, working_directory, arguments, ctx, active_path
+        )
 
     @staticmethod
     def _normalise_path(path: str | os.PathLike[str] | None) -> str:
@@ -426,8 +520,7 @@ class NavigationEngine:
                 return []
 
             return [
-                NavigationResult(s.file, s.line, s.col, s.name, action)
-                for s in symbols
+                NavigationResult(s.file, s.line, s.col, s.name, action) for s in symbols
             ]
         except Exception as exc:
             logger.debug("SymbolIndex query failed for %s: %s", action, exc)
@@ -452,7 +545,9 @@ class NavigationEngine:
             if result:
                 return [result]
 
-        return self._find_in_units(ctx, symbol, "definition", deadline=time.monotonic() + 4.0)
+        return self._find_in_units(
+            ctx, symbol, "definition", deadline=time.monotonic() + 4.0
+        )
 
     def get_declaration(self, ctx: CppContext) -> list[NavigationResult]:
         symbol = self.resolve_at(ctx)
@@ -473,7 +568,9 @@ class NavigationEngine:
             if result:
                 return [result]
 
-        return self._find_in_units(ctx, symbol, "declaration", deadline=time.monotonic() + 4.0)
+        return self._find_in_units(
+            ctx, symbol, "declaration", deadline=time.monotonic() + 4.0
+        )
 
     def get_implementation(self, ctx: CppContext) -> list[NavigationResult]:
         symbol = self.resolve_at(ctx)
@@ -488,7 +585,9 @@ class NavigationEngine:
             if idx_results:
                 return idx_results
 
-        return self._find_in_units(ctx, symbol, "implementation", deadline=time.monotonic() + 4.0)
+        return self._find_in_units(
+            ctx, symbol, "implementation", deadline=time.monotonic() + 4.0
+        )
 
     def get_references(self, ctx: CppContext) -> list[NavigationResult]:
         symbol = self.resolve_at(ctx)
@@ -503,7 +602,9 @@ class NavigationEngine:
             if idx_results:
                 return idx_results
 
-        return self._find_in_units(ctx, symbol, "reference", deadline=time.monotonic() + 4.0)
+        return self._find_in_units(
+            ctx, symbol, "reference", deadline=time.monotonic() + 4.0
+        )
 
     @staticmethod
     def _is_definition(cursor: Cursor) -> bool:
@@ -520,7 +621,11 @@ class NavigationEngine:
             return
 
     def _find_in_units(
-        self, ctx: CppContext, symbol: SymbolContext, mode: str, deadline: float | None = None
+        self,
+        ctx: CppContext,
+        symbol: SymbolContext,
+        mode: str,
+        deadline: float | None = None,
     ) -> list[NavigationResult]:
         target = symbol.canonical_cursor
         target_usr = self._usr(target) or self._usr(symbol.cursor)
@@ -609,10 +714,9 @@ class NavigationEngine:
 
                 if mode == "implementation" and definition:
                     overridden = self._safe_overridden(cursor)
-                    if (
-                        target_usr in {self._usr(item) for item in overridden}
-                        or self._overrides_target(cursor, target)
-                    ):
+                    if target_usr in {
+                        self._usr(item) for item in overridden
+                    } or self._overrides_target(cursor, target):
                         append(cursor, "implementation")
 
             if mode in {"definition", "declaration"} and any(
@@ -652,10 +756,9 @@ class NavigationEngine:
 
                 if mode == "implementation" and definition:
                     overridden = self._safe_overridden(cursor)
-                    if (
-                        target_usr in {self._usr(item) for item in overridden}
-                        or self._overrides_target(cursor, target)
-                    ):
+                    if target_usr in {
+                        self._usr(item) for item in overridden
+                    } or self._overrides_target(cursor, target):
                         append(cursor, "implementation")
 
             if mode in {"definition", "declaration"} and any(
@@ -781,14 +884,22 @@ class NavigationEngine:
                         break
 
             suffixes = {
-                ".c", ".cc", ".cpp", ".cxx", ".c++",
-                ".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp", ".tpp",
+                ".c",
+                ".cc",
+                ".cpp",
+                ".cxx",
+                ".c++",
+                ".h",
+                ".hh",
+                ".hpp",
+                ".hxx",
+                ".inl",
+                ".ipp",
+                ".tpp",
             }
             files: list[str] = []
             for current, dirs, filenames in os.walk(root, followlinks=False):
-                dirs[:] = [
-                    name for name in dirs if name not in excluded
-                ]
+                dirs[:] = [name for name in dirs if name not in excluded]
                 for filename in filenames:
                     if os.path.splitext(filename)[1].lower() in suffixes:
                         files.append(
@@ -827,7 +938,12 @@ class NavigationEngine:
 
         # Use the same flags as the active context
         flags = tuple(cpp_args.args_for_file(source_path, ""))
-        buffer_key = (active_path, hash(active_source))
+        unsaved_files = self._unsaved_snapshot(active_path, active_source)
+        buffer_key = (
+            active_path,
+            hash(active_source),
+            self._unsaved_digest(unsaved_files),
+        )
         key = (
             source_path,
             flags + ("-working-directory=" + os.path.dirname(source_path),),
@@ -840,9 +956,7 @@ class NavigationEngine:
 
         index = Index.create()
         parse_args = ["-working-directory=" + os.path.dirname(source_path), *flags]
-        unsaved_files = (
-            [(active_path, active_source)] if active_path and active_source else []
-        )
+
         tu = self._parse_index(index, source_path, parse_args, unsaved_files)
         if tu is None:
             return None
@@ -1036,9 +1150,7 @@ class NavigationEngine:
             if cmake_root:
                 build_dir = builddb.find_build_directory(cmake_root)
                 if build_dir:
-                    candidate = os.path.join(
-                        build_dir, "compile_commands.json"
-                    )
+                    candidate = os.path.join(build_dir, "compile_commands.json")
                     if os.path.isfile(candidate):
                         extras.append(candidate)
         except Exception:
@@ -1121,10 +1233,16 @@ class NavigationEngine:
             mtime = 0
 
         extra = self._header_extra_flags(active_path)
-        buffer_key = (active_path, hash(active_source))
+        unsaved_files = self._unsaved_snapshot(active_path, active_source)
+        buffer_key = (
+            active_path,
+            hash(active_source),
+            self._unsaved_digest(unsaved_files),
+        )
         key = (
             source_path,
-            tuple(arguments) + tuple(extra)
+            tuple(arguments)
+            + tuple(extra)
             + ("-working-directory=" + working_directory,),
             mtime,
             buffer_key,
@@ -1139,9 +1257,7 @@ class NavigationEngine:
             *arguments,
             *extra,
         ]
-        unsaved_files = (
-            [(active_path, active_source)] if active_path and active_source else []
-        )
+
         tu = self._parse_index(index, source_path, parse_args, unsaved_files)
         if tu is None:
             return None
@@ -1258,9 +1374,7 @@ class NavigationEngine:
             from ..intellisense import headers as header_resolution
 
             return bool(
-                header_resolution.resolve_missing(
-                    missing, active_path, list(arguments)
-                )
+                header_resolution.resolve_missing(missing, active_path, list(arguments))
             )
         except Exception:
             return False

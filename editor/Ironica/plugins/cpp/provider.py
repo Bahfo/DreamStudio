@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import logging
 
+from PyQt6.QtCore import QObject
+
 from editor.Ironica.language_engine import BaseLanguageProvider
 
 from .autocompletion import (
@@ -18,6 +20,7 @@ from .intellisense import args as cpp_args
 from .intellisense.symbol_index import SymbolIndex, symbol_index_for_path
 from .models import CppContext
 from .navigation import NavigationEngine, NavigationResult
+from .navigation.buffers import collect_modified_buffers
 from .navigation.service import NavigationManager, create_navigation_manager
 
 logger = logging.getLogger("DreamStudio.Cpp.Provider")
@@ -43,6 +46,7 @@ class CppProvider(BaseLanguageProvider):
         self._highlight_cache = None
         self._nav_engine_instance: NavigationEngine | None = None
         self._navigation_manager: NavigationManager | None = None
+        self._tab_editor: QObject | None = None
 
     def get_semantic_highlights(
         self, text: str, theme_name: str | None = None,
@@ -257,6 +261,15 @@ class CppProvider(BaseLanguageProvider):
         """Get or create the navigation engine for *file_path*."""
         if self._nav_engine_instance is None:
             self._nav_engine_instance = NavigationEngine(self._make_engine())
+        if self._tab_editor is not None:
+            try:
+                self._nav_engine_instance.set_unsaved_buffers(
+                    collect_modified_buffers(self._tab_editor)
+                )
+            except Exception:
+                logger.warning(
+                    "Could not snapshot unsaved editor buffers", exc_info=True
+                )
         symbol_index = self._get_symbol_index(file_path)
         if symbol_index is not None:
             self._nav_engine_instance.set_symbol_index(symbol_index)
@@ -370,6 +383,7 @@ class CppProvider(BaseLanguageProvider):
         # NOTE: assign unconditionally so the most recently opened editor
         # provides the fallback path for callers that omit file_path.
         self._file_path = file_path or None
+        self._tab_editor = getattr(editor, "_parent", None)
         engine = CppEngine(
             shared_index=self._shared_index,
             owner_id=id(editor),
@@ -379,23 +393,35 @@ class CppProvider(BaseLanguageProvider):
         self._completion_manager = CppCompletionManager(
             editor=editor, engine=engine, file_path=file_path, parent=parent
         )
-        self._replace_navigation_manager(editor, file_path, parent)
+        self._replace_navigation_manager(editor, file_path, parent, self._tab_editor)
         return self._completion_manager
 
     def create_navigation_manager(
-        self, editor, file_path: str | None, parent
+        self,
+        editor,
+        file_path: str | None,
+        parent,
+        tab_editor: QObject | None = None,
     ) -> NavigationManager:
         """Create an async navigation manager for the given editor."""
-        return self._replace_navigation_manager(editor, file_path, parent)
+        if tab_editor is None:
+            tab_editor = getattr(editor, "_parent", None)
+        return self._replace_navigation_manager(editor, file_path, parent, tab_editor)
 
     def _replace_navigation_manager(
-        self, editor, file_path: str | None, parent
+        self,
+        editor,
+        file_path: str | None,
+        parent,
+        tab_editor: QObject | None = None,
     ) -> NavigationManager:
         """Replace any previous manager so editor threads do not leak."""
         previous = getattr(editor, "_navigation_manager", None)
         if previous is not None and hasattr(previous, "shutdown"):
             previous.shutdown()
-        manager = create_navigation_manager(editor, file_path, parent, provider=self)
+        manager = create_navigation_manager(
+            editor, file_path, parent, provider=self, tab_editor=tab_editor
+        )
         editor._navigation_manager = manager
         handler = getattr(editor, "_on_navigation_ready", None)
         if callable(handler):
