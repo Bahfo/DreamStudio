@@ -19,6 +19,9 @@
   - `.agents/skills/` — reusable playbooks: `qt-development.md`, `debugging.md`, `cpp.md`, `python.md`.
 
 - **Tests**: All tests are `.py` files starting with the word `test`. After each change. Run tests accompanying to the change made.
+- **Testing framework**: `tests/TESTING_STANDARDS.md` is the authoritative contract. Run suites through `./tests/run_tests.sh` (`--suite NAME`, `--all`, `--list`) using the existing `./venv` interpreter and `QT_QPA_PLATFORM=offscreen`. Do not add packages or create a second venv.
+- **Test integrity**: Never delete or weaken tests, add unjustified skips/xfails, or fix product code as part of a testing-only change. Record real failures honestly.
+- **Test records**: Durable summaries live in `tests/reports/HISTORY.md`, `tests/reports/history/*.json`, and each suite's `README.md`. Detailed artifacts under `tests/reports/runs/` are local-only and git-ignored.
 
 ## Mandatory Rules
 
