@@ -1,0 +1,19 @@
+{
+  "run_id": "20261025T170314Z-7c47925-dirty",
+  "timestamp": "2026-10-25T17:03:14Z",
+  "suites": [
+    "bootstrapping"
+  ],
+  "git_revision": "7c47925",
+  "dirty": true,
+  "duration_seconds": 0,
+  "exit_code": 3,
+  "verdict": "INTERRUPTED",
+  "counts": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "errors": 0
+  }
+}

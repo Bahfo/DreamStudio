@@ -11,14 +11,14 @@ build/
 
 editor/analysis/build
 config.json
-/tests/
 .pytest_cache/
 
 /additional/consoles_emulators/
-
-**/tests/
 
 publish/
 plans/
 
 .ds/
+
+# Detailed run artifacts are local-only; durable summaries are tracked.
+/tests/reports/runs/

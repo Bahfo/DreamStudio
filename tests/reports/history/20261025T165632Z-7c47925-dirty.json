@@ -1,0 +1,21 @@
+{
+  "run_id": "20261025T165632Z-7c47925-dirty",
+  "timestamp": "2026-10-25T16:56:32Z",
+  "suites": [
+    "bootstrapping",
+    "editor",
+    "navigation"
+  ],
+  "git_revision": "7c47925",
+  "dirty": true,
+  "duration_seconds": 9,
+  "exit_code": 1,
+  "verdict": "FAILED",
+  "counts": {
+    "passed": 98,
+    "failed": 7,
+    "skipped": 1,
+    "blocked": 0,
+    "errors": 0
+  }
+}
