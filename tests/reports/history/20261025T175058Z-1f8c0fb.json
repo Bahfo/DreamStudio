@@ -1,0 +1,19 @@
+{
+  "run_id": "20261025T175058Z-1f8c0fb",
+  "timestamp": "2026-10-25T17:50:58Z",
+  "suites": [
+    "bootstrapping"
+  ],
+  "git_revision": "1f8c0fb",
+  "dirty": false,
+  "duration_seconds": 2,
+  "exit_code": 0,
+  "verdict": "PASSED",
+  "counts": {
+    "passed": 38,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "errors": 0
+  }
+}

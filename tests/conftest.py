@@ -45,7 +45,7 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.unit)
         elif "editor_test" in path_str:
             item.add_marker(pytest.mark.gui)
-        elif "navigation_test" in path_str:
+        elif "navigation_test" in path_str or "python_plugin_test" in path_str:
             item.add_marker(pytest.mark.integration)
 
         # Mark tests that use external tools

@@ -20,7 +20,37 @@ def parse_python_outline(source_code: str) -> OutlineResult:
     except SyntaxError:
         return OutlineResult(root=root, language="python")
 
-    lines = source_code.splitlines()
+    # NOTE: Pre-compute UTF-8 line starts once. ``ast.get_source_segment``
+    # re-splits the entire source on every call, which makes outline parsing
+    # O(symbols × file size) and takes ~23 s for a 10k-line annotated file.
+    encoded_source = source_code.encode("utf-8")
+    line_starts = [0]
+    for line in source_code.splitlines(keepends=True):
+        line_starts.append(line_starts[-1] + len(line.encode("utf-8")))
+    if line_starts[-1] < len(encoded_source):
+        line_starts.append(len(encoded_source))
+
+    def _source_segment(node: ast.AST) -> str | None:
+        """Return the exact UTF-8 source slice covered by *node*."""
+        try:
+            lineno = node.lineno
+            end_lineno = node.end_lineno
+            col_offset = node.col_offset
+            end_col_offset = node.end_col_offset
+        except AttributeError:
+            return None
+        if lineno is None or end_lineno is None or col_offset is None or end_col_offset is None:
+            return None
+        if not 1 <= lineno <= end_lineno < len(line_starts) + 1:
+            return None
+        start = line_starts[lineno - 1] + col_offset
+        end = line_starts[end_lineno - 1] + end_col_offset
+        if start < 0 or end < start or end > len(encoded_source):
+            return None
+        try:
+            return encoded_source[start:end].decode("utf-8")
+        except UnicodeDecodeError:
+            return None
 
     def _get_end_line(node: ast.AST) -> int:
         """Return the 0-indexed last line of an AST node."""
@@ -65,9 +95,7 @@ def parse_python_outline(source_code: str) -> OutlineResult:
                     prefix = "=..."
             ann = ""
             if arg.annotation:
-                ann = (
-                    f": {ast.get_source_segment(source_code, arg.annotation) or '...'}"
-                )
+                ann = f": {_source_segment(arg.annotation) or '...'}"
             parts.append(f"{arg.arg}{ann}{prefix}")
 
         if args.vararg:
@@ -78,9 +106,7 @@ def parse_python_outline(source_code: str) -> OutlineResult:
         for i, arg in enumerate(args.kwonlyargs):
             ann = ""
             if arg.annotation:
-                ann = (
-                    f": {ast.get_source_segment(source_code, arg.annotation) or '...'}"
-                )
+                ann = f": {_source_segment(arg.annotation) or '...'}"
             default = ""
             if i < len(args.kw_defaults) and args.kw_defaults[i] is not None:
                 default = "=..."
@@ -91,7 +117,7 @@ def parse_python_outline(source_code: str) -> OutlineResult:
 
         ret = ""
         if node.returns:
-            ret_ann = ast.get_source_segment(source_code, node.returns) or "..."
+            ret_ann = _source_segment(node.returns) or "..."
             ret = f" -> {ret_ann}"
 
         async_prefix = "async " if isinstance(node, ast.AsyncFunctionDef) else ""
@@ -105,7 +131,7 @@ def parse_python_outline(source_code: str) -> OutlineResult:
 
         bases: list[str] = []
         for base in node.bases:
-            seg = ast.get_source_segment(source_code, base)
+            seg = _source_segment(base)
             if seg:
                 bases.append(seg)
         detail = f"({', '.join(bases)})" if bases else ""
@@ -182,11 +208,7 @@ def parse_python_outline(source_code: str) -> OutlineResult:
         if isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name):
-                    kind = (
-                        SymbolKind.CONSTANT
-                        if target.id.isupper()
-                        else SymbolKind.VARIABLE
-                    )
+                    kind = SymbolKind.CONSTANT if target.id.isupper() else SymbolKind.VARIABLE
                     nodes.append(
                         OutlineNode(
                             name=target.id,
@@ -197,12 +219,10 @@ def parse_python_outline(source_code: str) -> OutlineResult:
                         )
                     )
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            kind = (
-                SymbolKind.CONSTANT if node.target.id.isupper() else SymbolKind.VARIABLE
-            )
+            kind = SymbolKind.CONSTANT if node.target.id.isupper() else SymbolKind.VARIABLE
             ann = ""
             if node.annotation:
-                ann = ast.get_source_segment(source_code, node.annotation) or ""
+                ann = _source_segment(node.annotation) or ""
             nodes.append(
                 OutlineNode(
                     name=node.target.id,

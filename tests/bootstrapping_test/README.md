@@ -5,16 +5,20 @@ Tests for the DreamStudio IDE startup kernel: phase pipeline, service registry, 
 
 ## Latest Run
 
-- **Run ID**: 20261025T170334Z-7c47925-dirty
-- **Timestamp**: 2026-10-25T17:03:34Z
+- **Run ID**: 20261027T175027Z-1f8c0fb-dirty
+- **Timestamp**: 2026-10-27T17:50:27Z
 - **Verdict**: PASSED
 - **Passed**: 38 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
-- [Report](../reports/runs/20261025T170334Z-7c47925-dirty/report.md)
+- [Report](../reports/runs/20261027T175027Z-1f8c0fb-dirty/report.md)
 
 ## Historical Runs
 
 | Run ID | Timestamp | Verdict | Passed | Failed | Errors | Skipped | Blocked | Report |
 |--------|-----------|---------|--------|--------|--------|---------|---------|--------|
+| 20261027T175027Z-1f8c0fb-dirty | 2026-10-27T17:50:27Z | PASSED | 38 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261027T175027Z-1f8c0fb-dirty/report.md) |
+| 20261027T160625Z-1f8c0fb-dirty | 2026-10-27T16:06:25Z | PASSED | 38 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261027T160625Z-1f8c0fb-dirty/report.md) |
+| 20261025T175133Z-1f8c0fb-dirty | 2026-10-25T17:51:33Z | PASSED | 38 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261025T175133Z-1f8c0fb-dirty/report.md) |
+| 20261025T175058Z-1f8c0fb | 2026-10-25T17:50:58Z | PASSED | 38 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261025T175058Z-1f8c0fb/report.md) |
 | 20261025T170334Z-7c47925-dirty | 2026-10-25T17:03:34Z | PASSED | 38 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261025T170334Z-7c47925-dirty/report.md) |
 | 20261025T170324Z-7c47925-dirty-2 | 2026-10-25T17:03:24Z | PASSED | 38 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261025T170324Z-7c47925-dirty-2/report.md) |
 | 20261025T170314Z-7c47925-dirty | 2026-10-25T17:03:14Z | INTERRUPTED | 0 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261025T170314Z-7c47925-dirty/report.md) |
