@@ -46,6 +46,8 @@ class LanguageCache:
 
     def set(self, context: PythonContext, request_type: str, value: Any) -> None:
         """Store a value, evicting oldest keys when full."""
+        if self._max_size <= 0:
+            return
         key = self._generate_key(context, request_type)
         if key in self._cache:
             return

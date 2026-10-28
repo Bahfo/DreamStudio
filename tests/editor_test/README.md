@@ -5,16 +5,19 @@ Tests for the Ironica code editor: CodeEditor loading/saving, dirty-state propag
 
 ## Latest Run
 
-- **Run ID**: 20261025T170334Z-7c47925-dirty
-- **Timestamp**: 2026-10-25T17:03:34Z
+- **Run ID**: 20261027T175027Z-1f8c0fb-dirty
+- **Timestamp**: 2026-10-27T17:50:27Z
 - **Verdict**: FAILED
 - **Passed**: 43 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
-- [Report](../reports/runs/20261025T170334Z-7c47925-dirty/report.md)
+- [Report](../reports/runs/20261027T175027Z-1f8c0fb-dirty/report.md)
 
 ## Historical Runs
 
 | Run ID | Timestamp | Verdict | Passed | Failed | Errors | Skipped | Blocked | Report |
 |--------|-----------|---------|--------|--------|--------|---------|---------|--------|
+| 20261027T175027Z-1f8c0fb-dirty | 2026-10-27T17:50:27Z | FAILED | 43 | 1 | 0 | 1 | 0 | [Report](../reports/runs/20261027T175027Z-1f8c0fb-dirty/report.md) |
+| 20261027T160636Z-1f8c0fb-dirty | 2026-10-27T16:06:36Z | FAILED | 43 | 1 | 0 | 1 | 0 | [Report](../reports/runs/20261027T160636Z-1f8c0fb-dirty/report.md) |
+| 20261025T175133Z-1f8c0fb-dirty | 2026-10-25T17:51:33Z | FAILED | 43 | 1 | 0 | 1 | 0 | [Report](../reports/runs/20261025T175133Z-1f8c0fb-dirty/report.md) |
 | 20261025T170334Z-7c47925-dirty | 2026-10-25T17:03:34Z | FAILED | 43 | 1 | 0 | 1 | 0 | [Report](../reports/runs/20261025T170334Z-7c47925-dirty/report.md) |
 | 20261025T165632Z-7c47925-dirty | 2026-10-25T16:56:32Z | FAILED | 43 | 1 | 0 | 1 | 0 | [Report](../reports/runs/20261025T165632Z-7c47925-dirty/report.md) |
 
