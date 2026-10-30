@@ -52,6 +52,10 @@ struct Token {
 
     std::size_t line;
     std::size_t column;
+
+    // Exact source spelling, including quotes and punctuation. The parser
+    // uses this to rebuild shell-style command words.
+    std::string lexeme;
 };
 
 std::string tokenTypeToString(TokenType type);

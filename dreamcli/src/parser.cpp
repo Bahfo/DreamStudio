@@ -11,10 +11,13 @@ const Token& Parser::peek() const {
 }
 
 const Token& Parser::advance() {
+    const Token& token = tokens[current_];
+
     if (!isAtEnd()) {
         ++current_;
     }
-    return tokens[current_];
+
+    return token;
 }
 
 bool Parser::isAtEnd() const {
@@ -55,6 +58,32 @@ void Parser::fail(const std::string& message) const {
     throw std::runtime_error(
         message + " at line " + std::to_string(token.line) +
         ", column " + std::to_string(token.column) + ".");
+}
+
+bool Parser::tokensAdjacent(const Token& left, const Token& right) const {
+    std::size_t endLine = left.line;
+    std::size_t endColumn = left.column;
+
+    if (left.lexeme.empty()) {
+        endColumn += left.value.size();
+    } else {
+        for (char character : left.lexeme) {
+            if (character == '\n') {
+                ++endLine;
+                endColumn = 1;
+            } else {
+                ++endColumn;
+            }
+        }
+    }
+
+    return right.line == endLine && right.column == endColumn;
+}
+
+bool Parser::isCommandBoundary() const {
+    return isAtEnd() || check(TokenType::NEWLINE) ||
+           check(TokenType::SEMICOLON) || check(TokenType::RIGHT_BRACE) ||
+           check(TokenType::RIGHT_PAREN);
 }
 
 void Parser::skipSeparators() {
@@ -105,20 +134,33 @@ StatementPtr Parser::parseAssignment() {
 }
 
 StatementPtr Parser::parseCommand() {
-    Token name = advance();
-
     auto statement = std::make_unique<CommandStatement>();
-    statement->name = name;
 
-    while (!check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON) &&
-           !check(TokenType::RIGHT_BRACE) && !check(TokenType::RIGHT_PAREN) &&
-           !isAtEnd()) {
+    statement->name = advance();
+    statement->nameParts.push_back(statement->name);
+
+    while (!isCommandBoundary() &&
+           tokensAdjacent(statement->nameParts.back(), peek())) {
+        statement->nameParts.push_back(advance());
+    }
+
+    while (!isCommandBoundary()) {
         if (check(TokenType::COMMA)) {
             advance();
             continue;
         }
-        statement->arguments.push_back(advance());
+
+        CommandWord argument;
+        argument.parts.push_back(advance());
+
+        while (!isCommandBoundary() &&
+               tokensAdjacent(argument.parts.back(), peek())) {
+            argument.parts.push_back(advance());
+        }
+
+        statement->arguments.push_back(std::move(argument));
     }
+
     return statement;
 }
 
@@ -140,12 +182,20 @@ std::unique_ptr<BlockStatement> Parser::parseBlock() {
 StatementPtr Parser::parseIf() {
     Token keyword = consume(TokenType::IF, "Expected 'if'");
     ExpressionPtr condition = parseExpression();
+    skipNewlines();
     consume(TokenType::THEN, "Expected 'then' after if condition");
+    skipNewlines();
     auto thenBranch = parseBlock();
+
+    const std::size_t afterThenBranch = current_;
+    skipSeparators();
 
     std::unique_ptr<BlockStatement> elseBranch;
     if (match(TokenType::ELSE)) {
+        skipNewlines();
         elseBranch = parseBlock();
+    } else {
+        current_ = afterThenBranch;
     }
 
     auto statement = std::make_unique<IfStmt>();
@@ -159,7 +209,9 @@ StatementPtr Parser::parseIf() {
 StatementPtr Parser::parseWhile() {
     Token keyword = consume(TokenType::WHILE, "Expected 'while'");
     ExpressionPtr condition = parseExpression();
+    skipNewlines();
     consume(TokenType::THEN, "Expected 'then' after while condition");
+    skipNewlines();
     auto body = parseBlock();
 
     auto statement = std::make_unique<WhileStmt>();
@@ -266,7 +318,8 @@ ExpressionPtr Parser::parseFactor() {
 }
 
 ExpressionPtr Parser::parseUnary() {
-    if (check(TokenType::NOT)) {
+    if (check(TokenType::NOT) || check(TokenType::PLUS) ||
+        check(TokenType::MINUS)) {
         Token op = advance();
         ExpressionPtr operand = parseUnary();
 

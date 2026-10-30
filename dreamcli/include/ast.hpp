@@ -36,9 +36,14 @@ struct AssignStatement : Statement {
     ExpressionPtr value;
 };
 
+struct CommandWord {
+    std::vector<Token> parts;
+};
+
 struct CommandStatement : Statement {
     Token name;
-    std::vector<Token> arguments;
+    std::vector<Token> nameParts;
+    std::vector<CommandWord> arguments;
 };
 
 struct BlockStatement : Statement {

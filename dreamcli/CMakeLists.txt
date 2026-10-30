@@ -6,13 +6,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-file(GLOB DREAMCLI_LIB_SOURCES
+set(DREAMCLI_LIB_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/environment.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/interpreter.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/lexer.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/token.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/value.cpp"
 )
-file(GLOB DREAMCLI_COMMAND_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/commands/*.cpp"
+
+file(GLOB DREAMCLI_COMMAND_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/commands/*.cpp"
 )
 
 add_library(dreamcli_lib STATIC

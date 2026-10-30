@@ -17,6 +17,7 @@ private:
     std::size_t position_ = 0;
     std::size_t line_ = 1;
     std::size_t column_ = 1;
+    std::size_t tokenStart_ = 0;
 
     bool isAtEnd() const;
     char peek() const;
