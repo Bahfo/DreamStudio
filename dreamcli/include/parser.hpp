@@ -29,6 +29,9 @@ private:
 
     [[noreturn]] void fail(const std::string& message) const;
 
+    bool tokensAdjacent(const Token& left, const Token& right) const;
+    bool isCommandBoundary() const;
+
     void skipSeparators();
     void skipNewlines();
     bool nextIsAfterNewlines(TokenType type) const;

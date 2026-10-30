@@ -76,7 +76,8 @@ void Lexer::fail(const std::string& message, std::size_t line,
 
 Token Lexer::makeToken(TokenType type, std::string value, std::size_t line,
                        std::size_t column) const {
-    return Token{type, std::move(value), line, column};
+    std::string lexeme = source_.substr(tokenStart_, position_ - tokenStart_);
+    return Token{type, std::move(value), line, column, std::move(lexeme)};
 }
 
 bool Lexer::isAlpha(char c) {
@@ -348,10 +349,14 @@ std::vector<Token> Lexer::tokenize() {
         skipWhitespace();
         if (isAtEnd()) break;
 
+        tokenStart_ = position_;
         char c = peek();
         if (c == '\n') {
-            tokens.push_back(makeToken(TokenType::NEWLINE, "", line_, column_));
+            const std::size_t newlineLine = line_;
+            const std::size_t newlineColumn = column_;
             advance();
+            tokens.push_back(makeToken(TokenType::NEWLINE, "", newlineLine,
+                                       newlineColumn));
             continue;
         }
         if (c == '#') {
@@ -383,6 +388,7 @@ std::vector<Token> Lexer::tokenize() {
         tokens.push_back(lexSymbol());
     }
 
+    tokenStart_ = position_;
     tokens.push_back(makeToken(TokenType::END_OF_FILE, "", line_, column_));
     return tokens;
 }
