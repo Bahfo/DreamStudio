@@ -25,7 +25,6 @@ class TitleBar(QWidget):
         except Exception:
             pass
 
-
         self.icon_btn = QPushButton(title)
         self.icon_btn.setIcon(QIcon(resource_path(self.icon)))
         self.icon_btn.setIconSize(QSize(26, 26))
@@ -40,6 +39,26 @@ class TitleBar(QWidget):
             font-size: 13px;}
             """)
         self._layout.addWidget(self.icon_btn)
+
+        self._layout.addSpacing(10)
+
+        self.btn_add = QPushButton("✚")
+        self.btn_add.setFixedSize(30, 30)
+        self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_add.setStyleSheet("""
+            QPushButton{
+            color: white;
+            background-color: transparent;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;}
+            QPushButton:hover{
+            background-color:#444;}
+
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }""")
+        self._layout.addWidget(self.btn_add)
 
         self._layout.addSpacing(20)
 
@@ -66,6 +85,24 @@ class TitleBar(QWidget):
             }""")
         self._layout.addWidget(self.btn_minimize)
 
+        self.btn_maximize = QPushButton("◻")
+        self.btn_maximize.setFixedSize(30, 30)
+        self.btn_maximize.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_maximize.setStyleSheet("""
+            QPushButton{
+            color: white;
+            background-color: transparent;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;}
+            QPushButton:hover{
+            background-color:#444;}
+
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }""")
+        self._layout.addWidget(self.btn_maximize)
+
         self.btn_close = QPushButton("✕")
         self.btn_close.setFixedSize(30, 30)
         self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -86,6 +123,7 @@ class TitleBar(QWidget):
         self._layout.addWidget(self.btn_close)
 
         self.btn_minimize.clicked.connect(self._title_parent.showMinimized)
+        self.btn_maximize.clicked.connect(self._title_parent.toggle_maximize)
         self.btn_close.clicked.connect(self._title_parent.close)
 
     def _cleanup_filter(self):

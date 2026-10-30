@@ -232,7 +232,6 @@ class DreamStudioTitleBar(QWidget):
                 action.setEnabled(has_tabs)
         self.refresh_action_states()
 
-
     def refresh_action_states(self) -> None:
         """Synchronize every editor-dependent menu action with the live state."""
         flags = self._editor_action_flags()
@@ -328,7 +327,6 @@ class DreamStudioTitleBar(QWidget):
             return QApplication.clipboard().text()
         except RuntimeError:
             return ""
-
 
     def set_toggle_options_bar(self) -> None:
         """Toggle the options bar and keep this action's label in sync."""
@@ -482,7 +480,6 @@ class DreamStudioTitleBar(QWidget):
         green = base.green() + int((255 - base.green()) * amount)
         blue = base.blue() + int((255 - base.blue()) * amount)
         return QColor(red, green, blue)
-
 
     def show_welcome(self) -> None:
         """Open the IDE welcome / start page window."""
