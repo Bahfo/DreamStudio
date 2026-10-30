@@ -33,7 +33,7 @@ For more info, please check out related documentations on EXcellent TechStacks p
 
 import re
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QObject
 from PyQt6.QtGui import (
     QFont,
     QColor,
@@ -42,7 +42,7 @@ from PyQt6.QtGui import (
     QTextCharFormat,
     QSyntaxHighlighter,
 )
-from PyQt6.QtWidgets import QPlainTextEdit
+from PyQt6.QtWidgets import QPlainTextEdit, QFrame
 
 
 class DayDreamSyntaxHighlighter(QSyntaxHighlighter):
@@ -137,10 +137,15 @@ class DayDreamSyntaxHighlighter(QSyntaxHighlighter):
         )
 
         command_match = re.match(r"\s*\S+", command_text)
+
         if command_match:
             start, end = command_match.span()
 
-            self.setFormat(offset + start, end - start, self.command_format)
+            self.setFormat(
+                offset + start,
+                end - start,
+                self.command_format,
+            )
 
 
 class TerminalWidget(QPlainTextEdit):
@@ -161,13 +166,25 @@ class TerminalWidget(QPlainTextEdit):
         self._history = []
         self._history_index = 0
         self._history_draft = ""
-        self.setFont(QFont("Cascadia Code", 11))
-        self.setLineWidth(12)
 
-        self.highlighter = DayDreamSyntaxHighlighter(self.document(), self.PROMPT)
+        self.setFont(QFont("Cascadia Code", 11))
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setLineWidth(0)
+        self.setMidLineWidth(0)
+
+        self.highlighter = DayDreamSyntaxHighlighter(
+            self.document(),
+            self.PROMPT,
+        )
 
         self._write_prompt()
 
+        self.setStyleSheet("""
+            padding-left: 15px;
+            padding-right: 15px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+        """)
 
     def _write_prompt(self):
         cursor = self.textCursor()
@@ -197,9 +214,10 @@ class TerminalWidget(QPlainTextEdit):
         self.ensureCursorVisible()
 
     def write_output(self, text):
-        """Append output produced by the command handler."""
+        """
+        Append output produced by the command handler.
+        """
         self._append_text(text)
-
 
     def _current_input(self):
         if self._input_start is None:
@@ -219,17 +237,21 @@ class TerminalWidget(QPlainTextEdit):
 
         cursor = self.textCursor()
         cursor.setPosition(self._input_start)
+
         cursor.movePosition(
             QTextCursor.MoveOperation.End,
             QTextCursor.MoveMode.KeepAnchor,
         )
+
         cursor.insertText(text)
 
         self.setTextCursor(cursor)
         self.ensureCursorVisible()
 
     def _submit_command(self):
-        """Submit the complete, unmodified user input to the command handler."""
+        """
+        Submit the complete, unmodified user input to the command handler.
+        """
         command = self._current_input()
 
         cursor = self.textCursor()
@@ -258,7 +280,6 @@ class TerminalWidget(QPlainTextEdit):
 
         self._write_prompt()
 
-
     def _navigate_history(self, direction):
         if not self._history:
             return
@@ -268,17 +289,15 @@ class TerminalWidget(QPlainTextEdit):
                 self._history_draft = self._current_input()
 
             self._history_index = max(0, self._history_index - 1)
+
         else:
-            self._history_index = min(
-                len(self._history),
-                self._history_index + 1,
-            )
+            self._history_index = min(len(self._history), self._history_index + 1)
 
         if self._history_index == len(self._history):
             self._replace_input(self._history_draft)
+
         else:
             self._replace_input(self._history[self._history_index])
-
 
     def _move_to_input_end_if_needed(self):
         if self._input_start is None:
@@ -295,12 +314,8 @@ class TerminalWidget(QPlainTextEdit):
     def _remove_range(self, start, end):
         cursor = QTextCursor(self.document())
         cursor.setPosition(start)
-        cursor.setPosition(
-            end,
-            QTextCursor.MoveMode.KeepAnchor,
-        )
+        cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
         cursor.removeSelectedText()
-
         self.setTextCursor(cursor)
 
     def cut(self):
@@ -317,14 +332,11 @@ class TerminalWidget(QPlainTextEdit):
             return
 
         self._move_to_input_end_if_needed()
-
         text = source.text()
         text = text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
-
         cursor = self.textCursor()
         cursor.insertText(text)
         self.setTextCursor(cursor)
-
 
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.Copy):
@@ -336,15 +348,23 @@ class TerminalWidget(QPlainTextEdit):
             return
 
         if self._input_start is None:
-            if event.key() in (Qt.Key.Key_PageUp, Qt.Key.Key_PageDown):
+            if event.key() in (
+                Qt.Key.Key_PageUp,
+                Qt.Key.Key_PageDown,
+            ):
                 super().keyPressEvent(event)
+
             return
 
         key = event.key()
         modifiers = event.modifiers()
+
         control = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
 
-        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+        if key in (
+            Qt.Key.Key_Return,
+            Qt.Key.Key_Enter,
+        ):
             self._submit_command()
             return
 
@@ -393,32 +413,25 @@ class TerminalWidget(QPlainTextEdit):
 
         if control and key == Qt.Key.Key_U:
             self._move_to_input_end_if_needed()
-            self._remove_range(
-                self._input_start,
-                self.textCursor().position(),
-            )
+
+            self._remove_range(self._input_start, self.textCursor().position())
             return
 
         if control and key == Qt.Key.Key_K:
             self._move_to_input_end_if_needed()
-
             cursor = self.textCursor()
             end = cursor.block().position() + len(cursor.block().text())
-
             self._remove_range(cursor.position(), end)
+
             return
 
         if control and key == Qt.Key.Key_W:
             self._move_to_input_end_if_needed()
-
             cursor = self.textCursor()
             text = self._current_input()
-            position = max(
-                0,
-                cursor.position() - self._input_start,
-            )
-            position = min(position, len(text))
 
+            position = max(0, cursor.position() - self._input_start)
+            position = min(position, len(text))
             start = position
 
             while start > 0 and text[start - 1].isspace():
@@ -427,10 +440,7 @@ class TerminalWidget(QPlainTextEdit):
             while start > 0 and not text[start - 1].isspace():
                 start -= 1
 
-            self._remove_range(
-                self._input_start + start,
-                self._input_start + position,
-            )
+            self._remove_range(self._input_start + start, self._input_start + position)
             return
 
         cursor = self.textCursor()
@@ -444,3 +454,99 @@ class TerminalWidget(QPlainTextEdit):
 
         self._move_to_input_end_if_needed()
         super().keyPressEvent(event)
+
+
+class TerminalTabController(QObject):
+    """
+    Manages terminal tabs and their corresponding terminal widgets.
+
+    The tab bar and terminal stack are independent widgets.
+    """
+
+    def __init__(self, tab_bar, terminal_stack, parent=None):
+        super().__init__(parent)
+
+        self.tab_bar = tab_bar
+        self.terminal_stack = terminal_stack
+
+        self._terminals = []
+        self.tab_bar.currentChanged.connect(self._activate_terminal)
+        self.tab_bar.tabCloseRequested.connect(self.close_terminal)
+        self.tab_bar.tabMoved.connect(self._move_terminal)
+        self._update_tab_visibility()
+
+    def add_terminal(self, name="Terminal"):
+        terminal = TerminalWidget(self.terminal_stack)
+
+        self.terminal_stack.addWidget(terminal)
+        self.terminal_stack.setContentsMargins(0, 0, 0, 0)
+        self._terminals.append(terminal)
+
+        index = self.tab_bar.addTab(name)
+        self.tab_bar.setCurrentIndex(index)
+        self.terminal_stack.setCurrentWidget(terminal)
+        self._update_tab_visibility()
+
+        return terminal
+
+    def close_terminal(self, index):
+        if len(self._terminals) <= 1:
+            return
+
+        if not 0 <= index < len(self._terminals):
+            return
+
+        terminal = self._terminals.pop(index)
+        self.tab_bar.blockSignals(True)
+
+        try:
+            self.tab_bar.removeTab(index)
+
+        finally:
+            self.tab_bar.blockSignals(False)
+
+        self.terminal_stack.removeWidget(terminal)
+        terminal.deleteLater()
+        current_index = self.tab_bar.currentIndex()
+
+        if 0 <= current_index < len(self._terminals):
+            self.terminal_stack.setCurrentWidget(self._terminals[current_index])
+
+        self._update_tab_visibility()
+
+    def _activate_terminal(self, index):
+        if not 0 <= index < len(self._terminals):
+            return
+
+        self.terminal_stack.setCurrentWidget(self._terminals[index])
+
+    def _move_terminal(self, from_index, to_index):
+        if not (
+            0 <= from_index < len(self._terminals)
+            and 0 <= to_index < len(self._terminals)
+        ):
+            return
+
+        if from_index == to_index:
+            return
+
+        terminal = self._terminals.pop(from_index)
+        self._terminals.insert(to_index, terminal)
+        self._activate_terminal(self.tab_bar.currentIndex())
+
+    def _update_tab_visibility(self):
+        self.tab_bar.setVisible(len(self._terminals) > 1)
+
+    def current_terminal(self):
+        index = self.tab_bar.currentIndex()
+
+        if not 0 <= index < len(self._terminals):
+            return None
+
+        return self._terminals[index]
+
+    def terminal_at(self, index):
+        if not 0 <= index < len(self._terminals):
+            return None
+
+        return self._terminals[index]

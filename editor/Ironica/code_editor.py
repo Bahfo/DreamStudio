@@ -1864,10 +1864,57 @@ class CodeEditor(QsciScintilla):
         except Exception as exc:
             logger.debug("Find-references failed: %s", exc)
 
+    def _coerce_target(self, item) -> tuple[str, int, int] | None:
+        """Return (file_path, line, col), or None if item has no usable path."""
+        if item is None:
+            return None
+        if isinstance(item, dict):
+            path = item.get("file_path") or item.get("path")
+            line = item.get("line", 0)
+            col = item.get("col", item.get("column", 0))
+        elif isinstance(item, (tuple, list)):
+            if len(item) < 2 or not isinstance(item[0], (str, type(None))):
+                return None
+            path, line = item[0], item[1]
+            col = item[2] if len(item) > 2 else 0
+        else:
+            path = getattr(item, "file_path", None) or getattr(item, "path", None)
+            line = getattr(item, "line", 0)
+            col = getattr(item, "col", getattr(item, "column", 0))
+        if not path:
+            return None
+        try:
+            return (str(path), int(line or 0), int(col or 0))
+        except (TypeError, ValueError):
+            return None
+
+    def normalize_targets(self, targets) -> list[tuple[str, int, int]]:
+        """Accept any plugin's result shape and return a list of 3-tuples."""
+        if not targets:
+            return []
+        if (
+            isinstance(targets, (tuple, list))
+            and len(targets) >= 2
+            and isinstance(targets[0], str)
+            and isinstance(targets[1], int)
+        ):
+            one = self._coerce_target(targets)
+            return [one] if one else []
+        if not isinstance(targets, (list, tuple)):
+            targets = [targets]
+        out, seen = [], set()
+        for t in targets:
+            c = self._coerce_target(t)
+            if c and c not in seen:
+                seen.add(c)
+                out.append(c)
+        return out
+
     def _navigate_to_targets(
         self, targets: list, current_line: int, current_file: str
     ) -> None:
         """Navigate to a target or show popup for multiple targets."""
+        targets = self.normalize_targets(targets)
         if not targets:
             return
 
@@ -1896,8 +1943,7 @@ class CodeEditor(QsciScintilla):
             from editor.Ironica.plugins.cpp.navigation.engine import NavigationResult
 
             nav_results = []
-            for target in targets:
-                file_path, target_line, target_col = target
+            for file_path, target_line, target_col in self.normalize_targets(targets):
                 nav_results.append(
                     NavigationResult(
                         file_path=file_path,
