@@ -45,6 +45,7 @@ class ToastNotification(QFrame):
 
         self.setStyleSheet(f"""
             QFrame#ToastNotification {{
+                border: 1px solid #888888;
                 border-left: 3px solid {accent};
                 border-radius: 0px;}}
             QLabel {{
