@@ -54,4 +54,8 @@ find "$ROOT_DIR" \
     -path "$VENV_DIR" -prune -o \
     -type d -name "__pycache__" -prune -exec rm -rf {} +
 
+find "$ROOT_DIR" -type d -name ".ruff_cache" -exec rm -rf {} +
+
+find "$ROOT_DIR" -type d -name ".pytest_cache" -exec rm -rf {} +
+
 echo -e "${GREEN}[SUCCESS]${NC} DreamStudio closed successfully."

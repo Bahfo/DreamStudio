@@ -238,3 +238,39 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261030T185502Z-3f9e2ee-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261030T185502Z-3f9e2ee-dirty/summary.json`
 
+## 20261031T085803Z-b374a9f-dirty
+
+- **Timestamp**: 2026-10-31T08:58:03Z
+- **Suites**: navigation
+- **Git**: b374a9f (dirty)
+- **Duration**: 3s
+- **Verdict**: FAILED
+- **Passed**: 25 | **Failed**: 6 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261031T085803Z-b374a9f-dirty/report.md`
+- **Console**: `tests/reports/runs/20261031T085803Z-b374a9f-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261031T085803Z-b374a9f-dirty/summary.json`
+
+## 20261031T085849Z-b374a9f-dirty
+
+- **Timestamp**: 2026-10-31T08:58:49Z
+- **Suites**: editor
+- **Git**: b374a9f (dirty)
+- **Duration**: 4s
+- **Verdict**: FAILED
+- **Passed**: 43 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261031T085849Z-b374a9f-dirty/report.md`
+- **Console**: `tests/reports/runs/20261031T085849Z-b374a9f-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261031T085849Z-b374a9f-dirty/summary.json`
+
+## 20261031T090016Z-b374a9f-dirty
+
+- **Timestamp**: 2026-10-31T09:00:16Z
+- **Suites**: navigation
+- **Git**: b374a9f (dirty)
+- **Duration**: 3s
+- **Verdict**: FAILED
+- **Passed**: 25 | **Failed**: 6 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261031T090016Z-b374a9f-dirty/report.md`
+- **Console**: `tests/reports/runs/20261031T090016Z-b374a9f-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261031T090016Z-b374a9f-dirty/summary.json`
+

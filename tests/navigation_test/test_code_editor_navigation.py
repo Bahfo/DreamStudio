@@ -40,7 +40,10 @@ class TestCodeEditorDefinitionNavigation:
         # three-argument fallback, but a MagicMock accepts any signature.
         assert called_args.args[1:3] == (2, 5)
         editor._navigate_to_targets.assert_called_once_with(
-            [("/workspace/other.py", 7, 3)], 2, "/workspace/test.py"
+            [("/workspace/other.py", 7, 3)],
+            2,
+            "/workspace/test.py",
+            kind="definition",
         )
 
     def test_definition_navigation_without_provider_is_noop(self, qapp):
@@ -75,9 +78,13 @@ class TestCodeEditorDefinitionNavigation:
         editor._parent = MagicMock()
         editor._parent.currentWidget.return_value = editor
 
-        editor._navigate_to_targets([("/workspace/other.py", 7, 3)], 0, "/workspace/test.py")
+        editor._navigate_to_targets(
+            [("/workspace/other.py", 7, 3)], 0, "/workspace/test.py"
+        )
 
-        editor._parent.open_file_at_line.assert_called_once_with("/workspace/other.py", 7)
+        editor._parent.open_file_at_line.assert_called_once_with(
+            "/workspace/other.py", 7
+        )
         assert editor.getCursorPosition() == (7, 3)
 
     def test_same_file_same_line_target_is_ignored(self, qapp):
@@ -87,7 +94,9 @@ class TestCodeEditorDefinitionNavigation:
         editor = CodeEditor(None)
         editor._parent = MagicMock()
 
-        editor._navigate_to_targets([("/workspace/test.py", 4, 0)], 4, "/workspace/test.py")
+        editor._navigate_to_targets(
+            [("/workspace/test.py", 4, 0)], 4, "/workspace/test.py"
+        )
 
         editor._parent.open_file_at_line.assert_not_called()
 
