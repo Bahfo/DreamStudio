@@ -375,10 +375,15 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
             QTimer.singleShot(0, self._flush_pending_toasts)
 
     def _flush_pending_toasts(self) -> None:
-        """Display notifications accumulated during startup."""
+        """Display the most recent pending startup notifications."""
 
-        pending = self._pending_toast_notifications.copy()
-        self._pending_toast_notifications.clear()
+        pending = self._pending_toast_notifications
+        self._pending_toast_notifications = []
+
+        if not pending:
+            return
+
+        pending = pending[-self.toast_manager.max_visible :]
 
         for notification in pending:
             self.toast_manager.show_notification(notification)
