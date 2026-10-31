@@ -28,7 +28,7 @@ class FileBrowser(QWidget):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
 
-        # path string expected here
+        # path string expected here, don't put stupid strings
         self.opened_file = opened_file
         self._buttons: list[QPushButton] = []
         self._separators: list[QLabel] = []
@@ -57,7 +57,9 @@ class FileBrowser(QWidget):
             }
         """)
 
-    def addButtonIndicator(self, text: str, full_path: str, relative_path: str, icon=None) -> QPushButton:
+    def addButtonIndicator(
+        self, text: str, full_path: str, relative_path: str, icon=None
+    ) -> QPushButton:
         """
         Create a clickable breadcrumb segment button.
 
@@ -75,11 +77,13 @@ class FileBrowser(QWidget):
         btn.setToolTip(relative_path if relative_path else full_path)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setProperty("full_path", full_path)
+        btn.setProperty("is_file", os.path.isfile(full_path))
+        btn.setProperty("is_directory", os.path.isdir(full_path))
 
         if icon is not None:
             btn.setIcon(QIcon(icon))
-
-        btn.clicked.connect(lambda checked, b=btn: self._open_context_menu(b))
+        if btn.property("is_directory"):
+            btn.clicked.connect(lambda checked, b=btn: self._open_context_menu(b))
         return btn
 
     def _get_project_root(self) -> str:
@@ -118,7 +122,6 @@ class FileBrowser(QWidget):
         if not folder_path:
             return
 
-        # Files show their parent folder's contents (VS Code behaviour).
         if os.path.isfile(folder_path):
             folder_path = os.path.dirname(folder_path)
         if not os.path.isdir(folder_path):
@@ -126,9 +129,12 @@ class FileBrowser(QWidget):
 
         menu = QMenu(self)
         menu.setContentsMargins(0, 0, 0, 0)
+        menu.setStyleSheet("""
+            border: none;
+            border-radius: 0px;
+        """)
 
         container = QWidget()
-        container.setFixedSize(250, 260)
 
         layout = QVBoxLayout(container)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -149,6 +155,7 @@ class FileBrowser(QWidget):
                 outline: none;
             }
             QTreeView::item {
+                background-color: transparent;
                 min-height: 18px;
                 padding: 1px 4px;
                 border: none;
@@ -157,14 +164,11 @@ class FileBrowser(QWidget):
 
         model = QFileSystemModel(treeview)
         model.setRootPath(folder_path)
-        model.setFilter(
-            QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot
-        )
+        model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
 
         treeview.setModel(model)
         treeview.setRootIndex(model.index(folder_path))
 
-        # Hide the size/type/date columns.
         for col in range(1, model.columnCount()):
             treeview.hideColumn(col)
 
@@ -173,10 +177,21 @@ class FileBrowser(QWidget):
         widget_action = QWidgetAction(menu)
         widget_action.setDefaultWidget(container)
         menu.addAction(widget_action)
+        treeview.expandAll()
+        treeview.resizeColumnToContents(0)
+
+        width = treeview.sizeHintForColumn(0) + treeview.indentation() + 30
+        height = min(treeview.sizeHint().height(), 400)
+
+        container.setFixedSize(max(250, width), max(180, height))
+
+        menu.adjustSize()
         menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
 
     def _build_tree(self) -> None:
-        """Build the breadcrumb hierarchy buttons relative to project root."""
+        """
+        Build the breadcrumb hierarchy buttons relative to project root.
+        """
         for btn in self._buttons:
             self._layout.removeWidget(btn)
             btn.deleteLater()
