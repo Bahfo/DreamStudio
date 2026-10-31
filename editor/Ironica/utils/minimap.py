@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from editor import *
 from editor.Ironica.utils.diagnostics_ruler import DiagnosticsRuler
+from editor.Ironica.supportive.file_browser import FileBrowser
 
 logger = logging.getLogger(__name__)
 
@@ -326,7 +327,7 @@ class MinimapOverlay(QWidget):
 
 
 class MiniMapHostWidget(QWidget):
-    """Wraps a ``CodeEditor`` and a ``VirtualMinimap`` side by side."""
+    """Wraps a ``CodeEditor`` and a ``VirtualMinimap`` side by side, with a file browser above the editor."""
 
     position_changed = pyqtSignal(int, int)
     dirty_state_changed = pyqtSignal(bool)
@@ -349,13 +350,28 @@ class MiniMapHostWidget(QWidget):
         self._editor.position_changed.connect(self.position_changed.emit)
         self._editor.dirty_state_changed.connect(self.dirty_state_changed.emit)
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(self._editor, 1)
+        # Main vertical layout: file browser on top, editor area below
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # File browser widget
+        self._file_browser = FileBrowser(self, opened_file=getattr(editor, "current_file_path", "") or "")
+        main_layout.addWidget(self._file_browser)
+
+        # Connect to file path changes
+        if hasattr(self._editor, "file_path_changed"):
+            self._editor.file_path_changed.connect(self._file_browser.set_file_path)
+
+        # Editor area (horizontal layout: editor + ruler + minimap)
+        editor_area = QWidget(self)
+        editor_layout = QHBoxLayout(editor_area)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setSpacing(0)
+        editor_layout.addWidget(self._editor, 1)
 
         self._ruler = DiagnosticsRuler(self._editor, self)
-        layout.addWidget(self._ruler, 0)
+        editor_layout.addWidget(self._ruler, 0)
 
         self._minimap_container = QWidget(self)
         self._minimap_container.setObjectName("MinimapPanel")
@@ -397,7 +413,9 @@ class MiniMapHostWidget(QWidget):
         minimap_layout.addWidget(self._btn_down)
 
         self._minimap_container.setFixedWidth(self._minimap_width)
-        layout.addWidget(self._minimap_container, 0)
+        editor_layout.addWidget(self._minimap_container, 0)
+
+        main_layout.addWidget(editor_area, 1)
 
         source_scrollbar = self._editor.verticalScrollBar()
         if source_scrollbar is not None:

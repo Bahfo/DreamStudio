@@ -190,3 +190,51 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261027T175027Z-1f8c0fb-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261027T175027Z-1f8c0fb-dirty/summary.json`
 
+## 20261030T184911Z-3f9e2ee-dirty
+
+- **Timestamp**: 2026-10-30T18:49:11Z
+- **Suites**: editor
+- **Git**: 3f9e2ee (dirty)
+- **Duration**: 4s
+- **Verdict**: FAILED
+- **Passed**: 43 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261030T184911Z-3f9e2ee-dirty/report.md`
+- **Console**: `tests/reports/runs/20261030T184911Z-3f9e2ee-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261030T184911Z-3f9e2ee-dirty/summary.json`
+
+## 20261030T184920Z-3f9e2ee-dirty
+
+- **Timestamp**: 2026-10-30T18:49:20Z
+- **Suites**: navigation
+- **Git**: 3f9e2ee (dirty)
+- **Duration**: 3s
+- **Verdict**: FAILED
+- **Passed**: 17 | **Failed**: 6 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261030T184920Z-3f9e2ee-dirty/report.md`
+- **Console**: `tests/reports/runs/20261030T184920Z-3f9e2ee-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261030T184920Z-3f9e2ee-dirty/summary.json`
+
+## 20261030T185045Z-3f9e2ee-dirty
+
+- **Timestamp**: 2026-10-30T18:50:45Z
+- **Suites**: editor
+- **Git**: 3f9e2ee (dirty)
+- **Duration**: 5s
+- **Verdict**: FAILED
+- **Passed**: 43 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261030T185045Z-3f9e2ee-dirty/report.md`
+- **Console**: `tests/reports/runs/20261030T185045Z-3f9e2ee-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261030T185045Z-3f9e2ee-dirty/summary.json`
+
+## 20261030T185502Z-3f9e2ee-dirty
+
+- **Timestamp**: 2026-10-30T18:55:02Z
+- **Suites**: editor
+- **Git**: 3f9e2ee (dirty)
+- **Duration**: 5s
+- **Verdict**: FAILED
+- **Passed**: 43 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261030T185502Z-3f9e2ee-dirty/report.md`
+- **Console**: `tests/reports/runs/20261030T185502Z-3f9e2ee-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261030T185502Z-3f9e2ee-dirty/summary.json`
+

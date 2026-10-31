@@ -5,16 +5,17 @@ Tests for code navigation: EditorAPI delegation, the CodeEditor go-to-definition
 
 ## Latest Run
 
-- **Run ID**: 20261027T175027Z-1f8c0fb-dirty
-- **Timestamp**: 2026-10-27T17:50:27Z
+- **Run ID**: 20261030T184920Z-3f9e2ee-dirty
+- **Timestamp**: 2026-10-30T18:49:20Z
 - **Verdict**: FAILED
 - **Passed**: 17 | **Failed**: 6 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
-- [Report](../reports/runs/20261027T175027Z-1f8c0fb-dirty/report.md)
+- [Report](../reports/runs/20261030T184920Z-3f9e2ee-dirty/report.md)
 
 ## Historical Runs
 
 | Run ID | Timestamp | Verdict | Passed | Failed | Errors | Skipped | Blocked | Report |
 |--------|-----------|---------|--------|--------|--------|---------|---------|--------|
+| 20261030T184920Z-3f9e2ee-dirty | 2026-10-30T18:49:20Z | FAILED | 17 | 6 | 0 | 0 | 0 | [Report](../reports/runs/20261030T184920Z-3f9e2ee-dirty/report.md) |
 | 20261027T175027Z-1f8c0fb-dirty | 2026-10-27T17:50:27Z | FAILED | 17 | 6 | 0 | 0 | 0 | [Report](../reports/runs/20261027T175027Z-1f8c0fb-dirty/report.md) |
 | 20261027T160649Z-1f8c0fb-dirty | 2026-10-27T16:06:49Z | FAILED | 17 | 6 | 0 | 0 | 0 | [Report](../reports/runs/20261027T160649Z-1f8c0fb-dirty/report.md) |
 | 20261025T175133Z-1f8c0fb-dirty | 2026-10-25T17:51:33Z | FAILED | 17 | 6 | 0 | 0 | 0 | [Report](../reports/runs/20261025T175133Z-1f8c0fb-dirty/report.md) |
