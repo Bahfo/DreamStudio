@@ -20,7 +20,10 @@ from editor.utils.workspace import get_workspace_dir as _inherit_workspace
 
 
 class _EditorMethods:
-    """Thin adapter that routes toolbar actions to the tab editor or to the active editor API."""
+    """
+    Thin adapter that routes toolbar actions to the tab editor or to the
+    active editor API.
+    """
 
     def __init__(self, container: "EditorContainer") -> None:
         self._container = container
@@ -42,7 +45,10 @@ class _EditorMethods:
 
 
 class EditorContainer(QWidget):
-    """Thin wrapper that owns the DreamTabbedEditor and QuickStartMenu in a QStackedWidget, exposing public API that the IDE toolbar depends on."""
+    """
+    Thin wrapper that owns the DreamTabbedEditor and QuickStartMenu
+    in a QStackedWidget, exposing public API that the IDE toolbar depends on.
+    """
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
@@ -69,7 +75,10 @@ class EditorContainer(QWidget):
         self._sync_view()
 
     def _sync_view(self) -> None:
-        """Shows QuickStartMenu when no tabs are open, and _tabs when >= 1 tab exists."""
+        """
+        Shows QuickStartMenu when no tabs are open, and _tabs when >= 1
+        tab exists.
+        """
         tab_count = getattr(self._tabs, "count", lambda: 0)()
         if tab_count > 0:
             self._stack.setCurrentWidget(self._tabs)

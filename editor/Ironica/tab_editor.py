@@ -3,7 +3,6 @@
 Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and Supervised by EXcellent TechStacks Co.
 """
 
-
 from editor import *
 
 from editor.widgets.QDreamTabEditor import QDreamTabEditor
@@ -118,7 +117,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             pass
         self.add_close_interceptor(self._on_preview_close_interceptor)
 
-
     def _apply_tab_style(self, selected_color: str) -> None:
         self.setStyleSheet(
             self._base_tab_style.format(
@@ -157,7 +155,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             finally:
                 self._in_change_event = False
         super().changeEvent(event)
-
 
     def _on_editor_tab_changed(self, index: int) -> None:
         """Update the status bar and route analysis focus on tab change."""
@@ -214,7 +211,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             get_status_service().request_scan(reason)
         except Exception:
             pass
-
 
     def _on_tabs_reordered(self, _from: int = -1, _to: int = -1) -> None:
         """Rebuild path→index maps after user drags tabs."""
@@ -315,7 +311,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             self._update_preview_button_visibility()
         return None
 
-
     def set_font_size(self, value: int) -> None:
         """Propagate a font-size change to every open editor."""
         for i in range(self.count()):
@@ -330,7 +325,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             if isinstance(widget, CodeEditor):
                 widget.set_editor_font(font_name)
                 widget.font_size = size
-
 
     @staticmethod
     def _is_elf_binary(file_path: str) -> bool:
@@ -470,7 +464,8 @@ class DreamTabbedEditor(QDreamTabEditor):
         language=None,
         file_path=None,
     ):
-        """Create a new tab containing either a ``MiniMapHostWidget`` (wrapping a ``CodeEditor``) or a ``FallBack`` placeholder."""
+        """Create a new tab containing either a ``MiniMapHostWidget``
+        (wrapping a ``CodeEditor``) or a ``FallBack`` placeholder."""
         key = self.resolve_key(file_path) if file_path else None
 
         if key and key in self.opened_files:
@@ -628,7 +623,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.setCurrentIndex(index)
         self.setFocus()
 
-
     def add_close_interceptor(self, callback) -> None:
         """Register a callback that is invoked before a tab is closed."""
         self._close_interceptors.append(callback)
@@ -637,7 +631,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         """Unregister a previously registered close interceptor."""
         if callback in self._close_interceptors:
             self._close_interceptors.remove(callback)
-
 
     def _on_close_requested(self, index: int) -> None:
         """Handle the ``tabCloseRequested`` signal."""
@@ -792,7 +785,6 @@ class DreamTabbedEditor(QDreamTabEditor):
         if hasattr(self._parent, "update_editor_visibility"):
             self._parent.update_editor_visibility()
 
-
     def open_file(self) -> None:
         """Open a file chooser dialog and load the selected file."""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -915,7 +907,6 @@ class DreamTabbedEditor(QDreamTabEditor):
             return None
         return os.path.normcase(os.path.normpath(file_path))
 
-
     def save_current_file(self) -> None:
         """Save the currently active editor's buffer."""
         editor = self.currentWidget()
@@ -960,7 +951,10 @@ class DreamTabbedEditor(QDreamTabEditor):
         self.tabBar().rebuild_dirty_indices()
 
     def _reopen_saved_tab(self, editor) -> None:
-        """Close the current tab and re-open the file so that the tab title, icon, and dedup key reflect the saved path."""
+        """
+        Close the current tab and re-open the file so that the tab title,
+        icon, and dedup key reflect the saved path.
+        """
         file_path = editor.current_file_path
         current_idx = self.currentIndex()
         self.close_editor(current_idx)
@@ -989,9 +983,10 @@ class DreamTabbedEditor(QDreamTabEditor):
                     logger.warning("Save-all failed for tab %d", i)
         self.tabBar().rebuild_dirty_indices()
 
-
     def return_file_info(self) -> None:
-        """Push the active editor's EOL and indentation info to the status bar."""
+        """
+        Push the active editor's EOL and indentation info to the status bar.
+        """
         if not hasattr(self._parent, "_get_current_editor"):
             return
         editor = self._parent._get_current_editor()

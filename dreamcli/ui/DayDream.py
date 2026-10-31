@@ -14,8 +14,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from editor.widgets.QTitleBar import TitleBar
-from DreamCLI.ui.DayTerminal import TerminalTabController
-from DreamCLI.ui.DayDreamTabBar import TerminalTabBar
+from dreamcli.ui.DayTerminal import TerminalTabController
+from dreamcli.ui.DayDreamTabBar import TerminalTabBar
 
 
 class DayDreamTitleBar(TitleBar):

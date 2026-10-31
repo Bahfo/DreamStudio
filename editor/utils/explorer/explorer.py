@@ -73,7 +73,10 @@ class ExplorerSelection:
 
 
 class SolutionExplorer(PanelShell):
-    """IDE sidebar management component managing local project workspaces and package systems via a clean, multi-tab layout interface."""
+    """
+    IDE sidebar management component managing local project workspaces and
+    package systems via a clean, multi-tab layout interface.
+    """
 
     PANEL_OBJECT_NAME = "SolutionExplorer"
     FRAME_OBJECT_NAME = "ExplorerFrame"
