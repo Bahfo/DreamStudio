@@ -12,6 +12,8 @@ from editor.base.statusBar import StatusBar
 from editor.base.optionsBar import OptionsMenu
 from editor.base.verticalBar import VerticalSidebar
 from editor.base.titleBar import DreamStudioTitleBar
+from editor.utils.toast_manager.toast_manager import ToastManager
+from editor.utils.notifications.notification_manager import get_notification_manager
 
 OUTLINE_REFRESH_DEBOUNCE_MS = 600
 
@@ -26,6 +28,7 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self._parent = _parent
         self._registry = registry
         self._current_theme_name = None
+        self._pending_toast_notifications = []
 
         self.currentDirectory = current_workspace or ""
         self.setWindowTitle("DreamStudio")
@@ -53,6 +56,12 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
         self._build_title_bar(self.main_layout)
         self._build_hero()
         self._build_status_bar(self.main_layout)
+
+        self.toast_manager = ToastManager(self)
+        self.notification_manager = get_notification_manager()
+        self.notification_manager.notification_added.connect(
+            self._on_notification_added
+        )
 
     def _build_main_layout(self) -> QVBoxLayout:
         main_layout = QVBoxLayout(self.central_widget)
@@ -170,7 +179,6 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
         tabs = self.hero_window._text_editor_center.tabs
         tabs.open_file_by_path(file_path)
-
 
     def _wire_outline_panel(self) -> None:
         """Connect the outline panel's symbol click to editor navigation."""
@@ -347,3 +355,30 @@ class DreamStudio(MenusAPI, EditorAPI, QMainWindow):
 
     def _on_welcome_btn_click(self) -> None:
         self.hero_window._text_editor_center.tabs.open_welcome_window()
+
+    @pyqtSlot(object)
+    def _on_notification_added(self, notification) -> None:
+        """Handle newly added notifications."""
+
+        if not self.isVisible():
+            self._pending_toast_notifications.append(notification)
+            return
+
+        self.toast_manager.show_notification(notification)
+
+    def showEvent(self, event) -> None:
+        """Handle the main window becoming visible."""
+
+        super().showEvent(event)
+
+        if self._pending_toast_notifications:
+            QTimer.singleShot(0, self._flush_pending_toasts)
+
+    def _flush_pending_toasts(self) -> None:
+        """Display notifications accumulated during startup."""
+
+        pending = self._pending_toast_notifications.copy()
+        self._pending_toast_notifications.clear()
+
+        for notification in pending:
+            self.toast_manager.show_notification(notification)
