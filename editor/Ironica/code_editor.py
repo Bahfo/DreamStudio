@@ -1611,7 +1611,7 @@ class CodeEditor(QsciScintilla):
                 label = self._NAVIGATION_LABELS.get(action, "Navigation")
                 self._show_navigation_failure(label, file_path)
             return
-        self._navigate_to_targets(targets, line, file_path)
+        self._navigate_to_targets(targets, line, file_path, kind=action)
 
     def execute_goto_definition(self, line: int = None, col: int = None) -> None:
         """Resolve the symbol under the cursor and navigate to its definition."""
@@ -1652,7 +1652,7 @@ class CodeEditor(QsciScintilla):
                 self._show_navigation_failure("Go to Definition", file_path)
                 return
 
-            self._navigate_to_targets(targets, line, file_path)
+            self._navigate_to_targets(targets, line, file_path, kind="definition")
         except Exception as exc:
             logger.debug("Go-to-definition failed: %s", exc)
 
@@ -1695,7 +1695,7 @@ class CodeEditor(QsciScintilla):
                 self._show_navigation_failure("Go to Declaration", file_path)
                 return
 
-            self._navigate_to_targets(targets, line, file_path)
+            self._navigate_to_targets(targets, line, file_path, kind="declaration")
         except Exception as exc:
             logger.debug("Go-to-declaration failed: %s", exc)
 
@@ -1738,7 +1738,7 @@ class CodeEditor(QsciScintilla):
                 self._show_navigation_failure("Go to Implementation", file_path)
                 return
 
-            self._navigate_to_targets(targets, line, file_path)
+            self._navigate_to_targets(targets, line, file_path, kind="implementation")
         except Exception as exc:
             logger.debug("Go-to-implementation failed: %s", exc)
 
@@ -1780,7 +1780,7 @@ class CodeEditor(QsciScintilla):
             if not targets:
                 return
 
-            self._navigate_to_targets(targets, line, file_path)
+            self._navigate_to_targets(targets, line, file_path, kind="reference")
         except Exception as exc:
             logger.debug("Find-references failed: %s", exc)
 
@@ -1830,8 +1830,21 @@ class CodeEditor(QsciScintilla):
                 out.append(c)
         return out
 
-    def _navigate_to_targets(self, targets: list, current_line: int, current_file: str) -> None:
-        """Navigate to a target or show popup for multiple targets."""
+    def _navigate_to_targets(
+        self,
+        targets: list,
+        current_line: int,
+        current_file: str,
+        kind: str = "target",
+    ) -> None:
+        """Navigate to a target or show a popup for multiple targets.
+
+        Args:
+            targets: Provider results in any supported shape.
+            current_line: Line where navigation started.
+            current_file: File where navigation started.
+            kind: Navigation kind used for the popup label.
+        """
         targets = self.normalize_targets(targets)
         if not targets:
             return
@@ -1852,10 +1865,10 @@ class CodeEditor(QsciScintilla):
                     current_editor.setCursorPosition(target_line, target_col)
             return
 
-        self._show_navigation_popup(targets)
+        self._show_navigation_popup(targets, kind=kind)
 
-    def _show_navigation_popup(self, targets: list) -> None:
-        """Show a popup with multiple navigation targets."""
+    def _show_navigation_popup(self, targets: list, kind: str = "target") -> None:
+        """Show or update the reusable popup for multiple navigation targets."""
         try:
             from editor.Ironica.plugins.cpp.navigation.popup import NavigationPopup
             from editor.Ironica.plugins.cpp.navigation.engine import NavigationResult
@@ -1867,12 +1880,26 @@ class CodeEditor(QsciScintilla):
                         file_path=file_path,
                         line=target_line,
                         col=target_col,
-                        display_name=f"{file_path}:{target_line + 1}",
-                        kind="target",
+                        display_name="",
+                        kind=kind,
                     )
                 )
 
-            popup = NavigationPopup(self.window())
+            popup = getattr(self, "_navigation_popup", None)
+            if popup is not None:
+                try:
+                    popup.isVisible()
+                except RuntimeError:
+                    popup = None
+            if popup is None:
+                popup = NavigationPopup(self.window())
+                self._navigation_popup = popup
+                try:
+                    self.destroyed.connect(popup.deleteLater)
+                except (AttributeError, TypeError):
+                    pass
+            if popup.isVisible():
+                popup.hide()
             popup.set_results(nav_results, on_select=lambda r: self._navigate_to_result(r))
             popup.show_at_cursor(self)
         except Exception as exc:

@@ -1,0 +1,19 @@
+{
+  "run_id": "20261031T085849Z-b374a9f-dirty",
+  "timestamp": "2026-10-31T08:58:49Z",
+  "suites": [
+    "editor"
+  ],
+  "git_revision": "b374a9f",
+  "dirty": true,
+  "duration_seconds": 4,
+  "exit_code": 1,
+  "verdict": "FAILED",
+  "counts": {
+    "passed": 43,
+    "failed": 1,
+    "skipped": 1,
+    "blocked": 0,
+    "errors": 0
+  }
+}
