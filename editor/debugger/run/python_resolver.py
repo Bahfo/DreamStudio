@@ -1,6 +1,7 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Resolve the Python interpreter belonging to the active workspace (cwd) instead of the IDE's own interpreter, with a global-Python fallback.
+Resolve the Python interpreter belonging to the active workspace (cwd) instead
+of the IDE's own interpreter, with a global-Python fallback.
 """
 
 import logging

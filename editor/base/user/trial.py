@@ -171,12 +171,14 @@ class FreeTrialWindow(QWidget):
             <div class="perk-item">
                 <span class="check-icon">✓</span>
                 <span class="title"> Specialized Plugins:</span> 
-                <span class="desc">Dedicated extensions for data tools, visualization, SQL, and databases.</span>
+                <span class="desc">Dedicated extensions for data tools, visualization,
+                    SQL, and databases.</span>
             </div>
             <div class="perk-item">
                 <span class="check-icon">✓</span>
                 <span class="title"> AI Assistance:</span> 
-                <span class="desc">Powered by Ether AI with non-resetting generation context as long as you're subscribed.</span>
+                <span class="desc">Powered by Ether AI with non-resetting generation context
+                    as long as you're subscribed.</span>
             </div>
         </div>
         """)

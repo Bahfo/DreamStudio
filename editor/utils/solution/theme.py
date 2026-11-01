@@ -1,6 +1,7 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Shared theming and screen-centering helpers for the solution-management widgets (start window, create dialog, scaffold dialog, confirm boxes).
+Shared theming and screen-centering helpers for the solution-management
+widgets (start window, create dialog, scaffold dialog, confirm boxes).
 """
 
 from PyQt6.QtWidgets import QApplication, QWidget

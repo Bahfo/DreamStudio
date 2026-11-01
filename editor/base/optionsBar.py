@@ -50,7 +50,8 @@ class OptionsMenu(QFrame):
         self.debug_frame.hide()
 
     def _validate_config(self, menu_data: list) -> None:
-        """Validates the entire JSON structure against the selected bar_type rules before any UI widgets are instantiated."""
+        """Validates the entire JSON structure against the selected bar_type
+        rules before any UI widgets are instantiated."""
         policy = self.BAR_POLICIES[self.bar_type]
 
         present_ids = [item.get("id") for item in menu_data if "id" in item]

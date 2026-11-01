@@ -1,7 +1,8 @@
 from editor import *
 
 class ExpandingTextEdit(QPlainTextEdit):
-    """A multi-line text field that expands automatically with text input and adapts natively when its parent container layout resizes."""
+    """A multi-line text field that expands automatically with text input and
+    adapts natively when its parent container layout resizes."""
 
     def __init__(self, parent=None):
         super().__init__(parent)

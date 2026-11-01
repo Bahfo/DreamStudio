@@ -9,7 +9,8 @@ from editor.utils.node_editor.ui_build import NodeBuilder
 
 
 class EditorAPI:
-    """Mixin that holds all editor API callbacks (toggles, theme setters, file operations, clipboard actions, status updates, etc.)."""
+    """Mixin holding all editor API callbacks (toggles, theme setters, file
+    operations, clipboard actions, status updates, etc.)."""
 
     def _toggle_panel(self, panel_id: str, manager) -> None:
         """Toggle a side panel:"""
@@ -80,6 +81,9 @@ class EditorAPI:
         self.hero_window._text_editor_center.tabs.add_new_tab(
             NodeBuilder, "Nodes Editor"
         )
+
+    def _toggle_settings_window(self):
+        self.hero_window._text_editor_center.tabs.add_new_tab(QWidget, "Settings")
 
     def _toggle_problems(self) -> None:
         """Open/close the Problems panel, unfiltered."""

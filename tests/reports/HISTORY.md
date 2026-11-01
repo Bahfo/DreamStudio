@@ -274,3 +274,15 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261031T090016Z-b374a9f-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261031T090016Z-b374a9f-dirty/summary.json`
 
+## 20261101T181925Z-c27e5eb-dirty
+
+- **Timestamp**: 2026-11-01T18:19:25Z
+- **Suites**: bootstrapping, editor, navigation, python_plugin
+- **Git**: c27e5eb (dirty)
+- **Duration**: 209s
+- **Verdict**: FAILED
+- **Passed**: 697 | **Failed**: 7 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261101T181925Z-c27e5eb-dirty/report.md`
+- **Console**: `tests/reports/runs/20261101T181925Z-c27e5eb-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261101T181925Z-c27e5eb-dirty/summary.json`
+

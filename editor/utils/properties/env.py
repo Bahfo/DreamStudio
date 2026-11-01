@@ -20,7 +20,8 @@ def _badge_color(value: object) -> str:
 
 
 def get_interpreter_info() -> dict:
-    """Extracts the Python interpreter engine configurations and runtime variables, then returns a dictionary containing all these information."""
+    """Extracts the Python interpreter engine configurations and runtime
+    variables, then returns a dictionary containing all these information."""
     version = platform.python_version()
     compiler = platform.python_compiler()
     implementation = platform.python_implementation()

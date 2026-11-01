@@ -1326,7 +1326,8 @@ class CodeEditor(QsciScintilla):
                 self._apply_color_to_line(line, old_str, new_color, start_col, end_col)
 
     def get_breakpoint_lines(self) -> set[int]:
-        """Scans the document and returns a set of 1-based line numbers where breakpoint markers currently exist."""
+        """Scans the document and returns a set of 1-based line numbers where
+        breakpoint markers currently exist."""
         breakpoint_lines = set()
 
         mask = 1 << self.MARKER_BREAKPOINT
@@ -1410,7 +1411,8 @@ class CodeEditor(QsciScintilla):
             self._debug_stack_widget.setGeometry(frame_x, frame_y, frame_width, frame_height)
 
     def _get_color_by_line(self, line_number: int) -> tuple[Any, str, int, int] | None:
-        """Scans a specific line and extracts the indicated color from it by using a set of compiled regular expressions (COLOR_REGEX)"""
+        """Scans a specific line and extracts the indicated color from it by
+        using a set of compiled regular expressions (COLOR_REGEX)."""
         line_text = self.text(line_number)
         match = COLOR_REGEX.search(line_text)
         if not match:

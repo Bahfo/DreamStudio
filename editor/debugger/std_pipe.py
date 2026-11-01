@@ -29,7 +29,8 @@ def handle_metrics(metrics: dict):
 
 
 def launch_monitor(executable_path: str, process_id: int) -> None:
-    """Python API to launch DreamStudioProcessManager given the executable path and PID to launch the monitor by."""
+    """Python API to launch DreamStudioProcessManager given the executable path
+    and PID to launch the monitor by."""
     buffer = ""
 
     if not os.path.exists(executable_path):

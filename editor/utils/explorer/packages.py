@@ -5,7 +5,8 @@ from editor.widgets.QToolBox import ExplorerToolbar
 
 
 class DependenciesView(QWidget):
-    """An IDE package manager view that displays, searches, installs, and uninstalls Python packages within the active workspace venv."""
+    """An IDE package manager view that displays, searches, installs, and
+    uninstalls Python packages within the active workspace venv."""
 
     def __init__(self, parent=None):
         """Initializes the view component hierarchy, core layout configurations, and data initialization."""
@@ -67,7 +68,8 @@ class DependenciesView(QWidget):
         self._load_packages()
 
     def _load_packages(self):
-        """Disables sorting, fetches workspace venv distributions dynamically, parses metadata, and updates the table structure."""
+        """Disables sorting, fetches workspace venv distributions dynamically,
+        parses metadata, and updates the table structure."""
         self.table.setSortingEnabled(False)
         self.table.clearContents()
 
@@ -198,7 +200,8 @@ class DependenciesView(QWidget):
             self._run_pip_command(["uninstall", package_name, "-y"])
 
     def _run_pip_command(self, arguments):
-        """Spawns an out-of-process system thread to safely execute a pip command without freezing the parent application thread loop."""
+        """Spawns an out-of-process system thread to safely execute a pip
+        command without freezing the parent application thread loop."""
         if self._process and self._process.state() == QProcess.ProcessState.Running:
             QMessageBox.warning(
                 self, "Busy", "Another package management process is already running."
@@ -227,7 +230,8 @@ class DependenciesView(QWidget):
         self._process.start(python_exe, full_args)
 
     def _on_pip_finished(self, exit_code, exit_status):
-        """Handles background process conclusion events, restores input visibility patterns, and surfaces diagnostics upon shell failures."""
+        """Handles background process conclusion events, restores input
+        visibility patterns, and surfaces diagnostics upon shell failures."""
         self.setEnabled(True)
         proc = self._process
 

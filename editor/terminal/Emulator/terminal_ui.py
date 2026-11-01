@@ -52,7 +52,8 @@ class TerminalEdit(QPlainTextEdit):
 
 
     def insertFromMimeData(self, source):
-        """Intercept paste operations (Ctrl+V, Shift+Insert, etc.) to prevent insertion before the prompt boundary."""
+        """Intercept paste operations (Ctrl+V, Shift+Insert, etc.) to prevent
+        insertion before the prompt boundary."""
         cursor = self.textCursor()
         if cursor.position() < self._tw._input_pos:
             cursor.setPosition(self._tw._input_pos)
@@ -72,7 +73,8 @@ class TerminalEdit(QPlainTextEdit):
         super().dropEvent(event)
 
     def contextMenuEvent(self, event):
-        """Provide a minimal, filtered context menu that never allows * Copy is always available when there is a selection."""
+        """Provide a minimal, filtered context menu that never allows *
+        Copy is always available when there is a selection."""
         cursor = self.textCursor()
         has_selection = cursor.hasSelection()
 
@@ -422,5 +424,6 @@ class TerminalPanel(QWidget):
         self.system_shell_tab.cleanup()
 
     def closeEvent(self, event) -> None:
-        """Intercept close to prevent widget destruction; the workspace is toggled visible/hidden by the parent splitter."""
+        """Intercept close to prevent widget destruction; the workspace is
+        toggled visible/hidden by the parent splitter."""
         event.ignore()

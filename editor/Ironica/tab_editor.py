@@ -1,6 +1,7 @@
 """
 (C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
-Developed and Maintained Mainly by DreamStudio Maintainers and Contributors, and Supervised by EXcellent TechStacks Co.
+Developed and Maintained Mainly by DreamStudio Maintainers and Contributors,
+and Supervised by EXcellent TechStacks Co.
 """
 
 from editor import *

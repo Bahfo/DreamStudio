@@ -9,7 +9,10 @@ from editor.widgets.QToolTip import ToolTip
 
 
 def compute_commit_graph(commits):
-    """Compute lane assignments and connections for a list of git commits (newest first)."""
+    """
+    Compute lane assignments and connections for a
+    list of git commits (newest first).
+    """
     if not commits:
         return []
 

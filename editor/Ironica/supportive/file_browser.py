@@ -102,7 +102,6 @@ class FileBrowser(QWidget):
         project_root = self._get_project_root()
         root = Path(project_root).resolve() if project_root else None
 
-        # File inside the project: show only the project-relative segments.
         if root is not None and path.is_relative_to(root):
             parts = []
             current = root
@@ -113,7 +112,6 @@ class FileBrowser(QWidget):
                 parts.append((part, str(current), rel_path))
             return parts
 
-        # File outside the project (or no workspace): show only the file name.
         return [(path.name, str(path), path.name)]
 
     def _open_context_menu(self, btn: QPushButton) -> None:
@@ -187,6 +185,17 @@ class FileBrowser(QWidget):
 
         menu.adjustSize()
         menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+
+        container.setMinimumSize(0, 0)
+        container.setMaximumSize(16777215, 16777215)
+        container.resize(0, 0)
+
+        menu.setMinimumSize(0, 0)
+        menu.setMaximumSize(16777215, 16777215)
+        menu.resize(0, 0)
+
+        # Schedule menu destruction.
+        menu.deleteLater()
 
     def _build_tree(self) -> None:
         """

@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class VirtualMinimap(QWidget):
-    """Lightweight minimap that renders only the visible chunk of the source editor's text buffer using QPainter."""
+    """Lightweight minimap that renders only the visible chunk of the source
+    editor's text buffer using QPainter."""
 
     MAX_LINE_CHARS = 200
 
@@ -314,7 +315,8 @@ class VirtualMinimap(QWidget):
 
 
 class MinimapOverlay(QWidget):
-    """Transparent overlay that highlights the visible region of the source editor inside the minimap container."""
+    """Transparent overlay that highlights the visible region of the source
+    editor inside the minimap container."""
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
