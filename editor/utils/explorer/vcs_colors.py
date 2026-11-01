@@ -1,6 +1,7 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Pure translation helpers converting VCS status snapshots into absolute path color indices and theme-aware brushes for the Solution Explorer.
+Pure translation helpers converting VCS status snapshots into absolute path
+color indices and theme-aware brushes for the Solution Explorer.
 """
 
 from editor import *

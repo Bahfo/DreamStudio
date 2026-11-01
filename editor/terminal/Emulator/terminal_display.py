@@ -241,7 +241,8 @@ class TerminalDisplay(QWidget):
         return max(0, total - self._rows - self._scroll_offset)
 
     def _absolute_to_visible_row(self, abs_idx: int) -> int | None:
-        """Map an absolute line index to a visible-row index, or ``None`` if the line falls outside the current viewport."""
+        """Map an absolute line index to a visible-row index, or ``None``
+        if the line falls outside the current viewport."""
         start = self._visible_start_index()
         vis_row = abs_idx - start
         if vis_row < 0 or vis_row >= self._rows:
@@ -470,7 +471,9 @@ class TerminalDisplay(QWidget):
 
 
     def _build_visible_cache(self):
-        """Build the visible-line cache using O(1) direct indexing into pyte's ``history.top`` / ``history.bottom`` deques instead of iterating through every history line sequentially."""
+        """Build the visible-line cache using O(1) direct indexing into pyte's
+        ``history.top`` / ``history.bottom`` deques instead of iterating
+        through every history line sequentially."""
         total_hist = self._count_history_lines()
         total = total_hist + self._rows
         start = max(0, total - self._rows - self._scroll_offset)

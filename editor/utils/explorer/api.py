@@ -48,7 +48,8 @@ class ExplorerAPI:
 
     @staticmethod
     def selected_source_path(tree_view: QTreeView) -> str | None:
-        """Return the absolute filesystem path of the currently selected item, or ``None`` if nothing is selected."""
+        """Return the absolute filesystem path of the currently selected item,
+        or ``None`` if nothing is selected."""
         proxy_index = tree_view.currentIndex()
         if not proxy_index.isValid():
             return None

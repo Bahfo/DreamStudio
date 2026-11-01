@@ -65,7 +65,9 @@ class ConfigRun:
         return self.options
 
     def build_command(self, cwd: Optional[str] = None) -> Tuple[List[str], str]:
-        """Resolves the configured executable, target file, and parameters into an argv sequence plus a working directory — without launching any process."""
+        """Resolves the configured executable, target file, and parameters into
+        an argv sequence plus a working directory — without launching any
+        process."""
         arg = (
             self.options.get("Arg")
             or self.options.get("interpreter")

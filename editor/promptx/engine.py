@@ -6,12 +6,13 @@ DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL
 • Exit terminal environment:               quit
 
 NOTE:
-All command inputs are processed sequentially by the terminal's core interpreter. Invalid or malformed syntax may
-result in undefined behavior or ignored operations.
+All command inputs are processed sequentially by the terminal's core
+interpreter. Invalid or malformed syntax may result in undefined
+behavior or ignored operations.
 
 A DreamStudio commands shell powered by command-type language 'Prompt-X'.
-Prompt-X is a one-line shell command language for executing various system level commands, and various input/output
-user commands.
+Prompt-X is a one-line shell command language for executing various
+system level commands, and various input/output user commands.
 """
 
 ALL_COMMANDS = """All Available Commands:
@@ -109,14 +110,17 @@ class CommandLine(cmd.Cmd):
         return super().onecmd(line)
 
     def get_previous_command(self):
-        """Scans the history of commands to get the previous commmand, which is a normal behavior in command-line tools after clicking the top-arrow on the keyboard."""
+        """Scans the history of commands to get the previous commmand, which is
+        a normal behavior in command-line tools after clicking the top-arrow
+        on the keyboard."""
         if self._history and self._history_index > 0:
             self._history_index -= 1
             return self._history[self._history_index]
         return ""
 
     def get_next_command(self):
-        """Scans the history of commands to get the next command, which is obtained if the user is checking the history."""
+        """Scans the history of commands to get the next command, which is
+        obtained if the user is checking the history."""
         if self._history and self._history_index < len(self._history) - 1:
             self._history_index += 1
             return self._history[self._history_index]
@@ -213,7 +217,10 @@ class CommandLine(cmd.Cmd):
         source = args.get("source", None)
         destination = args.get("destination", None)
         if not source or not destination:
-            return "Error 3: You must provide --source=<source_file> and --destination=<destination_file_or_dir>"
+            return (
+                "Error 3: You must provide --source=<source_file> "
+                "and --destination=<destination_file_or_dir>"
+            )
         try:
             if not os.path.isfile(source):
                 return f"Error 5: Source file '{source}' does not exist."
@@ -296,7 +303,10 @@ class CommandLine(cmd.Cmd):
             used = usage.used // (1024**3)
             free = usage.free // (1024**3)
             percent = round((used / total) * 100, 2)
-            return f"Disk info for {path}:\nTotal: {total} GB\nUsed: {used} GB\nFree: {free} GB\nUsage: {percent}%"
+            return (
+                f"Disk info for {path}:\nTotal: {total} GB\nUsed: {used} GB\n"
+                f"Free: {free} GB\nUsage: {percent}%"
+            )
         except Exception as e:
             return f"Error: {e}"
 
@@ -417,7 +427,10 @@ class CommandLine(cmd.Cmd):
             available = round(mem.available / (1024**2), 2)
             used = round(mem.used / (1024**2), 2)
             percent = mem.percent
-            return f"Memory Usage:\nTotal: {total} MB\nUsed: {used} MB\nAvailable: {available} MB\nUsage: {percent}%"
+            return (
+                f"Memory Usage:\nTotal: {total} MB\nUsed: {used} MB\n"
+                f"Available: {available} MB\nUsage: {percent}%"
+            )
         except Exception as e:
             return f"Error: {e}"
 

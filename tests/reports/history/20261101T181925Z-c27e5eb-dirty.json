@@ -1,0 +1,22 @@
+{
+  "run_id": "20261101T181925Z-c27e5eb-dirty",
+  "timestamp": "2026-11-01T18:19:25Z",
+  "suites": [
+    "bootstrapping",
+    "editor",
+    "navigation",
+    "python_plugin"
+  ],
+  "git_revision": "c27e5eb",
+  "dirty": true,
+  "duration_seconds": 209,
+  "exit_code": 1,
+  "verdict": "FAILED",
+  "counts": {
+    "passed": 697,
+    "failed": 7,
+    "skipped": 1,
+    "blocked": 0,
+    "errors": 0
+  }
+}

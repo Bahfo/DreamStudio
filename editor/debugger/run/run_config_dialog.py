@@ -1,6 +1,7 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Dialog for creating and editing DreamStudio run configurations (File Path, First Argument, Parameters) consumed by `ConfigRun`.
+Dialog for creating and editing DreamStudio run configurations (File Path,
+First Argument, Parameters) consumed by `ConfigRun`.
 """
 
 import os

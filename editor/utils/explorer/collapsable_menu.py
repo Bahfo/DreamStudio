@@ -1,6 +1,7 @@
 """
 (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
-Explorer options menu providing sort, hidden-files toggle, and path-copy actions for the Solution Explorer status bar.
+Explorer options menu providing sort, hidden-files toggle, and path-copy
+actions for the Solution Explorer status bar.
 """
 
 from __future__ import annotations

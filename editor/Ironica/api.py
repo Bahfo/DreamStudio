@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class EditorAPI:
-    """Facade that wraps a ``CodeEditor`` instance and exposes every editor operation through clean Python methods."""
+    """Facade wrapping a ``CodeEditor`` instance and exposing every editor
+    operation through clean Python methods."""
 
     def __init__(self, editor: QsciScintilla) -> None:
         if editor is None:

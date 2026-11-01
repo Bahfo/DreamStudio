@@ -275,7 +275,8 @@ class WinPty(BasePty):
 
 
 class PtyReader(QObject):
-    """Background reader that pulls data from a PTY fd and delivers it to the Qt event loop via queued signal connections."""
+    """Background reader that pulls data from a PTY fd and delivers it to the
+    Qt event loop via queued signal connections."""
 
     raw_output_received = pyqtSignal(str)
     finished = pyqtSignal()
