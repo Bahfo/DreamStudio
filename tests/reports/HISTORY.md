@@ -286,3 +286,39 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261101T181925Z-c27e5eb-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261101T181925Z-c27e5eb-dirty/summary.json`
 
+## 20261102T141655Z-4dbbf79-dirty
+
+- **Timestamp**: 2026-11-02T14:16:55Z
+- **Suites**: node_editor
+- **Git**: 4dbbf79 (dirty)
+- **Duration**: 1s
+- **Verdict**: FAILED
+- **Passed**: 2 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261102T141655Z-4dbbf79-dirty/report.md`
+- **Console**: `tests/reports/runs/20261102T141655Z-4dbbf79-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261102T141655Z-4dbbf79-dirty/summary.json`
+
+## 20261102T141714Z-4dbbf79-dirty
+
+- **Timestamp**: 2026-11-02T14:17:14Z
+- **Suites**: node_editor
+- **Git**: 4dbbf79 (dirty)
+- **Duration**: 1s
+- **Verdict**: PASSED
+- **Passed**: 3 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261102T141714Z-4dbbf79-dirty/report.md`
+- **Console**: `tests/reports/runs/20261102T141714Z-4dbbf79-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261102T141714Z-4dbbf79-dirty/summary.json`
+
+## 20261102T141745Z-4dbbf79-dirty
+
+- **Timestamp**: 2026-11-02T14:17:45Z
+- **Suites**: node_editor
+- **Git**: 4dbbf79 (dirty)
+- **Duration**: 2s
+- **Verdict**: PASSED
+- **Passed**: 3 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261102T141745Z-4dbbf79-dirty/report.md`
+- **Console**: `tests/reports/runs/20261102T141745Z-4dbbf79-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261102T141745Z-4dbbf79-dirty/summary.json`
+

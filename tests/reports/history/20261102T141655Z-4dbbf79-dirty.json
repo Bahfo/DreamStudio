@@ -1,0 +1,19 @@
+{
+  "run_id": "20261102T141655Z-4dbbf79-dirty",
+  "timestamp": "2026-11-02T14:16:55Z",
+  "suites": [
+    "node_editor"
+  ],
+  "git_revision": "4dbbf79",
+  "dirty": true,
+  "duration_seconds": 1,
+  "exit_code": 1,
+  "verdict": "FAILED",
+  "counts": {
+    "passed": 2,
+    "failed": 1,
+    "skipped": 0,
+    "blocked": 0,
+    "errors": 0
+  }
+}
