@@ -19,6 +19,4 @@ publish/
 plans/
 
 .ds/
-
-# Detailed run artifacts are local-only; durable summaries are tracked.
 /tests/reports/runs/
