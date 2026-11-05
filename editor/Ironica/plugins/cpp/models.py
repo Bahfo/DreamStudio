@@ -5,6 +5,7 @@ Domain models for C++ Plugin.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -29,3 +30,18 @@ class CppCompletion:
     insert_text: str = ""
     kind: str = "text"
     signature: str = ""
+
+
+@dataclass(frozen=True)
+class CppHoverDetails:
+    """
+    Rich documentation details for C++ hover tooltips.
+    Mirrors Python's HoverDetails for unified UI rendering.
+    """
+
+    name: str
+    kind: str
+    signature: str
+    parameters: list[str] = field(default_factory=list)
+    return_type: Optional[str] = None
+    docstring: Optional[str] = None
