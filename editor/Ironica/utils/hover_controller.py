@@ -11,7 +11,6 @@ from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QTimer, Qt
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication, QWidget
 
-
 _HOVER_DELAY_MS = 500
 _HOVER_MOVE_THRESHOLD = 3
 
@@ -95,7 +94,6 @@ class HoverController(QObject):
                     bar.valueChanged.connect(self._on_editor_scroll)
             except Exception:
                 pass
-
 
     def _event_global_pos(self, event: QEvent) -> Optional[QPoint]:
         """Best-effort extraction of a global cursor position from *event*."""
@@ -250,7 +248,6 @@ class HoverController(QObject):
 
         return False
 
-
     def _handle_editor_mouse_move(self, watched: QObject, event: QEvent) -> None:
         try:
             local_pos = event.position().toPoint()
@@ -258,7 +255,9 @@ class HoverController(QObject):
             local_pos = event.pos()
 
         viewport_pos = self._to_viewport_pos(watched, local_pos)
-        if (viewport_pos - self._last_editor_pos).manhattanLength() <= _HOVER_MOVE_THRESHOLD:
+        if (
+            viewport_pos - self._last_editor_pos
+        ).manhattanLength() <= _HOVER_MOVE_THRESHOLD:
             return
 
         self._last_editor_pos = viewport_pos
@@ -300,7 +299,6 @@ class HoverController(QObject):
         self._target_position = -1
         self._token_rect_global = QRect()
         self._hide_unpinned()
-
 
     def _track_cursor(self) -> None:
         if self._shutdown:
@@ -344,7 +342,6 @@ class HoverController(QObject):
 
         self._hide_unpinned()
         self._cursor_timer.stop()
-
 
     def cancel_pending_hover(self) -> None:
         """Drop a pending hover so a stale timer can't fire after navigation."""
@@ -394,13 +391,19 @@ class HoverController(QObject):
             self._target_line,
             self._target_col,
         )
-        if not result:
-            return
 
-        try:
-            title_markdown, body_markdown = result
-        except (TypeError, ValueError):
-            return
+        if not result:
+            # Fallback: show token name with "no information available"
+            token = self._get_token_at_position(
+                text, self._target_line, self._target_col
+            )
+            title_markdown = f"## {token}" if token else "## Symbol"
+            body_markdown = "*(no information available)*"
+        else:
+            try:
+                title_markdown, body_markdown = result
+            except (TypeError, ValueError):
+                return
 
         if not title_markdown and not body_markdown:
             return
@@ -432,6 +435,31 @@ class HoverController(QObject):
         except Exception:
             return None
 
+    def _get_token_at_position(self, text: str, line: int, col: int) -> str:
+        """Extract the word/token at the given position for fallback display."""
+        try:
+            lines = text.splitlines()
+            if 0 <= line < len(lines):
+                line_text = lines[line]
+                # Find word boundaries around col
+                start = col
+                end = col
+                # Expand left
+                while start > 0 and (
+                    line_text[start - 1].isalnum() or line_text[start - 1] in "_"
+                ):
+                    start -= 1
+                # Expand right
+                while end < len(line_text) and (
+                    line_text[end].isalnum() or line_text[end] in "_"
+                ):
+                    end += 1
+                token = line_text[start:end]
+                if token:
+                    return token
+        except Exception:
+            pass
+        return ""
 
     def _to_viewport_pos(self, watched: QObject, pos: QPoint) -> QPoint:
         if self._viewport is None or watched is self._viewport:
@@ -503,20 +531,29 @@ class HoverController(QObject):
 
         self._target_position = position
         try:
-            x = int(self.editor.SendScintilla(
-                self.editor.SCI_POINTXFROMPOSITION,
-                0,
-                position,
-            ))
-            y = int(self.editor.SendScintilla(
-                self.editor.SCI_POINTYFROMPOSITION,
-                0,
-                position,
-            ))
-            line_height = max(1, int(self.editor.SendScintilla(
-                self.editor.SCI_TEXTHEIGHT,
-                line,
-            )))
+            x = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_POINTXFROMPOSITION,
+                    0,
+                    position,
+                )
+            )
+            y = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_POINTYFROMPOSITION,
+                    0,
+                    position,
+                )
+            )
+            line_height = max(
+                1,
+                int(
+                    self.editor.SendScintilla(
+                        self.editor.SCI_TEXTHEIGHT,
+                        line,
+                    )
+                ),
+            )
         except Exception:
             return None
 
@@ -524,9 +561,7 @@ class HoverController(QObject):
             return None
 
         try:
-            return self._viewport.mapToGlobal(
-                QPoint(x, y + line_height + 6)
-            )
+            return self._viewport.mapToGlobal(QPoint(x, y + line_height + 6))
         except Exception:
             return None
 
@@ -539,7 +574,11 @@ class HoverController(QObject):
     def editor_position_at(self, pos: QPoint) -> Optional[int]:
         try:
             sci_close = getattr(self.editor, "SCI_POSITIONFROMPOINTCLOSE", None)
-            command = sci_close if sci_close is not None else self.editor.SCI_POSITIONFROMPOINT
+            command = (
+                sci_close
+                if sci_close is not None
+                else self.editor.SCI_POSITIONFROMPOINT
+            )
             value = self.editor.SendScintilla(command, pos.x(), pos.y())
             value = int(value)
             return value if value >= 0 else None
@@ -552,42 +591,59 @@ class HoverController(QObject):
             return
 
         try:
-            start = int(self.editor.SendScintilla(
-                self.editor.SCI_WORDSTARTPOSITION,
-                self._target_position,
-                1,
-            ))
-            end = int(self.editor.SendScintilla(
-                self.editor.SCI_WORDENDPOSITION,
-                self._target_position,
-                1,
-            ))
+            start = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_WORDSTARTPOSITION,
+                    self._target_position,
+                    1,
+                )
+            )
+            end = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_WORDENDPOSITION,
+                    self._target_position,
+                    1,
+                )
+            )
             if end <= start:
                 end = start + 1
 
-            x1 = int(self.editor.SendScintilla(
-                self.editor.SCI_POINTXFROMPOSITION,
-                0,
-                start,
-            ))
-            x2 = int(self.editor.SendScintilla(
-                self.editor.SCI_POINTXFROMPOSITION,
-                0,
-                end,
-            ))
-            line = int(self.editor.SendScintilla(
-                self.editor.SCI_LINEFROMPOSITION,
-                self._target_position,
-            ))
-            y = int(self.editor.SendScintilla(
-                self.editor.SCI_POINTYFROMPOSITION,
-                0,
-                start,
-            ))
-            line_height = max(1, int(self.editor.SendScintilla(
-                self.editor.SCI_TEXTHEIGHT,
-                line,
-            )))
+            x1 = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_POINTXFROMPOSITION,
+                    0,
+                    start,
+                )
+            )
+            x2 = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_POINTXFROMPOSITION,
+                    0,
+                    end,
+                )
+            )
+            line = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_LINEFROMPOSITION,
+                    self._target_position,
+                )
+            )
+            y = int(
+                self.editor.SendScintilla(
+                    self.editor.SCI_POINTYFROMPOSITION,
+                    0,
+                    start,
+                )
+            )
+            line_height = max(
+                1,
+                int(
+                    self.editor.SendScintilla(
+                        self.editor.SCI_TEXTHEIGHT,
+                        line,
+                    )
+                ),
+            )
 
             left = min(x1, x2) - 2
             right = max(x1, x2) + 2
@@ -603,13 +659,17 @@ class HoverController(QObject):
         except Exception:
             self._token_rect_global = QRect()
 
-
     def _is_point_in_flyout(self, global_pos: QPoint) -> bool:
         try:
-            return bool(self.flyout.isVisible() and self.flyout.frameGeometry().contains(global_pos))
+            return bool(
+                self.flyout.isVisible()
+                and self.flyout.frameGeometry().contains(global_pos)
+            )
         except Exception:
             try:
-                return bool(self.flyout.rect().contains(self.flyout.mapFromGlobal(global_pos)))
+                return bool(
+                    self.flyout.rect().contains(self.flyout.mapFromGlobal(global_pos))
+                )
             except Exception:
                 return False
 
@@ -617,7 +677,10 @@ class HoverController(QObject):
         return self._is_point_in_flyout(QCursor.pos())
 
     def _is_point_in_target_token(self, global_pos: QPoint) -> bool:
-        return bool(not self._token_rect_global.isNull() and self._token_rect_global.contains(global_pos))
+        return bool(
+            not self._token_rect_global.isNull()
+            and self._token_rect_global.contains(global_pos)
+        )
 
     def _is_cursor_over_target_token(self) -> bool:
         return self._is_point_in_target_token(QCursor.pos())
@@ -633,12 +696,12 @@ class HoverController(QObject):
                 pass
 
         try:
-            return bool(self.editor.isVisible() and self.editor.rect().contains(
-                self.editor.mapFromGlobal(global_pos)
-            ))
+            return bool(
+                self.editor.isVisible()
+                and self.editor.rect().contains(self.editor.mapFromGlobal(global_pos))
+            )
         except Exception:
             return False
-
 
     def _hide_unpinned(self, force: bool = False) -> None:
         self._flyout_close_timer.stop()
@@ -664,7 +727,6 @@ class HoverController(QObject):
             return bool(self.flyout.is_pinned)
         except Exception:
             return False
-
 
     def _get_viewport(self) -> Optional[QWidget]:
         try:

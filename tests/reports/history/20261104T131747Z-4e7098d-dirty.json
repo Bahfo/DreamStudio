@@ -1,0 +1,19 @@
+{
+  "run_id": "20261104T131747Z-4e7098d-dirty",
+  "timestamp": "2026-11-04T13:17:47Z",
+  "suites": [
+    "python_plugin"
+  ],
+  "git_revision": "4e7098d",
+  "dirty": true,
+  "duration_seconds": 179,
+  "exit_code": 3,
+  "verdict": "INTERRUPTED",
+  "counts": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "errors": 0
+  }
+}

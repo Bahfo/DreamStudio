@@ -20,6 +20,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QFrame,
     QLabel,
+    QSizePolicy,
     QStyle,
     QWidget,
     QVBoxLayout,
@@ -102,8 +103,9 @@ class DocumentationFlyout(QFrame):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._width = 520
-        self._min_height = 64
+        self._min_height = 40
         self._max_height = 460
+        self._document_margin = 8
         self._is_pinned = False
         self._in_change_event = False
         self._last_body = ""
@@ -164,6 +166,11 @@ class DocumentationFlyout(QFrame):
 
         root.addWidget(self._header)
 
+        self._divider = QFrame(self)
+        self._divider.setObjectName("documentationFlyoutDivider")
+        self._divider.setFixedHeight(1)
+        root.addWidget(self._divider)
+
         self._separator = None
 
         self.browser = QTextBrowser(self)
@@ -180,7 +187,12 @@ class DocumentationFlyout(QFrame):
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.LinksAccessibleByMouse
         )
-        self.browser.document().setDocumentMargin(14)
+        self.browser.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Ignored,
+        )
+        self.browser.setMinimumHeight(0)
+        self.browser.document().setDocumentMargin(self._document_margin)
         root.addWidget(self.browser, 1)
 
         shadow = QGraphicsDropShadowEffect(self)
@@ -195,40 +207,75 @@ class DocumentationFlyout(QFrame):
         """Give the card themed surfaces instead of Qt's stock light palette."""
         colors = self._doc_colors()
         surface = colors["surface"]
+        surface_alt = colors.get("surface_alt", surface)
         border = colors["border"]
         text = colors["text"]
+        outline = self._distinct_outline(surface, border)
 
         palette = QPalette(self.palette())
         palette.setColor(QPalette.ColorRole.Window, QColor(surface))
         palette.setColor(QPalette.ColorRole.WindowText, QColor(text))
-        palette.setColor(QPalette.ColorRole.Base, QColor(surface))
+        palette.setColor(QPalette.ColorRole.Base, QColor(surface_alt))
         palette.setColor(QPalette.ColorRole.Text, QColor(text))
         palette.setColor(QPalette.ColorRole.ButtonText, QColor(text))
-        palette.setColor(QPalette.ColorRole.Mid, QColor(border))
+        palette.setColor(QPalette.ColorRole.Mid, QColor(outline))
         self.setPalette(palette)
 
         self._title_label.setStyleSheet(f"color: {text};")
         self.browser.setPalette(palette)
         self.browser.setStyleSheet(
             "QTextBrowser {"
-            f" background-color: {surface};"
+            f" background-color: {surface_alt};"
             f" color: {text};"
             " border: none;"
             "}"
         )
         viewport = self.browser.viewport()
         viewport.setAutoFillBackground(True)
-        viewport.setStyleSheet(f"background-color: {surface};")
+        viewport.setStyleSheet(f"background-color: {surface_alt};")
+        self._divider.setStyleSheet(f"background-color: {outline}; border: none;")
         self.setStyleSheet(
             "QFrame#documentationFlyout {"
             f" background-color: {surface};"
-            f" border: 1px solid {border};"
-            " border-radius: 6px;"
+            f" border: 1px solid {outline};"
+            " border-radius: 0px;"
             "}"
             f"QToolButton {{ border: none; background: transparent; }}"
             f"QToolButton:hover {{ background: {colors['rule']}; border-radius: 3px; }}"
             f"QToolButton:checked {{ background: {colors['rule']}; border-radius: 3px; }}"
         )
+
+    @staticmethod
+    def _colour_distance(first: QColor, second: QColor) -> float:
+        """Return the Euclidean RGB distance between two colours."""
+        return (
+            (first.red() - second.red()) ** 2
+            + (first.green() - second.green()) ** 2
+            + (first.blue() - second.blue()) ** 2
+        ) ** 0.5
+
+    def _distinct_outline(self, surface: str, border: str) -> str:
+        """Return a theme-aware edge that visibly separates the card.
+
+        Some themes define ``edge`` almost identical to the editor background,
+        which makes a 1px border invisible. Nudge the theme edge away from the
+        surface until it reaches a distinguishable contrast while keeping the
+        theme's hue.
+        """
+        surface_color = QColor(surface)
+        edge = QColor(border)
+        if not surface_color.isValid():
+            return border
+        if not edge.isValid():
+            edge = QColor(surface_color)
+
+        dark_surface = surface_color.lightness() < 128
+        candidate = edge
+        for factor in (100, 130, 160, 190, 220):
+            candidate = edge.lighter(factor) if dark_surface else edge.darker(factor)
+            if self._colour_distance(candidate, surface_color) >= 90:
+                break
+        return candidate.name()
 
     def changeEvent(self, event) -> None:
         if event.type() in (QEvent.Type.PaletteChange, QEvent.Type.StyleChange):
@@ -241,7 +288,6 @@ class DocumentationFlyout(QFrame):
                 finally:
                     self._in_change_event = False
         super().changeEvent(event)
-
 
     def _doc_colors(self) -> dict[str, str]:
         """Return the active theme's documentation accents.
@@ -281,7 +327,7 @@ class DocumentationFlyout(QFrame):
         document.clear()
         document.setDefaultStyleSheet(self._markdown_stylesheet())
         document.setMarkdown(body)
-        document.setDocumentMargin(10)
+        document.setDocumentMargin(self._document_margin)
         self._style_code(document)
 
         self._schedule_update_size()
@@ -362,12 +408,13 @@ class DocumentationFlyout(QFrame):
 
     def _markdown_stylesheet(self) -> str:
         c = self._doc_colors()
+        surface_alt = c.get("surface_alt", c["surface"])
         return f"""
             body {{
                 font-size: 12px;
                 line-height: 1.45;
                 color: {c["text"]};
-                background: transparent;
+                background: {surface_alt};
             }}
             p {{
                 margin-top: 0px;
@@ -467,7 +514,6 @@ class DocumentationFlyout(QFrame):
         self.browser.clear()
         self._schedule_update_size()
 
-
     def _schedule_update_size(self) -> None:
         if not self._layout_timer.isActive():
             self._layout_timer.start(0)
@@ -476,19 +522,27 @@ class DocumentationFlyout(QFrame):
         width = max(360, int(self._width))
         self.setFixedWidth(width)
 
+        # The card stylesheet draws a 1px border on each side; the browser
+        # fills the remaining contents area.
+        border_extent = 2
+        content_width = max(100, width - border_extent)
+
         try:
             measure = QTextDocument()
             measure.setDefaultStyleSheet(self._markdown_stylesheet())
             measure.setMarkdown(self._last_body or "")
-            measure.setDocumentMargin(14)
-            measure.setTextWidth(max(100, width - 28))
-            doc_height = measure.documentLayout().documentSize().height()
-            doc_height = int(doc_height)
+            measure.setDocumentMargin(self._document_margin)
+            # Match the browser's real viewport width so short text is not
+            # measured against a narrower, artificially taller column.
+            measure.setTextWidth(content_width)
+            doc_height = int(measure.documentLayout().documentSize().height())
         except Exception:
-            doc_height = 120
+            doc_height = 80
 
         header_height = self._header.sizeHint().height()
-        target = header_height + 1 + doc_height
+        divider_height = self._divider.height() or 1
+        # 2px covers the outer border and guards against sub-pixel rounding.
+        target = border_extent + header_height + divider_height + max(0, doc_height) + 2
         height = max(self._min_height, min(self._max_height, target))
         self.setFixedHeight(height)
 
@@ -531,7 +585,6 @@ class DocumentationFlyout(QFrame):
         except Exception:
             return bool(self.rect().contains(self.mapFromGlobal(global_pos)))
 
-
     @property
     def is_pinned(self) -> bool:
         return self._is_pinned
@@ -557,7 +610,6 @@ class DocumentationFlyout(QFrame):
         if self._is_pinned and not force:
             return
         self.hide()
-
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape and not self._is_pinned:
