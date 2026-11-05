@@ -119,32 +119,42 @@ class JediAdapter(IJediAdapter):
             signature_str = ""
             return_type = None
 
-            signatures = primary_def.get_signatures()
-            if signatures:
-                sig = signatures[0]
-                signature_str = sig.to_string()
+            try:
+                signatures = primary_def.get_signatures()
+                if signatures:
+                    sig = signatures[0]
+                    signature_str = sig.to_string()
 
-                if hasattr(sig, "annotation") and sig.annotation:
-                    return_type = str(sig.annotation)
+                    if hasattr(sig, "annotation") and sig.annotation:
+                        return_type = str(sig.annotation)
 
-                for param in sig.params:
-                    annotation = (
-                        param.annotation if hasattr(param, "annotation") else None
-                    )
-                    default = None
-                    if hasattr(param, "default"):
-                        default = param.default
-                    if default is None:
-                        default = JediAdapter._extract_default_from_signature(param)
-                    parameters.append(
-                        ParameterInfo(
-                            name=param.name,
-                            type_hint=str(annotation) if annotation else None,
-                            default_value=str(default) if default else None,
+                    for param in sig.params:
+                        annotation = (
+                            param.annotation if hasattr(param, "annotation") else None
                         )
-                    )
-            else:
+                        default = None
+                        if hasattr(param, "default"):
+                            default = param.default
+                        if default is None:
+                            default = JediAdapter._extract_default_from_signature(param)
+                        parameters.append(
+                            ParameterInfo(
+                                name=param.name,
+                                type_hint=str(annotation) if annotation else None,
+                                default_value=str(default) if default else None,
+                            )
+                        )
+                else:
+                    signature_str = primary_def.description
+            except ValueError as e:
+                # Jedi bug: "not enough values to unpack" for some builtins
+                logger.debug(
+                    "Jedi get_signatures failed for %r: %s", primary_def.name, e
+                )
                 signature_str = primary_def.description
+            except Exception as e:
+                logger.warning("Jedi get_signatures unexpected error: %s", e)
+                return None
 
             return HoverDetails(
                 name=primary_def.name,
@@ -176,9 +186,7 @@ class JediAdapter(IJediAdapter):
                         follow_imports=True,
                     )
                 except TypeError:
-                    definitions = script.goto(
-                        line=context.line, column=context.column
-                    )
+                    definitions = script.goto(line=context.line, column=context.column)
                 if not definitions:
                     definitions = script.infer(line=context.line, column=context.column)
             except Exception as e:
