@@ -6,6 +6,7 @@ New C++ provider (Feature 1:
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from PyQt6.QtCore import QObject
 
@@ -18,7 +19,7 @@ from .autocompletion import (
 from .intellisense import CppEngine
 from .intellisense import args as cpp_args
 from .intellisense.symbol_index import SymbolIndex, symbol_index_for_path
-from .models import CppContext
+from .models import CppContext, CppHoverDetails
 from .navigation import NavigationEngine, NavigationResult
 from .navigation.buffers import collect_modified_buffers
 from .navigation.service import NavigationManager, create_navigation_manager
@@ -49,7 +50,9 @@ class CppProvider(BaseLanguageProvider):
         self._tab_editor: QObject | None = None
 
     def get_semantic_highlights(
-        self, text: str, theme_name: str | None = None,
+        self,
+        text: str,
+        theme_name: str | None = None,
         file_path: str | None = None,
     ):
         """Return libclang identifier overlays for the buffer."""
@@ -91,8 +94,8 @@ class CppProvider(BaseLanguageProvider):
                 tu = None
             colors = _resolve_colors(config, theme)
             ranges = compute_highlights(
-                text, tu, colors,
-                file_path or cpp_args.unsaved_name())
+                text, tu, colors, file_path or cpp_args.unsaved_name()
+            )
         except Exception:
             return []
         self._highlight_cache = (key, ranges)
@@ -108,7 +111,72 @@ class CppProvider(BaseLanguageProvider):
 
     def get_hover_hint(self, text, line, col):
         """Return an HTML hover tooltip for the symbol at the cursor."""
+        # Legacy API - not used by the new DocumentationFlyout
         return None
+
+    def get_hover_display(
+        self, text: str, line: int, col: int
+    ) -> Optional[tuple[str, str]]:
+        """Return (title_markdown, body_markdown) for the DocumentationFlyout."""
+        if not text or not text.strip():
+            return None
+
+        ctx = CppContext(
+            source_code=text,
+            line=line + 1,
+            col=col + 1,
+            file_path=self._file_path,
+            compile_args=cpp_args.args_for_file(self._file_path, text),
+        )
+
+        try:
+            nav_engine = self._nav_engine(self._file_path)
+            hover = nav_engine.get_hover(ctx)
+            if hover is None:
+                return None
+        except Exception as exc:
+            logger.debug("get_hover_display failed: %s", exc)
+            return None
+
+        return self._format_hover_markdown(hover)
+
+    def _format_hover_markdown(self, details: CppHoverDetails) -> tuple[str, str]:
+        """Format CppHoverDetails as Markdown for the DocumentationFlyout."""
+        parts: list[str] = []
+
+        # Signature
+        if details.signature:
+            sig = details.signature.strip().replace("```", "\\`\\`\\`")
+            parts.append(f"```cpp\n{sig}\n```")
+
+        # Parameters
+        if details.parameters:
+            parts.append(f"### Parameters ({len(details.parameters)})")
+            for param in details.parameters:
+                parts.append(f"- `{param}`")
+
+        # Return type
+        if details.return_type:
+            parts.append(f"**Returns:** `{details.return_type}`")
+
+        # Documentation
+        if details.docstring:
+            doc = details.docstring.strip()
+            if doc:
+                parts.append(f"---\n\n{doc}" if parts else doc)
+
+        if not parts:
+            kind = (details.kind or "symbol").strip() or "symbol"
+            parts.append(f"*{kind} — no documentation available.*")
+
+        title_kind = details.kind.strip().capitalize() if details.kind else ""
+        if title_kind:
+            title_markdown = f"## {details.name} ({title_kind})"
+        else:
+            title_markdown = f"## {details.name}"
+
+        body_markdown = "\n\n".join(parts)
+        return title_markdown, body_markdown
 
     def format_source(self, source_code):
         """Return *source_code* formatted in place."""
@@ -145,8 +213,8 @@ class CppProvider(BaseLanguageProvider):
             except Exception:
                 tu = None
             regions = compute_fold_regions(
-                text, tu,
-                file_path or cpp_args.unsaved_name())
+                text, tu, file_path or cpp_args.unsaved_name()
+            )
         except Exception:
             try:
                 regions = compute_fold_regions(text)
@@ -168,11 +236,13 @@ class CppProvider(BaseLanguageProvider):
                 kind = getattr(region, "kind", "")
                 if kind != "include":
                     continue
-                count = (getattr(region, "end_line", 0)
-                         - getattr(region, "start_line", 0) + 1)
+                count = (
+                    getattr(region, "end_line", 0)
+                    - getattr(region, "start_line", 0)
+                    + 1
+                )
                 try:
-                    set_text(getattr(region, "start_line", 0), count,
-                             "includes")
+                    set_text(getattr(region, "start_line", 0), count, "includes")
                 except Exception:
                     continue
 
@@ -241,7 +311,8 @@ class CppProvider(BaseLanguageProvider):
                 )
 
                 items = search_for_file(
-                    file_path or self._file_path, prefix or "",
+                    file_path or self._file_path,
+                    prefix or "",
                     exclude_kinds=NON_GLOBAL_COMPLETION_KINDS,
                 )
             except Exception:
@@ -260,7 +331,8 @@ class CppProvider(BaseLanguageProvider):
     def _nav_engine(self, file_path: str | None = None) -> NavigationEngine:
         """Get or create the navigation engine for *file_path*."""
         if self._nav_engine_instance is None:
-            self._nav_engine_instance = NavigationEngine(self._make_engine())
+            engine = getattr(self._completion_manager, "_engine", None)
+            self._nav_engine_instance = NavigationEngine(engine or self._make_engine())
         if self._tab_editor is not None:
             try:
                 self._nav_engine_instance.set_unsaved_buffers(
@@ -295,7 +367,9 @@ class CppProvider(BaseLanguageProvider):
         """
         return self._get_symbol_index(file_path)
 
-    def _create_context(self, text: str, line: int, col: int, file_path: str | None = None) -> CppContext:
+    def _create_context(
+        self, text: str, line: int, col: int, file_path: str | None = None
+    ) -> CppContext:
         """Create a CppContext for navigation."""
         return CppContext(
             source_code=text,

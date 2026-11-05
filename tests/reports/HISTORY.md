@@ -382,3 +382,111 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261104T133940Z-4e7098d-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261104T133940Z-4e7098d-dirty/summary.json`
 
+## 20261105T121109Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T12:11:09Z
+- **Suites**: editor
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 4s
+- **Verdict**: FAILED
+- **Passed**: 43 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T121109Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T121109Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T121109Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T121934Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T12:19:34Z
+- **Suites**: cpp_plugin
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 2s
+- **Verdict**: PASSED
+- **Passed**: 27 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T121934Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T121934Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T121934Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T121956Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T12:19:56Z
+- **Suites**: cpp_plugin
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 2s
+- **Verdict**: PASSED
+- **Passed**: 27 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T121956Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T121956Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T121956Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T131222Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T13:12:22Z
+- **Suites**: cpp_plugin
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 3s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T131222Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T131222Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T131222Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T131231Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T13:12:31Z
+- **Suites**: editor
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 4s
+- **Verdict**: FAILED
+- **Passed**: 43 | **Failed**: 1 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T131231Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T131231Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T131231Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T131311Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T13:13:11Z
+- **Suites**: cpp_plugin
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 3s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T131311Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T131311Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T131311Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T131326Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T13:13:26Z
+- **Suites**: cpp_plugin
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 3s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T131326Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T131326Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T131326Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T135801Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T13:58:01Z
+- **Suites**: navigation
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 5s
+- **Verdict**: FAILED
+- **Passed**: 25 | **Failed**: 6 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T135801Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T135801Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T135801Z-ce3d7f0-dirty/summary.json`
+
+## 20261105T140319Z-ce3d7f0-dirty
+
+- **Timestamp**: 2026-11-05T14:03:19Z
+- **Suites**: cpp_plugin
+- **Git**: ce3d7f0 (dirty)
+- **Duration**: 6s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T140319Z-ce3d7f0-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T140319Z-ce3d7f0-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T140319Z-ce3d7f0-dirty/summary.json`
+

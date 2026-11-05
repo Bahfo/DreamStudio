@@ -17,7 +17,7 @@ from clang.cindex import Cursor, CursorKind, Index, TranslationUnit
 from ..intellisense import args as cpp_args
 from ..intellisense.engine import CppEngine
 from ..intellisense.symbol_index import SymbolIndex
-from ..models import CppContext
+from ..models import CppContext, CppHoverDetails
 
 logger = logging.getLogger("DreamStudio.CPP.Navigation")
 
@@ -84,6 +84,87 @@ _DECLARATION_KINDS = {
     if hasattr(CursorKind, name)
 }
 
+_HEADER_SUFFIXES = (
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".h++",
+    ".inl",
+    ".ipp",
+    ".tpp",
+    ".txx",
+)
+_OVERLOAD_KIND_NAMES = (
+    "FUNCTION_DECL",
+    "FUNCTION_TEMPLATE",
+    "CXX_METHOD",
+    "CONSTRUCTOR",
+)
+_OVERLOAD_KINDS = {
+    getattr(CursorKind, name)
+    for name in _OVERLOAD_KIND_NAMES
+    if hasattr(CursorKind, name)
+}
+_FUNCTION_DECL_KINDS = {
+    getattr(CursorKind, name)
+    for name in (
+        "FUNCTION_DECL",
+        "FUNCTION_TEMPLATE",
+        "CXX_METHOD",
+        "CONSTRUCTOR",
+        "DESTRUCTOR",
+    )
+    if hasattr(CursorKind, name)
+}
+_TYPE_DECL_KINDS = {
+    getattr(CursorKind, name)
+    for name in (
+        "CLASS_DECL",
+        "STRUCT_DECL",
+        "CLASS_TEMPLATE",
+        "ENUM_DECL",
+        "TYPEDEF_DECL",
+        "TYPE_ALIAS_DECL",
+    )
+    if hasattr(CursorKind, name)
+}
+_VARIABLE_DECL_KINDS = {
+    getattr(CursorKind, name)
+    for name in ("VAR_DECL", "FIELD_DECL", "PARM_DECL", "ENUM_CONSTANT_DECL")
+    if hasattr(CursorKind, name)
+}
+_FUNCTION_REF_KINDS = {
+    getattr(CursorKind, name)
+    for name in (
+        "OVERLOADED_DECL_REF",
+        "CALL_EXPR",
+        "DECL_REF_EXPR",
+        "MEMBER_REF_EXPR",
+    )
+    if hasattr(CursorKind, name)
+}
+_TYPE_REF_KINDS = {
+    getattr(CursorKind, name)
+    for name in ("TYPE_REF", "TEMPLATE_REF")
+    if hasattr(CursorKind, name)
+}
+_VARIABLE_REF_KINDS = {
+    getattr(CursorKind, name)
+    for name in ("MEMBER_REF", "VARIABLE_REF")
+    if hasattr(CursorKind, name)
+}
+_MACRO_KINDS = {
+    getattr(CursorKind, name)
+    for name in ("MACRO_DEFINITION", "MACRO_INSTANTIATION")
+    if hasattr(CursorKind, name)
+}
+_OVERLOADED_REF_KINDS = {
+    getattr(CursorKind, "OVERLOADED_DECL_REF", None),
+}
+_DOC_SCAN_LIMIT = 50000
+_DOC_CANDIDATE_LIMIT = 32
+
 
 class NavigationEngine:
     """Adapt the IDE's editor context to libclang navigation results."""
@@ -98,6 +179,7 @@ class NavigationEngine:
         ] = {}
         self._symbol_index = None  # type: SymbolIndex | None
         self._unsaved_buffers: tuple[tuple[str, str], ...] = ()
+        self._source_cache: dict[tuple[str, int, int], list[str]] = {}
 
     def set_symbol_index(self, symbol_index: SymbolIndex) -> None:
         """
@@ -432,6 +514,612 @@ class NavigationEngine:
             canonical_cursor=canonical,
         )
 
+    def get_hover(self, ctx: CppContext) -> Optional[CppHoverDetails]:
+        """Extract hover documentation for the symbol at the cursor position."""
+        symbol = self.resolve_at(ctx)
+        if symbol is None:
+            return None
+
+        cursor, docstring = self._hover_cursor_and_documentation(symbol, ctx)
+        if not self._valid(cursor):
+            return None
+
+        name = cursor.spelling or cursor.displayname or ""
+        if not name:
+            return None
+
+        kind = self._cursor_kind_to_string(cursor.kind)
+        signature, return_type, parameters = self._cursor_signature(cursor, name, kind)
+
+        return CppHoverDetails(
+            name=name,
+            kind=kind,
+            signature=signature,
+            parameters=parameters,
+            return_type=return_type,
+            docstring=docstring,
+        )
+
+    def _hover_cursor_and_documentation(
+        self, symbol: SymbolContext, ctx: CppContext
+    ) -> tuple[Cursor, Optional[str]]:
+        """Return the cursor and documentation that best represent *symbol*."""
+        candidates = self._documentation_candidates(symbol)
+        original = symbol.cursor
+        name = original.spelling or ""
+        arity = self._call_argument_count(ctx, original) if name else None
+
+        best_cursor: Optional[Cursor] = None
+        best_doc: Optional[str] = None
+        best_score = float("-inf")
+
+        for index, candidate in enumerate(candidates):
+            if not self._valid(candidate):
+                continue
+            doc = self._extract_documentation(candidate, ctx)
+            score = self._documentation_score(candidate, doc, index, name, arity)
+            if score > best_score:
+                best_score = score
+                best_cursor = candidate
+                best_doc = doc
+
+        if best_cursor is None:
+            best_cursor = symbol.canonical_cursor
+            if not self._valid(best_cursor):
+                best_cursor = original
+        return best_cursor, best_doc
+
+    def _documentation_candidates(self, symbol: SymbolContext) -> list[Cursor]:
+        """Return cursors that may carry documentation for *symbol*."""
+        original = symbol.cursor
+        referenced = self._safe_cursor(original, "referenced")
+        canonical = symbol.canonical_cursor
+
+        raw: list[Optional[Cursor]] = [
+            original,
+            referenced,
+            self._safe_cursor(referenced, "canonical") if referenced else None,
+            self._get_definition_cursor(referenced) if referenced else None,
+            canonical,
+            self._get_definition_cursor(canonical),
+            self._get_definition_cursor(original),
+        ]
+        for candidate in self._overloaded_decls(original):
+            raw.append(candidate)
+            raw.append(self._safe_cursor(candidate, "canonical"))
+        if referenced is not None:
+            for candidate in self._overloaded_decls(referenced):
+                raw.append(candidate)
+                raw.append(self._safe_cursor(candidate, "canonical"))
+        candidates = self._dedupe_cursors(raw)
+
+        name = (
+            original.spelling or (referenced.spelling if referenced else "") or ""
+        ).strip()
+        needs_overload = (
+            original.kind in _OVERLOADED_REF_KINDS
+            or original.kind in _OVERLOAD_KINDS
+            or (referenced is not None and referenced.kind in _OVERLOADED_REF_KINDS)
+            or (referenced is not None and referenced.kind in _OVERLOAD_KINDS)
+        )
+        needs_macro = original.kind in _MACRO_KINDS or (
+            referenced is not None and referenced.kind in _MACRO_KINDS
+        )
+        usr = self._usr(canonical) or self._usr(original)
+
+        already_has_header_doc = any(
+            self._is_header_cursor(candidate) and self._raw_comment(candidate)
+            for candidate in candidates
+        )
+        has_macro_definition = any(
+            candidate.kind == getattr(CursorKind, "MACRO_DEFINITION", None)
+            for candidate in candidates
+        )
+        scan_needed = (
+            needs_overload or (needs_macro and not has_macro_definition) or bool(usr)
+        )
+        if name and not already_has_header_doc and scan_needed:
+            scanned = 0
+            deadline = time.monotonic() + 0.2
+            for candidate in self._cursors(symbol.tu):
+                scanned += 1
+                if scanned > _DOC_SCAN_LIMIT or time.monotonic() > deadline:
+                    break
+                if len(candidates) >= _DOC_CANDIDATE_LIMIT:
+                    break
+                if usr and self._usr(candidate) == usr:
+                    candidates.append(candidate)
+                    continue
+                if candidate.spelling != name:
+                    continue
+                if needs_overload and candidate.kind in _OVERLOAD_KINDS:
+                    candidates.append(candidate)
+                elif needs_macro and candidate.kind in _MACRO_KINDS:
+                    candidates.append(candidate)
+
+        candidates = self._dedupe_cursors(candidates)
+
+        # Last resort: a declaration with the same name may carry the comment
+        # even when libclang did not connect it to the expression.
+        if (
+            name
+            and not needs_macro
+            and not any(self._raw_comment(cursor) for cursor in candidates)
+        ):
+            family = self._documentation_family(original)
+            project_root = self._project_root(symbol.file_path)
+            scanned = 0
+            deadline = time.monotonic() + 0.2
+            for candidate in self._cursors(symbol.tu):
+                scanned += 1
+                if scanned > _DOC_SCAN_LIMIT or time.monotonic() > deadline:
+                    break
+                if len(candidates) >= _DOC_CANDIDATE_LIMIT:
+                    break
+                if not self._cursor_in_project(candidate, project_root):
+                    continue
+                if candidate.spelling == name and candidate.kind in family:
+                    candidates.append(candidate)
+            candidates = self._dedupe_cursors(candidates)
+
+        return candidates
+
+    @staticmethod
+    def _overloaded_decls(cursor: Cursor) -> list[Cursor]:
+        """Return the declarations in an overloaded function reference."""
+        if cursor is None or cursor.kind != getattr(
+            CursorKind, "OVERLOADED_DECL_REF", None
+        ):
+            return []
+        try:
+            lib = cindex.conf.lib
+            count = int(lib.clang_getNumOverloadedDecls(cursor))
+            return [
+                lib.clang_getOverloadedDecl(cursor, index) for index in range(count)
+            ]
+        except Exception:
+            return []
+
+    @staticmethod
+    def _project_root(path: str) -> str:
+        """Return the inferred project root for *path*."""
+        try:
+            from ..intellisense import headers as header_resolution
+
+            return header_resolution.project_root_for(path)
+        except Exception:
+            return os.path.dirname(path) if path else ""
+
+    @staticmethod
+    def _cursor_in_project(cursor: Cursor, project_root: str) -> bool:
+        """Return whether *cursor* is declared inside *project_root*."""
+        if not project_root:
+            return True
+        try:
+            location = cursor.location
+            if location.file is None:
+                return False
+            file_name = os.path.abspath(location.file.name)
+            root = os.path.abspath(project_root)
+            return os.path.commonpath([file_name, root]) == root
+        except Exception:
+            return False
+
+    @staticmethod
+    def _documentation_family(cursor: Cursor) -> set:
+        """Return declaration kinds that can document *cursor*."""
+        kind = cursor.kind
+        if kind == getattr(CursorKind, "DECL_REF_EXPR", None):
+            return _FUNCTION_DECL_KINDS | _VARIABLE_DECL_KINDS
+        if kind in _FUNCTION_REF_KINDS or kind in _FUNCTION_DECL_KINDS:
+            return _FUNCTION_DECL_KINDS
+        if kind in _TYPE_REF_KINDS or kind in _TYPE_DECL_KINDS:
+            return _TYPE_DECL_KINDS
+        if kind in _VARIABLE_REF_KINDS or kind in _VARIABLE_DECL_KINDS:
+            return _VARIABLE_DECL_KINDS
+        if kind in _MACRO_KINDS:
+            return _MACRO_KINDS
+        return _DECLARATION_KINDS
+
+    @classmethod
+    def _dedupe_cursors(cls, cursors: Sequence[Optional[Cursor]]) -> list[Cursor]:
+        """Return valid, de-duplicated cursors preserving their order."""
+        unique: list[Cursor] = []
+        seen: set[tuple] = set()
+        for cursor in cursors:
+            if cursor is None or not cls._valid(cursor):
+                continue
+            key = cls._cursor_key(cursor)
+            if key is None or key in seen:
+                continue
+            seen.add(key)
+            unique.append(cursor)
+        return unique
+
+    @staticmethod
+    def _cursor_key(cursor: Cursor) -> Optional[tuple]:
+        """Return a stable identity for *cursor* within a translation unit."""
+        try:
+            location = cursor.location
+            file_name = location.file.name if location.file else ""
+            return (
+                cursor.kind.name,
+                file_name,
+                int(location.line),
+                int(location.column),
+                cursor.spelling,
+            )
+        except Exception:
+            return None
+
+    @staticmethod
+    def _raw_comment(cursor: Cursor) -> Optional[str]:
+        """Return the documentation comment attached to *cursor*."""
+        for attribute in ("raw_comment", "brief_comment"):
+            try:
+                value = getattr(cursor, attribute)
+            except Exception:
+                value = None
+            if value:
+                return value
+        return None
+
+    def _extract_documentation(self, cursor: Cursor, ctx: CppContext) -> Optional[str]:
+        """Return cleaned documentation for *cursor*, including macro comments."""
+        raw = self._raw_comment(cursor)
+        if raw:
+            return self._clean_comment(raw)
+
+        if cursor.kind in _MACRO_KINDS:
+            doc = self._macro_documentation(cursor, ctx)
+            if doc:
+                return doc
+
+        for attribute in ("referenced", "canonical"):
+            other = self._safe_cursor(cursor, attribute)
+            if other is None:
+                continue
+            if self._cursor_key(other) == self._cursor_key(cursor):
+                continue
+            raw = self._raw_comment(other)
+            if raw:
+                return self._clean_comment(raw)
+        return None
+
+    def _macro_documentation(self, cursor: Cursor, ctx: CppContext) -> Optional[str]:
+        """Return the source comment written directly above a macro."""
+        target = cursor
+        if cursor.kind == getattr(CursorKind, "MACRO_INSTANTIATION", None):
+            referenced = self._safe_cursor(cursor, "referenced")
+            if self._valid(referenced):
+                target = referenced
+        return self._comment_above_cursor(target, ctx)
+
+    def _comment_above_cursor(self, cursor: Cursor, ctx: CppContext) -> Optional[str]:
+        """Read a ``///`` or ``/** */`` block immediately above *cursor*."""
+        try:
+            location = cursor.location
+            if location.file is None or int(location.line) < 2:
+                return None
+            path = self._normalise_path(location.file.name)
+            lines = self._source_lines(path, ctx)
+            if not lines:
+                return None
+
+            index = int(location.line) - 2
+            blanks = 0
+            while index >= 0 and not lines[index].strip():
+                blanks += 1
+                if blanks > 1:
+                    return None
+                index -= 1
+            if index < 0:
+                return None
+
+            last = lines[index].strip()
+            if last.endswith("*/"):
+                block: list[str] = []
+                while index >= 0:
+                    text = lines[index]
+                    stripped = text.strip()
+                    block.append(text)
+                    if stripped.startswith(("/**", "/*!")):
+                        block.reverse()
+                        return self._clean_comment("\n".join(block))
+                    if stripped.startswith("/*") and not stripped.startswith(
+                        ("/**", "/*!")
+                    ):
+                        return None
+                    index -= 1
+                return None
+
+            if last.startswith(("///", "//!")):
+                block = []
+                while index >= 0:
+                    stripped = lines[index].strip()
+                    if stripped.startswith(("///", "//!")):
+                        block.append(lines[index])
+                        index -= 1
+                    else:
+                        break
+                block.reverse()
+                return self._clean_comment("\n".join(block))
+        except Exception:
+            logger.debug("Could not read a comment above a cursor", exc_info=True)
+        return None
+
+    def _source_lines(self, path: str, ctx: CppContext) -> list[str]:
+        """Return the current lines for *path*, preferring unsaved buffers."""
+        if not path:
+            return []
+        active = self._normalise_path(getattr(ctx, "file_path", "") or "")
+        if active and path == active:
+            return (getattr(ctx, "source_code", "") or "").splitlines()
+
+        for buffer_path, buffer_source in self._unsaved_buffers:
+            if self._normalise_path(buffer_path) == path:
+                return (buffer_source or "").splitlines()
+
+        try:
+            stat = os.stat(path)
+            key = (path, int(stat.st_mtime_ns), int(stat.st_size))
+        except OSError:
+            return []
+        cached = self._source_cache.get(key)
+        if cached is not None:
+            return cached
+        try:
+            with open(path, encoding="utf-8", errors="replace") as handle:
+                lines = handle.read().splitlines()
+        except OSError:
+            return []
+        if len(self._source_cache) >= 32:
+            self._source_cache.pop(next(iter(self._source_cache)))
+        self._source_cache[key] = lines
+        return lines
+
+    def _documentation_score(
+        self,
+        cursor: Cursor,
+        doc: Optional[str],
+        index: int,
+        original_name: str,
+        arity: Optional[int],
+    ) -> float:
+        """Rank a documentation candidate; higher is better."""
+        score = 0.0
+        if doc:
+            score += 100.0
+        if self._is_header_cursor(cursor):
+            score += 40.0
+        if cursor.kind in _DECLARATION_KINDS:
+            score += 20.0
+        if not self._is_definition(cursor):
+            score += 5.0
+        if original_name and cursor.spelling == original_name:
+            score += 5.0
+        if arity is not None and self._parameter_count(cursor) == arity:
+            score += 15.0
+        score -= index * 2.0
+        return score
+
+    @staticmethod
+    def _is_header_cursor(cursor: Cursor) -> bool:
+        """Return whether *cursor* lives in a C or C++ header file."""
+        try:
+            location = cursor.location
+            if location.file is None:
+                return False
+            return location.file.name.lower().endswith(_HEADER_SUFFIXES)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _parameter_count(cursor: Cursor) -> Optional[int]:
+        """Return the number of parameters declared by *cursor*."""
+        try:
+            arguments = list(cursor.get_arguments())
+        except Exception:
+            arguments = []
+        if arguments:
+            return len(arguments)
+        try:
+            kind = cursor.type.kind
+            if kind in (
+                getattr(cindex.TypeKind, "FUNCTIONPROTO", None),
+                getattr(cindex.TypeKind, "FUNCTIONNOPROTO", None),
+            ):
+                return len(list(cursor.type.argument_types()))
+        except Exception:
+            pass
+        return None
+
+    def _call_argument_count(self, ctx: CppContext, cursor: Cursor) -> Optional[int]:
+        """Return the number of arguments at the call site of *cursor*."""
+        try:
+            location = cursor.location
+            if location.file is None:
+                return None
+            path = self._normalise_path(location.file.name)
+            lines = self._source_lines(path, ctx)
+            if not lines:
+                return None
+            line_index = int(location.line) - 1
+            if line_index >= len(lines):
+                return None
+            text = "\n".join(lines[line_index : line_index + 8])
+            column = max(int(location.column) - 1, 0)
+            text = text[column:]
+            start = text.find("(")
+            if start < 0:
+                return None
+            return self._count_arguments(text[start:])
+        except Exception:
+            return None
+
+    @staticmethod
+    def _count_arguments(text: str) -> Optional[int]:
+        """Count top-level arguments in a call expression string."""
+        depth = 0
+        commas = 0
+        has_content = False
+        quote = ""
+        escaped = False
+        for character in text:
+            if quote:
+                if escaped:
+                    escaped = False
+                elif character == "\\":
+                    escaped = True
+                elif character == quote:
+                    quote = ""
+                continue
+            if character in ("'", '"'):
+                quote = character
+                has_content = True
+                continue
+            if character in "([{":
+                depth += 1
+                if depth == 1 and character == "(":
+                    continue
+            elif character in ")]}":
+                depth -= 1
+                if depth <= 0:
+                    return 0 if not has_content else commas + 1
+                continue
+            if depth == 1 and character == ",":
+                commas += 1
+            elif depth >= 1 and not character.isspace():
+                has_content = True
+        return None
+
+    @staticmethod
+    def _cursor_signature(cursor: Cursor, name: str, kind: str) -> tuple:
+        """Return ``(signature, return_type, parameters)`` for *cursor*."""
+        argument_info: list[str] = []
+        try:
+            for argument in cursor.get_arguments():
+                argument_type = argument.type.spelling if argument.type else ""
+                argument_name = argument.spelling
+                label = f"{argument_type} {argument_name}".strip()
+                if label:
+                    argument_info.append(label)
+        except Exception:
+            argument_info = []
+
+        # libclang does not expose parameters through ``get_arguments`` for
+        # function templates; fall back to the function type instead.
+        if not argument_info:
+            try:
+                type_kind = cursor.type.kind
+                if type_kind in (
+                    getattr(cindex.TypeKind, "FUNCTIONPROTO", None),
+                    getattr(cindex.TypeKind, "FUNCTIONNOPROTO", None),
+                ):
+                    argument_info = [
+                        argument.spelling
+                        for argument in cursor.type.argument_types()
+                        if argument.spelling
+                    ]
+            except Exception:
+                pass
+
+        return_type = None
+        try:
+            result = cursor.result_type
+            if result is not None and result.spelling:
+                return_type = result.spelling
+        except Exception:
+            pass
+
+        if kind in {
+            "function",
+            "method",
+            "constructor",
+            "destructor",
+            "function template",
+        }:
+            call = f"{name}({', '.join(argument_info)})"
+            if return_type and kind not in {"constructor", "destructor"}:
+                signature = f"{return_type} {call}"
+            else:
+                signature = call
+            try:
+                if cursor.is_const_method():
+                    signature += " const"
+            except Exception:
+                pass
+            return signature, return_type, argument_info
+
+        declaration_prefixes = {
+            "class": "class",
+            "struct": "struct",
+            "enum": "enum",
+            "namespace": "namespace",
+        }
+        if kind in declaration_prefixes:
+            return f"{declaration_prefixes[kind]} {name}", None, []
+
+        try:
+            type_spelling = cursor.type.spelling if cursor.type else ""
+        except Exception:
+            type_spelling = ""
+        if type_spelling and type_spelling != name:
+            return f"{type_spelling} {name}", type_spelling, []
+        return type_spelling or name, None, []
+
+    @staticmethod
+    def _clean_comment(raw: str) -> Optional[str]:
+        """Strip C/C++ comment markers and surrounding blank lines."""
+        lines: list[str] = []
+        for line in (raw or "").splitlines():
+            text = line.strip()
+            text = re.sub(r"^(///|//!|//|/\*\*|/\*!|/\*|\*/)\s?", "", text)
+            text = re.sub(r"^\*\s?", "", text)
+            text = re.sub(r"\s*\*/$", "", text)
+            lines.append(text.rstrip())
+
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        cleaned = "\n".join(lines).strip()
+        return cleaned or None
+
+    @staticmethod
+    def _cursor_kind_to_string(kind) -> str:
+        """Convert a libclang CursorKind to a human-readable string."""
+        try:
+            name = kind.name
+        except Exception:
+            return "symbol"
+
+        kind_map = {
+            "FUNCTION_DECL": "function",
+            "CXX_METHOD": "method",
+            "CONSTRUCTOR": "constructor",
+            "DESTRUCTOR": "destructor",
+            "FUNCTION_TEMPLATE": "function template",
+            "FIELD_DECL": "field",
+            "VAR_DECL": "variable",
+            "PARM_DECL": "parameter",
+            "CLASS_DECL": "class",
+            "STRUCT_DECL": "struct",
+            "CLASS_TEMPLATE": "class template",
+            "ENUM_DECL": "enum",
+            "ENUM_CONSTANT_DECL": "enum constant",
+            "TYPEDEF_DECL": "typedef",
+            "TYPE_ALIAS_DECL": "type alias",
+            "NAMESPACE": "namespace",
+            "MACRO_DEFINITION": "macro",
+            "MACRO_INSTANTIATION": "macro",
+            "CXX_BASE_SPECIFIER": "base class",
+            "TEMPLATE_TYPE_PARAMETER": "template parameter",
+            "NON_TYPE_TEMPLATE_PARAMETER": "template parameter",
+            "TEMPLATE_TEMPLATE_PARAMETER": "template parameter",
+        }
+        return kind_map.get(name, name.lower().replace("_", " "))
+
     @staticmethod
     def _safe_cursor(cursor: Cursor, attribute: str) -> Optional[Cursor]:
         try:
@@ -539,9 +1227,20 @@ class NavigationEngine:
             if idx_results:
                 return idx_results
 
-        direct = self._get_definition_cursor(symbol.canonical_cursor)
-        if self._valid(direct):
-            result = self._result(direct, "definition")
+        # ``canonical`` is usually the declaration, but for macro instantiations
+        # only the original cursor knows its definition. Try both, then fall
+        # back to the direct overload set for templated declarations.
+        for cursor in (symbol.canonical_cursor, symbol.cursor):
+            direct = self._get_definition_cursor(cursor)
+            if self._valid(direct):
+                result = self._result(direct, "definition")
+                if result:
+                    return [result]
+
+        for overload in self._overloaded_decls(symbol.cursor):
+            direct = self._get_definition_cursor(overload)
+            target = direct if self._valid(direct) else overload
+            result = self._result(target, "definition")
             if result:
                 return [result]
 

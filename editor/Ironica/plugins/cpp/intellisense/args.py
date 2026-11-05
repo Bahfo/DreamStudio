@@ -155,8 +155,11 @@ def _resource_dir_from_libclang() -> str:
             continue
         try:
             children = sorted(
-                (name for name in os.listdir(base)
-                 if os.path.isdir(os.path.join(base, name)) and name[:1].isdigit()),
+                (
+                    name
+                    for name in os.listdir(base)
+                    if os.path.isdir(os.path.join(base, name)) and name[:1].isdigit()
+                ),
                 reverse=True,
             )
         except OSError:
@@ -386,6 +389,20 @@ def _resolved_header_args(absolute: str) -> list[str]:
         return []
 
 
+def _project_include_args(absolute: str) -> list[str]:
+    """Return ``-I`` flags inferred from *absolute*'s project layout."""
+    try:
+        from . import headers as header_resolution
+
+        flags: list[str] = []
+        for directory in header_resolution.project_include_dirs(absolute):
+            flags += ["-I", directory]
+        return flags
+    except Exception as exc:
+        logger.debug("project include inference failed: %s", exc)
+        return []
+
+
 def args_for_file(
     file_path: str | None,
     source: str = "",
@@ -413,6 +430,7 @@ def args_for_file(
     if not found_entry:
         args += _cmake_args_for_file(absolute)
     args += _env_include_args()
+    args += _project_include_args(absolute)
     args += ["-I", os.path.dirname(absolute)]
     args += _resolved_header_args(absolute)
     try:
