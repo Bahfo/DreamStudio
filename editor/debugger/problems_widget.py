@@ -94,24 +94,19 @@ CATEGORY_ICONS = {
 }
 
 
-def _python_suffixes() -> tuple[str, ...]:
-    """Return file suffixes handled by the installed Python plugin."""
+def _supported_suffixes() -> tuple[str, ...]:
+    """Return file suffixes handled by any registered diagnostic backend."""
     try:
-        from editor.Ironica.language_engine import LanguageRegistry
+        from editor.analysis.router import DiagnosticRouter
 
-        config = LanguageRegistry.get_config("python") or {}
-        extensions = config.get("extensions", [])
-        return tuple(
-            sorted(
-                {
-                    f".{str(extension).lstrip('.').lower()}"
-                    for extension in extensions
-                    if str(extension)
-                }
-            )
-        )
+        return DiagnosticRouter.supported_suffixes()
     except Exception:
         return ()
+
+
+def _python_suffixes() -> tuple[str, ...]:
+    """Backward-compatible alias for :func:`_supported_suffixes`."""
+    return _supported_suffixes()
 
 
 def _load_icon(filename: str) -> QIcon:
@@ -206,7 +201,7 @@ class _BatchThread(QThread):
 
     def run(self) -> None:
         """Read + analyze the batch; never touch GUI objects here."""
-        from editor.analysis.providers import analyze_saved_file
+        from editor.analysis.router import DiagnosticRouter
 
         results: List[tuple] = []
         for path in self._paths:
@@ -219,7 +214,7 @@ class _BatchThread(QThread):
                 continue
             problems: List[Problem] = []
             try:
-                problems = analyze_saved_file(path, content).problems
+                problems = DiagnosticRouter.analyze_file(path, content, self._root)
             except Exception as exc:
                 logger.warning("Batch analyze failed %s: %s", path, exc)
                 problems = []
@@ -252,19 +247,15 @@ class _LiveParseThread(QThread):
 
     def run(self) -> None:
         """Analyze the snapshot; never touch GUI or disk objects here."""
-        from editor.analysis.providers import (
-            analyze_buffer_fast,
-            analyze_buffer_semantic,
-        )
+        from editor.analysis.router import DiagnosticRouter
 
         problems: List[Problem] = []
         errors: List[str] = []
         notes: List[str] = []
         try:
-            outcome = analyze_buffer_fast(self._path, self._text, self._root)
-            problems = outcome.problems
-            errors = outcome.errors
-            notes = outcome.notes
+            problems = DiagnosticRouter.analyze_buffer(
+                self._path, self._text, self._root
+            )
         except Exception as exc:
             logger.warning("Live parse failed %s: %s", self._path, exc)
             errors = [str(exc)]
@@ -274,26 +265,7 @@ class _LiveParseThread(QThread):
 
         if not self._semantic:
             return
-        semantic: List[Problem] = []
-        semantic_errors: List[str] = []
-        semantic_notes: List[str] = []
-        try:
-            outcome = analyze_buffer_semantic(self._path, self._text, self._root)
-            semantic = outcome.problems
-            semantic_errors = outcome.errors
-            semantic_notes = outcome.notes
-        except Exception as exc:
-            logger.warning("Live semantic analysis failed %s: %s", self._path, exc)
-            semantic_errors = [str(exc)]
-        self.live_done.emit(
-            self._gen,
-            self._path,
-            self._revision,
-            semantic,
-            semantic_errors,
-            semantic_notes,
-            "pyright",
-        )
+        self.live_done.emit(self._gen, self._path, self._revision, [], [], [], None)
 
 
 class _WorkspaceProviderThread(QThread):
@@ -308,16 +280,14 @@ class _WorkspaceProviderThread(QThread):
 
     def run(self) -> None:
         """Run the external workspace scan; never touch GUI objects here."""
-        from editor.analysis.providers import scan_external_workspace
+        from editor.analysis.router import DiagnosticRouter
 
         groups: Dict[str, List[Problem]] = {}
         errors: List[str] = []
         notes: List[str] = []
         try:
-            outcome = scan_external_workspace(self._root)
-            groups = dict(outcome.groups or {})
-            errors = outcome.errors
-            notes = outcome.notes
+            problems = DiagnosticRouter.scan_workspace(self._root)
+            groups = {"all": list(problems)}
         except Exception as exc:
             logger.warning("Workspace provider scan failed %s: %s", self._root, exc)
             errors = [str(exc)]

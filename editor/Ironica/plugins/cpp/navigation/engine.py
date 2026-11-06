@@ -1434,7 +1434,7 @@ class NavigationEngine:
                 return [item for item in results if item.file_path != active_path]
 
         # Fallback: search in project source files when compile_commands.json is not available
-        project_files = self._find_project_files(active_path)
+        project_files = NavigationEngine._find_project_files(active_path)
         for candidate_path in project_files:
             if check_deadline():
                 break
@@ -1577,7 +1577,8 @@ class NavigationEngine:
         except Exception:
             return False
 
-    def _find_project_files(self, source_path: str) -> list[str]:
+    @staticmethod
+    def _find_project_files(source_path: str) -> list[str]:
         """Find C++ files in the owning project for a last-resort symbol scan.
 
         Args:
@@ -1589,7 +1590,7 @@ class NavigationEngine:
         if not source_path:
             return []
         try:
-            excluded = self._excluded_directories()
+            excluded = NavigationEngine._excluded_directories()
             root = Path(source_path).parent
             cmake_root = None
             try:
@@ -1632,7 +1633,7 @@ class NavigationEngine:
                 for filename in filenames:
                     if os.path.splitext(filename)[1].lower() in suffixes:
                         files.append(
-                            self._normalise_path(os.path.join(current, filename))
+                            NavigationEngine._normalise_path(os.path.join(current, filename))
                         )
                         if len(files) >= 400:
                             return sorted(files)

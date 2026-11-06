@@ -502,3 +502,51 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261105T172641Z-f190743-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261105T172641Z-f190743-dirty/summary.json`
 
+## 20261106T122420Z-0034dd5-dirty
+
+- **Timestamp**: 2026-11-06T12:24:20Z
+- **Suites**: cpp_plugin
+- **Git**: 0034dd5 (dirty)
+- **Duration**: 3s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T122420Z-0034dd5-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T122420Z-0034dd5-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T122420Z-0034dd5-dirty/summary.json`
+
+## 20261106T122801Z-0034dd5-dirty
+
+- **Timestamp**: 2026-11-06T12:28:01Z
+- **Suites**: cpp_plugin
+- **Git**: 0034dd5 (dirty)
+- **Duration**: 6s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T122801Z-0034dd5-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T122801Z-0034dd5-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T122801Z-0034dd5-dirty/summary.json`
+
+## 20261106T124047Z-0034dd5-dirty
+
+- **Timestamp**: 2026-11-06T12:40:47Z
+- **Suites**: cpp_plugin
+- **Git**: 0034dd5 (dirty)
+- **Duration**: 4s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T124047Z-0034dd5-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T124047Z-0034dd5-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T124047Z-0034dd5-dirty/summary.json`
+
+## 20261106T124135Z-0034dd5-dirty
+
+- **Timestamp**: 2026-11-06T12:41:35Z
+- **Suites**: cpp_plugin
+- **Git**: 0034dd5 (dirty)
+- **Duration**: 4s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T124135Z-0034dd5-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T124135Z-0034dd5-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T124135Z-0034dd5-dirty/summary.json`
+
