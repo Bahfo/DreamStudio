@@ -1,0 +1,19 @@
+{
+  "run_id": "20261106T141638Z-27648be-dirty",
+  "timestamp": "2026-11-06T14:16:38Z",
+  "suites": [
+    "cpp_plugin"
+  ],
+  "git_revision": "27648be",
+  "dirty": true,
+  "duration_seconds": 5,
+  "exit_code": 0,
+  "verdict": "PASSED",
+  "counts": {
+    "passed": 46,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "errors": 0
+  }
+}

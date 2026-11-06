@@ -49,11 +49,37 @@ class CppDiagnosticBackend:
         problems: List[Problem] = []
         try:
             from clang.cindex import Index, TranslationUnit
+            import re
 
             a = cpp_args.args_for_file(path, content)
             tu = Index.create().parse(
                 path, args=a, options=TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
             )
+
+            # Resolve missing headers (mirrors NavigationEngine._active_translation_unit)
+            missing = set()
+            for diag in getattr(tu, "diagnostics", []) or []:
+                spelling = getattr(diag, "spelling", "") or ""
+                m = re.search(r"'([^']+)' file not found", spelling)
+                if m:
+                    missing.add(m.group(1))
+
+            if missing:
+                try:
+                    from editor.Ironica.plugins.cpp.intellisense import (
+                        headers as header_resolution,
+                    )
+
+                    if header_resolution.resolve_missing(list(missing), path, list(a)):
+                        a = cpp_args.args_for_file(path, content)
+                        tu = Index.create().parse(
+                            path,
+                            args=a,
+                            options=TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD,
+                        )
+                except Exception:
+                    pass
+
             for diag in tu.diagnostics:
                 sev = int(getattr(diag, "severity", 0))
                 problem_severity = _CLANG_SEVERITY_MAP.get(sev)
@@ -65,13 +91,28 @@ class CppDiagnosticBackend:
                 spelling = getattr(diag, "spelling", "") or ""
                 if not spelling:
                     continue
+                # Compute the token length at the error location for proper underlining
+                end_col = col
+                try:
+                    for tok in tu.get_tokens(extent=tu.cursor.extent):
+                        if (
+                            tok.location.line == line
+                            and tok.location.column <= col
+                            < tok.location.column + len(tok.spelling)
+                        ):
+                            end_col = tok.location.column + len(tok.spelling)
+                            break
+                except Exception:
+                    pass
+                if end_col <= col:
+                    end_col = col + 1
                 problems.append(
                     Problem(
                         file_path=path,
                         line=line,
                         column=col,
                         end_line=line,
-                        end_column=col,
+                        end_column=end_col,
                         severity=problem_severity,
                         message=spelling,
                         code="",
@@ -106,7 +147,9 @@ class CppDiagnosticBackend:
             project_files = NavigationEngine._find_project_files(source_path)
             for file_path in project_files:
                 try:
-                    content = open(file_path, "r", encoding="utf-8", errors="replace").read()
+                    content = open(
+                        file_path, "r", encoding="utf-8", errors="replace"
+                    ).read()
                     problems.extend(self._analyze(file_path, content))
                 except Exception:
                     continue

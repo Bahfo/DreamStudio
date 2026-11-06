@@ -12,27 +12,20 @@ import subprocess
 
 from editor.analysis.types import (
     Problem,
+    ProviderResult,
     ProblemProvider,
     ProblemSeverity,
-    ProviderResult,
 )
 
 logger = logging.getLogger(__name__)
 
 RUFF_PATH_ENV = "DREAMSTUDIO_RUFF"
-
 RUFF_SOURCE = "ruff"
-
 WORKSPACE_TIMEOUT_SECONDS = 120
-
 STDIN_TIMEOUT_SECONDS = 15
-
 _SUCCESS_CODES = (0, 1)
-
 _ERROR_PREFIXES = ("E9", "F")
-
 _WARNING_PREFIXES = ("E", "W")
-
 _CHECK_CODES = frozenset(
     {
         "E722",
@@ -56,12 +49,9 @@ _CHECK_MESSAGE_MARKERS = (
 )
 
 _LINE_LENGTH_CODES = ("E501",)
-
 _SYNTAX_CODES = ("E999", "INVALID-SYNTAX")
-
 _SYNTAX_MESSAGE_MARKERS = ("syntaxerror", "invalid syntax", "expected ", "unterminated")
 
-#: Non-fatal note emitted when the optional Ruff tool is not installed.
 _RUFF_MISSING = "not installed (ruff executable not found)"
 _RUFF_TIMEOUT = "ruff timed out"
 _RUFF_BAD_OUTPUT = "ruff returned invalid JSON output"
@@ -164,7 +154,6 @@ class RuffProvider(ProblemProvider):
         self.last_error: Optional[str] = None
         self.last_note: Optional[str] = None
 
-
     def collect(self) -> List[Problem]:
         """Scan the whole workspace with Ruff."""
         return self.scan_workspace().problems
@@ -178,14 +167,18 @@ class RuffProvider(ProblemProvider):
             logger.info("Ruff not installed; workspace scan limited to %s", self.root)
             return ProviderResult([], None, _RUFF_MISSING)
         self.last_note = None
+        from editor.utils.solution.paths import DEFAULT_EXCLUDES
+
         argv = [
             *command,
             "check",
             "--no-cache",
             "--output-format",
             "json",
-            ".",
         ]
+        for excluded in sorted(DEFAULT_EXCLUDES):
+            argv.extend(["--exclude", excluded])
+        argv.append(".")
         return self._run(argv, stdin_text=None)
 
     def analyze_source(self, path: str, content: str) -> ProviderResult:
@@ -207,7 +200,6 @@ class RuffProvider(ProblemProvider):
             "-",
         ]
         return self._run(argv, stdin_text=content)
-
 
     def _run(self, argv: List[str], stdin_text: Optional[str]) -> ProviderResult:
         """Execute Ruff read-only and normalize the result."""

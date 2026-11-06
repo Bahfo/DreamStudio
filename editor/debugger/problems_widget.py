@@ -747,6 +747,13 @@ class ProblemsWidget(QWidget):
                 self._indexing_active = False
                 self.indexing_finished.emit()
             return
+        # Ensure per-project pyproject.toml exists
+        try:
+            from editor.utils.solution.pyproject_config import ensure_pyproject
+
+            ensure_pyproject(root)
+        except Exception:
+            pass
         self._scan_gen += 1
         if root != self._scan_root:
             self._stop_timers()

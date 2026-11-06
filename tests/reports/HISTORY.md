@@ -550,3 +550,99 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261106T124135Z-0034dd5-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261106T124135Z-0034dd5-dirty/summary.json`
 
+## 20261106T141630Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T14:16:30Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 4s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T141630Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T141630Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T141630Z-27648be-dirty/summary.json`
+
+## 20261106T141638Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T14:16:38Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 5s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T141638Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T141638Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T141638Z-27648be-dirty/summary.json`
+
+## 20261106T141646Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T14:16:46Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 4s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T141646Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T141646Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T141646Z-27648be-dirty/summary.json`
+
+## 20261106T160858Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T16:08:58Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 5s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T160858Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T160858Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T160858Z-27648be-dirty/summary.json`
+
+## 20261106T170346Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T17:03:46Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 4s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T170346Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T170346Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T170346Z-27648be-dirty/summary.json`
+
+## 20261106T170417Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T17:04:17Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 4s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T170417Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T170417Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T170417Z-27648be-dirty/summary.json`
+
+## 20261106T170954Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T17:09:54Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 5s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T170954Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T170954Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T170954Z-27648be-dirty/summary.json`
+
+## 20261106T171404Z-27648be-dirty
+
+- **Timestamp**: 2026-11-06T17:14:04Z
+- **Suites**: cpp_plugin
+- **Git**: 27648be (dirty)
+- **Duration**: 5s
+- **Verdict**: PASSED
+- **Passed**: 46 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261106T171404Z-27648be-dirty/report.md`
+- **Console**: `tests/reports/runs/20261106T171404Z-27648be-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261106T171404Z-27648be-dirty/summary.json`
+

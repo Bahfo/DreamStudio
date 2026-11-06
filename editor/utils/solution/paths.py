@@ -38,6 +38,12 @@ DEFAULT_EXCLUDES = frozenset(
         ".pytest_cache",
         ".hg",
         ".svn",
+        "release",
+        "publish",
+        "additional",
+        "plans",
+        ".ruff_cache",
+        ".mypy_cache",
     }
 )
 
