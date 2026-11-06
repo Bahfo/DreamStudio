@@ -6,7 +6,6 @@ Isolated Problems view for DreamStudio.
 from editor import *
 
 import logging
-import re
 
 from editor.analysis.diagnostic_store import DiagnosticStore
 from editor.analysis.types import Problem, ProblemSeverity
@@ -78,14 +77,21 @@ SEVERITY_GROUPS: Dict[str, frozenset] = {
 
 
 _SCAN_DEBOUNCE_MS = 250
-
 _LIVE_DEBOUNCE_MS = 250
-
 _LAZY_BATCH_SIZE = 24
-
 _LAZY_BATCH_GAP_MS = 40
-
 _LAZY_WATCH_INTERVAL_MS = 4000
+_PROJECT_ROOT = Path(resource_path("."))
+_ASSETS_SYSTEM = Path(resource_path("assets/system"))
+CATEGORY_ICONS = {
+    "syntax": "problem.png",
+    "check": "bug.png",
+    "name": "bug.png",
+    "type": "problem.png",
+    "unused": "info.png",
+    "style": "spell_check.png",
+    "marker": "warning.png",
+}
 
 
 def _python_suffixes() -> tuple[str, ...]:
@@ -106,10 +112,6 @@ def _python_suffixes() -> tuple[str, ...]:
         )
     except Exception:
         return ()
-
-
-_PROJECT_ROOT = Path(resource_path("."))
-_ASSETS_SYSTEM = Path(resource_path("assets/system"))
 
 
 def _load_icon(filename: str) -> QIcon:
@@ -136,17 +138,6 @@ def _normalize_problems(
         else:
             continue
     return out
-
-
-CATEGORY_ICONS = {
-    "syntax": "problem.png",
-    "check": "bug.png",
-    "name": "bug.png",
-    "type": "problem.png",
-    "unused": "info.png",
-    "style": "spell_check.png",
-    "marker": "warning.png",
-}
 
 
 def _group_of(severity: ProblemSeverity) -> str:
@@ -397,7 +388,6 @@ class ProblemsWidget(QWidget):
         self._setup_ui()
         self.clear()
 
-
     def _setup_ui(self) -> None:
         """Build the header bar, empty state and tree."""
         layout = QVBoxLayout(self)
@@ -503,7 +493,6 @@ class ProblemsWidget(QWidget):
         self._empty_detail.setWordWrap(True)
         empty_layout.addWidget(self._empty_detail)
         self._stack.addWidget(empty)
-
 
     def set_problems(
         self, problems: Iterable[Union[Problem, dict]], skipped: int = 0
@@ -640,7 +629,6 @@ class ProblemsWidget(QWidget):
         enabled = self.enabled_groups()
         return [p for p in self._problems if _group_of(p.severity) in enabled]
 
-
     def enabled_groups(self) -> frozenset:
         """Return the severity groups currently listed in the tree."""
         return frozenset(self._enabled_groups)
@@ -701,7 +689,6 @@ class ProblemsWidget(QWidget):
         """Normalize *group* to a known severity-group name (``""`` if unknown)."""
         name = str(group or "").strip().lower()
         return name if name in SEVERITY_GROUPS else ""
-
 
     def underlined_groups(self) -> frozenset:
         """Return the severity groups currently underlined in editors."""
@@ -1131,7 +1118,6 @@ class ProblemsWidget(QWidget):
         except Exception:
             pass
 
-
     def track_tabs(self, tabs) -> None:
         """Follow tab switches so underlines stay in sync with editors."""
         try:
@@ -1514,7 +1500,6 @@ class ProblemsWidget(QWidget):
                 continue
         self.set_problems(problems)
 
-
     def _rebuild(self) -> None:
         """Group problems by file and repopulate the tree."""
         self._tree.clear()
@@ -1732,7 +1717,6 @@ class ProblemsWidget(QWidget):
         """Drain scanner workers before the widget is destroyed."""
         self.stop_scanning()
         super().closeEvent(event)
-
 
     def _icon_for(self, problem: Problem) -> QIcon:
         """Return the icon representing *problem*'s type."""
