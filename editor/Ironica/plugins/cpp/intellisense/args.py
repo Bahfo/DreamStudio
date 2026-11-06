@@ -376,6 +376,15 @@ def _database_args(absolute: str, solution_root: str | None) -> tuple[list[str],
         if entry:
             flags += entry
             found = True
+    if not found and solution_root:
+        try:
+            from editor.utils.solution.paths import compile_flags_path
+
+            flags_path = compile_flags_path(solution_root)
+            if os.path.isfile(flags_path):
+                return _flags_file_args(flags_path), True
+        except Exception as exc:
+            logger.debug("Ignoring generated .ds flags: %s", exc)
     return flags, found
 
 
@@ -436,7 +445,11 @@ def args_for_file(
     try:
         from . import pch as pch_support
 
-        args += pch_support.include_args(root)
+        caller_std = None
+        for flag in args:
+            if isinstance(flag, str) and flag.startswith("-std="):
+                caller_std = flag
+        args += pch_support.include_args(root, caller_std=caller_std)
     except Exception as exc:
         logger.debug("Ignoring pch flags: %s", exc)
     return _dedupe_flags(args)

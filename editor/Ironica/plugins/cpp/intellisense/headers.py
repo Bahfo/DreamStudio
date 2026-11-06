@@ -29,24 +29,14 @@ def _project_root_for(file_path: str | None) -> str:
     try:
         from editor.utils.solution.paths import is_solution
     except Exception:
-        pass
-    else:
-        current = os.path.abspath(file_path)
-        if os.path.isfile(current):
-            current = os.path.dirname(current)
-        while True:
-            if is_solution(current):
-                return current
-            parent = os.path.dirname(current)
-            if parent == current:
-                break
-            current = parent
-    # Fallback: look for the nearest project marker or conventional include root.
+        is_solution = None
     current = os.path.abspath(file_path)
     if os.path.isfile(current):
         current = os.path.dirname(current)
     source_dir = current
     while True:
+        if is_solution is not None and is_solution(current):
+            return current
         if (
             os.path.isfile(os.path.join(current, "CMakeLists.txt"))
             or os.path.isfile(os.path.join(current, "compile_commands.json"))
@@ -54,8 +44,6 @@ def _project_root_for(file_path: str | None) -> str:
             or os.path.isdir(os.path.join(current, ".ds"))
         ):
             return current
-        # A nearby ``include/`` sibling is a stronger signal than an outer
-        # repository marker; prefer it so nested projects resolve locally.
         if has_include_dirs(current):
             return current
         parent = os.path.dirname(current)

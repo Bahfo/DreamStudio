@@ -99,7 +99,11 @@ def _key_for(root: str, includes: list, base: list) -> dict:
                 continue
             for name in files:
                 if os.path.splitext(name)[1].lower() in (
-                    ".h", ".hpp", ".hh", ".hxx", ".ixx",
+                    ".h",
+                    ".hpp",
+                    ".hh",
+                    ".hxx",
+                    ".ixx",
                 ):
                     try:
                         mtime = os.path.getmtime(os.path.join(current, name))
@@ -166,7 +170,7 @@ def _flags_digest(base: list, includes: list) -> str:
     return digest.hexdigest()
 
 
-def include_args(root: str | None) -> list:
+def include_args(root: str | None, caller_std: str | None = None) -> list:
     """Return ``-include-pch`` args for *root* when its PCH is usable."""
     try:
         if not root:
@@ -179,6 +183,13 @@ def include_args(root: str | None) -> list:
             return []
         if stored.get("flags") != _flags_digest(_base_flags(root), includes):
             return []
+        if caller_std is not None:
+            pch_std = None
+            for flag in _base_flags(root):
+                if isinstance(flag, str) and flag.startswith("-std="):
+                    pch_std = flag
+            if pch_std is not None and pch_std != caller_std:
+                return []
         path = _pch_path(root)
         if not os.path.isfile(path):
             return []
@@ -210,8 +221,7 @@ def ensure_for_root(root: str, files: list) -> bool:
             if same_config and headers_fresh:
                 return True
             if same_config and (
-                time.time() - float(stored.get("built_at", 0.0))
-                < _MIN_REBUILD_SECONDS
+                time.time() - float(stored.get("built_at", 0.0)) < _MIN_REBUILD_SECONDS
             ):
                 return True
         return _build(root, includes, base, current)

@@ -1245,7 +1245,7 @@ class NavigationEngine:
                 return [result]
 
         return self._find_in_units(
-            ctx, symbol, "definition", deadline=time.monotonic() + 4.0
+            ctx, symbol, "definition", deadline=time.monotonic() + 30.0
         )
 
     def get_declaration(self, ctx: CppContext) -> list[NavigationResult]:
@@ -1268,7 +1268,7 @@ class NavigationEngine:
                 return [result]
 
         return self._find_in_units(
-            ctx, symbol, "declaration", deadline=time.monotonic() + 4.0
+            ctx, symbol, "declaration", deadline=time.monotonic() + 30.0
         )
 
     def get_implementation(self, ctx: CppContext) -> list[NavigationResult]:
@@ -1285,7 +1285,7 @@ class NavigationEngine:
                 return idx_results
 
         return self._find_in_units(
-            ctx, symbol, "implementation", deadline=time.monotonic() + 4.0
+            ctx, symbol, "implementation", deadline=time.monotonic() + 30.0
         )
 
     def get_references(self, ctx: CppContext) -> list[NavigationResult]:
@@ -1302,7 +1302,7 @@ class NavigationEngine:
                 return idx_results
 
         return self._find_in_units(
-            ctx, symbol, "reference", deadline=time.monotonic() + 4.0
+            ctx, symbol, "reference", deadline=time.monotonic() + 30.0
         )
 
     @staticmethod
@@ -1328,7 +1328,17 @@ class NavigationEngine:
     ) -> list[NavigationResult]:
         target = symbol.canonical_cursor
         target_usr = self._usr(target) or self._usr(symbol.cursor)
-        if not target_usr:
+        referenced = self._safe_cursor(symbol.cursor, "referenced")
+        target_name = (
+            symbol.cursor.spelling
+            or (referenced.spelling if self._valid(referenced) else "")
+            or ""
+        ).strip()
+        target_family = (
+            self._documentation_family(symbol.cursor) if mode != "reference" else set()
+        )
+        project_root = self._project_root(symbol.file_path)
+        if not target_usr and not target_name:
             return []
 
         active_path = symbol.file_path
@@ -1439,13 +1449,33 @@ class NavigationEngine:
                     break
                 if mode == "reference":
                     referenced = self._safe_cursor(cursor, "referenced")
-                    if self._usr(referenced) == target_usr:
+                    if target_usr and self._usr(referenced) == target_usr:
                         append(cursor, "reference")
                     continue
 
                 candidate_usr = self._usr(cursor)
-                definition = self._is_definition(cursor)
-                if candidate_usr == target_usr:
+                usr_match = bool(target_usr) and candidate_usr == target_usr
+                name_match = (
+                    not usr_match
+                    and bool(target_name)
+                    and cursor.spelling == target_name
+                    and cursor.kind in target_family
+                    and self._cursor_in_project(cursor, project_root)
+                )
+                if not (usr_match or name_match):
+                    continue
+
+                definition = self._is_definition(cursor) or cursor.kind == getattr(
+                    CursorKind, "MACRO_DEFINITION", None
+                )
+                if candidate_usr == target_usr or usr_match:
+                    if mode == "definition" and definition:
+                        append(cursor, "definition")
+                    elif mode == "declaration" and not definition:
+                        append(cursor, "declaration")
+                    elif mode == "implementation" and definition:
+                        append(cursor, "implementation")
+                elif name_match:
                     if mode == "definition" and definition:
                         append(cursor, "definition")
                     elif mode == "declaration" and not definition:
@@ -1573,14 +1603,14 @@ class NavigationEngine:
             if cmake_root:
                 root = Path(cmake_root)
             else:
-                for parent in (root, *root.parents):
-                    if (
-                        (parent / "compile_commands.json").is_file()
-                        or (parent / ".ds").is_dir()
-                        or (parent / ".git").is_dir()
-                    ):
-                        root = parent
-                        break
+                inferred_root = ""
+                try:
+                    from ..intellisense import headers as header_resolution
+
+                    inferred_root = header_resolution.project_root_for(source_path)
+                except Exception:
+                    inferred_root = ""
+                root = Path(inferred_root) if inferred_root else root
 
             suffixes = {
                 ".c",

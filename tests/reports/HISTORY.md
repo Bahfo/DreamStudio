@@ -490,3 +490,15 @@ Each entry contains:
 - **Console**: `tests/reports/runs/20261105T140319Z-ce3d7f0-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261105T140319Z-ce3d7f0-dirty/summary.json`
 
+## 20261105T172641Z-f190743-dirty
+
+- **Timestamp**: 2026-11-05T17:26:41Z
+- **Suites**: cpp_plugin
+- **Git**: f190743 (dirty)
+- **Duration**: 3s
+- **Verdict**: PASSED
+- **Passed**: 40 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261105T172641Z-f190743-dirty/report.md`
+- **Console**: `tests/reports/runs/20261105T172641Z-f190743-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261105T172641Z-f190743-dirty/summary.json`
+
