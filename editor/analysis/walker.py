@@ -16,16 +16,46 @@ from editor.utils.solution.paths import DEFAULT_EXCLUDES
 logger = logging.getLogger(__name__)
 
 _STYLE_MARKER_RE = re.compile(r"\b(TODO|FIXME|XXX|HACK|BUG)\b", re.IGNORECASE)
-
 _MAX_LINE_LENGTH = 120
-
 _MAX_EXTRA_PER_FILE = 30
-
-_MAJOR_FILE_BYTES = 20 * 1024
-
+_MAX_FILE_BYTES = 20 * 1024
 _MAJOR_RECENCY_SECONDS = 3600
 
-_MAX_FILE_BYTES = 5 * 1024 * 1024
+
+def find_python_project_root(start: str) -> str:
+    """Walk upward from *start* looking for a Python project marker.
+
+    Returns the directory containing the nearest ``pyproject.toml``,
+    ``setup.py``, ``setup.cfg``, ``requirements.txt``, ``.git``, or
+    ``.ds`` marker.  Falls back to the parent of *start* if none found.
+    """
+    markers = {
+        "pyproject.toml",
+        "setup.py",
+        "setup.cfg",
+        "requirements.txt",
+        ".git",
+        ".ds",
+    }
+    current = os.path.abspath(start)
+    if os.path.isfile(current):
+        current = os.path.dirname(current)
+    while True:
+        try:
+            entries = set(os.listdir(current))
+        except OSError:
+            break
+        if entries & markers:
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+    return (
+        os.path.dirname(os.path.abspath(start))
+        if os.path.isfile(start)
+        else os.path.abspath(start)
+    )
 
 
 def analyze_source(file_path: str, content: str) -> List[Problem]:
@@ -121,20 +151,34 @@ class _StyleHints:
 
 
 def index_python_files(
-    root: str, known: Optional[dict] = None, seen: Optional[set] = None
+    root: str,
+    known: Optional[dict] = None,
+    seen: Optional[set] = None,
+    project_root: Optional[str] = None,
 ) -> tuple[List[tuple], int]:
-    """List analyzable Python files under *root*, "major" files first."""
+    """List analyzable Python files under *root*, "major" files first.
+
+    When *project_root* is given (or inferred from *root*), the walk is
+    confined to that directory so vendored/third-party trees are skipped.
+    """
     entries: List[tuple] = []
     skipped = 0
     now = time.time()
+    if project_root is None:
+        project_root = find_python_project_root(root)
+    walk_root = project_root or root
     try:
-        for dirpath, dirs, files in os.walk(root, followlinks=False):
+        for dirpath, dirs, files in os.walk(walk_root, followlinks=False):
             dirs[:] = [
                 directory
                 for directory in dirs
                 if directory not in DEFAULT_EXCLUDES
                 and not os.path.islink(os.path.join(dirpath, directory))
             ]
+            # Stop walking outside the project root's subtree
+            if not dirpath.startswith(walk_root):
+                dirs[:] = []
+                continue
             for name in files:
                 if not name.endswith((".py", ".pyi")):
                     continue
@@ -157,7 +201,7 @@ def index_python_files(
                     (path, stamp[0], stamp[1], now - stamp[0] < _MAJOR_RECENCY_SECONDS)
                 )
     except OSError as exc:
-        logger.warning("Index walk failed for %s: %s", root, exc)
+        logger.warning("Index walk failed for %s: %s", walk_root, exc)
     entries.sort(key=lambda item: (not item[3], -item[2], -item[1], item[0]))
     return [(path, mtime, size) for path, mtime, size, _recent in entries], skipped
 
@@ -165,8 +209,9 @@ def index_python_files(
 class ProblemsAnalyzer(ProblemProvider):
     """Walk a codebase and emit :class:`Problem` diagnostics."""
 
-    def __init__(self, codebase_path: str):
+    def __init__(self, codebase_path: str, project_root: Optional[str] = None):
         self.codebase_path = codebase_path
+        self.project_root = project_root or find_python_project_root(codebase_path)
         self.required_extensions = [".py", ".pyi"]
         self.dictionary_of_errors: dict = {"errors": [], "warnings": []}
         self._problems: List[Problem] = []
@@ -177,7 +222,9 @@ class ProblemsAnalyzer(ProblemProvider):
         self._problems = []
         self.skipped_files = 0
         self.dictionary_of_errors = {"errors": [], "warnings": []}
-        entries, skipped = index_python_files(self.codebase_path)
+        entries, skipped = index_python_files(
+            self.codebase_path, project_root=self.project_root
+        )
         self.skipped_files += skipped
         for file_path, _mtime, _size in entries:
             try:

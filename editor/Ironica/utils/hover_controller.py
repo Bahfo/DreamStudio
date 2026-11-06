@@ -386,19 +386,57 @@ class HoverController(QObject):
         if anchor is None:
             return
 
-        result = self._resolve_hover_content(
-            text,
-            self._target_line,
-            self._target_col,
-        )
+        # Problem diagnostics take priority over documentation hover
+        try:
+            diag_text = self.editor.diagnostic_label_at(
+                self._target_line, self._target_col
+            )
+        except Exception:
+            diag_text = ""
+        if diag_text and diag_text.strip():
+            title_markdown = "## Diagnostic"
+            body_markdown = diag_text
+            result = None
+        else:
+            result = self._resolve_hover_content(
+                text,
+                self._target_line,
+                self._target_col,
+            )
 
-        if not result:
-            # Fallback: show token name with "no information available"
+
+        if not result and not (diag_text and diag_text.strip()):
+            # Only show a fallback for genuine identifiers; suppress the
+            # flyout for comments, strings, numbers, operators, etc.
             token = self._get_token_at_position(
                 text, self._target_line, self._target_col
             )
-            title_markdown = f"## {token}" if token else "## Symbol"
+            if not token or not token[0].isalpha() and token[0] != "_":
+                self.cancel_pending_hover()
+                return
+            # Suppress hover inside comment lines
+            try:
+                lines = text.splitlines()
+                if 0 <= self._target_line < len(lines):
+                    stripped = lines[self._target_line].lstrip()
+                    if stripped.startswith(("//", "#", "/*", "*", '"""', "'''")):
+                        self.cancel_pending_hover()
+                        return
+                    # Suppress hover inside string literals
+                    line_text = lines[self._target_line]
+                    if self._target_col < len(line_text):
+                        # Count quotes before the target column
+                        prefix = line_text[:self._target_col + 1]
+                        # Simple heuristic: if odd number of double or single quotes before col
+                        if prefix.count('"') % 2 == 1 or prefix.count("'") % 2 == 1:
+                            self.cancel_pending_hover()
+                            return
+            except Exception:
+                pass
+            title_markdown = f"## {token}"
             body_markdown = "*(no information available)*"
+        elif not result and diag_text and diag_text.strip():
+            pass  # Already set title_markdown and body_markdown above
         else:
             try:
                 title_markdown, body_markdown = result
