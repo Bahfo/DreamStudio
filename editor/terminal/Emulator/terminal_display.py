@@ -158,7 +158,7 @@ class TerminalDisplay(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_StaticContents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StaticContents, False)
 
         self._bg = QColor("#1e1e1e")
         self._fg = QColor("#d4d4d4")
@@ -331,7 +331,7 @@ class TerminalDisplay(QWidget):
             else:
                 cols = range(0, self._columns)
             text = "".join(line.get(col, self._EMPTY).data for col in cols)
-            parts.append(text.rstrip())
+            parts.append(text)
         return "\n".join(parts)
 
 
@@ -380,6 +380,11 @@ class TerminalDisplay(QWidget):
             text = self._get_selection_text()
             if text:
                 QApplication.clipboard().setText(text)
+            # Clear the selection so the highlight fades away after copy.
+            self._sel_active = False
+            self._sel_start = None
+            self._sel_end = None
+            self.update()
             event.accept()
             return
         super().mouseReleaseEvent(event)
@@ -398,6 +403,9 @@ class TerminalDisplay(QWidget):
         if offset != self._scroll_offset:
             self._scroll_offset = offset
             self._cache_valid = False
+            self._sel_active = False
+            self._sel_start = None
+            self._sel_end = None
             self.update()
             self.history_changed.emit(self._scroll_offset, hist_lines)
 
@@ -426,6 +434,9 @@ class TerminalDisplay(QWidget):
             self._screen.resize(rows, cols)
             self._scroll_offset = 0
             self._cache_valid = False
+            self._sel_active = False
+            self._sel_start = None
+            self._sel_end = None
             self.resized.emit(rows, cols)
             if self._emulator is not None:
                 self._emulator.resize(rows, cols)
@@ -455,6 +466,11 @@ class TerminalDisplay(QWidget):
             self.history_changed.emit(0, self._count_history_lines())
 
     def feed(self, text: str) -> None:
+        # New output invalidates any active text selection.
+        if self._sel_start is not None or self._sel_end is not None:
+            self._sel_active = False
+            self._sel_start = None
+            self._sel_end = None
         if self._resizing or not self.isVisible():
             self._pending_feed.append(text)
             if len(self._pending_feed) > 1000:
