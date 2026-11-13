@@ -96,7 +96,10 @@ preflight_checks() {
     
     # Verify Python version
     local py_version
-    py_version=$("${VENV_PYTHON}" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    py_version=$(
+        "${VENV_PYTHON}" -c \
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+    )
     if [[ "${py_version}" != "3.12" ]]; then
         log_warn "Python version is ${py_version}, expected 3.12"
     fi
@@ -135,7 +138,11 @@ list_suites() {
         local readme="${path}/README.md"
         local desc="No description"
         if [[ -f "${readme}" ]]; then
-            desc=$(grep -A 2 "## Overview" "${readme}" 2>/dev/null | sed -n '2p' | xargs || echo "No description")
+            desc=$(
+                grep -A 2 "## Overview" "${readme}" 2>/dev/null |
+                    sed -n '2p' |
+                    xargs || echo "No description"
+            )
         fi
         printf "  ${BOLD}%-20s${NC} %s\n" "${name}" "${desc}"
     done
@@ -163,116 +170,387 @@ generate_run_id() {
 }
 
 # -----------------------------------------------------------------------------
-# Interactive TUI
+# Interactive terminal interface
 # -----------------------------------------------------------------------------
-run_interactive_tui() {
-    local suites
-    mapfile -t suites < <(discover_suites)
-    
-    if [[ ${#suites[@]} -eq 0 ]]; then
-        die "No test suites available"
+TUI_TTY_STATE=""
+TUI_TTY_FD=""
+TUI_SCREEN_ACTIVE=false
+TUI_PANEL_LEFT=1
+TUI_PANEL_INNER_WIDTH=0
+
+
+tui_restore_terminal() {
+    if [[ -n "${TUI_TTY_FD}" ]]; then
+        if [[ -n "${TUI_TTY_STATE}" ]]; then
+            stty "${TUI_TTY_STATE}" <&"${TUI_TTY_FD}" 2>/dev/null || true
+        fi
+
+        printf '\033[0m\033[?25h' >&"${TUI_TTY_FD}" 2>/dev/null || true
+        if [[ "${TUI_SCREEN_ACTIVE}" == true ]]; then
+            printf '\033[?1049l' >&"${TUI_TTY_FD}" 2>/dev/null || true
+        fi
+        exec {TUI_TTY_FD}>&-
     fi
-    
-    local selected=()
-    local current=0
-    
-    # Build suite names array for display
-    local suite_names=()
-    local suite_paths=()
-    for entry in "${suites[@]}"; do
-        suite_names+=("${entry%%:*}")
-        suite_paths+=("${entry#*:}")
-    done
-    
-    # Add "All Suites" option
-    suite_names=("All Suites" "${suite_names[@]}")
-    suite_paths=("__ALL__" "${suite_paths[@]}")
-    
-    clear
-    echo -e "${BOLD}${CYAN}DreamStudio IDE Test Runner${NC}"
-    echo -e "${CYAN}────────────────────────────────────────${NC}"
-    echo
-    echo "Use ↑/↓ to navigate, SPACE to toggle, ENTER to run, q to quit"
-    echo
-    
-    while true; do
-        clear
-        echo -e "${BOLD}${CYAN}DreamStudio IDE Test Runner${NC}"
-        echo -e "${CYAN}────────────────────────────────────────${NC}"
-        echo
-        
-        for i in "${!suite_names[@]}"; do
-            local prefix="  "
-            [[ $i -eq $current ]] && prefix="${BOLD}${MAGENTA}▶ ${NC}"
-            
-            local status=""
-            if [[ " ${selected[*]} " =~ " ${i} " ]]; then
-                status="${GREEN}[✓]${NC} "
-            else
-                status="    "
-            fi
-            
-            echo -e "${prefix}${status}${suite_names[i]}"
+
+    TUI_TTY_STATE=""
+    TUI_TTY_FD=""
+    TUI_SCREEN_ACTIVE=false
+}
+
+
+tui_draw_text() {
+    local row="$1"
+    local offset="$2"
+    local style="$3"
+    local value="$4"
+    local width=$((TUI_PANEL_INNER_WIDTH - offset))
+
+    if (( width <= 0 )); then
+        return 0
+    fi
+
+    value="${value:0:width}"
+    printf '\033[%d;%dH%b%-*s\033[0m' \
+        "${row}" "$((TUI_PANEL_LEFT + 1 + offset))" "${style}" "${width}" "${value}" \
+        >&"${TUI_TTY_FD}"
+}
+
+
+tui_render() {
+    local -n names_ref="$1"
+    local -n selected_ref="$2"
+    local current="$3"
+    local notice="$4"
+    local dimensions rows columns panel_width panel_height panel_top panel_left
+    local inner_width list_height first last index item row label marker pointer
+    local selection_summary suite_meta meta_offset horizontal title
+    local color_enabled=true style_border style_title style_body style_muted
+    local style_heading style_selected style_check style_notice style_footer
+    local current_selected selected_all=false selected_count="${#selected_ref[@]}"
+    local total_suites
+    total_suites=$((${#names_ref[@]} - 1))
+
+    if [[ -n "${NO_COLOR:-}" || "${TERM:-dumb}" == dumb ]]; then
+        color_enabled=false
+    fi
+
+    dimensions=$(stty size <&"${TUI_TTY_FD}" 2>/dev/null || true)
+    if [[ "${dimensions}" =~ ^([0-9]+)[[:space:]]+([0-9]+)$ ]]; then
+        rows="${BASH_REMATCH[1]}"
+        columns="${BASH_REMATCH[2]}"
+    else
+        rows="${LINES:-24}"
+        columns="${COLUMNS:-80}"
+    fi
+
+    if (( columns < 52 || rows < 16 )); then
+        printf '\033[0m\033[2J\033[H' >&"${TUI_TTY_FD}"
+        if [[ "${color_enabled}" == true ]]; then
+            printf '\033[44;97m' >&"${TUI_TTY_FD}"
+        fi
+        printf '\033[%d;1H  Resize the terminal to at least 52 columns by 16 rows.' \
+            "$((rows / 2))" >&"${TUI_TTY_FD}"
+        printf '\033[%d;1H  Press Q to quit.' "$((rows / 2 + 1))" >&"${TUI_TTY_FD}"
+        return 0
+    fi
+
+    panel_width=$((columns - 8))
+    if (( panel_width > 88 )); then
+        panel_width=88
+    fi
+    panel_height=$((rows - 4))
+    if (( panel_height > 26 )); then
+        panel_height=26
+    fi
+
+    inner_width=$((panel_width - 2))
+    list_height=$((panel_height - 11))
+    panel_top=$(((rows - panel_height) / 2 + 1))
+    panel_left=$(((columns - panel_width) / 2 + 1))
+    TUI_PANEL_LEFT="${panel_left}"
+    TUI_PANEL_INNER_WIDTH="${inner_width}"
+
+    first=0
+    if (( current >= list_height )); then
+        first=$((current - list_height + 1))
+    fi
+    last=$((first + list_height - 1))
+    if (( last >= ${#names_ref[@]} )); then
+        last=$((${#names_ref[@]} - 1))
+    fi
+
+    if (( selected_count == 1 )) && [[ "${selected_ref[0]}" == 0 ]]; then
+        selected_all=true
+        selection_summary="ALL ${#names_ref[@]} ENTRIES SELECTED"
+        selection_summary="ALL $((${#names_ref[@]} - 1)) SUITES SELECTED"
+    elif (( selected_count == 0 )); then
+        selection_summary="NO SUITES SELECTED"
+    else
+        selection_summary="${selected_count} SUITES SELECTED"
+    fi
+
+    style_border=$'\033[97;44m'
+    style_title=$'\033[104;97;1m'
+    style_body=$'\033[47;30m'
+    style_muted=$'\033[47;90m'
+    style_heading=$'\033[47;34;1m'
+    style_selected=$'\033[104;97;1m'
+    style_check=$'\033[47;32;1m'
+    style_notice=$'\033[47;33;1m'
+    style_footer=$'\033[47;34m'
+
+    if [[ "${color_enabled}" == true ]]; then
+        printf '\033[0m\033[44;97m\033[2J\033[H' >&"${TUI_TTY_FD}"
+        for ((row = 1; row <= rows; row++)); do
+            printf '\033[%d;1H\033[44m%*s' "${row}" "${columns}" '' >&"${TUI_TTY_FD}"
         done
-        
-        echo
-        echo -e "${CYAN}────────────────────────────────────────${NC}"
-        echo -e "Selected: ${#selected[@]} suite(s)"
-        
-        # Read key
-        IFS= read -rsn1 key
-        
+    else
+        printf '\033[0m\033[2J\033[H' >&"${TUI_TTY_FD}"
+        style_border=""
+        style_title=""
+        style_body=""
+        style_muted=""
+        style_heading=""
+        style_selected=""
+        style_check=""
+        style_notice=""
+        style_footer=""
+    fi
+
+    printf -v horizontal '%*s' "${inner_width}" ''
+    horizontal="${horizontal// /─}"
+    title="  DREAMSTUDIO IDE   /   TEST SUITE MANAGER"
+
+    printf '\033[%d;%dH%b┌%s┐' \
+        "${panel_top}" "${panel_left}" "${style_border}" "${horizontal}" >&"${TUI_TTY_FD}"
+
+    for ((row = 1; row < panel_height - 1; row++)); do
+        printf '\033[%d;%dH%b│%b%*s%b│' \
+            "$((panel_top + row))" "${panel_left}" "${style_border}" \
+            "${style_body}" "${inner_width}" '' "${style_border}" >&"${TUI_TTY_FD}"
+    done
+
+    printf '\033[%d;%dH%b└%s┘' \
+        "$((panel_top + panel_height - 1))" "${panel_left}" \
+        "${style_border}" "${horizontal}" >&"${TUI_TTY_FD}"
+
+    tui_draw_text "$((panel_top + 1))" 0 "${style_title}" "${title}"
+    tui_draw_text "$((panel_top + 2))" 2 "${style_body}" \
+        "Select the test suites to include in this run."
+
+    tui_draw_text "$((panel_top + 4))" 2 "${style_heading}" "AVAILABLE TEST SUITES"
+    suite_meta="${#names_ref[@]} OPTIONS"
+    meta_offset=$((inner_width - ${#suite_meta} - 2))
+    tui_draw_text "$((panel_top + 4))" "${meta_offset}" "${style_muted}" "${suite_meta}"
+
+    for ((index = first; index <= last; index++)); do
+        row=$((panel_top + 5 + index - first))
+        current_selected=false
+        if (( index == 0 )); then
+            current_selected="${selected_all}"
+        else
+            for item in "${selected_ref[@]}"; do
+                if [[ "${item}" == "${index}" ]]; then
+                    current_selected=true
+                    break
+                fi
+            done
+        fi
+
+        marker='[ ]'
+        if [[ "${current_selected}" == true ]]; then
+            marker='[✓]'
+        fi
+
+        pointer=' '
+        if (( index == current )); then
+            pointer='›'
+            tui_draw_text "${row}" 0 "${style_selected}" "${pointer}"
+            tui_draw_text "${row}" 3 "${style_selected}" "${marker}"
+            label="${names_ref[index]}"
+            if (( ${#label} > inner_width - 13 )); then
+                label="${label:0:inner_width-14}…"
+            fi
+            tui_draw_text "${row}" 9 "${style_selected}" "${label}"
+        else
+            tui_draw_text "${row}" 0 "${style_body}" "${pointer}"
+            if [[ "${current_selected}" == true ]]; then
+                tui_draw_text "${row}" 3 "${style_check}" "${marker}"
+            else
+                tui_draw_text "${row}" 3 "${style_body}" "${marker}"
+            fi
+            label="${names_ref[index]}"
+            if (( ${#label} > inner_width - 13 )); then
+                label="${label:0:inner_width-14}…"
+            fi
+            tui_draw_text "${row}" 9 "${style_body}" "${label}"
+        fi
+    done
+
+    tui_draw_text "$((panel_top + 5 + list_height))" 0 "${style_muted}" "${horizontal}"
+    tui_draw_text "$((panel_top + 6 + list_height))" 2 "${style_heading}" \
+        "SELECTION: ${selection_summary}"
+
+    if [[ -n "${notice}" ]]; then
+        tui_draw_text "$((panel_top + 7 + list_height))" 2 "${style_notice}" "${notice}"
+    else
+        tui_draw_text "$((panel_top + 7 + list_height))" 2 "${style_muted}" \
+            "Use Space to toggle an entry. Select at least one suite to continue."
+    fi
+
+    tui_draw_text "$((panel_top + 8 + list_height))" 2 "${style_footer}" \
+        '↑/↓ Move  SPACE Toggle  A All  N Clear'
+    tui_draw_text "$((panel_top + 9 + list_height))" 2 "${style_footer}" \
+        'ENTER Run  Q Quit'
+}
+
+
+run_interactive_tui() {
+    local suites suite_names=() suite_paths=() selected=()
+    local current=0 key sequence item updated=() run_paths=() notice=""
+    local already_selected index
+
+    if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+        die "Interactive mode requires a terminal. Use --all or --suite NAME instead."
+    fi
+
+    mapfile -t suites < <(discover_suites)
+    if [[ ${#suites[@]} -eq 0 ]]; then
+        die_with_code 4 "No test suites available"
+    fi
+
+    for item in "${suites[@]}"; do
+        suite_names+=("${item%%:*}")
+        suite_paths+=("${item#*:}")
+    done
+
+    suite_names=("All suites" "${suite_names[@]}")
+    if ! exec {TUI_TTY_FD}<>/dev/tty; then
+        die "Unable to open the controlling terminal"
+    fi
+
+    if ! TUI_TTY_STATE=$(stty -g <&"${TUI_TTY_FD}" 2>/dev/null); then
+        tui_restore_terminal
+        die "Unable to read terminal settings"
+    fi
+
+    trap 'tui_restore_terminal; exit 3' INT TERM
+    if ! stty -echo -icanon min 1 time 0 <&"${TUI_TTY_FD}"; then
+        tui_restore_terminal
+        trap - INT TERM
+        die "Unable to configure terminal input"
+    fi
+
+    printf '\033[?1049h\033[?25l' >&"${TUI_TTY_FD}"
+    TUI_SCREEN_ACTIVE=true
+
+    while true; do
+        tui_render suite_names selected "${current}" "${notice}"
+        notice=""
+
+        if ! IFS= read -r -s -n 1 -u "${TUI_TTY_FD}" key; then
+            tui_restore_terminal
+            trap - INT TERM
+            die "Unable to read terminal input"
+        fi
+
         case "${key}" in
-            $'\x1b') # Escape sequence
-                read -rsn2 key
-                case "${key}" in
-                    '[A') # Up
-                        ((current > 0)) && ((current--))
+            $'\x1b')
+                sequence=""
+                IFS= read -r -s -n 2 -t 0.05 -u "${TUI_TTY_FD}" sequence || true
+                case "${sequence}" in
+                    '[A'|'[H'|'[1~')
+                        if [[ "${sequence}" == '[H' || "${sequence}" == '[1~' ]]; then
+                            current=0
+                        elif (( current > 0 )); then
+                            current=$((current - 1))
+                        fi
                         ;;
-                    '[B') # Down
-                        ((current < ${#suite_names[@]} - 1)) && ((current++))
+                    '[B'|'[F'|'[4~')
+                        if [[ "${sequence}" == '[F' || "${sequence}" == '[4~' ]]; then
+                            current=$((${#suite_names[@]} - 1))
+                        elif (( current < ${#suite_names[@]} - 1 )); then
+                            current=$((current + 1))
+                        fi
                         ;;
                 esac
                 ;;
-            ' ') # Space - toggle
-                if [[ " ${selected[*]} " =~ " ${current} " ]]; then
-                    local kept=()
-                    local item
-                    for item in "${selected[@]}"; do
-                        [[ "${item}" == "${current}" ]] || kept+=("${item}")
-                    done
-                    selected=("${kept[@]}")
+            ' ')
+                if (( current == 0 )); then
+                    if (( ${#selected[@]} == ${#suite_paths[@]} )); then
+                        selected=()
+                    else
+                        selected=()
+                        for ((index = 1; index <= ${#suite_paths[@]}; index++)); do
+                            selected+=("${index}")
+                        done
+                    fi
                 else
-                    selected+=("${current}")
+                    updated=()
+                    already_selected=false
+                    for item in "${selected[@]}"; do
+                        if [[ "${item}" == "${current}" ]]; then
+                            already_selected=true
+                        else
+                            updated+=("${item}")
+                        fi
+                    done
+                    if [[ "${already_selected}" == false ]]; then
+                        updated+=("${current}")
+                    fi
+                    selected=("${updated[@]}")
                 fi
                 ;;
-            '') # Enter - run
-                if [[ ${#selected[@]} -eq 0 ]]; then
-                    log_warn "No suites selected"
-                    sleep 1
-                else
+            a|A)
+                selected=()
+                for ((index = 1; index <= ${#suite_paths[@]}; index++)); do
+                    selected+=("${index}")
+                done
+                ;;
+            n|N)
+                selected=()
+                ;;
+            '')
+                if (( ${#selected[@]} > 0 )); then
                     break
                 fi
+                notice="Select at least one suite before starting."
                 ;;
-            'q'|'Q') # Quit
-                echo
-                log_info "Cancelled by user"
-                exit 0
+            q|Q)
+                tui_restore_terminal
+                trap - INT TERM
+                log_info "Test selection cancelled"
+                return 0
+                ;;
+            j)
+                if (( current < ${#suite_names[@]} - 1 )); then
+                    current=$((current + 1))
+                fi
+                ;;
+            k)
+                if (( current > 0 )); then
+                    current=$((current - 1))
+                fi
                 ;;
         esac
     done
-    
-    # Build list of paths to run
-    local run_paths=()
-    for idx in "${selected[@]}"; do
-        if [[ "${suite_paths[idx]}" == "__ALL__" ]]; then
-            run_paths=("${suite_paths[@]:1}") # All except __ALL__
-            break
-        else
-            run_paths+=("${suite_paths[idx]}")
-        fi
-    done
-    
+
+    tui_restore_terminal
+    trap - INT TERM
+
+    if (( ${#selected[@]} == ${#suite_paths[@]} )); then
+        run_paths=("${suite_paths[@]}")
+    else
+        for ((index = 1; index <= ${#suite_paths[@]}; index++)); do
+            for item in "${selected[@]}"; do
+                if [[ "${item}" == "${index}" ]]; then
+                    run_paths+=("${suite_paths[index - 1]}")
+                    break
+                fi
+            done
+        done
+    fi
+
     run_selected_suites "${run_paths[@]}"
 }
 
@@ -343,7 +621,12 @@ run_selected_suites() {
     # Forward an interrupt received only by this shell to the Python runner.
     # Ctrl-C signals the whole process group, but CI or a supervisor may
     # signal only the shell.
-    trap 'if [[ -s "${runner_pid_file}" ]]; then kill -INT "$(cat "${runner_pid_file}")" 2>/dev/null || true; fi; log_warn "Interrupt received; waiting for the test runner to save results..."' INT TERM
+    trap '
+        if [[ -s "${runner_pid_file}" ]]; then
+            kill -INT "$(cat "${runner_pid_file}")" 2>/dev/null || true
+        fi
+        log_warn "Interrupt received; waiting for the test runner to save results..."
+    ' INT TERM
 
     # Run in the background so the trap is executed immediately while waiting.
     # ``tee`` ignores INT/TERM so it cannot close the pipe before the runner
@@ -379,9 +662,13 @@ run_selected_suites() {
     local exit_code=0
     if [[ -f "${run_dir}/summary.json" ]]; then
         exit_code=$(
-            "${VENV_PYTHON}" -c \
-                'import json, sys; print(int(json.load(open(sys.argv[1], encoding="utf-8")).get("exit_code", 2)))' \
-                "${run_dir}/summary.json" 2>/dev/null || echo 2
+            "${VENV_PYTHON}" - "${run_dir}/summary.json" 2>/dev/null <<'PY' || echo 2
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as summary_file:
+    print(int(json.load(summary_file).get("exit_code", 2)))
+PY
         )
         [[ "${exit_code}" =~ ^[0-4]$ ]] || exit_code=2
     elif [[ ${pipeline_status} -ge 128 ]]; then
