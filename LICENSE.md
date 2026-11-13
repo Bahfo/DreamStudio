@@ -1,6 +1,6 @@
 # LICENSE
 
-Copyright (c) 2026 EXcellent TechStacks - All Rights Reserved.
+Copyright (c) 2026 Gizmo Microsystems - All Rights Reserved.
 
 This repository contains two distinct licensing regimes:
 1. **Source Code**: Licensed under the GNU General Public License v3.0 (GPLv3) with additional attribution requirements.

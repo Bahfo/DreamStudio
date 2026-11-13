@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Editor interaction live tests: opening files from the explorer path, typing,
 dirty tracking, saving, and tab lifecycle on the real DreamStudio window.
@@ -77,9 +77,9 @@ class TestFileOpening:
         _open(qapp, window, target)
         count_after_first = _tabs(window).count()
         _open(qapp, window, target)
-        assert _tabs(window).count() == count_after_first, (
-            "reopening the same file created a duplicate tab"
-        )
+        assert (
+            _tabs(window).count() == count_after_first
+        ), "reopening the same file created a duplicate tab"
 
     def test_second_file_switches_tab(self, qapp, qa_window, sample_tree):
         """Opening a second file switches the active editor."""
@@ -91,9 +91,9 @@ class TestFileOpening:
         _open(qapp, window, second)
         second_editor = _current_editor(window)
         assert second_editor is not first_editor, "active editor did not switch"
-        assert "helpers" in second_editor.current_file_path, (
-            f"wrong file active: {second_editor.current_file_path}"
-        )
+        assert (
+            "helpers" in second_editor.current_file_path
+        ), f"wrong file active: {second_editor.current_file_path}"
 
 
 class TestTypingAndDirtyState:
@@ -113,16 +113,16 @@ class TestTypingAndDirtyState:
         window = qa_window
         _open(qapp, window, Path(sample_tree) / "main.py")
         bar = _tabs(window).tabBar()
-        assert not bar._dirty_indices, (
-            f"a clean tab is already marked dirty: {bar._dirty_indices}"
-        )
+        assert (
+            not bar._dirty_indices
+        ), f"a clean tab is already marked dirty: {bar._dirty_indices}"
         editor = _current_editor(window)
         editor.setCursorPosition(0, 0)
         type_text(qapp, editor, "x")
         pump(qapp, 300)
-        assert 0 in bar._dirty_indices, (
-            f"the modified tab is not marked dirty: {bar._dirty_indices}"
-        )
+        assert (
+            0 in bar._dirty_indices
+        ), f"the modified tab is not marked dirty: {bar._dirty_indices}"
 
     def test_save_clears_dirty_state(self, qapp, qa_window, sample_tree):
         """Saving writes the file and clears the dirty flag."""
@@ -150,7 +150,9 @@ class TestTypingAndDirtyState:
                 type_text(qapp, editor, "# qa\n")
         _tabs(window).save_all_files()
         pump(qapp, 300)
-        assert not _current_editor(window).is_dirty(), "editor still dirty after save all"
+        assert not _current_editor(
+            window
+        ).is_dirty(), "editor still dirty after save all"
 
 
 class TestTabLifecycle:
@@ -184,9 +186,9 @@ class TestTabLifecycle:
         race_probe(qapp, cycle, 3)
         _tabs(window).open_file_by_path(str(target))
         pump(qapp, 200)
-        assert _tabs(window).count() == 1, (
-            f"expected one tab after the storm, got {_tabs(window).count()}"
-        )
+        assert (
+            _tabs(window).count() == 1
+        ), f"expected one tab after the storm, got {_tabs(window).count()}"
 
     def test_tabs_have_readable_titles(self, qapp, qa_window, sample_tree):
         """Every opened tab shows a non-empty title."""

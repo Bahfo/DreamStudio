@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Navigation module for C++ GoTo functionality.
 """
 

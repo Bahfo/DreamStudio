@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 GitIgnore parser and service for Solution Explorer highlighting.
 """
 
@@ -96,7 +96,9 @@ def is_ignored(relative_posix: str, is_dir: bool, patterns: list[str]) -> bool:
                 if is_dir_pat and (rel == pat_core or rel.startswith(pat_core + "/")):
                     matched = True
                 if not matched:
-                    if _match(rel, "*/" + pat_core) or _match(rel, "*/" + pat_core + "/*"):
+                    if _match(rel, "*/" + pat_core) or _match(
+                        rel, "*/" + pat_core + "/*"
+                    ):
                         matched = True
             else:
                 if _match(basename, pat_core):
@@ -107,7 +109,9 @@ def is_ignored(relative_posix: str, is_dir: bool, patterns: list[str]) -> bool:
                         if _match(part, pat_core):
                             matched = True
                             break
-                    if not matched and (rel == pat_core or rel.startswith(pat_core + "/")):
+                    if not matched and (
+                        rel == pat_core or rel.startswith(pat_core + "/")
+                    ):
                         if _match(parts[0], pat_core):
                             matched = True
         if matched:
@@ -141,7 +145,9 @@ class GitIgnoreService(QObject):
             self._reload()
             return
         self._root = resolved
-        self._gitignore_path = os.path.join(self._root, GITIGNORE_FILENAME) if self._root else ""
+        self._gitignore_path = (
+            os.path.join(self._root, GITIGNORE_FILENAME) if self._root else ""
+        )
         self._refresh_watcher()
         self._reload()
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Record a completed test run in the durable history and per-suite READMEs.
 
@@ -120,7 +120,9 @@ def _write_machine_record(
         "verdict": verdict,
         "counts": counts,
     }
-    (history_dir / f"{run_id}.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    (history_dir / f"{run_id}.json").write_text(
+        json.dumps(record, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def _update_readmes(
@@ -142,7 +144,9 @@ def _update_readmes(
                 "tests": [],
             },
         )
-        report_rel = os.path.relpath(run_dir / "report.md", path.resolve()).replace(os.sep, "/")
+        report_rel = os.path.relpath(run_dir / "report.md", path.resolve()).replace(
+            os.sep, "/"
+        )
         update_readme(
             path / "README.md",
             suite,
@@ -170,7 +174,9 @@ def main() -> int:
     run_dir = Path(args.run_dir)
     summary = _load_summary(run_dir)
     counts = _counts(summary)
-    verdict = summary.get("verdict") or VERDICTS.get(args.exit_code, "INFRASTRUCTURE ERROR")
+    verdict = summary.get("verdict") or VERDICTS.get(
+        args.exit_code, "INFRASTRUCTURE ERROR"
+    )
     suite_names = _suite_names(args.suite_path, summary)
 
     _append_history(

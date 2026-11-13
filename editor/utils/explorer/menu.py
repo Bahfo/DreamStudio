@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Modern Visual Studio–style right-click context menu for the file explorer.
 """
 
@@ -335,4 +335,3 @@ class ExplorerClickMenu(QMenu):
 
     def _fallback_cb(self, action_id: str) -> Callable:
         return lambda: print(f"No handler for '{action_id}'")
-

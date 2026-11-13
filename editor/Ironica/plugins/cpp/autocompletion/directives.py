@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Preprocessor directive completion for the C++ plugin.
 """
 
@@ -10,7 +10,7 @@ from typing import List, Tuple
 from ..models import CppCompletion
 
 _DIRECTIVES: Tuple[Tuple[str, str], ...] = (
-    ("include", "include a header: #include <…> or #include \"…\""),
+    ("include", 'include a header: #include <…> or #include "…"'),
     ("define", "define a macro: #define NAME value"),
     ("undef", "undefine a macro: #undef NAME"),
     ("if", "conditional block: #if expression"),

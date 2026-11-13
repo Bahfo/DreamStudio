@@ -1,8 +1,7 @@
 """
-(C) COPYRIGHT 2026 - EXcellent TechStacks : All Rights Reserved
+(C) COPYRIGHT 2026 - Gizmo Microsystems : All Rights Reserved
 A Tkinter CLI Tool that comes with DreamStudio IDE:
 """
-
 
 try:
     import tkinter as tk
@@ -13,7 +12,7 @@ from editor import *
 import psutil
 
 help_tool = """
-(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 Gizmo Microsystems Cooperation - All Rights Reserved
 
 DayDream Terminal
 Building Manager for DreamStudio Projects. It uses .dst files written and 

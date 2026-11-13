@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 C++ diagnostic backend — uses libclang to produce Problems.
 """
@@ -97,7 +97,8 @@ class CppDiagnosticBackend:
                     for tok in tu.get_tokens(extent=tu.cursor.extent):
                         if (
                             tok.location.line == line
-                            and tok.location.column <= col
+                            and tok.location.column
+                            <= col
                             < tok.location.column + len(tok.spelling)
                         ):
                             end_col = tok.location.column + len(tok.spelling)

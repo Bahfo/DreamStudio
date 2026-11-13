@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Find and replace live tests: the search engine contract and the FindReplace
 popup driven against the real window.
@@ -54,9 +54,9 @@ class TestSearchEngine:
 
         matches = execute_search(str(sample_tree), "greet")
         assert matches, "plain query found nothing"
-        assert all("greet" in match["text"] for match in matches), (
-            "engine returned non-matching lines"
-        )
+        assert all(
+            "greet" in match["text"] for match in matches
+        ), "engine returned non-matching lines"
 
     def test_case_insensitive_by_default(self, qapp, sample_tree):
         """The default search ignores case."""
@@ -71,9 +71,9 @@ class TestSearchEngine:
 
         matches = execute_search(str(sample_tree), "FIND ME", is_ignore_case=False)
         assert matches, "case-sensitive query found nothing"
-        assert all("FIND ME" in match["text"] for match in matches), (
-            "case-sensitive query returned other cases"
-        )
+        assert all(
+            "FIND ME" in match["text"] for match in matches
+        ), "case-sensitive query returned other cases"
 
     def test_regex_query(self, qapp, sample_tree):
         """A regex query matches by pattern."""
@@ -100,9 +100,9 @@ class TestSearchEngine:
 
         matches = execute_search(str(sample_tree), "*.py")
         assert matches, "glob query found nothing"
-        assert all(match["file"].endswith(".py") for match in matches), (
-            "glob query returned non-python files"
-        )
+        assert all(
+            match["file"].endswith(".py") for match in matches
+        ), "glob query returned non-python files"
 
     def test_empty_query_returns_nothing(self, qapp, sample_tree):
         """An empty query returns no matches instead of every line.
@@ -181,10 +181,12 @@ class TestFindReplaceWidget:
         popup.search_input.setText("greet")
         popup.start_search()
         pump(qapp, 1500)
-        texts = [popup.results_list.item(i).text() for i in range(popup.results_list.count())]
-        assert any("greet" in text for text in texts), (
-            f"search results missing the symbol: {texts}"
-        )
+        texts = [
+            popup.results_list.item(i).text() for i in range(popup.results_list.count())
+        ]
+        assert any(
+            "greet" in text for text in texts
+        ), f"search results missing the symbol: {texts}"
 
     def test_search_with_no_matches_reports_cleanly(self, qapp, qa_window, sample_tree):
         """A query with no hits reports 'No matches found.'."""
@@ -194,10 +196,12 @@ class TestFindReplaceWidget:
         popup.search_input.setText("zzz_no_such_symbol_zzz")
         popup.start_search()
         pump(qapp, 1500)
-        texts = [popup.results_list.item(i).text() for i in range(popup.results_list.count())]
-        assert any("No matches" in text for text in texts), (
-            f"no-match search did not report cleanly: {texts}"
-        )
+        texts = [
+            popup.results_list.item(i).text() for i in range(popup.results_list.count())
+        ]
+        assert any(
+            "No matches" in text for text in texts
+        ), f"no-match search did not report cleanly: {texts}"
 
     def test_empty_query_is_ignored(self, qapp, qa_window, sample_tree):
         """An empty query does not start a search."""

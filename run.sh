@@ -24,7 +24,7 @@ cat <<'LOGO'
 LOGO
 printf "${NC}"
 
-echo "DreamStudio | EXcellent TechStack"
+echo "DreamStudio | Gizmo Microsystems"
 echo "Copyright (C) 2026 - All Rights Reserved."
 echo "Visit us at: https://homepage.xtechstax.duckdns.org/"
 printf "%b\n" "${RED}DreamStudio is licensed under the GPLv3 License.${NC}"

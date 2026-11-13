@@ -19,5 +19,4 @@ publish/
 plans/
 
 .ds/
-/tests/reports/runs/
-test/
+/tests/reports/runs

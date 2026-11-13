@@ -1,10 +1,11 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Domain models and context definitions for the DreamStudio Python language support system.
 """
 
 import dataclasses
 from typing import List, Optional
+
 
 @dataclasses.dataclass
 class PythonContext:

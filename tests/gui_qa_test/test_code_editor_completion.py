@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Code editor completion live tests: the completion controller, popup, hint bar,
 and delegate behaviour while typing in the real editor.
@@ -77,9 +77,9 @@ class TestCompletionPopup:
         ]
         result = controller.popup.populate(items)
         assert result, "popup refused the items"
-        assert controller.popup.list_view.model().rowCount() == 2, (
-            "popup did not receive both items"
-        )
+        assert (
+            controller.popup.list_view.model().rowCount() == 2
+        ), "popup did not receive both items"
 
     def test_popup_navigation_moves_the_selection(self, qapp, qa_window, sample_tree):
         """Select-next and select-prev move the highlighted row."""
@@ -99,9 +99,9 @@ class TestCompletionPopup:
         current = controller.popup.list_view.currentIndex().row()
         assert current >= 0, "popup selection never moved"
         controller.popup.select_prev()
-        assert controller.popup.list_view.currentIndex().row() == current - 1, (
-            "select-prev did not move back"
-        )
+        assert (
+            controller.popup.list_view.currentIndex().row() == current - 1
+        ), "select-prev did not move back"
 
     def test_popup_commit_inserts_the_item(self, qapp, qa_window, sample_tree):
         """Committing the popup inserts the completion text."""
@@ -115,9 +115,9 @@ class TestCompletionPopup:
         controller.popup.select_next()
         controller.popup.commit_current()
         pump(qapp, 250)
-        assert "qa_completion" in editor.text(), (
-            f"completion not inserted: {editor.text()!r}"
-        )
+        assert (
+            "qa_completion" in editor.text()
+        ), f"completion not inserted: {editor.text()!r}"
 
     def test_popup_cancel_closes_it(self, qapp, qa_window, sample_tree):
         """Cancelling the popup closes it without inserting text."""
@@ -153,9 +153,7 @@ class TestCompletionPopup:
 
         editor = _open_editor(qapp, qa_window, sample_tree)
         controller = _controller(editor)
-        controller.popup.populate(
-            [CompletionItem(text=f"item{i}") for i in range(30)]
-        )
+        controller.popup.populate([CompletionItem(text=f"item{i}") for i in range(30)])
         sweep = Sweep("popup paging")
         sweep.step("page next", controller.popup.page_next)
         sweep.step("page prev", controller.popup.page_prev)
@@ -202,10 +200,14 @@ class TestCompletionTyping:
         controller = _controller(editor)
         press_key(qapp, editor, QT.Qt.Key.Key_Semicolon)
         pump(qapp, 300)
-        assert not controller.popup.isVisible(), "the terminating key left the popup open"
+        assert (
+            not controller.popup.isVisible()
+        ), "the terminating key left the popup open"
         assert_alive(qapp, qa_window)
 
-    def test_backspacing_below_trigger_length_closes_the_popup(self, qapp, qa_window, sample_tree):
+    def test_backspacing_below_trigger_length_closes_the_popup(
+        self, qapp, qa_window, sample_tree
+    ):
         """Removing the typed prefix dismisses the popup."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText("gre\n")
@@ -285,9 +287,9 @@ class TestCompletionHintBar:
         option = QStyleOptionViewItem()
         option.initFrom(view)
         size = delegate.sizeHint(option, view.model().index(0, 0))
-        assert size.width() > 0 and size.height() > 0, (
-            f"delegate size hint is empty: {size}"
-        )
+        assert (
+            size.width() > 0 and size.height() > 0
+        ), f"delegate size hint is empty: {size}"
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Suite fixtures for the gui_qa live-window tests: a ServiceRegistry and the
 DreamStudio main window built exactly the way startup phase 8 builds it,

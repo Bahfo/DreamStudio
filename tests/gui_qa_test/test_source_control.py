@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Source control live tests: the real GitVersionControl panel driven against a
 git repository created inside the temporary workspace.
@@ -91,9 +91,9 @@ class TestSourceControlPanel:
         _activate(window)
         panel = _panel(window)
         assert panel.isVisible(), "source control panel not visible"
-        assert "Branch" in panel._status_label.text(), (
-            f"unexpected status label: {panel._status_label.text()}"
-        )
+        assert (
+            "Branch" in panel._status_label.text()
+        ), f"unexpected status label: {panel._status_label.text()}"
 
     def test_clean_repo_reports_no_changes(self, qapp, git_window):
         """A clean repository shows the 'No changes detected' row."""
@@ -106,9 +106,9 @@ class TestSourceControlPanel:
             panel.tree.topLevelItem(i).text(0)
             for i in range(panel.tree.topLevelItemCount())
         ]
-        assert any("No changes" in text for text in texts), (
-            f"clean repo did not report no changes: {texts}"
-        )
+        assert any(
+            "No changes" in text for text in texts
+        ), f"clean repo did not report no changes: {texts}"
 
     def test_dirty_file_appears_in_tree(self, qapp, git_window):
         """Editing a tracked file shows up in the changed-files tree."""
@@ -123,9 +123,9 @@ class TestSourceControlPanel:
             panel.tree.topLevelItem(i).text(0)
             for i in range(panel.tree.topLevelItemCount())
         ]
-        assert any("Changes" in text for text in texts), (
-            f"dirty file not reported in the tree: {texts}"
-        )
+        assert any(
+            "Changes" in text for text in texts
+        ), f"dirty file not reported in the tree: {texts}"
 
     def test_editor_edit_reaches_the_panel(self, qapp, git_window):
         """An edit in the editor reaches the source-control panel."""
@@ -144,9 +144,9 @@ class TestSourceControlPanel:
             panel.tree.topLevelItem(i).text(0)
             for i in range(panel.tree.topLevelItemCount())
         ]
-        assert any("Changes" in text for text in texts), (
-            f"editor edit not visible in source control: {texts}"
-        )
+        assert any(
+            "Changes" in text for text in texts
+        ), f"editor edit not visible in source control: {texts}"
 
     def test_tabs_switch_pages(self, qapp, git_window):
         """Status, History, and Branches buttons switch the panel page."""

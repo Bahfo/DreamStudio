@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Macro-name collection for guard contexts (``#ifdef`` and family).
 """
 
@@ -18,8 +18,7 @@ logger = logging.getLogger("DreamStudio.Cpp.Macros")
 _MAX_VISITED = 5000
 _CACHE_BOUND = 16
 
-_DEFINE_LINE = re.compile(r"^[ \t]*#[ \t]*define[ \t]+([A-Za-z_]\w*)",
-                          re.MULTILINE)
+_DEFINE_LINE = re.compile(r"^[ \t]*#[ \t]*define[ \t]+([A-Za-z_]\w*)", re.MULTILINE)
 
 _macro_cache: Dict[Tuple[str, int], Tuple[Optional[object], List[str]]] = {}
 
@@ -133,8 +132,12 @@ def complete_guards(
                 signature="macro",
             )
         )
-    out.sort(key=lambda c: (not c.text.lower().startswith(lowered) if lowered
-                            else False, c.text.lower()))
+    out.sort(
+        key=lambda c: (
+            not c.text.lower().startswith(lowered) if lowered else False,
+            c.text.lower(),
+        )
+    )
     return out
 
 
@@ -203,9 +206,12 @@ def _top_entries(tu) -> List[tuple]:
     return entries
 
 
-def complete_macro_body(prefix: str, line_text: str, tu=None,
-                        main_path: Optional[str] = None,
-                        ) -> List[CppCompletion]:
+def complete_macro_body(
+    prefix: str,
+    line_text: str,
+    tu=None,
+    main_path: Optional[str] = None,
+) -> List[CppCompletion]:
     """Complete an expression inside a `#define` body."""
     from .context import macro_params
 
@@ -213,11 +219,15 @@ def complete_macro_body(prefix: str, line_text: str, tu=None,
     qualifier = ""
     for scope_match in _SCOPE_CANDIDATE.finditer(line_text):
         qualifier = scope_match.group(1)
-    params = [p for p in macro_params(line_text)
-              if not lowered or p.lower().startswith(lowered)]
+    params = [
+        p
+        for p in macro_params(line_text)
+        if not lowered or p.lower().startswith(lowered)
+    ]
     out: List[CppCompletion] = [
-        CppCompletion(text=name, insert_text=name, kind="parameter",
-                      signature="macro parameter")
+        CppCompletion(
+            text=name, insert_text=name, kind="parameter", signature="macro parameter"
+        )
         for name in params
     ]
     seen = set(params)
@@ -233,8 +243,7 @@ def complete_macro_body(prefix: str, line_text: str, tu=None,
             if targets:
                 merged: Dict[str, tuple] = {}
                 for target in targets:
-                    for spelling, code in _named_children(
-                            target, _SCOPE_CHILD_BOUND):
+                    for spelling, code in _named_children(target, _SCOPE_CHILD_BOUND):
                         merged.setdefault(spelling, (spelling, code))
                 candidates = list(merged.values())
             else:
@@ -255,6 +264,9 @@ def complete_macro_body(prefix: str, line_text: str, tu=None,
         ranked.append((spelling.lower(), spelling, code))
     ranked.sort()
     for _, spelling, code in ranked[:_BODY_MAX_ITEMS]:
-        out.append(CppCompletion(text=spelling, insert_text=spelling,
-                                 kind=_kind_icon(code), signature=""))
+        out.append(
+            CppCompletion(
+                text=spelling, insert_text=spelling, kind=_kind_icon(code), signature=""
+            )
+        )
     return out

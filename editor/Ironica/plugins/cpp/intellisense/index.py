@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Background C++ workspace indexer for the DreamStudio C++ plugin.
 """
 
@@ -92,9 +92,7 @@ _KIND_BY_CURSOR = {
     "MACRO_INSTANTIATION": "macro",
 }
 
-NON_GLOBAL_COMPLETION_KINDS: frozenset = frozenset(
-    {"field", "method", "parameter"}
-)
+NON_GLOBAL_COMPLETION_KINDS: frozenset = frozenset({"field", "method", "parameter"})
 
 _indexer_instance = None
 
@@ -110,7 +108,15 @@ def get_cpp_indexer():
 def _cpp_suffixes() -> set:
     """Return indexed C/C++ file suffixes from the language registry."""
     suffixes = {
-        ".c", ".h", ".cpp", ".hpp", ".cc", ".hh", ".cxx", ".hxx", ".ixx",
+        ".c",
+        ".h",
+        ".cpp",
+        ".hpp",
+        ".cc",
+        ".hh",
+        ".cxx",
+        ".hxx",
+        ".ixx",
     }
     try:
         from editor.Ironica.language_engine import LanguageRegistry
@@ -246,7 +252,9 @@ class CppIndexer(QObject):
             from . import sysindex as sysindex_support
 
             return sysindex_support.search(
-                self._sysmemory, prefix, limit,
+                self._sysmemory,
+                prefix,
+                limit,
                 exclude_kinds=exclude_kinds,
             )
         except Exception as exc:
@@ -330,9 +338,7 @@ class CppIndexer(QObject):
             result = sysindex_support.build(
                 files,
                 base,
-                progress=lambda done, total: self._emit_sysindex_progress(
-                    done, total
-                ),
+                progress=lambda done, total: self._emit_sysindex_progress(done, total),
                 cancelled=lambda: generation != self._generation,
             )
             logger.info("sysindex built: %s", result)
@@ -429,10 +435,7 @@ class CppIndexer(QObject):
             logger.debug("cmake project discovery failed: %s", exc)
         roots: list = []
         for candidate in sorted(found, key=lambda item: item.count(os.sep)):
-            if any(
-                candidate.startswith(root_path + os.sep)
-                for root_path in roots
-            ):
+            if any(candidate.startswith(root_path + os.sep) for root_path in roots):
                 continue
             roots.append(candidate)
         return roots
@@ -523,9 +526,7 @@ class CppIndexer(QObject):
         with self._lock:
             self._memory.setdefault(os.path.abspath(root), {})[path] = symbols
 
-    def _write_completion_record(
-        self, root: str, path: str, symbols: list
-    ) -> None:
+    def _write_completion_record(self, root: str, path: str, symbols: list) -> None:
         """Persist the lightweight completion record for *path*."""
         try:
             mtime = os.path.getmtime(path)
@@ -541,9 +542,7 @@ class CppIndexer(QObject):
         except OSError:
             pass
 
-    def _index_file(
-        self, root: str, path: str
-    ) -> tuple[list, FileIndexData | None]:
+    def _index_file(self, root: str, path: str) -> tuple[list, FileIndexData | None]:
         """Parse one file once and return completion plus navigation records."""
         try:
             file_stat = os.stat(path)
@@ -608,17 +607,12 @@ class CppIndexer(QObject):
             children = list(tu.cursor.get_children())
         except Exception:
             children = []
-        stack = [
-            (child, "", True)
-            for child in reversed(children)
-        ]
+        stack = [(child, "", True) for child in reversed(children)]
         while stack:
             cursor, parent_name, completion_scope = stack.pop()
             try:
                 location = cursor.location
-                location_file = (
-                    location.file.name if location and location.file else ""
-                )
+                location_file = location.file.name if location and location.file else ""
             except Exception:
                 continue
             if not location_file:
@@ -750,9 +744,7 @@ class CppIndexer(QObject):
                 "CLASS_TEMPLATE_PARTIAL_SPEC",
                 "ENUM_DECL",
             }:
-                child_parent = (
-                    f"{parent_name}{spelling}::" if spelling else parent_name
-                )
+                child_parent = f"{parent_name}{spelling}::" if spelling else parent_name
             elif spelling and kind_name in _COMPLETION_FUNCTION_KINDS:
                 child_parent = f"{parent_name}{spelling}::"
             else:

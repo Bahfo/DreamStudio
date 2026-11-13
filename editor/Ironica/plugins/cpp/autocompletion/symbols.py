@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Fast buffer symbol table for instant naming completion.
 """
 
@@ -16,16 +16,14 @@ logger = logging.getLogger("DreamStudio.Cpp.Symbols")
 
 _DEFINE = re.compile(r"^\s*#\s*define\s+([A-Za-z_]\w*)")
 _NAMESPACE = re.compile(r"^\s*namespace\s+([A-Za-z_]\w*)")
-_RECORD = re.compile(
-    r"^\s*(?:class|struct|union|enum(?:\s+class)?)\s+([A-Za-z_]\w*)")
+_RECORD = re.compile(r"^\s*(?:class|struct|union|enum(?:\s+class)?)\s+([A-Za-z_]\w*)")
 _TYPEDEF = re.compile(r"^\s*typedef\s+.*?\s+([A-Za-z_]\w*)\s*;")
 _ALIAS = re.compile(r"^\s*using\s+([A-Za-z_]\w*)\s*=")
-_METHOD_DEF = re.compile(
-    r"^\s*[\w:<>,\s*&~]+?\s+([A-Za-z_]\w*)::([A-Za-z_]\w*)\s*\(")
+_METHOD_DEF = re.compile(r"^\s*[\w:<>,\s*&~]+?\s+([A-Za-z_]\w*)::([A-Za-z_]\w*)\s*\(")
 _FUNC = re.compile(
-    r"^\s*([\w:<>,\s*&~]+?)\s+([A-Za-z_]\w*)\s*\(([^;{}]*)\)\s*([{;])?\s*$")
-_VAR = re.compile(
-    r"^\s*([\w:<>,\s*&~]+?)\s+([A-Za-z_]\w*)\s*(?:=[^;{}]*;|[{;])\s*$")
+    r"^\s*([\w:<>,\s*&~]+?)\s+([A-Za-z_]\w*)\s*\(([^;{}]*)\)\s*([{;])?\s*$"
+)
+_VAR = re.compile(r"^\s*([\w:<>,\s*&~]+?)\s+([A-Za-z_]\w*)\s*(?:=[^;{}]*;|[{;])\s*$")
 _ENUM_VALUE = re.compile(r"([A-Za-z_]\w*)(?:\s*=\s*[^,{}]+)?\s*[,}]")
 _COMMENT_LINE = re.compile(r"//[^\n]*")
 
@@ -73,7 +71,7 @@ def scan_symbols(source: str) -> List[Symbol]:
             end = line.find("*/")
             if end == -1:
                 continue
-            line = line[end + 2:]
+            line = line[end + 2 :]
             in_block_comment = False
         start = line.find("/*")
         if start != -1:
@@ -82,7 +80,7 @@ def scan_symbols(source: str) -> List[Symbol]:
                 line = line[:start]
                 in_block_comment = True
             else:
-                line = line[:start] + " " + line[end + 2:]
+                line = line[:start] + " " + line[end + 2 :]
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             match = _DEFINE.match(line)
@@ -98,8 +96,7 @@ def scan_symbols(source: str) -> List[Symbol]:
         else:
             match = _RECORD.match(code)
             if match:
-                kind = ("enum" if code.strip().startswith("enum")
-                        else "type")
+                kind = "enum" if code.strip().startswith("enum") else "type"
                 add(match.group(1), kind, lineno)
                 pending_scope = (kind, match.group(1))
             else:
@@ -108,11 +105,17 @@ def scan_symbols(source: str) -> List[Symbol]:
                     add(match.group(2), "method", lineno, match.group(1))
                 else:
                     match = _FUNC.match(code)
-                    if (match and match.group(4) in ("{", ";", None)
-                            and re.search(r"[A-Za-z_]", match.group(1))):
+                    if (
+                        match
+                        and match.group(4) in ("{", ";", None)
+                        and re.search(r"[A-Za-z_]", match.group(1))
+                    ):
                         scope = scope_stack[-1][1] if scope_stack else ""
-                        kind = ("method" if scope_stack and scope_stack[-1][0]
-                                in ("type",) else "function")
+                        kind = (
+                            "method"
+                            if scope_stack and scope_stack[-1][0] in ("type",)
+                            else "function"
+                        )
                         add(match.group(2), kind, lineno, scope)
                         for param in _split_params(match.group(3)):
                             if param:
@@ -127,24 +130,22 @@ def scan_symbols(source: str) -> List[Symbol]:
                                 add(match.group(1), "type", lineno)
                             else:
                                 match = _VAR.match(code)
-                                if (match and re.search(
-                                        r"[A-Za-z_]", match.group(1))):
-                                    scope = (scope_stack[-1][1]
-                                             if scope_stack else "")
-                                    kind = ("field" if scope_stack
-                                            and scope_stack[-1][0] in
-                                            ("type",) else "variable")
-                                    add(match.group(2), kind, lineno,
-                                        scope)
+                                if match and re.search(r"[A-Za-z_]", match.group(1)):
+                                    scope = scope_stack[-1][1] if scope_stack else ""
+                                    kind = (
+                                        "field"
+                                        if scope_stack
+                                        and scope_stack[-1][0] in ("type",)
+                                        else "variable"
+                                    )
+                                    add(match.group(2), kind, lineno, scope)
         if scope_stack and scope_stack[-1][0] == "enum":
             for value in _ENUM_VALUE.finditer(code):
-                add(value.group(1), "constant", lineno,
-                    scope_stack[-1][1])
+                add(value.group(1), "constant", lineno, scope_stack[-1][1])
         opens = code.count("{")
         closes = code.count("}")
         if pending_scope is not None and opens > 0:
-            scope_stack.append((pending_scope[0], pending_scope[1],
-                                depth + 1))
+            scope_stack.append((pending_scope[0], pending_scope[1], depth + 1))
             pending_scope = None
         depth += opens - closes
         if depth < 0:
@@ -210,8 +211,7 @@ class SymbolsCache:
             self.symbols = []
         return True
 
-    def match(self, prefix: str, limit: int = _FAST_CAP
-              ) -> List[CppCompletion]:
+    def match(self, prefix: str, limit: int = _FAST_CAP) -> List[CppCompletion]:
         """Return cached rows whose names start with *prefix*."""
         lowered = (prefix or "").lower()
         if not lowered:
@@ -225,9 +225,12 @@ class SymbolsCache:
             if not symbol.name.lower().startswith(lowered):
                 continue
             seen.add(symbol.name)
-            row = CppCompletion(text=symbol.name, insert_text=symbol.name,
-                                kind=symbol.kind,
-                                signature=symbol.scope or symbol.kind)
+            row = CppCompletion(
+                text=symbol.name,
+                insert_text=symbol.name,
+                kind=symbol.kind,
+                signature=symbol.scope or symbol.kind,
+            )
             if symbol.name.startswith(prefix):
                 exact.append(row)
             else:

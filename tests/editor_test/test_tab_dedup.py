@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for tab deduplication by normalized path.
 """
@@ -12,7 +12,9 @@ import pytest
 class TestTabEditorDedup:
     """Tests for tab deduplication by normalized path."""
 
-    def test_open_same_file_twice_activates_existing(self, qapp, tab_editor_parent, temp_workspace):
+    def test_open_same_file_twice_activates_existing(
+        self, qapp, tab_editor_parent, temp_workspace
+    ):
         """Opening the same path twice keeps a single tab."""
         from editor.Ironica.tab_editor import DreamTabbedEditor
 

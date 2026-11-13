@@ -32,7 +32,7 @@
 
 ```python
 """
-(C) COPYRIGHT 2026 Excellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 One or two sentences describing what this file is for.
 """

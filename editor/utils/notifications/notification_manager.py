@@ -1,11 +1,10 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Centralized notification manager for DreamStudio.
 """
 
 from editor import *
 from datetime import datetime
-
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,6 @@ class NotificationManager(QObject):
 
         self._lock = _threading.Lock()
         logger.info("NotificationManager initialized")
-
 
     def add_notification(
         self,

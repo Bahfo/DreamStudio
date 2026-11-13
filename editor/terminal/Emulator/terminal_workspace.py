@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks
+(C) COPYRIGHT 2026 Gizmo Microsystems
 Terminal Emulator Logic for DreamStudio.
 """
 
@@ -333,7 +333,6 @@ class TerminalWorkspace(QWidget):
 
         self._active_id = session_id
 
-
     def kill_session(self, session_id: int) -> None:
         """Remove and forcibly terminate a single terminal session."""
         session = self._sessions.pop(session_id, None)
@@ -442,7 +441,6 @@ class TerminalWorkspace(QWidget):
         self._theme_sel = sel
         for session in self._sessions.values():
             session["view"].display.set_theme(bg, fg, sel)
-
 
     def cleanup(self) -> None:
         """Aggressively terminate every session and release all PTY resources."""

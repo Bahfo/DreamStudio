@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for the dirty flag requesting a VCS status scan.
 """
@@ -22,7 +22,9 @@ class TestDirtyDrivesGit:
         with patch.object(status_service, "get_status_service") as get_service:
             tabs._on_editor_dirty_changed_explicit(tabs, True)
 
-        get_service.return_value.request_scan.assert_called_once_with("editor:dirty_true")
+        get_service.return_value.request_scan.assert_called_once_with(
+            "editor:dirty_true"
+        )
 
     def test_dirty_false_requests_git_scan(self, qapp, tab_editor_parent):
         """A saved editor requests a git scan tagged editor:dirty_false."""
@@ -34,7 +36,9 @@ class TestDirtyDrivesGit:
         with patch.object(status_service, "get_status_service") as get_service:
             tabs._on_editor_dirty_changed_explicit(tabs, False)
 
-        get_service.return_value.request_scan.assert_called_once_with("editor:dirty_false")
+        get_service.return_value.request_scan.assert_called_once_with(
+            "editor:dirty_false"
+        )
 
 
 if __name__ == "__main__":

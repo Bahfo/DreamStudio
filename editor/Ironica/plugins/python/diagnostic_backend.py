@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Python diagnostic backend — wraps the existing AST / Ruff / Pyright providers.
 """
@@ -41,7 +41,9 @@ class PythonDiagnosticBackend:
         outcome = providers.analyze_saved_file(path, content)
         return list(outcome.problems)
 
-    def analyze_buffer(self, path: str, content: str, root: str | None) -> List[Problem]:
+    def analyze_buffer(
+        self, path: str, content: str, root: str | None
+    ) -> List[Problem]:
         outcome = providers.analyze_buffer_fast(path, content, root)
         return list(outcome.problems)
 

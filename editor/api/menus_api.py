@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Menu callback implementations for the DreamStudio title bar.
 """
 
@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 class MenusAPI:
     """Mixin that implements the File/Edit/View/Code menu callbacks."""
-
 
     def set_new_file(self) -> None:
         """Open a new untitled file in the tab editor."""
@@ -60,14 +59,12 @@ class MenusAPI:
             controller = ScaffoldController(self, scaffold)
             controller.run_blocking()
 
-
     def set_open_file(self) -> None:
         """Open a file from the system via a file chooser dialog."""
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*)")
         if path:
             self.hero_window._text_editor_center.methods.open_file(path)
             self._defer_menu_sync()
-
 
     def set_save_current_file(self) -> None:
         """Save the currently active editor's buffer."""
@@ -96,7 +93,6 @@ class MenusAPI:
         if tabs.count() > 0:
             tabs.save_all_files()
         self.close()
-
 
     def set_close_editor(self) -> None:
         """Close all open editor tabs."""
@@ -157,17 +153,14 @@ class MenusAPI:
 
         QApplication.quit()
 
-
     def set_import_configurations(self) -> None:
         """Placeholder — not yet implemented."""
 
     def set_export_configurations(self) -> None:
         """Placeholder — not yet implemented."""
 
-
     def set_open_settings(self) -> None:
         """Placeholder — settings and preferences dialog."""
-
 
     def set_undo(self) -> None:
         """Undo the last edit in the active editor."""
@@ -225,7 +218,6 @@ class MenusAPI:
             )
             return
         self._toggle_search_widget()
-
 
     def set_full_screen(self) -> None:
         """Toggle full screen and return to the previous window state."""
@@ -308,7 +300,6 @@ class MenusAPI:
         if title_bar is not None:
             title_bar.refresh_action_states()
 
-
     def set_format_code(self) -> None:
         """Run the active provider's formatter over the current file."""
         self._run_editor_command("Format Code", lambda api: api.format_code())
@@ -375,14 +366,13 @@ class MenusAPI:
 
     def set_collapse_all_folds(self) -> None:
         """Smart collapse:"""
-        self._run_editor_command(
-            "Collapse All", lambda api: api.smart_collapse())
+        self._run_editor_command("Collapse All", lambda api: api.smart_collapse())
 
     def set_collapse_includes(self) -> None:
         """Collapse grouped C++ header includes."""
         self._run_editor_command(
-            "Collapse Includes", lambda api: api.collapse_includes())
-
+            "Collapse Includes", lambda api: api.collapse_includes()
+        )
 
     def _run_editor_command(self, operation: str, command) -> None:
         """Run an editor command against the active editor."""

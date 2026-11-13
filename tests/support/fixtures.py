@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Shared test fixtures.
 """
@@ -62,8 +62,7 @@ def temp_workspace_with_solution(temp_dir):
 def sample_python_file(temp_dir):
     """Sample Python file for testing."""
     file_path = temp_dir / "sample.py"
-    file_path.write_text(
-        """
+    file_path.write_text("""
 def hello():
     print("Hello, World!")
 
@@ -73,8 +72,7 @@ class MyClass:
 
 if __name__ == "__main__":
     hello()
-"""
-    )
+""")
     return file_path
 
 
@@ -82,8 +80,7 @@ if __name__ == "__main__":
 def sample_cpp_file(temp_dir):
     """Sample C++ file for testing."""
     file_path = temp_dir / "sample.cpp"
-    file_path.write_text(
-        """
+    file_path.write_text("""
 #include <iostream>
 
 void hello() {
@@ -101,8 +98,7 @@ int main() {
     hello();
     return 0;
 }
-"""
-    )
+""")
     return file_path
 
 

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Shared live-window harness for the gui_qa suite: event-driving primitives,
 geometry probes, sweep recording, race helpers, and native-dialog guards.
@@ -123,7 +123,9 @@ def find_button(parent: QWidget, tooltip: str) -> QWidget | None:
     return None
 
 
-def find_buttons_by_tooltip(parent: QWidget, tooltips: Iterable[str]) -> dict[str, QWidget | None]:
+def find_buttons_by_tooltip(
+    parent: QWidget, tooltips: Iterable[str]
+) -> dict[str, QWidget | None]:
     """Map each requested tooltip to its button widget (or None).
 
     Args:
@@ -209,7 +211,9 @@ def center(widget: QWidget) -> QPoint:
 # -----------------------------------------------------------------------------
 
 
-def close_popups_soon(qapp: QApplication, delay_ms: int = 0, exclude: QWidget | None = None) -> None:
+def close_popups_soon(
+    qapp: QApplication, delay_ms: int = 0, exclude: QWidget | None = None
+) -> None:
     """Schedule an immediate close of any popup that opens during a click.
 
     ``QMenu.exec()`` runs a nested event loop, so a click on a menu button
@@ -233,9 +237,7 @@ def close_popups_soon(qapp: QApplication, delay_ms: int = 0, exclude: QWidget | 
         popup = QApplication.activePopupWidget()
         if popup is None:
             return
-        if exclude is not None and (
-            popup is exclude or popup.isAncestorOf(exclude)
-        ):
+        if exclude is not None and (popup is exclude or popup.isAncestorOf(exclude)):
             return
         popup.close()
 
@@ -731,7 +733,9 @@ def _close_popup(qapp: QApplication, popup: QWidget) -> None:
     pump(qapp)
 
 
-def type_probe(qapp: QApplication, widget: QWidget, sweep: Sweep, text: str = "qa") -> None:
+def type_probe(
+    qapp: QApplication, widget: QWidget, sweep: Sweep, text: str = "qa"
+) -> None:
     """Type text into every text-entry child of *widget*, then back it out.
 
     Args:
@@ -742,7 +746,11 @@ def type_probe(qapp: QApplication, widget: QWidget, sweep: Sweep, text: str = "q
     """
     entries: list[QWidget] = []
     for child in widget.findChildren(QWidget):
-        if isinstance(child, TEXT_TYPES) and child.isVisibleTo(widget) and not child.isReadOnly():
+        if (
+            isinstance(child, TEXT_TYPES)
+            and child.isVisibleTo(widget)
+            and not child.isReadOnly()
+        ):
             entries.append(child)
     for index, child in enumerate(entries):
         label = f"type into {type(child).__name__} #{index}"
@@ -1043,13 +1051,23 @@ def modal_guard(
         return QMessageBox.StandardButton.Ok
 
     patches = [
-        unittest.mock.patch.object(QFileDialog, "getOpenFileName", side_effect=file_result),
         unittest.mock.patch.object(
-            QFileDialog, "getOpenFileNames", side_effect=lambda *a, **k: (file_result(), [])
+            QFileDialog, "getOpenFileName", side_effect=file_result
         ),
-        unittest.mock.patch.object(QFileDialog, "getSaveFileName", side_effect=file_result),
-        unittest.mock.patch.object(QFileDialog, "getExistingDirectory", side_effect=dir_result),
-        unittest.mock.patch.object(QFileDialog, "getExistingDirectoryUrl", side_effect=dir_result),
+        unittest.mock.patch.object(
+            QFileDialog,
+            "getOpenFileNames",
+            side_effect=lambda *a, **k: (file_result(), []),
+        ),
+        unittest.mock.patch.object(
+            QFileDialog, "getSaveFileName", side_effect=file_result
+        ),
+        unittest.mock.patch.object(
+            QFileDialog, "getExistingDirectory", side_effect=dir_result
+        ),
+        unittest.mock.patch.object(
+            QFileDialog, "getExistingDirectoryUrl", side_effect=dir_result
+        ),
         unittest.mock.patch.object(QInputDialog, "getText", side_effect=text_result),
         unittest.mock.patch.object(
             QInputDialog, "getItem", side_effect=lambda *a, **k: (text, not cancel)
@@ -1057,9 +1075,7 @@ def modal_guard(
         unittest.mock.patch.object(
             QInputDialog, "getMultiLineText", side_effect=text_result
         ),
-        unittest.mock.patch.object(
-            QColorDialog, "getColor", side_effect=color_result
-        ),
+        unittest.mock.patch.object(QColorDialog, "getColor", side_effect=color_result),
         unittest.mock.patch.object(
             QMessageBox, "information", side_effect=message_box_result
         ),
@@ -1119,7 +1135,9 @@ def popup_count() -> int:
     popup = QApplication.activePopupWidget()
     while popup is not None:
         count += 1
-        popup = QApplication.activePopupWidget() if popup.parentWidget() is None else None
+        popup = (
+            QApplication.activePopupWidget() if popup.parentWidget() is None else None
+        )
     return count
 
 
@@ -1143,7 +1161,9 @@ def service_probe(
     Returns:
         Mapping of step label to callable result.
     """
-    local = sweep if sweep is not None else Sweep(f"service probe {type(service).__name__}")
+    local = (
+        sweep if sweep is not None else Sweep(f"service probe {type(service).__name__}")
+    )
     results: dict[str, Any] = {}
     for label, fn in calls.items():
         results[label] = local.step(label, fn)
@@ -1193,7 +1213,9 @@ def assert_alive(qapp: QApplication, window: QWidget | None = None) -> None:
         raise AssertionError("main window disappeared or was hidden")
 
 
-def settle_analysis(qapp: QApplication, problems: QWidget, timeout_ms: int = 20000) -> None:
+def settle_analysis(
+    qapp: QApplication, problems: QWidget, timeout_ms: int = 20000
+) -> None:
     """Stop the problem scanner's timers and wait for every worker thread.
 
     The workspace scanner runs several QThreads parented to the

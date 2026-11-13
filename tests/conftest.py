@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Pytest configuration and shared fixtures for DreamStudio IDE testing.
 """
@@ -24,14 +24,20 @@ os.environ.setdefault("PYTEST_CACHE_DIR", str(PROJECT_ROOT / ".pytest_cache"))
 
 def pytest_configure(config):
     """Configure pytest with project-specific settings."""
-    config.addinivalue_line("markers", "unit: Unit tests for individual functions/methods")
-    config.addinivalue_line("markers", "integration: Integration tests for component interactions")
+    config.addinivalue_line(
+        "markers", "unit: Unit tests for individual functions/methods"
+    )
+    config.addinivalue_line(
+        "markers", "integration: Integration tests for component interactions"
+    )
     config.addinivalue_line("markers", "gui: GUI tests requiring Qt widgets")
     config.addinivalue_line("markers", "e2e: End-to-end workflow tests")
     config.addinivalue_line("markers", "performance: Performance and stability tests")
     config.addinivalue_line("markers", "regression: Regression tests for known defects")
     config.addinivalue_line("markers", "slow: Tests that take significant time to run")
-    config.addinivalue_line("markers", "optional_dep: Tests that require optional dependencies")
+    config.addinivalue_line(
+        "markers", "optional_dep: Tests that require optional dependencies"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -49,7 +55,10 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.integration)
 
         # Mark tests that use external tools
-        if any(keyword in item.name.lower() for keyword in ["ruff", "pyright", "clang", "jedi", "git"]):
+        if any(
+            keyword in item.name.lower()
+            for keyword in ["ruff", "pyright", "clang", "jedi", "git"]
+        ):
             item.add_marker(pytest.mark.optional_dep)
 
 

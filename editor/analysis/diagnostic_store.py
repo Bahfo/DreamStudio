@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Diagnostic coordinator for DreamStudio.
 """
 
@@ -56,7 +56,6 @@ class DiagnosticStore(QObject):
         self._revision: Dict[str, int] = {}
         self._dirty: set = set()
 
-
     @property
     def generation(self) -> int:
         """Return the current workspace generation."""
@@ -85,7 +84,6 @@ class DiagnosticStore(QObject):
         self._buckets = {}
         self.changed.emit([])
 
-
     def note_buffer_change(self, path: str) -> int:
         """Record a new buffer state for *path* and return its revision."""
         if not path:
@@ -99,7 +97,6 @@ class DiagnosticStore(QObject):
         if not path:
             return 0
         return self._revision.get(path, 0)
-
 
     def mark_dirty(self, path: str) -> None:
         """Declare *path* as having unsaved edits (buffer authoritative)."""
@@ -135,7 +132,6 @@ class DiagnosticStore(QObject):
     def dirty_paths(self) -> set:
         """Return the set of paths with unsaved edits."""
         return set(self._dirty)
-
 
     def set_disk_results(
         self, results: Iterable[tuple], bucket: str = BUCKET_DISK_AST
@@ -252,7 +248,6 @@ class DiagnosticStore(QObject):
                 touched.append(path)
         return self._announce(touched)
 
-
     def problems(self) -> List[Problem]:
         """Return every visible diagnostic in display order."""
         visible: List[Problem] = []
@@ -285,7 +280,6 @@ class DiagnosticStore(QObject):
     def has_results(self, path: str) -> bool:
         """Return ``True`` when *path* has any cached (visible or hidden) result."""
         return bool(self._buckets.get(path))
-
 
     def _set_bucket(self, path: str, bucket: str, problems: Iterable[Problem]) -> None:
         """Replace one bucket of *path* with *problems*."""

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks
+(C) COPYRIGHT 2026 Gizmo Microsystems
 Terminal Emulator Logic for DreamStudio.
 """
 
@@ -7,7 +7,6 @@ from editor import *
 
 from pyte.screens import HistoryScreen, Char
 from pyte.streams import Stream
-
 
 ANSI_COLORS = [
     QColor(0x00, 0x00, 0x00),
@@ -136,15 +135,32 @@ _KEY_IGNORE = {
 }
 
 _CTRL_KEY_MAP = {
-    Qt.Key.Key_A: 0x01, Qt.Key.Key_B: 0x02, Qt.Key.Key_C: 0x03,
-    Qt.Key.Key_D: 0x04, Qt.Key.Key_E: 0x05, Qt.Key.Key_F: 0x06,
-    Qt.Key.Key_G: 0x07, Qt.Key.Key_H: 0x08, Qt.Key.Key_I: 0x09,
-    Qt.Key.Key_J: 0x0A, Qt.Key.Key_K: 0x0B, Qt.Key.Key_L: 0x0C,
-    Qt.Key.Key_M: 0x0D, Qt.Key.Key_N: 0x0E, Qt.Key.Key_O: 0x0F,
-    Qt.Key.Key_P: 0x10, Qt.Key.Key_Q: 0x11, Qt.Key.Key_R: 0x12,
-    Qt.Key.Key_S: 0x13, Qt.Key.Key_T: 0x14, Qt.Key.Key_U: 0x15,
-    Qt.Key.Key_V: 0x16, Qt.Key.Key_W: 0x17, Qt.Key.Key_X: 0x18,
-    Qt.Key.Key_Y: 0x19, Qt.Key.Key_Z: 0x1A,
+    Qt.Key.Key_A: 0x01,
+    Qt.Key.Key_B: 0x02,
+    Qt.Key.Key_C: 0x03,
+    Qt.Key.Key_D: 0x04,
+    Qt.Key.Key_E: 0x05,
+    Qt.Key.Key_F: 0x06,
+    Qt.Key.Key_G: 0x07,
+    Qt.Key.Key_H: 0x08,
+    Qt.Key.Key_I: 0x09,
+    Qt.Key.Key_J: 0x0A,
+    Qt.Key.Key_K: 0x0B,
+    Qt.Key.Key_L: 0x0C,
+    Qt.Key.Key_M: 0x0D,
+    Qt.Key.Key_N: 0x0E,
+    Qt.Key.Key_O: 0x0F,
+    Qt.Key.Key_P: 0x10,
+    Qt.Key.Key_Q: 0x11,
+    Qt.Key.Key_R: 0x12,
+    Qt.Key.Key_S: 0x13,
+    Qt.Key.Key_T: 0x14,
+    Qt.Key.Key_U: 0x15,
+    Qt.Key.Key_V: 0x16,
+    Qt.Key.Key_W: 0x17,
+    Qt.Key.Key_X: 0x18,
+    Qt.Key.Key_Y: 0x19,
+    Qt.Key.Key_Z: 0x1A,
 }
 
 
@@ -210,12 +226,16 @@ class TerminalDisplay(QWidget):
 
     def _on_cursor_timer(self):
         self._cursor_on = not self._cursor_on
-        if (self.isVisible() and self.hasFocus()
-                and self._scroll_offset == 0 and self._cw > 0 and self._ch > 0):
+        if (
+            self.isVisible()
+            and self.hasFocus()
+            and self._scroll_offset == 0
+            and self._cw > 0
+            and self._ch > 0
+        ):
             cx = self._screen.cursor.x * self._cw
             cy = self._screen.cursor.y * self._ch
             self.update(cx, cy, self._cw, self._ch)
-
 
     def _count_history_lines(self) -> int:
         """O(1) total history line count."""
@@ -232,7 +252,6 @@ class TerminalDisplay(QWidget):
         if bottom_idx < len(history.bottom):
             return history.bottom[bottom_idx]
         return None
-
 
     def _visible_start_index(self) -> int:
         """Compute the absolute index of the topmost visible line."""
@@ -252,7 +271,6 @@ class TerminalDisplay(QWidget):
     def _visible_to_absolute_row(self, vis_row: int) -> int:
         """Map a visible-row index to an absolute line index."""
         return self._visible_start_index() + vis_row
-
 
     def _get_selection_bounds(self):
         """Return selection bounds as visible coordinates ``((vis_r1, c1), (vis_r2, c2))`` or ``None``."""
@@ -333,7 +351,6 @@ class TerminalDisplay(QWidget):
             text = "".join(line.get(col, self._EMPTY).data for col in cols)
             parts.append(text)
         return "\n".join(parts)
-
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -485,7 +502,6 @@ class TerminalDisplay(QWidget):
         self.update()
         self.history_changed.emit(0, self._count_history_lines())
 
-
     def _build_visible_cache(self):
         """Build the visible-line cache using O(1) direct indexing into pyte's
         ``history.top`` / ``history.bottom`` deques instead of iterating
@@ -535,7 +551,6 @@ class TerminalDisplay(QWidget):
             qfg = _resolve_color(fg, self._fg)
             qbg = _resolve_color(bg, self._bg)
         return qfg, qbg, bold, italics, underscore, blink
-
 
     def paintEvent(self, event):
         if self._cw < 1 or self._ch < 1:
@@ -638,13 +653,18 @@ class TerminalDisplay(QWidget):
             cx = self._screen.cursor.x * cell_w
             cy = self._screen.cursor.y * cell_h
             cursor_rect = QRect(int(cx), int(cy), cell_w, cell_h)
-            if cy < visible_rows * cell_h and cx < w - cell_w and damaged.intersects(cursor_rect):
+            if (
+                cy < visible_rows * cell_h
+                and cx < w - cell_w
+                and damaged.intersects(cursor_rect)
+            ):
                 painter.fillRect(cx, cy, cell_w, cell_h, self._fg)
                 d = self._screen.display
                 ch = " "
                 try:
-                    if (self._screen.cursor.y < len(d)
-                            and self._screen.cursor.x < len(d[self._screen.cursor.y])):
+                    if self._screen.cursor.y < len(d) and self._screen.cursor.x < len(
+                        d[self._screen.cursor.y]
+                    ):
                         ch = d[self._screen.cursor.y][self._screen.cursor.x]
                 except (IndexError, TypeError):
                     pass
@@ -652,7 +672,6 @@ class TerminalDisplay(QWidget):
                 painter.drawText(cx, cy + default_baseline, ch)
 
         painter.end()
-
 
     def keyPressEvent(self, event):
         key = event.key()

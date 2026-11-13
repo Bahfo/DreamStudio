@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Phase-1 smoke tests: the real DreamStudio window must build, show, emit
 ui_ready once, present every chrome region cleanly, and expose every
@@ -35,7 +35,10 @@ def _sidebar_tooltips(window) -> list[tuple[str, str]]:
     from editor.utils.resource_path import resource_path
 
     entries: list[tuple[str, str]] = []
-    for json_name in ("editor/base/json/leftbar.json", "editor/base/json/rightbar.json"):
+    for json_name in (
+        "editor/base/json/leftbar.json",
+        "editor/base/json/rightbar.json",
+    ):
         with open(resource_path(json_name), encoding="utf-8") as fh:
             for entry in json.load(fh):
                 if entry.get("id") == "btn" and entry.get("callback"):

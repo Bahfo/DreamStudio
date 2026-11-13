@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Side panel live tests: every panel registered in workspace_container.py must
 activate, size, accept interaction, and deactivate cleanly.
@@ -92,9 +92,9 @@ class TestPanelLifecycle:
             _activate(window, panel_id)
             pump(qapp, 120)
             issues = live_probe(_panel_widget(window, panel_id))
-            assert not issues, (
-                f"panel '{panel_id}' has zero-size widgets:\n" + "\n".join(issues)
-            )
+            assert (
+                not issues
+            ), f"panel '{panel_id}' has zero-size widgets:\n" + "\n".join(issues)
             _deactivate(window, panel_id)
             pump(qapp, 60)
 
@@ -133,7 +133,9 @@ class TestPanelLifecycle:
         for panel_id in PANELS:
             _activate(window, panel_id)
             pump(qapp, 120)
-            sweep.step(f"poke '{panel_id}'", poke, qapp, _panel_widget(window, panel_id), sweep)
+            sweep.step(
+                f"poke '{panel_id}'", poke, qapp, _panel_widget(window, panel_id), sweep
+            )
             _deactivate(window, panel_id)
             pump(qapp, 60)
         sweep.finish()
@@ -146,7 +148,11 @@ class TestPanelLifecycle:
             _activate(window, panel_id)
             pump(qapp, 120)
             sweep.step(
-                f"type in '{panel_id}'", type_probe, qapp, _panel_widget(window, panel_id), sweep
+                f"type in '{panel_id}'",
+                type_probe,
+                qapp,
+                _panel_widget(window, panel_id),
+                sweep,
             )
             _deactivate(window, panel_id)
             pump(qapp, 60)
@@ -169,12 +175,12 @@ class TestFileOutlinePanel:
         pump(qapp, 150)
         manager = window.hero_window._left_utils_manager
         titles = [manager._tab_bar.tabText(i) for i in range(manager._tab_bar.count())]
-        assert "file_outline" not in titles, (
-            f"outline tab shows the raw panel id: {titles}"
-        )
-        assert "file_outline" not in VerticalMenusAPI._TITLES, (
-            "file_outline is missing from VerticalMenusAPI._TITLES"
-        )
+        assert (
+            "file_outline" not in titles
+        ), f"outline tab shows the raw panel id: {titles}"
+        assert (
+            "file_outline" not in VerticalMenusAPI._TITLES
+        ), "file_outline is missing from VerticalMenusAPI._TITLES"
 
     def test_outline_lists_symbols_of_open_file(self, qapp, qa_window, sample_tree):
         """Opening a Python file must populate the outline with symbols."""

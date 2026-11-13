@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for the PTY backend (editor/terminal/Emulator/emulator.py).
 """
@@ -13,7 +13,6 @@ import pytest
 
 from editor.terminal.Emulator.emulator import UnixPty, WinPty, BasePty, _default_shell
 
-
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Unix PTY tests")
 
 
@@ -21,7 +20,9 @@ class TestUnixPtySpawn:
     def test_spawn_shell_returns_pid(self, temp_cwd):
         pty = UnixPty()
         try:
-            pid = pty.spawn(["/bin/sh", "-i"], temp_cwd, os.environ.copy(), rows=24, cols=80)
+            pid = pty.spawn(
+                ["/bin/sh", "-i"], temp_cwd, os.environ.copy(), rows=24, cols=80
+            )
             assert isinstance(pid, int) and pid > 0
             assert pty.pid == pid
             assert pty.fd >= 0
@@ -50,8 +51,10 @@ class TestUnixPtySpawn:
             assert pid1 != pid2
             assert p1.fd != p2.fd
         finally:
-            p1.killpg(); p1.close()
-            p2.killpg(); p2.close()
+            p1.killpg()
+            p1.close()
+            p2.killpg()
+            p2.close()
 
     def test_read_write_roundtrip(self, temp_cwd):
         pty = UnixPty()
@@ -63,6 +66,7 @@ class TestUnixPtySpawn:
             deadline = time.time() + 3
             while time.time() < deadline:
                 import select
+
                 r, _, _ = select.select([pty.fd], [], [], 0.2)
                 if r:
                     try:
@@ -76,7 +80,8 @@ class TestUnixPtySpawn:
                         break
             assert b"HELLO_PTY" in buf
         finally:
-            pty.killpg(); pty.close()
+            pty.killpg()
+            pty.close()
 
     def test_setwinsize(self, temp_cwd):
         pty = UnixPty()
@@ -89,6 +94,7 @@ class TestUnixPtySpawn:
             deadline = time.time() + 3
             while time.time() < deadline:
                 import select
+
                 r, _, _ = select.select([pty.fd], [], [], 0.2)
                 if r:
                     try:
@@ -102,7 +108,8 @@ class TestUnixPtySpawn:
                         break
             assert b"40" in buf or b"120" in buf
         finally:
-            pty.killpg(); pty.close()
+            pty.killpg()
+            pty.close()
 
     def test_poll_after_kill(self, temp_cwd):
         pty = UnixPty()
@@ -132,6 +139,7 @@ class TestUnixPtySpawn:
             deadline = time.time() + 3
             while time.time() < deadline:
                 import select
+
                 r, _, _ = select.select([pty.fd], [], [], 0.2)
                 if r:
                     try:
@@ -145,4 +153,5 @@ class TestUnixPtySpawn:
                         break
             assert b"h\xc3\xa9llo" in buf
         finally:
-            pty.killpg(); pty.close()
+            pty.killpg()
+            pty.close()

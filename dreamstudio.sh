@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+# (C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 # ---------------------------------------------------------------------
 # The DreamStudio entrance point - Serves as the main shell entrance to 
 # run DreamStudio from a shell. This is for development mode and 
@@ -24,7 +24,7 @@ ${GREEN}========================================================================
 
 By accessing, contributing to, or utilizing the DreamStudio IDE in
 development mode, you expressly acknowledge, understand, and agree to the
-following terms, conditions, and policies set forth by EXcellent TechStacks:
+following terms, conditions, and policies set forth by Gizmo Microsystems:
 
   ${GREEN}[1]${NC} GPLv3 License & Source Code
       The source code for DreamStudio is licensed under the GNU General
@@ -33,7 +33,7 @@ following terms, conditions, and policies set forth by EXcellent TechStacks:
 
   ${GREEN}[2]${NC} Contributor Assignment & IP Terms
       All code submissions, patches, and contributions provided by you 
-      are subject to EXcellent TechStacks' Contributor Terms of Service. 
+      are subject to Gizmo Microsystems' Contributor Terms of Service. 
       By participating, you assign your contributions in accordance with 
       company policy. All contributors must maintain a professional and 
       respectful demeanor. Harassment, threats, violence, or discriminatory 
@@ -52,7 +52,7 @@ following terms, conditions, and policies set forth by EXcellent TechStacks:
       learning stages must be approached with patience and constructiveness.
 
   ${GREEN}[5]${NC} Enforcement and Legal Remedies
-      EXcellent TechStacks reserves all legal rights and remedies to 
+      Gizmo Microsystems reserves all legal rights and remedies to 
       pursue appropriate legal action against any individual who breaches 
       these terms or engages in malicious, unlawful, or harmful conduct.
 
@@ -60,12 +60,12 @@ ${GREEN}------------------------------------------------------------------------
 ${YELLOW}REPORTING VIOLATIONS:${NC}
 If you experience or witness a violation of this Code of Conduct, or if 
 you prefer not to address the individual directly, please submit a 
-confidential report to EXcellent TechStacks at:
+confidential report to Gizmo Microsystems at:
 ${YELLOW}codeofconduct@extechs.mail${NC}
 
 ${YELLOW}CONSEQUENCES OF NON-COMPLIANCE:${NC}
 Violations of these policies will not be tolerated. Immediate compliance 
-with remediation requests is mandatory. EXcellent TechStacks reserves 
+with remediation requests is mandatory. Gizmo Microsystems reserves 
 the right to take any disciplinary or legal action deemed necessary, 
 up to and including permanent revocation of access, termination of 
 contribution privileges, and further legal proceedings.
@@ -90,7 +90,7 @@ function mainloop() {
 printf "${YELLOW}
 Welcome to DreamStudio Integrated Development Environment!${NC}
 
-This project is maintained and developed by EXcellent TechStacks.
+This project is maintained and developed by Gizmo Microsystems.
 "
 
 printf "${GREEN}"
@@ -100,7 +100,7 @@ cat <<'LOGO'
             |  _|  \  /  | |/ _ \/ __| '_ \/ __|
             | |___ /  \  | |  __/ (__| | | \__ \
             |_____/_/\_\ |_|\___|\___|_| |_|___/
-        (C) COPYRIGHT 2026 EXcellent TechStacks
+        (C) COPYRIGHT 2026 Gizmo Microsystems
 
 
 LOGO

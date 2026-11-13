@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Custom assertions for DreamStudio tests.
 """
@@ -105,7 +105,9 @@ def assert_test_file_not_weakened(original: str, modified: str):
     # Check for removed assertions
     original_asserts = original.count("assert ")
     modified_asserts = modified.count("assert ")
-    assert modified_asserts >= original_asserts * 0.9, "Significant assertion removal detected"
+    assert (
+        modified_asserts >= original_asserts * 0.9
+    ), "Significant assertion removal detected"
 
     # Check for removed test functions
     import re
@@ -115,8 +117,12 @@ def assert_test_file_not_weakened(original: str, modified: str):
     assert modified_tests >= original_tests, "Test functions removed"
 
     # Check for added skip/xfail markers
-    original_skips = original.count("@pytest.mark.skip") + original.count("@pytest.mark.xfail")
-    modified_skips = modified.count("@pytest.mark.skip") + modified.count("@pytest.mark.xfail")
+    original_skips = original.count("@pytest.mark.skip") + original.count(
+        "@pytest.mark.xfail"
+    )
+    modified_skips = modified.count("@pytest.mark.skip") + modified.count(
+        "@pytest.mark.xfail"
+    )
     assert modified_skips <= original_skips + 1, "Unjustified skip/xfail added"
 
 
@@ -124,7 +130,9 @@ class AssertionHelper:
     """Helper class for complex assertions."""
 
     @staticmethod
-    def assert_eventually(condition: callable, timeout: float = 5.0, interval: float = 0.05, msg: str = ""):
+    def assert_eventually(
+        condition: callable, timeout: float = 5.0, interval: float = 0.05, msg: str = ""
+    ):
         """Assert condition becomes true within timeout."""
         import time
 
@@ -136,7 +144,9 @@ class AssertionHelper:
         pytest.fail(f"Condition not met within {timeout}s: {msg}")
 
     @staticmethod
-    def assert_signal_sequence(signal_obj, expected_sequence: list, timeout: float = 5.0):
+    def assert_signal_sequence(
+        signal_obj, expected_sequence: list, timeout: float = 5.0
+    ):
         """Assert signal emits expected sequence of arguments."""
         import time
 
@@ -160,7 +170,9 @@ class AssertionHelper:
             if isinstance(value, dict) and isinstance(superset[key], dict):
                 AssertionHelper.assert_dict_subset(value, superset[key], current_path)
             else:
-                assert superset[key] == value, f"Value mismatch at {current_path}: {superset[key]} != {value}"
+                assert (
+                    superset[key] == value
+                ), f"Value mismatch at {current_path}: {superset[key]} != {value}"
 
 
 # Convenience function

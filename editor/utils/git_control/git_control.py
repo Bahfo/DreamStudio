@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 Gizmo Microsystems Cooperation - All Rights Reserved
 Background module to control GIT actions for DreamStudio.
 """
 

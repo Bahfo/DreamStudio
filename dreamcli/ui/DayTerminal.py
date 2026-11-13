@@ -1,6 +1,6 @@
 """A QPlainTextEdit-based terminal widget for DayDream."""
 
-_help = """(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+_help = """(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 DayDream Terminal - A Command Line Interface for DreamStudio and DreamScript.
 DayDream is the terminal interface of DreamStudio's scripting language `DreamScript`. 
@@ -26,7 +26,7 @@ However, it includes a huge set of automated commands and scripts so users can s
 execute large command scripts in seconds.
 _____________________________________________________________________________________
 
-For more info, please check out related documentations on EXcellent TechStacks page.
+For more info, please check out related documentations on Gizmo Microsystems page.
 
                                 END OF DOCUMENTATION
 """

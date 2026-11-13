@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Shared test helper functions.
 """
@@ -91,7 +91,9 @@ def assert_signal_emitted(signal_obj, expected_args=None, timeout=1.0):
 
 def get_private_attr(obj: Any, attr: str) -> Any:
     """Get private attribute for testing (use sparingly)."""
-    return getattr(obj, f"_{obj.__class__.__name__}__{attr}", getattr(obj, f"_{attr}", None))
+    return getattr(
+        obj, f"_{obj.__class__.__name__}__{attr}", getattr(obj, f"_{attr}", None)
+    )
 
 
 def set_private_attr(obj: Any, attr: str, value: Any) -> None:

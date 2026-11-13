@@ -161,7 +161,7 @@ class FreeTrialWindow(QWidget):
             <div class="perk-item">
                 <span class="check-icon">✓</span>
                 <span class="title"> Cloud Subscription:</span> 
-                <span class="desc">Expanded access to EXcellent TechStacks cloud services.</span>
+                <span class="desc">Expanded access to Gizmo Microsystems cloud services.</span>
             </div>
             <div class="perk-item">
                 <span class="check-icon">✓</span>

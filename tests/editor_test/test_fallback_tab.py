@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for FallBack tabs when a file cannot be shown normally.
 """
@@ -12,7 +12,9 @@ import pytest
 class TestFallbackTab:
     """Tests for FallBack tabs when a file cannot be shown normally."""
 
-    def test_binary_file_opens_binary_editor(self, qapp, tab_editor_parent, temp_workspace):
+    def test_binary_file_opens_binary_editor(
+        self, qapp, tab_editor_parent, temp_workspace
+    ):
         """ELF paths are routed to add_binary_editor."""
         from editor.Ironica.tab_editor import DreamTabbedEditor
 

@@ -21,7 +21,7 @@
 
 ```python
 """
-(C) COPYRIGHT 2026 Excellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 One or two sentences describing what this file is for and why it exists.
 """
@@ -251,7 +251,7 @@ env QT_QPA_PLATFORM=offscreen ./venv/bin/python -m pytest tests/test_my_feature.
 
 ```python
 """
-(C) COPYRIGHT 2026 Excellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Regression test for <feature>.
 """

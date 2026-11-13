@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Call-site and expected-type resolution for context-aware completion.
 """
 
@@ -86,7 +86,9 @@ _STRINGY = frozenset(
 )
 
 _OVERLOAD_CACHE_BOUND = 16
-_overload_cache: Dict[Tuple[str, int, str], Tuple[Optional[object], List[List[str]]]] = {}
+_overload_cache: Dict[
+    Tuple[str, int, str], Tuple[Optional[object], List[List[str]]]
+] = {}
 
 
 def _identity_matches(entry_ref, tu) -> bool:

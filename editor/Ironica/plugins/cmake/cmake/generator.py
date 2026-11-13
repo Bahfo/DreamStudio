@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Compile database generator for the DreamStudio CMake plugin.
 """
 
@@ -128,11 +128,7 @@ def _entries_for_model(model: CmakeModel, compiler: str) -> list:
                 continue
             seen.add(source)
             arguments = _dedupe_flags(
-                [compiler]
-                + std_flags
-                + include_flags
-                + target_flags
-                + extra_flags
+                [compiler] + std_flags + include_flags + target_flags + extra_flags
             ) + [source]
             entries.append(
                 {
@@ -189,9 +185,10 @@ def generate_many(root: str, models: list) -> dict:
             if flag not in std_flags:
                 std_flags.append(flag)
         for index in range(0, len(model_include), 2):
-            pair = model_include[index:index + 2]
-            if len(pair) == 2 and pair not in [include_flags[i:i + 2]
-                                                for i in range(0, len(include_flags), 2)]:
+            pair = model_include[index : index + 2]
+            if len(pair) == 2 and pair not in [
+                include_flags[i : i + 2] for i in range(0, len(include_flags), 2)
+            ]:
                 include_flags.extend(pair)
         for flag in model_extra:
             if flag not in extra_flags:
@@ -209,7 +206,7 @@ def generate_many(root: str, models: list) -> dict:
 
     flag_lines: list = list(std_flags)
     for index in range(0, len(include_flags), 2):
-        pair = include_flags[index:index + 2]
+        pair = include_flags[index : index + 2]
         flag_lines.append("".join(pair) if len(pair) == 2 else pair[0])
     flag_lines += extra_flags
     _atomic_write_text(flags_path, "\n".join(flag_lines) + "\n")

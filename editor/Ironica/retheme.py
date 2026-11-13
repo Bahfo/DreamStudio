@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Dynamic IDE theme engine for DreamStudio.
 """
 
@@ -88,9 +88,7 @@ def doc_palette(theme_name: Optional[str] = None) -> Dict[str, str]:
 
     surface_alt = base_hex or DEFAULT_DOC_PALETTE["surface"]
     if base is not None:
-        surface_alt = (
-            base.lighter(112).name() if is_dark else base.darker(103).name()
-        )
+        surface_alt = base.lighter(112).name() if is_dark else base.darker(103).name()
 
     text = editor.get("fg")
     resolved = {
@@ -103,9 +101,11 @@ def doc_palette(theme_name: Optional[str] = None) -> Dict[str, str]:
         "surface": base_hex or DEFAULT_DOC_PALETTE["surface"],
         "surface_alt": surface_alt,
         "text": text.name() if text is not None else DEFAULT_DOC_PALETTE["text"],
-        "border": editor.get("edge").name()
-        if editor.get("edge") is not None
-        else DEFAULT_DOC_PALETTE["border"],
+        "border": (
+            editor.get("edge").name()
+            if editor.get("edge") is not None
+            else DEFAULT_DOC_PALETTE["border"]
+        ),
     }
     resolved["rule"] = _mix_with_background(resolved["muted"], name)
     resolved["code"] = _ensure_contrast(
@@ -185,17 +185,14 @@ def resolve_colour(
     return default if default else (str(value) if value is not None else "")
 
 
-def resolve_language_config(
-    config: dict, theme_name: str = _DEFAULT_THEME
-) -> dict:
+def resolve_language_config(config: dict, theme_name: str = _DEFAULT_THEME) -> dict:
     """Return a copy of *config* with every symbolic style resolved to hex."""
     palette = dict(config.get("palette", {}) or {})
     palette.update(theme_palette(theme_name))
 
     styles = config.get("styles", {}) or {}
     resolved_styles = {
-        key: resolve_colour(value, palette, str(value))
-        for key, value in styles.items()
+        key: resolve_colour(value, palette, str(value)) for key, value in styles.items()
     }
 
     resolved = dict(config)
@@ -206,7 +203,9 @@ def resolve_language_config(
 def _read_qss(theme_name: str) -> str:
     """Read the raw QSS source for *theme_name*, or ``""`` on failure."""
     try:
-        with open(os.path.join(_QSS_DIR, f"{theme_name}.qss"), "r", encoding="utf-8") as f:
+        with open(
+            os.path.join(_QSS_DIR, f"{theme_name}.qss"), "r", encoding="utf-8"
+        ) as f:
             return f.read()
     except OSError:
         return ""

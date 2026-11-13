@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Core Highlighting API for DreamStudio.
 """
 
@@ -164,4 +164,3 @@ class HighlightingRegistry:
     def reset(cls) -> None:
         """Clear all registrations (for testing)."""
         cls._providers.clear()
-

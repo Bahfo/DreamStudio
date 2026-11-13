@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Side-by-side diff view for changed files in source control.
 """
 
@@ -165,14 +165,22 @@ class DiffView(QWidget):
         """Paint change markers on both panes."""
         try:
             _paint_blocks(
-                self.left, self.left_blocks, DEL_MARKER, DEL_DARK, DEL_LIGHT,
+                self.left,
+                self.left_blocks,
+                DEL_MARKER,
+                DEL_DARK,
+                DEL_LIGHT,
                 theme_name,
             )
         except Exception:
             pass
         try:
             _paint_blocks(
-                self.right, self.right_blocks, ADD_MARKER, ADD_DARK, ADD_LIGHT,
+                self.right,
+                self.right_blocks,
+                ADD_MARKER,
+                ADD_DARK,
+                ADD_LIGHT,
                 theme_name,
             )
         except Exception:

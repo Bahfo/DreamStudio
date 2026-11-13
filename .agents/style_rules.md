@@ -7,7 +7,7 @@ Every single new Python script must start with the exact copyright header format
 
 ```python
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved. 
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved. 
 
 <brief description of what this file is for>
 """

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Dialog for creating and editing DreamStudio run configurations (File Path,
 First Argument, Parameters) consumed by `ConfigRun`.
 """
@@ -46,7 +46,6 @@ class RunConfigDialog(QDialog):
         self._suggested_arg = str(initial.get("Arg", "") or "").strip()
         self._build_ui(initial)
         self._apply_styles()
-
 
     def _build_ui(self, initial: dict) -> None:
         layout = QVBoxLayout(self)
@@ -120,7 +119,6 @@ class RunConfigDialog(QDialog):
                           padding: 6px 14px; }
             QPushButton:hover { background-color: #555555; }
             """)
-
 
     def _browse_file(self) -> None:
         """Open a native file picker and fill the File Path (Full) field."""

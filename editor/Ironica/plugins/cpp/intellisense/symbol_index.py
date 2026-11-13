@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 SQLite-backed C++ symbol and relation index for DreamStudio navigation.
 """
 
@@ -295,9 +295,7 @@ class SymbolIndex:
 
     def overrides(self, usr: str) -> list[IndexedSymbol]:
         """Return definitions of methods overriding *usr*."""
-        return self._query_from_file(
-            "overrides.sql", (usr, PREDICATE_OVERRIDDEN_BY)
-        )
+        return self._query_from_file("overrides.sql", (usr, PREDICATE_OVERRIDDEN_BY))
 
     def derived_types(self, usr: str) -> list[IndexedSymbol]:
         """Return definitions of classes derived from *usr*."""

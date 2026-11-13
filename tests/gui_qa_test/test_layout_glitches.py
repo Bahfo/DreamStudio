@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Layout live tests: the DreamStudio chrome must stay stacked, keep its
 configured widths, and survive side-panel and resize transitions.
@@ -81,11 +81,15 @@ class TestChromeStacking:
     def test_status_bar_below_hero(self, qapp, qa_window):
         """The status bar sits below the hero region in the window."""
         window = qa_window
-        hero_bottom = window.hero_window.mapTo(window, window.hero_window.rect().bottomLeft()).y()
-        status_top = window.status_bar.mapTo(window, window.status_bar.rect().topLeft()).y()
-        assert status_top >= hero_bottom - 1, (
-            f"status bar overlaps hero (status top {status_top}, hero bottom {hero_bottom})"
-        )
+        hero_bottom = window.hero_window.mapTo(
+            window, window.hero_window.rect().bottomLeft()
+        ).y()
+        status_top = window.status_bar.mapTo(
+            window, window.status_bar.rect().topLeft()
+        ).y()
+        assert (
+            status_top >= hero_bottom - 1
+        ), f"status bar overlaps hero (status top {status_top}, hero bottom {hero_bottom})"
 
 
 class TestSidebarWidths:
@@ -97,9 +101,9 @@ class TestSidebarWidths:
         for name in ("left_sidebar", "right_sidebar"):
             sidebar = getattr(window, name)
             assert_positive_size(sidebar, name)
-            assert SIDEBAR_MIN_WIDTH <= sidebar.width() <= SIDEBAR_MAX_WIDTH, (
-                f"{name} width {sidebar.width()} outside configured range"
-            )
+            assert (
+                SIDEBAR_MIN_WIDTH <= sidebar.width() <= SIDEBAR_MAX_WIDTH
+            ), f"{name} width {sidebar.width()} outside configured range"
 
     def test_left_panel_manager_keeps_width(self, qapp, qa_window):
         """The left panel manager keeps a usable width when a panel is open."""
@@ -109,9 +113,9 @@ class TestSidebarWidths:
         pump(qapp, 100)
         manager = window.hero_window._left_utils_manager
         assert manager.isVisible(), "left panel manager not visible"
-        assert manager.width() >= PANEL_MIN_WIDTH, (
-            f"left panel manager too narrow: {manager.width()}"
-        )
+        assert (
+            manager.width() >= PANEL_MIN_WIDTH
+        ), f"left panel manager too narrow: {manager.width()}"
 
     def test_right_panel_manager_keeps_width(self, qapp, qa_window):
         """The right panel manager keeps a usable width when a panel is open."""
@@ -121,9 +125,9 @@ class TestSidebarWidths:
         pump(qapp, 100)
         manager = window.hero_window._right_utils_manager
         assert manager.isVisible(), "right panel manager not visible"
-        assert manager.width() >= PANEL_MIN_WIDTH, (
-            f"right panel manager too narrow: {manager.width()}"
-        )
+        assert (
+            manager.width() >= PANEL_MIN_WIDTH
+        ), f"right panel manager too narrow: {manager.width()}"
 
     def test_editor_keeps_positive_size(self, qapp, qa_window):
         """The editor center stays positive with both side panels open."""
@@ -134,9 +138,9 @@ class TestSidebarWidths:
         pump(qapp, 150)
         editor_center = window.hero_window._text_editor_center
         assert_positive_size(editor_center, "editor center")
-        assert editor_center.width() > 100, (
-            f"editor center squeezed to {editor_center.width()}"
-        )
+        assert (
+            editor_center.width() > 100
+        ), f"editor center squeezed to {editor_center.width()}"
 
 
 class TestDockLayout:

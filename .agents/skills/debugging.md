@@ -201,7 +201,7 @@ Without them the terminal and selection colours stay at their defaults.
 
 ```python
 """
-(C) COPYRIGHT 2026 Excellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Regression test for <the bug>.
 """

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Controller for the Run dropdown of the options bar:
 """
 
@@ -65,7 +65,6 @@ class RunMenuController:
             self._run_menu.aboutToShow.connect(self.refresh_state)
         self.refresh_state()
 
-
     @property
     def _run_menu(self) -> QMenu | None:
         """The Run dropdown menu, or None when it could not be located."""
@@ -88,7 +87,6 @@ class RunMenuController:
 
         if self._run_action is None or self._config_action is None:
             logger.warning("Run menu controller: Run dropdown actions not found.")
-
 
     def current_file_path(self) -> str | None:
         """Return the active editor's file path via the existing tab model."""
@@ -125,7 +123,6 @@ class RunMenuController:
             self._config_action.setEnabled(True)
 
         self._rebuild_config_actions()
-
 
     def _load_config_files(self) -> list[tuple[str, str, dict]]:
         """Load every saved run configuration from disk."""
@@ -227,7 +224,6 @@ class RunMenuController:
             source="Run",
         )
         self._rebuild_config_actions()
-
 
     def run_current_file(self) -> None:
         """Execute the active Python file inside a new integrated terminal."""
@@ -380,7 +376,6 @@ class RunMenuController:
             lower.setVisible(True)
             self._window.hero_window._main_vertical_splitter.setSizes([600, 400])
         panel.switch_tab(TAB_SYSTEM_SHELL)
-
 
     def _notify_error(self, title: str, message: str) -> None:
         """Surface an error through the central notification manager."""

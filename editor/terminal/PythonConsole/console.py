@@ -89,7 +89,7 @@ class PythonShell(QWidget):
         self.console.buffer_size = self.BUFFER_SIZE
 
         self.console.banner = (
-            "(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.\n"
+            "(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.\n"
             "Python Interpreter Shell for DreamStudio - Jupyter Backend.\n"
             "Type commands or code below.\n\n"
         )
@@ -239,7 +239,6 @@ class PythonShell(QWidget):
         self._status_label.setStyleSheet("font-size: 13px;")
         toolbar_layout.addWidget(self._status_label)
 
-
     def _connect_signals(self):
         self.console.executing.connect(self._on_executing)
         self.console.executed.connect(self._on_executed)
@@ -283,7 +282,6 @@ class PythonShell(QWidget):
             self.restart_kernel()
         except Exception:
             pass
-
 
     def _quote(self, path: str) -> str:
         """Platform-aware shell quoting for Jupyter magics."""
@@ -360,7 +358,6 @@ class PythonShell(QWidget):
                 pass
             self.console.execute(f"%run -i {self._quote(path)}")
 
-
     def _on_run_file(self):
         start = self._workspace_dir if self._workspace_dir else os.path.expanduser("~")
         path, _ = QFileDialog.getOpenFileName(
@@ -371,7 +368,6 @@ class PythonShell(QWidget):
         )
         if path:
             self.run_file(path)
-
 
     def _apply_theme(self):
         if getattr(self, "_unavailable", False) or self.console is None:

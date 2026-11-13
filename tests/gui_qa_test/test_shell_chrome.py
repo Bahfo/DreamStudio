@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Shell chrome live tests: title bar, options bar, sidebars, and status bar of
 the real DreamStudio window, driven with QTest events.

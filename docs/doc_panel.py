@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Documentation window displayed via Help -> Documentation.
 """
 
@@ -136,11 +136,7 @@ class DocumentationWindow(QWidget):
         """Discover markdown pages and build one reader tab each."""
         script_dir = Path(__file__).parent
         candidates = sorted(
-            (
-                p
-                for p in script_dir.iterdir()
-                if p.is_file() and p.suffix == ".md"
-            ),
+            (p for p in script_dir.iterdir() if p.is_file() and p.suffix == ".md"),
             key=lambda p: (self._page_number(p), p.name),
         )
         for path in candidates:
@@ -232,9 +228,7 @@ class DocumentationWindow(QWidget):
                 bar.setTabVisible(index, not query or query in page.title.casefold())
             except Exception:
                 pass
-        visible = sum(
-            1 for index in range(len(self.pages)) if bar.isTabVisible(index)
-        )
+        visible = sum(1 for index in range(len(self.pages)) if bar.isTabVisible(index))
         if query and visible:
             for index in range(len(self.pages)):
                 if bar.isTabVisible(index):

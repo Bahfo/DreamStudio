@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Adversarial interaction live tests: overlapping panel, editor, dock, and
 resize interactions must leave the window in a consistent state.

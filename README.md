@@ -7,7 +7,7 @@
 ![](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![](https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)
 
-DreamStudio is an open-source Integrated Development Environment developed by *Excellent TechStacks* (known as _EX Techs_). It is the basis for Excellent TechStacks Integrated Platform Development Environment (IPDE).
+DreamStudio is an open-source Integrated Development Environment developed by *Gizmo Microsystems* (known as _EX Techs_). It is the basis for Gizmo Microsystems Integrated Platform Development Environment (IPDE).
 
 If you are new to the project and would like to get started quickly, please read the documentaiton provided in notebook forms (`.ipynb` format).
 

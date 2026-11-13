@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 AST-accurate fold regions for C++ and C buffers.
 """
 
@@ -13,12 +13,25 @@ from editor.Ironica.utils.folding import FoldRegion
 
 logger = logging.getLogger("DreamStudio.Cpp.Folding")
 
-_FOLDABLE = frozenset({
-    "FUNCTION_DECL", "FUNCTION_TEMPLATE", "CXX_METHOD", "CONSTRUCTOR",
-    "CXX_CONSTRUCTOR", "DESTRUCTOR", "CXX_DESTRUCTOR", "CXX_CONVERSION",
-    "CLASS_DECL", "STRUCT_DECL", "UNION_DECL", "CLASS_TEMPLATE",
-    "CLASS_TEMPLATE_PARTIAL_SPEC", "NAMESPACE", "ENUM_DECL",
-})
+_FOLDABLE = frozenset(
+    {
+        "FUNCTION_DECL",
+        "FUNCTION_TEMPLATE",
+        "CXX_METHOD",
+        "CONSTRUCTOR",
+        "CXX_CONSTRUCTOR",
+        "DESTRUCTOR",
+        "CXX_DESTRUCTOR",
+        "CXX_CONVERSION",
+        "CLASS_DECL",
+        "STRUCT_DECL",
+        "UNION_DECL",
+        "CLASS_TEMPLATE",
+        "CLASS_TEMPLATE_PARTIAL_SPEC",
+        "NAMESPACE",
+        "ENUM_DECL",
+    }
+)
 
 _KIND_BY_CURSOR = {
     "FUNCTION_DECL": "function",
@@ -86,8 +99,9 @@ def _extent_lines(cursor) -> Optional[tuple]:
     return (start, end)
 
 
-def _span_from_children(cursor, main_path: Optional[str],
-                        bound: int = 2000) -> Optional[tuple]:
+def _span_from_children(
+    cursor, main_path: Optional[str], bound: int = 2000
+) -> Optional[tuple]:
     """Derive a fold span from descendant extents for broken constructs."""
     starts: List[int] = []
     ends: List[int] = []
@@ -160,9 +174,13 @@ def _ast_regions(tu, main_path: Optional[str]) -> List[FoldRegion]:
             if lines is None:
                 lines = _span_from_children(cursor, main_path)
             if lines is not None:
-                regions.append(FoldRegion(
-                    start_line=lines[0], end_line=lines[1],
-                    kind=_KIND_BY_CURSOR.get(kind, "block")))
+                regions.append(
+                    FoldRegion(
+                        start_line=lines[0],
+                        end_line=lines[1],
+                        kind=_KIND_BY_CURSOR.get(kind, "block"),
+                    )
+                )
         if _in_main_file(cursor, main_path):
             try:
                 children = cursor.get_children()
@@ -186,8 +204,9 @@ def _directive_regions(lines: List[str]) -> List[FoldRegion]:
                 end = index
                 index += 1
             if end > start:
-                regions.append(FoldRegion(start_line=start, end_line=end,
-                                          kind="include"))
+                regions.append(
+                    FoldRegion(start_line=start, end_line=end, kind="include")
+                )
             continue
         if _COND_OPEN.match(lines[index]):
             start = index
@@ -202,8 +221,9 @@ def _directive_regions(lines: List[str]) -> List[FoldRegion]:
                     depth -= 1
                 index += 1
             if index < total and index > start + 1:
-                regions.append(FoldRegion(start_line=start, end_line=index,
-                                          kind="conditional"))
+                regions.append(
+                    FoldRegion(start_line=start, end_line=index, kind="conditional")
+                )
         index += 1
     return regions
 
@@ -220,9 +240,9 @@ def _brace_fallback(lines: List[str]) -> List[FoldRegion]:
             elif char == "}" and stack:
                 start = stack.pop()
                 if lineno > start + 1:
-                    regions.append(FoldRegion(start_line=start,
-                                              end_line=lineno,
-                                              kind="block"))
+                    regions.append(
+                        FoldRegion(start_line=start, end_line=lineno, kind="block")
+                    )
     return regions
 
 
@@ -232,14 +252,16 @@ def _dedupe_spans(regions: List[FoldRegion]) -> List[FoldRegion]:
     for region in regions:
         key = (region.start_line, region.end_line)
         current = best.get(key)
-        if current is None or _SPAN_PRIORITY.get(
-                region.kind, 9) < _SPAN_PRIORITY.get(current.kind, 9):
+        if current is None or _SPAN_PRIORITY.get(region.kind, 9) < _SPAN_PRIORITY.get(
+            current.kind, 9
+        ):
             best[key] = region
     return list(best.values())
 
 
-def compute_fold_regions(source: str, tu=None,
-                         main_path: Optional[str] = None) -> List[FoldRegion]:
+def compute_fold_regions(
+    source: str, tu=None, main_path: Optional[str] = None
+) -> List[FoldRegion]:
     """Return fold regions for *source*, AST-first with brace fallback."""
     if not source or not source.strip():
         return []

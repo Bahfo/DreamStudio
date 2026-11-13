@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 basedpyright semantic/type diagnostics provider for the Problems scanner.
 """
 
@@ -146,7 +146,6 @@ class BasedPyrightProvider(ProblemProvider):
         self.last_error: Optional[str] = None
         self.last_note: Optional[str] = None
 
-
     def collect(self) -> List[Problem]:
         """Analyze the whole workspace."""
         return self.scan_workspace().problems
@@ -199,7 +198,6 @@ class BasedPyrightProvider(ProblemProvider):
             path,
         ]
         return self._run(argv, timeout=FILE_TIMEOUT_SECONDS, stdin_text=content)
-
 
     def _analyze_via_mirror(
         self, command: List[str], path: str, content: str
@@ -313,7 +311,6 @@ class BasedPyrightProvider(ProblemProvider):
                         )
                 except OSError:
                     continue
-
 
     def _run(
         self,

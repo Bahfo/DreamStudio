@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Code editor dressing live tests: minimap, diagnostics ruler, folding, language
 switching, retheming, and analysis overlays.
@@ -171,9 +171,9 @@ class TestDiagnosticsRuler:
         ruler.set_ticks([(5, "#ff0000", "error")])
         pump(qapp, 100)
         y = ruler.y_for_line(5)
-        assert ruler.line_for_y(y) == 5, (
-            f"line round-trip failed: y={y} -> {ruler.line_for_y(y)}"
-        )
+        assert (
+            ruler.line_for_y(y) == 5
+        ), f"line round-trip failed: y={y} -> {ruler.line_for_y(y)}"
 
     def test_ruler_hover_is_reported(self, qapp, qa_window, sample_tree):
         """Moving over the ruler reports the hovered line."""
@@ -197,7 +197,9 @@ class TestFolding:
         editor.setText("def a():\n    pass\n\ndef b():\n    pass\n")
         pump(qapp, 200)
         manager = editor._fold_manager
-        manager.set_fold_regions([FoldRegion(start_line=0, end_line=1, kind="function")])
+        manager.set_fold_regions(
+            [FoldRegion(start_line=0, end_line=1, kind="function")]
+        )
         pump(qapp, 200)
         regions = manager.get_fold_regions()
         assert regions, "fold regions were not stored"
@@ -215,7 +217,9 @@ class TestFolding:
         editor.setText("def a():\n    pass\n")
         pump(qapp, 200)
         manager = editor._fold_manager
-        manager.set_fold_regions([FoldRegion(start_line=0, end_line=1, kind="function")])
+        manager.set_fold_regions(
+            [FoldRegion(start_line=0, end_line=1, kind="function")]
+        )
         manager.clear_fold_regions()
         assert not manager.get_fold_regions(), "fold regions survived the clear"
 
@@ -272,7 +276,9 @@ class TestFolding:
         editor.setText("def a():\n    pass\n")
         pump(qapp, 200)
         manager = editor._fold_manager
-        manager.set_fold_regions([FoldRegion(start_line=0, end_line=1, kind="function")])
+        manager.set_fold_regions(
+            [FoldRegion(start_line=0, end_line=1, kind="function")]
+        )
         pump(qapp, 200)
         editor.setCursorPosition(1, 0)
         type_text(qapp, editor, "# edit\n")
@@ -287,7 +293,9 @@ class TestFolding:
         editor.setText("def a():\n    pass\n")
         pump(qapp, 200)
         manager = editor._fold_manager
-        manager.set_fold_regions([FoldRegion(start_line=0, end_line=1, kind="function")])
+        manager.set_fold_regions(
+            [FoldRegion(start_line=0, end_line=1, kind="function")]
+        )
 
         def cycle() -> None:
             """Collapse and expand the regions once.
@@ -395,7 +403,9 @@ class TestAnalysisOverlays:
         editor.setText("value = 1\n")
         pump(qapp, 200)
         sweep = Sweep("semantic overlays")
-        sweep.step("apply overlays", editor._apply_semantic_overlays, [(0, 5, "#ff00ff")])
+        sweep.step(
+            "apply overlays", editor._apply_semantic_overlays, [(0, 5, "#ff00ff")]
+        )
         pump(qapp, 200)
         sweep.finish()
         assert_alive(qapp, qa_window)
@@ -418,7 +428,9 @@ class TestAnalysisOverlays:
         sweep.finish()
         assert_alive(qapp, qa_window)
 
-    def test_analysis_arriving_while_typing_is_stable(self, qapp, qa_window, sample_tree):
+    def test_analysis_arriving_while_typing_is_stable(
+        self, qapp, qa_window, sample_tree
+    ):
         """Overlays arriving during typing never raise."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText("value = 1\n")

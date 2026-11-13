@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for Terminal UI components.
 """
@@ -38,7 +38,11 @@ class TestPromptXTerminalWidget:
         # type clear via execute
         w._terminal.setPlainText(w._terminal.toPlainText() + "clear")
         # Instead call _execute_current by positioning? Use engine-level
-        w._terminal.moveCursor(__import__("PyQt6.QtGui", fromlist=["QTextCursor"]).QTextCursor.MoveOperation.End)
+        w._terminal.moveCursor(
+            __import__(
+                "PyQt6.QtGui", fromlist=["QTextCursor"]
+            ).QTextCursor.MoveOperation.End
+        )
         w.deleteLater()
         qapp.processEvents()
 

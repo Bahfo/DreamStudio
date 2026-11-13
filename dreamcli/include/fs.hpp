@@ -1,7 +1,7 @@
 /**
  * Filesystem header file for fs operations to support DreamCLI.
  * 
- * (C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+ * (C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
  * This module is licensed under the GPLv3 License. Read LICENSE 
  * for more info.
  */

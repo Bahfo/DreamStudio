@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 The Completion Manager and Object for C++ Extension - DreamStudio.
 """
 
@@ -64,8 +64,13 @@ class _CppCompletionWorker(threading.Thread):
         """Return ``True`` while a request is queued or executing."""
         return self._current is not None or self._running
 
-    def process(self, request_id: int, context: CppContext,
-                warmup: bool = False, prefetch: bool = False) -> None:
+    def process(
+        self,
+        request_id: int,
+        context: CppContext,
+        warmup: bool = False,
+        prefetch: bool = False,
+    ) -> None:
         """
         Queue *context*, waking the thread (drops any pending older item).
         """
@@ -138,20 +143,20 @@ class _CppCompletionWorker(threading.Thread):
 
             context = request.context
             self._symbols.update(context.source_code or "")
-            lines = (context.source_code.splitlines()
-                     if context.source_code else [])
-            row = lines[context.line - 1] if 0 <= context.line - 1 < len(
-                lines) else ""
+            lines = context.source_code.splitlines() if context.source_code else []
+            row = lines[context.line - 1] if 0 <= context.line - 1 < len(lines) else ""
             kind, _ = classify(row, context.col - 1)
-            if kind not in ("identifier", "call", "construction",
-                            "template_args"):
+            if kind not in ("identifier", "call", "construction", "template_args"):
                 return
             rows = self._symbols.match(context.prefix or "")
             rows = list(rows) + self._sysindex_rows(request)
             if not rows:
                 return
-            if (self._shutting_down or self._current is not None
-                    or request.request_id < self._owner._request_counter):
+            if (
+                self._shutting_down
+                or self._current is not None
+                or request.request_id < self._owner._request_counter
+            ):
                 return
             self._owner.completions_ready.emit(request.request_id, rows)
         except RuntimeError:
@@ -184,7 +189,8 @@ class _CppCompletionWorker(threading.Thread):
             )
 
             rows = search_for_file(
-                request.context.file_path, request.context.prefix or "",
+                request.context.file_path,
+                request.context.prefix or "",
                 exclude_kinds=NON_GLOBAL_COMPLETION_KINDS,
             )
             return list(rows) + self._sysindex_rows(request)

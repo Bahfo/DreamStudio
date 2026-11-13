@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Widget battery live tests: every custom widget in editor/widgets/ must build,
 paint, react to its public API, and stay consistent with the live window.
@@ -62,9 +62,9 @@ class TestToolbarButton:
         button = ToolbarButton("", "QA tooltip")
         pump(qapp, 50)
         assert button.toolTip() == "QA tooltip", "tooltip was not applied"
-        assert button.width() == 26 and button.height() == 26, (
-            f"unexpected default size: {button.width()}x{button.height()}"
-        )
+        assert (
+            button.width() == 26 and button.height() == 26
+        ), f"unexpected default size: {button.width()}x{button.height()}"
 
     def test_toolbar_button_invokes_its_callback(self, qapp):
         """Clicking a ToolbarButton calls the callback it was built with."""
@@ -100,9 +100,10 @@ class TestSegmentedProgressBar:
         bar = SegmentedProgressBar()
         bar.set_data([(40, "#ff0000"), (60, "#00ff00")])
         pump(qapp, 50)
-        assert bar.segments == [(40, "#ff0000"), (60, "#00ff00")], (
-            f"segments were not stored: {bar.segments}"
-        )
+        assert bar.segments == [
+            (40, "#ff0000"),
+            (60, "#00ff00"),
+        ], f"segments were not stored: {bar.segments}"
 
     def test_bar_paints_with_segments(self, qapp):
         """The bar paints without raising once it has segments."""
@@ -175,9 +176,9 @@ class TestIndexingProgress:
         progress.start_indexing(10, "Indexing QA")
         pump(qapp, 100)
         assert progress.isVisible(), "indexing indicator stayed hidden"
-        assert progress.label.text() == "Indexing QA", (
-            f"unexpected message: {progress.label.text()!r}"
-        )
+        assert (
+            progress.label.text() == "Indexing QA"
+        ), f"unexpected message: {progress.label.text()!r}"
         assert progress.bar.value() == 0, "bar did not start at zero"
 
     def test_advance_indexing_moves_the_bar(self, qapp):
@@ -189,7 +190,9 @@ class TestIndexingProgress:
         pump(qapp, 100)
         progress.advance_indexing(2)
         pump(qapp, 100)
-        assert progress.bar.value() == 50, f"unexpected bar value: {progress.bar.value()}"
+        assert (
+            progress.bar.value() == 50
+        ), f"unexpected bar value: {progress.bar.value()}"
 
     def test_advance_is_clamped_to_the_total(self, qapp):
         """A done count above the total is clamped."""
@@ -200,9 +203,9 @@ class TestIndexingProgress:
         pump(qapp, 100)
         progress.advance_indexing(99)
         pump(qapp, 100)
-        assert progress.bar.value() == 100, (
-            f"bar was not clamped: {progress.bar.value()}"
-        )
+        assert (
+            progress.bar.value() == 100
+        ), f"bar was not clamped: {progress.bar.value()}"
 
     def test_finish_indexing_hides_the_indicator(self, qapp):
         """finish_indexing() fills the bar and hides the indicator."""
@@ -226,9 +229,9 @@ class TestIndexingProgress:
         pump(qapp, 100)
         progress.advance_indexing(1)
         pump(qapp, 100)
-        assert progress.bar.value() == 100, (
-            f"unexpected bar value: {progress.bar.value()}"
-        )
+        assert (
+            progress.bar.value() == 100
+        ), f"unexpected bar value: {progress.bar.value()}"
 
 
 class TestIndexingCoordinator:
@@ -244,7 +247,9 @@ class TestIndexingCoordinator:
         coordinator.start("python", 10, "Indexing QA")
         pump(qapp, 100)
         assert progress.isVisible(), "the coordinator did not show the bar"
-        assert progress.bar.value() == 0, f"unexpected bar value: {progress.bar.value()}"
+        assert (
+            progress.bar.value() == 0
+        ), f"unexpected bar value: {progress.bar.value()}"
 
     def test_advance_and_finish_update_the_bar(self, qapp):
         """advance() moves the bar and finish() hides it."""
@@ -257,10 +262,14 @@ class TestIndexingCoordinator:
         pump(qapp, 100)
         coordinator.advance("python", 2)
         pump(qapp, 100)
-        assert progress.bar.value() == 50, f"unexpected bar value: {progress.bar.value()}"
+        assert (
+            progress.bar.value() == 50
+        ), f"unexpected bar value: {progress.bar.value()}"
         coordinator.finish("python")
         pump(qapp, 100)
-        assert not progress.isVisible(), "the bar stayed visible after the session ended"
+        assert (
+            not progress.isVisible()
+        ), "the bar stayed visible after the session ended"
 
     def test_unknown_source_is_ignored(self, qapp):
         """Advancing an unknown source does not raise."""
@@ -297,7 +306,9 @@ class TestExplorerToolbar:
         toolbar = ExplorerToolbar()
         separator = toolbar.add_separator(12)
         pump(qapp, 50)
-        assert separator.objectName() == "ToolbarSeparator", "separator name was not set"
+        assert (
+            separator.objectName() == "ToolbarSeparator"
+        ), "separator name was not set"
         assert separator.width() == 1, f"separator width is {separator.width()}"
 
 
@@ -313,9 +324,10 @@ class TestSystemGraphUtil:
         graph.append("cpu", 42)
         graph.append("cpu", 55)
         pump(qapp, 50)
-        assert graph._series["cpu"] == [42, 55], (
-            f"unexpected series data: {graph._series['cpu']}"
-        )
+        assert graph._series["cpu"] == [
+            42,
+            55,
+        ], f"unexpected series data: {graph._series['cpu']}"
 
     def test_append_creates_missing_series(self, qapp):
         """Appending to an unknown series creates it."""
@@ -335,9 +347,9 @@ class TestSystemGraphUtil:
         for value in range(120):
             graph.append("cpu", value)
         pump(qapp, 50)
-        assert len(graph._series["cpu"]) == graph._max_points, (
-            f"series was not capped: {len(graph._series['cpu'])}"
-        )
+        assert (
+            len(graph._series["cpu"]) == graph._max_points
+        ), f"series was not capped: {len(graph._series['cpu'])}"
 
     def test_set_range_updates_the_bounds(self, qapp):
         """set_range() changes the painted value range."""
@@ -346,9 +358,9 @@ class TestSystemGraphUtil:
         graph = SystemGraphUtil()
         graph.set_range(10, 90)
         pump(qapp, 50)
-        assert graph._min_y == 10 and graph._max_y == 90, (
-            f"unexpected range: {graph._min_y}..{graph._max_y}"
-        )
+        assert (
+            graph._min_y == 10 and graph._max_y == 90
+        ), f"unexpected range: {graph._min_y}..{graph._max_y}"
 
     def test_graph_paints_with_data(self, qapp):
         """The graph paints its series without raising."""
@@ -410,14 +422,14 @@ class TestAnimatedGradientLabel:
         pump(qapp, 100)
         label.start_animation()
         pump(qapp, 150)
-        assert label.animation.state() == label.animation.State.Running, (
-            "animation did not start"
-        )
+        assert (
+            label.animation.state() == label.animation.State.Running
+        ), "animation did not start"
         label.stop_animation()
         pump(qapp, 100)
-        assert label.animation.state() != label.animation.State.Running, (
-            "animation did not stop"
-        )
+        assert (
+            label.animation.state() != label.animation.State.Running
+        ), "animation did not stop"
 
     def test_offset_property_drives_a_repaint(self, qapp):
         """Setting the gradient offset stores the new value."""
@@ -428,9 +440,9 @@ class TestAnimatedGradientLabel:
         pump(qapp, 100)
         label.gradient_offset = 0.5
         pump(qapp, 50)
-        assert label.gradient_offset == 0.5, (
-            f"offset was not stored: {label.gradient_offset}"
-        )
+        assert (
+            label.gradient_offset == 0.5
+        ), f"offset was not stored: {label.gradient_offset}"
 
     def test_starting_twice_is_harmless(self, qapp):
         """Calling start_animation() twice does not raise."""
@@ -457,9 +469,9 @@ class TestQErrorMessage:
         bubble = QErrorMessage("QA failure")
         pump(qapp, 50)
         assert bubble.message == "QA failure", "message was not stored"
-        assert bubble.minimumWidth() == QErrorMessage.MIN_WIDTH, (
-            f"unexpected minimum width: {bubble.minimumWidth()}"
-        )
+        assert (
+            bubble.minimumWidth() == QErrorMessage.MIN_WIDTH
+        ), f"unexpected minimum width: {bubble.minimumWidth()}"
 
     def test_severity_switches_the_accent(self, qapp):
         """set_severity() changes the bubble tint."""
@@ -468,7 +480,9 @@ class TestQErrorMessage:
         bubble = QErrorMessage("QA failure")
         bubble.set_severity("warning")
         pump(qapp, 50)
-        assert bubble.severity() == "warning", f"severity not applied: {bubble.severity()}"
+        assert (
+            bubble.severity() == "warning"
+        ), f"severity not applied: {bubble.severity()}"
         accent, _fill, _text = bubble.style_colors()
         assert accent, "no accent colour was resolved"
 
@@ -479,9 +493,9 @@ class TestQErrorMessage:
         bubble = QErrorMessage("QA failure")
         bubble.set_severity("not-a-severity")
         pump(qapp, 50)
-        assert bubble.severity() == "error", (
-            f"severity did not fall back: {bubble.severity()}"
-        )
+        assert (
+            bubble.severity() == "error"
+        ), f"severity did not fall back: {bubble.severity()}"
 
     def test_arrow_direction_and_position(self, qapp):
         """The arrow can point up and be repositioned."""
@@ -514,9 +528,9 @@ class TestQErrorMessage:
         short = QErrorMessage("short")
         long = QErrorMessage("a much longer message " * 6)
         pump(qapp, 50)
-        assert long.fitted_size(520).height() >= short.fitted_size(520).height(), (
-            "the fitted size ignored the message length"
-        )
+        assert (
+            long.fitted_size(520).height() >= short.fitted_size(520).height()
+        ), "the fitted size ignored the message length"
 
 
 class TestToolTipWidget:
@@ -561,9 +575,9 @@ class TestSeparator:
 
         separator = Separator(12, 2)
         pump(qapp, 50)
-        assert separator.width() == 12 and separator.height() == 2, (
-            f"unexpected separator size: {separator.width()}x{separator.height()}"
-        )
+        assert (
+            separator.width() == 12 and separator.height() == 2
+        ), f"unexpected separator size: {separator.width()}x{separator.height()}"
         assert separator.objectName() == "Separator", "object name was not set"
 
 
@@ -592,8 +606,12 @@ class TestDreamTabEditor:
         pump(qapp, 50)
         assert bar.get_selected_bg() == QColor("#111111"), "selected bg was not stored"
         assert bar.get_hover_bg() == QColor("#222222"), "hover bg was not stored"
-        assert bar.get_text_selected() == QColor("#777777"), "selected text was not stored"
-        assert bar.get_dirty_dot() == QColor("#999999"), "dirty dot colour was not stored"
+        assert bar.get_text_selected() == QColor(
+            "#777777"
+        ), "selected text was not stored"
+        assert bar.get_dirty_dot() == QColor(
+            "#999999"
+        ), "dirty dot colour was not stored"
 
     def test_tab_bar_marks_tabs_dirty_and_readonly(self, qapp):
         """The dirty and readonly marks mirror the state of the tab widgets.
@@ -644,10 +662,12 @@ class TestDreamTabEditor:
 
         bar.rebuild_dirty_indices()
         bar.rebuild_readonly_indices()
-        assert bar._dirty_indices == {0}, f"unexpected dirty marks: {bar._dirty_indices}"
-        assert bar._readonly_indices == {1}, (
-            f"unexpected readonly marks: {bar._readonly_indices}"
-        )
+        assert bar._dirty_indices == {
+            0
+        }, f"unexpected dirty marks: {bar._dirty_indices}"
+        assert bar._readonly_indices == {
+            1
+        }, f"unexpected readonly marks: {bar._readonly_indices}"
 
     def test_tab_bar_marks_are_cleared_when_the_tabs_are_clean(self, qapp):
         """A clean tab widget removes its dirty and readonly marks."""
@@ -682,9 +702,9 @@ class TestDreamTabEditor:
         bar.rebuild_dirty_indices()
         bar.rebuild_readonly_indices()
         assert not bar._dirty_indices, f"unexpected dirty marks: {bar._dirty_indices}"
-        assert not bar._readonly_indices, (
-            f"unexpected readonly marks: {bar._readonly_indices}"
-        )
+        assert (
+            not bar._readonly_indices
+        ), f"unexpected readonly marks: {bar._readonly_indices}"
 
     def test_dream_tab_editor_uses_the_custom_tab_bar(self, qapp):
         """QDreamTabEditor installs the DreamStudio tab bar."""
@@ -692,9 +712,9 @@ class TestDreamTabEditor:
 
         editor = QDreamTabEditor()
         pump(qapp, 50)
-        assert isinstance(editor.tabBar(), DreamStudioIDETabBar), (
-            f"unexpected tab bar: {type(editor.tabBar()).__name__}"
-        )
+        assert isinstance(
+            editor.tabBar(), DreamStudioIDETabBar
+        ), f"unexpected tab bar: {type(editor.tabBar()).__name__}"
         assert editor.tabsClosable() is False, "tabs must not be closable by default"
         assert editor.isMovable() is True, "tabs must be movable"
 
@@ -710,9 +730,9 @@ class TestToolbarMenuButton:
         pump(qapp, 50)
         button.update_button_text("Second")
         pump(qapp, 50)
-        assert button.text_label.text() == "Second", (
-            f"text was not updated: {button.text_label.text()!r}"
-        )
+        assert (
+            button.text_label.text() == "Second"
+        ), f"text was not updated: {button.text_label.text()!r}"
 
     def test_long_text_is_elided(self, qapp):
         """Overlong text is elided instead of overflowing."""
@@ -722,9 +742,9 @@ class TestToolbarMenuButton:
         pump(qapp, 50)
         button.update_button_text("A very long label that cannot possibly fit")
         pump(qapp, 50)
-        assert len(button.text_label.text()) < 60, (
-            f"text was not elided: {button.text_label.text()!r}"
-        )
+        assert (
+            len(button.text_label.text()) < 60
+        ), f"text was not elided: {button.text_label.text()!r}"
 
     def test_arrow_indicator_follows_the_menu_state(self, qapp):
         """The arrow flips while the menu is open."""
@@ -753,9 +773,9 @@ class TestToolbarMenuButton:
         pump(qapp, 50)
         button.menu.triggered.emit(action)
         pump(qapp, 50)
-        assert button.text_label.text() == "Chosen", (
-            f"label was not updated: {button.text_label.text()!r}"
-        )
+        assert (
+            button.text_label.text() == "Chosen"
+        ), f"label was not updated: {button.text_label.text()!r}"
 
 
 class TestTitleBarWidget:
@@ -792,9 +812,7 @@ class TestTitleBarWidget:
                     continue
                 if not action.receivers(action.triggered):
                     disconnected.append(f"{menu.title()}: '{action.text()}'")
-        assert not disconnected, (
-            f"title bar actions without a handler: {disconnected}"
-        )
+        assert not disconnected, f"title bar actions without a handler: {disconnected}"
 
     def test_title_bar_buttons_are_clickable(self, qapp, qa_window):
         """The title bar buttons react to clicks without raising."""
@@ -815,12 +833,12 @@ class TestDialogWidgets:
 
         dialog = ExitDialog()
         pump(qapp, 50)
-        assert dialog.yes_button.text() == "EXIT DREAMSTUDIO", (
-            f"unexpected exit button: {dialog.yes_button.text()!r}"
-        )
-        assert dialog.no_button.text() == "CANCEL", (
-            f"unexpected cancel button: {dialog.no_button.text()!r}"
-        )
+        assert (
+            dialog.yes_button.text() == "EXIT DREAMSTUDIO"
+        ), f"unexpected exit button: {dialog.yes_button.text()!r}"
+        assert (
+            dialog.no_button.text() == "CANCEL"
+        ), f"unexpected cancel button: {dialog.no_button.text()!r}"
         dialog.deleteLater()
         pump(qapp, 50)
 
@@ -851,7 +869,9 @@ class TestDialogWidgets:
         dialog._validate()
         pump(qapp, 100)
         assert dialog._error_active is True, "empty name was accepted"
-        assert dialog._error_label.isVisible() is False, "error label should stay hidden"
+        assert (
+            dialog._error_label.isVisible() is False
+        ), "error label should stay hidden"
         dialog.deleteLater()
         pump(qapp, 50)
 
@@ -881,9 +901,7 @@ class TestDialogWidgets:
         ]
         pump(qapp, 100)
         shown = [dialog for dialog in dialogs if dialog.isVisible()]
-        assert not shown, (
-            f"{len(shown)} dialog(s) opened unexpectedly: {shown}"
-        )
+        assert not shown, f"{len(shown)} dialog(s) opened unexpectedly: {shown}"
         for dialog in dialogs:
             dialog.deleteLater()
         pump(qapp, 100)
@@ -899,8 +917,16 @@ class TestLegacyTitleBar:
         parent = _TitleBarHost()
         bar = TitleBar(parent, "QA title")
         pump(qapp, 100)
-        assert bar.icon_btn.text() == "QA title", f"unexpected title: {bar.icon_btn.text()!r}"
-        for name in ("icon_btn", "btn_add", "btn_minimize", "btn_maximize", "btn_close"):
+        assert (
+            bar.icon_btn.text() == "QA title"
+        ), f"unexpected title: {bar.icon_btn.text()!r}"
+        for name in (
+            "icon_btn",
+            "btn_add",
+            "btn_minimize",
+            "btn_maximize",
+            "btn_close",
+        ):
             button = getattr(bar, name, None)
             assert button is not None, f"the title bar has no {name}"
             assert button.width() > 0 and button.height() > 0, f"{name} has no size"

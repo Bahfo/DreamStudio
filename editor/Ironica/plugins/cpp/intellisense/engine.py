@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Fresh libclang completion engine (no reuse of plugins/clang).
 """
 
@@ -382,9 +382,7 @@ class CppEngine:
         )
         return tuple(list(flags) + header_resolution.extra_flags_for(ctx.file_path))
 
-    def _store_tu(
-        self, key: str, tu, source: str, flags: tuple, opts: int
-    ) -> None:
+    def _store_tu(self, key: str, tu, source: str, flags: tuple, opts: int) -> None:
         """Insert *tu* into the bounded cache, evicting the oldest entry."""
         # NOTE: prune first — if _order ever drifts from _cache, evicting
         self._order = [k for k in self._order if k in self._cache and k != key]
@@ -422,9 +420,7 @@ class CppEngine:
                 return tu
             try:
                 tu.reparse(unsaved_files=[(clang_path, ctx.source_code)])
-                self._store_tu(
-                    key, tu, ctx.source_code, flags, _PARSE_OPTIONS
-                )
+                self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
                 return tu
             except Exception:
                 pass
@@ -433,8 +429,11 @@ class CppEngine:
             self._store_tu(key, tu, ctx.source_code, flags, _PARSE_OPTIONS)
         return tu
 
-    def _parse_with_fallback(self, clang_path: str, source: str, flags: tuple, ctx: CppContext):
+    def _parse_with_fallback(
+        self, clang_path: str, source: str, flags: tuple, ctx: CppContext
+    ):
         """Parse translation unit with fallback strategies on failure."""
+
         def _try_parse(opts, label, active_flags=None):
             parse_flags = list(flags if active_flags is None else active_flags)
             try:
@@ -447,16 +446,21 @@ class CppEngine:
                 if tu is not None:
                     diagnostics = getattr(tu, "diagnostics", [])
                     fatal_errors = [
-                        d for d in diagnostics
+                        d
+                        for d in diagnostics
                         if getattr(d, "severity", 0) >= 3
-                        and ("file not found" in str(d).lower()
-                             or "cannot open" in str(d).lower()
-                             or "no such file" in str(d).lower())
+                        and (
+                            "file not found" in str(d).lower()
+                            or "cannot open" in str(d).lower()
+                            or "no such file" in str(d).lower()
+                        )
                     ]
                     if fatal_errors:
                         logger.debug(
                             "Parse %s: TU created but has fatal diagnostics for %s: %s",
-                            label, clang_path, [str(d) for d in fatal_errors[:3]]
+                            label,
+                            clang_path,
+                            [str(d) for d in fatal_errors[:3]],
                         )
                     else:
                         logger.debug("Parse %s succeeded for %s", label, clang_path)
@@ -464,9 +468,7 @@ class CppEngine:
             except Exception as exc:
                 logger.debug("Parse %s failed for %s: %s", label, clang_path, exc)
                 if label == "primary" and _has_pch(parse_flags):
-                    return _try_parse(
-                        opts, "without-pch", _strip_pch(parse_flags)
-                    )
+                    return _try_parse(opts, "without-pch", _strip_pch(parse_flags))
                 return None
 
         tu = _try_parse(_PARSE_OPTIONS, "primary")
@@ -487,8 +489,7 @@ class CppEngine:
             return tu
 
         logger.warning(
-            "parse failed for %s with flags: %s",
-            clang_path, " ".join(flags)
+            "parse failed for %s with flags: %s", clang_path, " ".join(flags)
         )
         return None
 
@@ -496,8 +497,7 @@ class CppEngine:
 def _has_pch(flags: list) -> bool:
     """Return whether *flags* request a precompiled header."""
     return any(
-        flag == "-include-pch" or flag.startswith("-include-pch")
-        for flag in flags
+        flag == "-include-pch" or flag.startswith("-include-pch") for flag in flags
     )
 
 

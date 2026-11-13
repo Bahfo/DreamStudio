@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Bottom dock live tests: the UtilsContainer stack, the terminal panel, and the
 Problems panel of the real DreamStudio window.
@@ -41,12 +41,12 @@ class TestDockStack:
         """The dock stack index 0 is the terminal and 1 is Problems."""
         dock = _dock(qa_window)
         assert dock._stack.count() >= 2, "dock stack has fewer than two entries"
-        assert dock._stack.widget(0) is dock.terminal_window, (
-            "stack index 0 is not the terminal"
-        )
-        assert dock._stack.widget(1) is dock.problems_window, (
-            "stack index 1 is not the Problems panel"
-        )
+        assert (
+            dock._stack.widget(0) is dock.terminal_window
+        ), "stack index 0 is not the terminal"
+        assert (
+            dock._stack.widget(1) is dock.problems_window
+        ), "stack index 1 is not the Problems panel"
 
     def test_terminal_toggle_shows_terminal(self, qapp, qa_window):
         """Toggling the terminal shows the dock with the terminal selected."""
@@ -55,9 +55,9 @@ class TestDockStack:
         window._toggle_terminal()
         pump(qapp, 200)
         assert dock.isVisible(), "dock not visible after terminal toggle"
-        assert dock._stack.currentWidget() is dock.terminal_window, (
-            "terminal not the active stack entry"
-        )
+        assert (
+            dock._stack.currentWidget() is dock.terminal_window
+        ), "terminal not the active stack entry"
 
     def test_problems_toggle_shows_problems(self, qapp, qa_window):
         """Toggling Problems shows the dock with Problems selected."""
@@ -66,9 +66,9 @@ class TestDockStack:
         window._toggle_problems()
         pump(qapp, 200)
         assert dock.isVisible(), "dock not visible after problems toggle"
-        assert dock._stack.currentWidget() is dock.problems_window, (
-            "Problems not the active stack entry"
-        )
+        assert (
+            dock._stack.currentWidget() is dock.problems_window
+        ), "Problems not the active stack entry"
 
     def test_lower_splitter_matches_dock_visibility(self, qapp, qa_window):
         """The vertical splitter gives space to the dock only while shown."""
@@ -129,9 +129,9 @@ class TestProblemsPanel:
         window = qa_window
         counts = _dock(window).problems_window.problem_counts()
         assert len(counts) == 3, f"unexpected problem-count shape: {counts}"
-        assert all(isinstance(value, int) for value in counts), (
-            f"problem counts are not integers: {counts}"
-        )
+        assert all(
+            isinstance(value, int) for value in counts
+        ), f"problem counts are not integers: {counts}"
 
     def test_problems_panel_poke_is_clean(self, qapp, qa_window):
         """Poking Problems-panel buttons records no failure."""
@@ -149,14 +149,14 @@ class TestProblemsPanel:
         problems = _dock(window).problems_window
         problems.show_group("errors")
         pump(qapp, 100)
-        assert problems.filter_group() == "errors", (
-            f"filter group not applied: {problems.filter_group()}"
-        )
+        assert (
+            problems.filter_group() == "errors"
+        ), f"filter group not applied: {problems.filter_group()}"
         problems.show_all_groups()
         pump(qapp, 100)
-        assert problems.filter_group() not in ("errors",), (
-            f"show_all_groups did not clear the filter: {problems.filter_group()}"
-        )
+        assert problems.filter_group() not in (
+            "errors",
+        ), f"show_all_groups did not clear the filter: {problems.filter_group()}"
 
 
 class TestDockRaces:
@@ -173,9 +173,9 @@ class TestDockRaces:
         if visible:
             assert current is not None, "dock visible without a stack selection"
         else:
-            assert window.hero_window._main_vertical_splitter.sizes()[-1] == 0, (
-                "dock hidden but the splitter kept its space"
-            )
+            assert (
+                window.hero_window._main_vertical_splitter.sizes()[-1] == 0
+            ), "dock hidden but the splitter kept its space"
 
     def test_no_zero_size_widgets_after_storm(self, qapp, qa_window):
         """No visible widget collapses to zero size during a dock storm."""
@@ -194,9 +194,9 @@ class TestDockRaces:
         dock.terminal_window.close_requested.emit()
         pump(qapp, 200)
         assert not dock.isVisible(), "dock still visible after close request"
-        assert window.hero_window._main_vertical_splitter.sizes()[-1] == 0, (
-            "splitter kept space after the dock was closed"
-        )
+        assert (
+            window.hero_window._main_vertical_splitter.sizes()[-1] == 0
+        ), "splitter kept space after the dock was closed"
 
     def test_clicking_dock_area_is_safe(self, qapp, qa_window):
         """Clicking inside the dock never raises or hides the window."""

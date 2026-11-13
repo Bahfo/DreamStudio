@@ -98,7 +98,7 @@ def phase_application_startup(ctx: PhaseContext) -> None:
         app.setApplicationName("DreamStudio")
         app.setStyle("Fusion")
     app.setApplicationVersion("1.0.0")
-    app.setOrganizationName("EXcellent TechStacks")
+    app.setOrganizationName("Gizmo Microsystems")
     ctx.app = app
     logger.info("Phase 1 completed: QApplication ready")
 

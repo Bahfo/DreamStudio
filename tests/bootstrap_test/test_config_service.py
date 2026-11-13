@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for ConfigurationService loading and validation.
 """
@@ -102,7 +102,9 @@ class TestConfigurationService:
         config_dir = temp_config_dir / ".configs"
         config_dir.mkdir(exist_ok=True)
         config_file = config_dir / "config.json"
-        config_file.write_text(json.dumps({"version": 1, "editor": {"theme": "monokai"}}))
+        config_file.write_text(
+            json.dumps({"version": 1, "editor": {"theme": "monokai"}})
+        )
 
         service = ConfigurationService(base_dir=str(temp_config_dir))
         config = service.load()

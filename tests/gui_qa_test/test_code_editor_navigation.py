@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Code editor navigation live tests: go-to definition/declaration/
 implementation, find references, the navigation popup, brace highlighting,
@@ -142,7 +142,9 @@ class TestNavigationTargets:
     def test_malformed_targets_are_dropped(self, qapp, qa_window, sample_tree):
         """Malformed entries are dropped instead of raising."""
         editor = _open_editor(qapp, qa_window, sample_tree)
-        targets = editor.normalize_targets([None, (), (5, 6), {"line": 1}, ("/tmp/a.py", 1)])
+        targets = editor.normalize_targets(
+            [None, (), (5, 6), {"line": 1}, ("/tmp/a.py", 1)]
+        )
         assert targets == [("/tmp/a.py", 1, 0)], f"unexpected targets: {targets}"
 
     def test_duplicate_targets_are_removed(self, qapp, qa_window, sample_tree):
@@ -188,9 +190,9 @@ class TestNavigationActions:
         pump(qapp, 300)
         popup = getattr(editor, "_navigation_popup", None)
         assert popup is not None, "navigation popup was not created"
-        assert popup.model.rowCount() == 2, (
-            f"unexpected popup rows: {popup.model.rowCount()}"
-        )
+        assert (
+            popup.model.rowCount() == 2
+        ), f"unexpected popup rows: {popup.model.rowCount()}"
 
     def test_popup_is_reused(self, qapp, qa_window, sample_tree):
         """A second navigation reuses the same popup instance."""
@@ -208,7 +210,9 @@ class TestNavigationActions:
         first = getattr(editor, "_navigation_popup", None)
         editor.execute_goto_definition()
         pump(qapp, 200)
-        assert getattr(editor, "_navigation_popup", None) is first, "popup was recreated"
+        assert (
+            getattr(editor, "_navigation_popup", None) is first
+        ), "popup was recreated"
 
     def test_no_targets_shows_the_failure_path(self, qapp, qa_window, sample_tree):
         """No results take the failure path without raising."""
@@ -233,9 +237,9 @@ class TestNavigationActions:
         editor.setCursorPosition(1, 0)
         editor.execute_find_references()
         pump(qapp, 300)
-        assert any(req[0] == "reference" for req in provider.requests), (
-            f"provider was not asked for references: {provider.requests}"
-        )
+        assert any(
+            req[0] == "reference" for req in provider.requests
+        ), f"provider was not asked for references: {provider.requests}"
 
     def test_navigation_popup_keyboard_navigation(self, qapp, qa_window, sample_tree):
         """The popup responds to arrow keys and Enter without raising."""

@@ -4,7 +4,7 @@ from editor.utils.panel_shell import PanelShell
 from editor.widgets.QCustomLabels import AnimatedGradientLabel
 
 WARNING_TEXT = (
-    "Models are provided from external ports, EXcellent TechStacks "
+    "Models are provided from external ports, Gizmo Microsystems "
     "does not guarantee endpoint data gathering or its safety."
 )
 
@@ -43,7 +43,6 @@ class EtherPromptEdit(QPlainTextEdit):
         self.setFixedHeight(minimum_height)
         self.document().contentsChanged.connect(self._queue_height_update)
         self.textChanged.connect(self._queue_height_update)
-
 
     def sizeHint(self) -> QSize:
         return QSize(200, self._desired_height)
@@ -162,7 +161,6 @@ class EtherPromptEdit(QPlainTextEdit):
 
             widget = widget.parentWidget()
 
-
     def showEvent(self, event):
         super().showEvent(event)
         QTimer.singleShot(0, self._update_height)
@@ -228,7 +226,6 @@ class EtherComposer(QFrame):
         self._update_send_button()
         QTimer.singleShot(0, self._sync_height)
 
-
     def sizeHint(self) -> QSize:
         return QSize(400, self._calculate_height())
 
@@ -269,7 +266,6 @@ class EtherComposer(QFrame):
             parent.updateGeometry()
             parent = parent.parentWidget()
 
-
     def _handle_send(self) -> None:
         text = self.prompt.toPlainText().strip()
         if not text:
@@ -278,7 +274,6 @@ class EtherComposer(QFrame):
 
     def _update_send_button(self) -> None:
         self.send_button.setEnabled(bool(self.prompt.toPlainText().strip()))
-
 
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self.setStyleSheet(f"""
@@ -370,13 +365,11 @@ class MainScreen(QFrame):
         self._build_animations()
         self._apply_default_theme()
 
-
     def _build_ui(self) -> None:
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(18, 18, 18, 18)
 
         self._layout.setSpacing(0)
-
 
         self.welcome_message = AnimatedGradientLabel("Hi, DreamStudio Developer", self)
 
@@ -393,14 +386,11 @@ class MainScreen(QFrame):
         self.sub_text.setObjectName("EtherSubtitle")
         self._layout.addWidget(self.sub_text)
 
-
         self._layout.addStretch(1)
-
 
         self.composer = EtherComposer(self)
 
         self._layout.addWidget(self.composer, 0, Qt.AlignmentFlag.AlignBottom)
-
 
         self._layout.addSpacing(24)
 
@@ -420,9 +410,7 @@ class MainScreen(QFrame):
         self._layout.addSpacing(7)
         self._layout.addWidget(self.add_documentation_prompt)
 
-
         self._layout.addStretch(1)
-
 
         self.warnings_label = QLabel(WARNING_TEXT, self)
 
@@ -430,7 +418,6 @@ class MainScreen(QFrame):
         self.warnings_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.warnings_label.setWordWrap(True)
         self._layout.addWidget(self.warnings_label)
-
 
     def _connect_signals(self) -> None:
         self.composer.send_requested.connect(self._on_send)
@@ -455,7 +442,6 @@ class MainScreen(QFrame):
         prompt.moveCursor(QTextCursor.MoveOperation.End)
         prompt.setFocus()
         QTimer.singleShot(0, prompt._update_height)
-
 
     def _build_animations(self) -> None:
         self._subtitle_effect = QGraphicsOpacityEffect(self.sub_text)
@@ -499,7 +485,6 @@ class MainScreen(QFrame):
 
     def _animate_out(self) -> None:
         self.welcome_message.stop_animation()
-
 
     def _apply_default_theme(self) -> None:
         self.setStyleSheet("""
@@ -594,7 +579,6 @@ class MainScreen(QFrame):
             """)
 
         self.composer.set_theme(bg, fg, sel)
-
 
     def showEvent(self, event):
         super().showEvent(event)

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Solution Explorer live tests: the tree mirrors the workspace, file operations
 behave, and destructive actions stay behind their dialogs.
@@ -134,9 +134,9 @@ class TestExplorerTree:
         _activate(window)
         explorer = _explorer(window)
         paths = _model_paths(explorer)
-        assert str(Path(sample_tree) / "main.py") in paths, (
-            f"main.py missing from the explorer tree: {sorted(paths)}"
-        )
+        assert (
+            str(Path(sample_tree) / "main.py") in paths
+        ), f"main.py missing from the explorer tree: {sorted(paths)}"
 
     def test_new_file_on_disk_appears_after_refresh(self, qapp, qa_window, sample_tree):
         """A file created on disk shows up after a refresh."""
@@ -201,7 +201,9 @@ class TestExplorerActions:
         explorer._menu_copy_path()
         pump(qapp, 150)
         clipboard = QApplication.clipboard().text()
-        assert "main.py" in clipboard, f"clipboard did not receive the path: {clipboard!r}"
+        assert (
+            "main.py" in clipboard
+        ), f"clipboard did not receive the path: {clipboard!r}"
 
     def test_toggle_header_visibility_changes_columns(self, qapp, qa_window):
         """Toggling the header changes the visible column layout."""
@@ -211,9 +213,9 @@ class TestExplorerActions:
         before = explorer.tree_view.isHeaderHidden()
         explorer._menu_toggle_header_visibility()
         pump(qapp, 150)
-        assert explorer.tree_view.isHeaderHidden() != before, (
-            "header visibility did not change"
-        )
+        assert (
+            explorer.tree_view.isHeaderHidden() != before
+        ), "header visibility did not change"
 
     def test_collapse_and_expand_all_are_safe(self, qapp, qa_window):
         """Collapse-all and expand-all keep the tree usable."""

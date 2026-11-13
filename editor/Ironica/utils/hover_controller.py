@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 HoverController:
 """
 
@@ -404,7 +404,6 @@ class HoverController(QObject):
                 self._target_col,
             )
 
-
         if not result and not (diag_text and diag_text.strip()):
             # Only show a fallback for genuine identifiers; suppress the
             # flyout for comments, strings, numbers, operators, etc.
@@ -426,7 +425,7 @@ class HoverController(QObject):
                     line_text = lines[self._target_line]
                     if self._target_col < len(line_text):
                         # Count quotes before the target column
-                        prefix = line_text[:self._target_col + 1]
+                        prefix = line_text[: self._target_col + 1]
                         # Simple heuristic: if odd number of double or single quotes before col
                         if prefix.count('"') % 2 == 1 or prefix.count("'") % 2 == 1:
                             self.cancel_pending_hover()

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for ShellEmulator lifecycle.
 """
@@ -12,7 +12,6 @@ import pytest
 from PyQt6.QtCore import Qt
 
 from editor.terminal.Emulator.emulator import ShellEmulator
-
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Unix PTY tests")
 
@@ -93,6 +92,7 @@ class TestShellEmulatorLifecycle:
 
     def test_env_not_polluted_parent(self, qapp, temp_cwd):
         import os as _os
+
         before = _os.environ.get("TERM")
         emu = ShellEmulator()
         emu.start(cwd=temp_cwd)

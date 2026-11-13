@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Pure translation helpers converting VCS status snapshots into absolute path
 color indices and theme-aware brushes for the Solution Explorer.
 """
@@ -34,7 +34,9 @@ def build_status_index(repo_root: str, snapshot: Dict[str, str]) -> Dict[str, st
         current = os.path.normpath(os.path.join(repo_root, relative))
         root_norm_case = os.path.normcase(root_norm)
         cur_case = os.path.normcase(current)
-        if not (cur_case == root_norm_case or cur_case.startswith(root_norm_case + os.sep)):
+        if not (
+            cur_case == root_norm_case or cur_case.startswith(root_norm_case + os.sep)
+        ):
             continue
         while True:
             if index.get(current) != MODIFIED_KIND:
@@ -43,7 +45,10 @@ def build_status_index(repo_root: str, snapshot: Dict[str, str]) -> Dict[str, st
             if parent == current:
                 break
             parent_case = os.path.normcase(parent)
-            if not (parent_case == root_norm_case or parent_case.startswith(root_norm_case + os.sep)):
+            if not (
+                parent_case == root_norm_case
+                or parent_case.startswith(root_norm_case + os.sep)
+            ):
                 break
             current = parent
 

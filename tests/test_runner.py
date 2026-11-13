@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ruff: noqa: BLE001, S110
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Main test runner with TUI progress display and structured reporting.
 
@@ -155,7 +155,8 @@ class ProgressDisplay:
     def set_suite_counts(self, suite: str, counts: dict):
         with self.lock:
             self.suite_counts[suite] = {
-                key: int(counts.get(key, 0)) for key in ("passed", "failed", "skipped", "blocked", "error")
+                key: int(counts.get(key, 0))
+                for key in ("passed", "failed", "skipped", "blocked", "error")
             }
 
     def totals(self) -> dict:
@@ -282,7 +283,9 @@ def _extract_line(text: str) -> int:
     return 0
 
 
-def parse_junit(junit_path: Path, suite_name: str, project_root: Path) -> list[TestResult]:
+def parse_junit(
+    junit_path: Path, suite_name: str, project_root: Path
+) -> list[TestResult]:
     """Parse a pytest JUnit XML file into ``TestResult`` objects."""
     if not junit_path.is_file():
         return []
@@ -615,7 +618,9 @@ def generate_report(run_dir: Path, summary: RunSummary) -> str:
         lines.append(f"- **pytest Exit Code**: {suite.exit_code}")
         lines.append("")
 
-        failures = [t for t in suite.tests if t.status in ("failed", "error", "blocked")]
+        failures = [
+            t for t in suite.tests if t.status in ("failed", "error", "blocked")
+        ]
         if failures:
             lines.append("#### Failures & Blockers")
             lines.append("")
@@ -648,7 +653,9 @@ def generate_report(run_dir: Path, summary: RunSummary) -> str:
     lines.append("- **Summary JSON**: `summary.json`")
     lines.append("- **Environment**: `environment.txt`")
     for suite in summary.suites:
-        lines.append(f"- **JUnit XML ({suite.name})**: " f"`{suite.name}/junit_{suite.name}.xml`")
+        lines.append(
+            f"- **JUnit XML ({suite.name})**: " f"`{suite.name}/junit_{suite.name}.xml`"
+        )
         lines.append(f"- **pytest Log ({suite.name})**: `{suite.name}/pytest.log`")
 
     report = "\n".join(lines) + "\n"
@@ -793,15 +800,21 @@ def main() -> int:
     total_tests = sum(len(s.tests) for s in all_suite_results)
     passed = sum(1 for s in all_suite_results for t in s.tests if t.status == "passed")
     failed = sum(1 for s in all_suite_results for t in s.tests if t.status == "failed")
-    skipped = sum(1 for s in all_suite_results for t in s.tests if t.status == "skipped")
-    blocked = sum(1 for s in all_suite_results for t in s.tests if t.status == "blocked")
+    skipped = sum(
+        1 for s in all_suite_results for t in s.tests if t.status == "skipped"
+    )
+    blocked = sum(
+        1 for s in all_suite_results for t in s.tests if t.status == "blocked"
+    )
     errors = sum(1 for s in all_suite_results for t in s.tests if t.status == "error")
 
     overall_exit_code = _overall_exit_code(all_suite_results, _INTERRUPTED)
 
     summary = RunSummary(
         run_id=run_id,
-        timestamp=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        timestamp=datetime.now(timezone.utc)
+        .isoformat(timespec="seconds")
+        .replace("+00:00", "Z"),
         suites=all_suite_results,
         total_tests=total_tests,
         passed=passed,
@@ -820,7 +833,9 @@ def main() -> int:
     progress.clear_screen()
     print(progress.render())
     print()
-    print(f"Run complete. Verdict: {summary.verdict} " f"(exit code {overall_exit_code})")
+    print(
+        f"Run complete. Verdict: {summary.verdict} " f"(exit code {overall_exit_code})"
+    )
     print(f"Report: {run_dir}/report.md")
     print(f"Summary: {run_dir}/summary.json")
 

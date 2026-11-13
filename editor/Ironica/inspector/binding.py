@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Python ctypes wrapper around the native ELF inspector shared library.
 """
 
@@ -199,7 +199,6 @@ class Inspector:
         lib.inspector_free.argtypes = [ctypes.c_void_p]
         lib.inspector_free.restype = None
 
-
     @staticmethod
     def _decode(c_bytes: Optional[bytes]) -> str:
         if c_bytes is None:
@@ -231,7 +230,6 @@ class Inspector:
 
     def elf_section_flags_name(self, flags: int) -> str:
         return self._decode(self._lib.elf_section_flags_name(flags))
-
 
     def open(self, path: str) -> ctypes.c_void_p:
         """Open binary file, returning opaque handle or None on failure."""

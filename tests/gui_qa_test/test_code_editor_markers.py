@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Code editor marker live tests: breakpoints, execution highlights, debug stack
 frames, colour swatches, and occurrence highlighting.
@@ -50,23 +50,29 @@ class TestBreakpoints:
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText("a = 1\nb = 2\nc = 3\n")
         pump(qapp, 150)
-        editor._on_margin_clicked(editor.MARGIN_BREAKPOINT, 1, QT.Qt.KeyboardModifier.NoModifier)
-        pump(qapp, 150)
-        assert 2 in editor.get_breakpoint_lines(), (
-            f"breakpoint not recorded: {editor.get_breakpoint_lines()}"
+        editor._on_margin_clicked(
+            editor.MARGIN_BREAKPOINT, 1, QT.Qt.KeyboardModifier.NoModifier
         )
+        pump(qapp, 150)
+        assert (
+            2 in editor.get_breakpoint_lines()
+        ), f"breakpoint not recorded: {editor.get_breakpoint_lines()}"
 
     def test_second_click_removes_breakpoint(self, qapp, qa_window, sample_tree):
         """Clicking the margin again removes the breakpoint."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText("a = 1\nb = 2\n")
         pump(qapp, 150)
-        editor._on_margin_clicked(editor.MARGIN_BREAKPOINT, 0, QT.Qt.KeyboardModifier.NoModifier)
-        editor._on_margin_clicked(editor.MARGIN_BREAKPOINT, 0, QT.Qt.KeyboardModifier.NoModifier)
-        pump(qapp, 150)
-        assert 1 not in editor.get_breakpoint_lines(), (
-            f"breakpoint not removed: {editor.get_breakpoint_lines()}"
+        editor._on_margin_clicked(
+            editor.MARGIN_BREAKPOINT, 0, QT.Qt.KeyboardModifier.NoModifier
         )
+        editor._on_margin_clicked(
+            editor.MARGIN_BREAKPOINT, 0, QT.Qt.KeyboardModifier.NoModifier
+        )
+        pump(qapp, 150)
+        assert (
+            1 not in editor.get_breakpoint_lines()
+        ), f"breakpoint not removed: {editor.get_breakpoint_lines()}"
 
     def test_multiple_breakpoints_are_tracked(self, qapp, qa_window, sample_tree):
         """Several margin clicks record several breakpoints."""
@@ -78,11 +84,15 @@ class TestBreakpoints:
                 editor.MARGIN_BREAKPOINT, line, QT.Qt.KeyboardModifier.NoModifier
             )
         pump(qapp, 150)
-        assert editor.get_breakpoint_lines() == {1, 3, 4}, (
-            f"unexpected breakpoint set: {editor.get_breakpoint_lines()}"
-        )
+        assert editor.get_breakpoint_lines() == {
+            1,
+            3,
+            4,
+        }, f"unexpected breakpoint set: {editor.get_breakpoint_lines()}"
 
-    def test_margin_click_on_other_margin_is_ignored(self, qapp, qa_window, sample_tree):
+    def test_margin_click_on_other_margin_is_ignored(
+        self, qapp, qa_window, sample_tree
+    ):
         """Clicking an unrelated margin does not create a breakpoint."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText("a = 1\n")
@@ -91,7 +101,9 @@ class TestBreakpoints:
             editor.MARGIN_BREAKPOINT + 5, 0, QT.Qt.KeyboardModifier.NoModifier
         )
         pump(qapp, 150)
-        assert not editor.get_breakpoint_lines(), "unrelated margin created a breakpoint"
+        assert (
+            not editor.get_breakpoint_lines()
+        ), "unrelated margin created a breakpoint"
 
     def test_breakpoint_storm_is_stable(self, qapp, qa_window, sample_tree):
         """Rapid margin clicks keep the breakpoint set consistent."""
@@ -183,9 +195,9 @@ class TestColorSwatches:
         pump(qapp, 150)
         editor.update_line_color_indicator(0)
         pump(qapp, 150)
-        assert editor._get_color_by_line(0) is not None, (
-            "colour string not recognised on the line"
-        )
+        assert (
+            editor._get_color_by_line(0) is not None
+        ), "colour string not recognised on the line"
 
     def test_rgb_and_rgba_colors_are_recognised(self, qapp, qa_window, sample_tree):
         """RGB and RGBA colour strings are recognised."""
@@ -206,9 +218,9 @@ class TestColorSwatches:
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText('named = "steelblue"\n')
         pump(qapp, 150)
-        assert editor._get_color_by_line(0) is None, (
-            "a named CSS colour was parsed as a colour literal"
-        )
+        assert (
+            editor._get_color_by_line(0) is None
+        ), "a named CSS colour was parsed as a colour literal"
 
     def test_plain_text_has_no_colour(self, qapp, qa_window, sample_tree):
         """A line without a colour string reports no colour."""
@@ -217,7 +229,9 @@ class TestColorSwatches:
         pump(qapp, 150)
         assert editor._get_color_by_line(0) is None, "plain text treated as a colour"
 
-    def test_color_margin_click_applies_the_new_color(self, qapp, qa_window, sample_tree):
+    def test_color_margin_click_applies_the_new_color(
+        self, qapp, qa_window, sample_tree
+    ):
         """Clicking the colour margin rewrites the colour string."""
         import harness
 
@@ -229,9 +243,9 @@ class TestColorSwatches:
                 editor.COLOR_MARGIN, 0, QT.Qt.KeyboardModifier.NoModifier
             )
             pump(qapp, 300)
-        assert "#0055ff" in editor.text(), (
-            f"colour string not rewritten: {editor.text()!r}"
-        )
+        assert (
+            "#0055ff" in editor.text()
+        ), f"colour string not rewritten: {editor.text()!r}"
 
     def test_format_color_string_keeps_the_format(self, qapp, qa_window, sample_tree):
         """A new colour is formatted like the old one."""
@@ -251,7 +265,9 @@ class TestColorSwatches:
         pump(qapp, 150)
         sweep.finish()
 
-    def test_rapid_color_edits_keep_markers_consistent(self, qapp, qa_window, sample_tree):
+    def test_rapid_color_edits_keep_markers_consistent(
+        self, qapp, qa_window, sample_tree
+    ):
         """A burst of colour edits leaves a consistent marker state."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText('color = "#aabbcc"\n')
@@ -273,7 +289,9 @@ class TestColorSwatches:
 class TestOccurrenceHighlight:
     """Occurrence highlighting follows the selection."""
 
-    def test_selecting_a_word_highlights_occurrences(self, qapp, qa_window, sample_tree):
+    def test_selecting_a_word_highlights_occurrences(
+        self, qapp, qa_window, sample_tree
+    ):
         """Selecting a word computes occurrence highlight ranges."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setText("value = value + value\n")
@@ -294,9 +312,9 @@ class TestOccurrenceHighlight:
         pump(qapp, 200)
         editor._update_occurrence_highlight()
         pump(qapp, 100)
-        assert not getattr(editor, "_occurrence_ranges", []), (
-            "single-character selection produced occurrence ranges"
-        )
+        assert not getattr(
+            editor, "_occurrence_ranges", []
+        ), "single-character selection produced occurrence ranges"
 
     def test_clearing_removes_the_ranges(self, qapp, qa_window, sample_tree):
         """Clearing the highlight empties the range list."""
@@ -308,9 +326,9 @@ class TestOccurrenceHighlight:
         editor._update_occurrence_highlight()
         pump(qapp, 100)
         editor._clear_occurrence_highlight()
-        assert not getattr(editor, "_occurrence_ranges", []), (
-            "occurrence ranges survived the clear"
-        )
+        assert not getattr(
+            editor, "_occurrence_ranges", []
+        ), "occurrence ranges survived the clear"
 
     def test_rapid_typing_does_not_raise(self, qapp, qa_window, sample_tree):
         """Typing while occurrence highlighting is active stays stable."""

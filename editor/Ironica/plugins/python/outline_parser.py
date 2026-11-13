@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Python outline parser for the Python language plugin.
 """
 
@@ -39,7 +39,12 @@ def parse_python_outline(source_code: str) -> OutlineResult:
             end_col_offset = node.end_col_offset
         except AttributeError:
             return None
-        if lineno is None or end_lineno is None or col_offset is None or end_col_offset is None:
+        if (
+            lineno is None
+            or end_lineno is None
+            or col_offset is None
+            or end_col_offset is None
+        ):
             return None
         if not 1 <= lineno <= end_lineno < len(line_starts) + 1:
             return None
@@ -208,7 +213,11 @@ def parse_python_outline(source_code: str) -> OutlineResult:
         if isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name):
-                    kind = SymbolKind.CONSTANT if target.id.isupper() else SymbolKind.VARIABLE
+                    kind = (
+                        SymbolKind.CONSTANT
+                        if target.id.isupper()
+                        else SymbolKind.VARIABLE
+                    )
                     nodes.append(
                         OutlineNode(
                             name=target.id,
@@ -219,7 +228,9 @@ def parse_python_outline(source_code: str) -> OutlineResult:
                         )
                     )
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            kind = SymbolKind.CONSTANT if node.target.id.isupper() else SymbolKind.VARIABLE
+            kind = (
+                SymbolKind.CONSTANT if node.target.id.isupper() else SymbolKind.VARIABLE
+            )
             ann = ""
             if node.annotation:
                 ann = _source_segment(node.annotation) or ""

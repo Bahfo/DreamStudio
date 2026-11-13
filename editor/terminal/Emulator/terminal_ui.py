@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks
+(C) COPYRIGHT 2026 Gizmo Microsystems
 Terminal Emulator Logic for DreamStudio.
 """
 
@@ -49,7 +49,6 @@ class TerminalEdit(QPlainTextEdit):
 
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         pass
-
 
     def insertFromMimeData(self, source):
         """Intercept paste operations (Ctrl+V, Shift+Insert, etc.) to prevent
@@ -109,7 +108,6 @@ class TerminalEdit(QPlainTextEdit):
                 cursor.setPosition(self._tw._input_pos)
                 self.setTextCursor(cursor)
             cursor.insertText(text)
-
 
     def keyPressEvent(self, event):
         tw = self._tw
@@ -417,7 +415,6 @@ class TerminalPanel(QWidget):
 
     def set_theme(self, bg: str, fg: str, sel: str) -> None:
         self.system_shell_tab.set_theme(bg, fg, sel)
-
 
     def cleanup(self) -> None:
         """Aggressively terminate every terminal session managed by this panel."""

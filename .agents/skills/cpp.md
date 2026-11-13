@@ -72,7 +72,7 @@ lib = ctypes.CDLL(resource_path("native/build/lib/libinspector.so"))
 Follows a **snake_case, Allman-brace, kernel-style** convention:
 
 ```c
-// (C) COPYRIGHT 2026 Excellent TechStacks - All Rights Reserved.
+// (C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 // <Module> Source Code for DreamStudio ELF Inspection.
 // Code is licensed under the GPLv3 License.
 

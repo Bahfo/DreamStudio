@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Update a suite README with the latest run while preserving authored content.
 
@@ -154,9 +154,15 @@ def _append_history_row(text, row, run_id):
             "|--------|-----------|---------|--------|--------|--------|---------|---------|--------|",
             row,
         ]
-        return "\n".join(lines[:insertion] + table_lines + lines[insertion:]).rstrip() + "\n"
+        return (
+            "\n".join(lines[:insertion] + table_lines + lines[insertion:]).rstrip()
+            + "\n"
+        )
 
-    return "\n".join(lines[: separator + 1] + [row] + lines[separator + 1 :]).rstrip() + "\n"
+    return (
+        "\n".join(lines[: separator + 1] + [row] + lines[separator + 1 :]).rstrip()
+        + "\n"
+    )
 
 
 def update_readme(

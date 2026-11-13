@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 - EXcellent TechStacks, All Rights Reserved.
+(C) COPYRIGHT 2026 - Gizmo Microsystems, All Rights Reserved.
 Python Debugger Module:
 """
 
@@ -101,10 +101,8 @@ class DebugSession(QObject):
         self._process = None
         self._is_running = False
 
-
     def is_running(self):
         return self._is_running
-
 
     def start(self):
         """Start the debug session:"""
@@ -157,7 +155,6 @@ class DebugSession(QObject):
         self.stop()
         self.start()
 
-
     def on_debugger_paused(self, line, frame_info=""):
         """Handle the debugger pausing at a given line."""
         if self.target_editor is None:
@@ -174,7 +171,6 @@ class DebugSession(QObject):
             return
 
         self.session_paused.emit(line, info)
-
 
     def continue_execution(self):
         """Jump to the next breakpoint (same as step_over)."""
@@ -209,7 +205,6 @@ class DebugSession(QObject):
     def step_out(self):
         """Step out of current function – for now treated as step_over."""
         self.step_over()
-
 
     def _cleanup_ui(self):
         """Reset all debug-related UI elements to their idle state."""

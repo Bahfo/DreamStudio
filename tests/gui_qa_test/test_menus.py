@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Menu live tests: every action declared in menus.json must resolve to a real
 callable on the window, safe edit actions must run against an open file, and
@@ -110,9 +110,10 @@ class TestMenuActionContract:
                 continue
             if not hasattr(window, action):
                 missing.append(f"{menu_name}: '{action}' missing on window")
-        assert not missing, (
-            f"{len(missing)} menu action(s) have no implementation:\n  "
-            + "\n  ".join(missing)
+        assert (
+            not missing
+        ), f"{len(missing)} menu action(s) have no implementation:\n  " + "\n  ".join(
+            missing
         )
 
     def test_menu_qactions_are_connected(self, qapp, qa_window):
@@ -127,9 +128,10 @@ class TestMenuActionContract:
                     continue
                 if not action.receivers(action.triggered):
                     unconnected.append(f"{menu.title()}: '{action.text()}'")
-        assert not unconnected, (
-            f"{len(unconnected)} menu action(s) are disconnected:\n  "
-            + "\n  ".join(unconnected)
+        assert (
+            not unconnected
+        ), f"{len(unconnected)} menu action(s) are disconnected:\n  " + "\n  ".join(
+            unconnected
         )
 
     def test_quit_actions_exist_but_are_not_invoked(self, qapp, qa_window):

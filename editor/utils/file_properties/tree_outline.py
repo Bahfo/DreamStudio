@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 File Outline panel for DreamStudio.
 """
 
@@ -76,7 +76,6 @@ class TreeOutline(PanelShell):
 
         self._current_result: Optional[OutlineResult] = None
 
-
     def update_outline(self, result: Optional[OutlineResult]) -> None:
         """Populate the tree from an ``OutlineResult``."""
         self._current_result = result
@@ -109,7 +108,6 @@ class TreeOutline(PanelShell):
         """Clear the outline tree."""
         self._current_result = None
         self.outline_tree.clear()
-
 
     def _add_node(self, parent_item: QTreeWidgetItem, node: OutlineNode) -> None:
         """Recursively add an ``OutlineNode`` to the tree."""
@@ -146,5 +144,3 @@ class TreeOutline(PanelShell):
 
         for i in range(self.outline_tree.topLevelItemCount()):
             _filter(self.outline_tree.topLevelItem(i))
-
-

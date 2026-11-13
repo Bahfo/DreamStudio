@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Service live tests: the registry, configuration, workspace, VCS, gitignore,
 and diagnostic services are driven through their public APIs.

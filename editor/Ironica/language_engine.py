@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 Gizmo Microsystems Cooperation - All Rights Reserved
 Language support infrastructure for DreamStudio.
 """
 
@@ -190,9 +190,7 @@ class BaseLanguageProvider(ABC):
         """Return list of `(file_path, line, col, display_name)` for implementations."""
         return []
 
-    def get_references(
-        self, text: str, line: int, col: int
-    ) -> Optional[list]:
+    def get_references(self, text: str, line: int, col: int) -> Optional[list]:
         """Return list of `(file_path, line, col, display_name)` for references."""
         return []
 
@@ -209,7 +207,6 @@ class BaseLanguageProvider(ABC):
         """Return colour ranges for semantic tokens, or `None`."""
         return None
 
-
     def has_folding(self) -> bool:
         """Return ``True`` if this provider supplies code fold regions."""
         return False
@@ -225,7 +222,6 @@ class BaseLanguageProvider(ABC):
     def create_diagnostic_manager(self, editor, file_path, parent):
         """Create and return a diagnostic manager for *editor*."""
         return None
-
 
     def has_outline(self) -> bool:
         """Return ``True`` if this provider supplies file outline data."""
@@ -248,7 +244,6 @@ class LanguageRegistry:
     _extension_map: Dict[str, str] = {}
     _filename_map: Dict[str, str] = {}
     _snippet_paths: Dict[str, str] = {}
-
 
     @classmethod
     def _store_language(
@@ -363,7 +358,6 @@ class LanguageRegistry:
         logger.info("Unregistered language: %s", lang_name)
         return True
 
-
     @classmethod
     def get_language_by_extension(cls, ext: str) -> Optional[str]:
         """Resolve a file extension to its language identifier."""
@@ -449,7 +443,6 @@ class LanguageRegistry:
         """Return a copy of the exact-filename → language mapping."""
         return dict(cls._filename_map)
 
-
     @classmethod
     def reset(cls) -> None:
         """Clear all registrations."""
@@ -458,7 +451,6 @@ class LanguageRegistry:
         cls._extension_map.clear()
         cls._filename_map.clear()
         cls._snippet_paths.clear()
-
 
     @classmethod
     def _load_json(cls, json_path: str) -> Optional[dict]:

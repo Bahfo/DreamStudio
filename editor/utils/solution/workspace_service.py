@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Central workspace/solution service that tracks the active project path and
 re-points every path-dependent subsystem of the IDE when it changes.
 """
@@ -39,7 +39,6 @@ class WorkspaceService(QObject):
         self.current_solution: dict = {}
         self._generation = 0
 
-
     def attach_window(self, window) -> None:
         """Bind the main IDE window that the hub re-points on every switch."""
         self._window = window
@@ -62,7 +61,6 @@ class WorkspaceService(QObject):
         if self.current_path:
             return os.path.basename(self.current_path) or self.current_path
         return "DreamStudio"
-
 
     def open_workspace(self, path: str) -> None:
         """Record *path* as active and run the full re-point hub."""
@@ -120,7 +118,6 @@ class WorkspaceService(QObject):
 
         self._defer_problems_analysis(window, path)
         logger.info("Workspace re-pointed to: %s", path)
-
 
     def _reload_solution_marker(self) -> None:
         """Reload the active solution metadata from its marker file."""

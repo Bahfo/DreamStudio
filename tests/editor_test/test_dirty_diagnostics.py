@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for the dirty flag driving the diagnostic store merge policy.
 """
@@ -39,7 +39,9 @@ class TestDirtyDrivesDiagnostics:
             [("test.py", [self._problem("Ruff error", "RUF001", line=2)])],
             "disk_external:ruff",
         )
-        store.set_live_results("test.py", 1, [self._problem("Live error", "L101", line=3)])
+        store.set_live_results(
+            "test.py", 1, [self._problem("Live error", "L101", line=3)]
+        )
 
         store.mark_dirty("test.py")
         problems = store.problems_for("test.py")
@@ -59,7 +61,9 @@ class TestDirtyDrivesDiagnostics:
             [("test.py", [self._problem("Ruff error", "RUF001", line=2)])],
             "disk_external:ruff",
         )
-        store.set_live_results("test.py", 1, [self._problem("Live error", "L101", line=3)])
+        store.set_live_results(
+            "test.py", 1, [self._problem("Live error", "L101", line=3)]
+        )
 
         problems = store.problems_for("test.py")
 
@@ -77,7 +81,9 @@ class TestDirtyDrivesDiagnostics:
         store.set_live_results("test.py", revision_two, [self._problem("New", "L102")])
 
         # A delayed result from the older buffer revision must be ignored.
-        store.set_live_results("test.py", revision_one, [self._problem("Stale", "L100")])
+        store.set_live_results(
+            "test.py", revision_one, [self._problem("Stale", "L100")]
+        )
 
         problems = store.problems_for("test.py")
 

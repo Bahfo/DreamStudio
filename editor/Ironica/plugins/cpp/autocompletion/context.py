@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Completion context classifier for C++ plugin.
 """
 
@@ -9,15 +9,9 @@ import re
 from typing import List, Tuple
 
 _INCLUDE = re.compile(r"#\s*include\s*[<\"]([^>\"<>]*)$")
-_GUARD = re.compile(
-    r"#\s*(ifdef|ifndef|elifdef|elifndef|undef)\s+([A-Za-z_]\w*)?$"
-)
-_MACRO_DEFINE = re.compile(
-    r"^\s*#\s*define\s+(?P<name>[A-Za-z_]\w*)(?P<rest>.*)$"
-)
-_MACRO_PARAMS = re.compile(
-    r"^\s*#\s*define\s+[A-Za-z_]\w*\s*\((?P<params>[^)]*)\)?"
-)
+_GUARD = re.compile(r"#\s*(ifdef|ifndef|elifdef|elifndef|undef)\s+([A-Za-z_]\w*)?$")
+_MACRO_DEFINE = re.compile(r"^\s*#\s*define\s+(?P<name>[A-Za-z_]\w*)(?P<rest>.*)$")
+_MACRO_PARAMS = re.compile(r"^\s*#\s*define\s+[A-Za-z_]\w*\s*\((?P<params>[^)]*)\)?")
 _DIRECTIVE = re.compile(r"#\s*([A-Za-z_]\w*)?$")
 _TEMPLATE_PREFIX = re.compile(r"<\s*([A-Za-z_]\w*)?$")
 _CONSTRUCTION = re.compile(r"\bnew\s+[A-Za-z_]\w*$")
@@ -43,10 +37,7 @@ def line_comment_at(line_text: str) -> int:
                 quote = ""
         elif char in ("'", '"'):
             quote = char
-        elif (
-            char == "/"
-            and line_text[index + 1:index + 2] == "/"
-        ):
+        elif char == "/" and line_text[index + 1 : index + 2] == "/":
             return index
         index += 1
     return -1

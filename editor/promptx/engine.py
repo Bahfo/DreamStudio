@@ -1,6 +1,6 @@
 HELP = r"""
 DREAMSTUDIO IDE — PROMPT-X INTERACTIVE SHELL
-(c) EXcellent TechStacks
+(c) Gizmo Microsystems
 
 • Display help documentation:              help
 • Exit terminal environment:               quit

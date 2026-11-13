@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Integration tests for terminal subsystem.
 """
@@ -12,7 +12,6 @@ import pytest
 
 from editor.terminal.Emulator.terminal_display import TerminalDisplay
 from editor.terminal.Emulator.emulator import ShellEmulator
-
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Unix PTY tests")
 

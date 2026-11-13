@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for TerminalWorkspace.
 """
@@ -11,7 +11,6 @@ import time
 import pytest
 
 from editor.terminal.Emulator.terminal_workspace import TerminalWorkspace
-
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Unix PTY tests")
 

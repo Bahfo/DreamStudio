@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Shared theming and screen-centering helpers for the solution-management
 widgets (start window, create dialog, scaffold dialog, confirm boxes).
 """

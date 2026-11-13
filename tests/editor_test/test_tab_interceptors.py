@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for close interceptors.
 """
@@ -32,7 +32,9 @@ class TestTabCloseInterceptors:
         tabs.close_editor(0)
         assert tabs.count() == 0
 
-    def test_interceptor_exception_does_not_block_close(self, qapp, tab_editor_parent, temp_workspace):
+    def test_interceptor_exception_does_not_block_close(
+        self, qapp, tab_editor_parent, temp_workspace
+    ):
         """An interceptor that raises is ignored (documented behaviour)."""
         from editor.Ironica.tab_editor import DreamTabbedEditor
 

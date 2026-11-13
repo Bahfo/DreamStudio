@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for editor navigation: the per-tab facade delegation.
 """
@@ -63,7 +63,9 @@ class TestEditorAPINavigationDelegation:
 
         api = EditorAPI(QsciScintilla())
 
-        assert hasattr(api, method_name), f"EditorAPI.{method_name} is documented but not implemented"
+        assert hasattr(
+            api, method_name
+        ), f"EditorAPI.{method_name} is documented but not implemented"
 
 
 if __name__ == "__main__":

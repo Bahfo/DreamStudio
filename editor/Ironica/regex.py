@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Ironica Lexer — combined keyword + bracket pair colorization + number/operator lexer for DreamStudio.
 """
 
@@ -122,7 +122,6 @@ class IronicaLexer(QsciLexerCustom):
         self._string_style: int = 0
         self._comment_style: int = 0
         self._setup_from_config()
-
 
     def _setup_from_config(self) -> None:
         """Read colours from *config* and register all styles."""
@@ -255,7 +254,6 @@ class IronicaLexer(QsciLexerCustom):
             return "Comment"
         return ""
 
-
     def _bracket_style(self, char: str, depth: int) -> int:
         cycle = (depth - 1) % 3
         if char in "()":
@@ -265,7 +263,6 @@ class IronicaLexer(QsciLexerCustom):
         if char in "{}":
             return self._brace_offset + cycle
         return 0
-
 
     @staticmethod
     def _is_escaped(data: bytes, pos: int) -> bool:
@@ -356,9 +353,7 @@ class IronicaLexer(QsciLexerCustom):
             return latest[0], latest[1], latest[2]
         return 0, [], _ST_DEFAULT
 
-    def _commit_state(
-        self, offset: int, depth_stack: List[str], state: int
-    ) -> None:
+    def _commit_state(self, offset: int, depth_stack: List[str], state: int) -> None:
         self._bracket_cache = [offset, depth_stack, state]
         wave = self._state_checkpoints
         if wave and wave[-1][0] == offset:
@@ -367,7 +362,6 @@ class IronicaLexer(QsciLexerCustom):
         wave.append([offset, list(depth_stack), state])
         if len(wave) > self._CHECKPOINT_LIMIT:
             del wave[::2]
-
 
     def styleText(self, start: int, end: int) -> None:
         editor = self.editor()

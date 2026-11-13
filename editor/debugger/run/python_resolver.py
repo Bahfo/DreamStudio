@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Resolve the Python interpreter belonging to the active workspace (cwd) instead
 of the IDE's own interpreter, with a global-Python fallback.
 """

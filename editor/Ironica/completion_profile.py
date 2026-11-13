@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Completion pipeline timing marks for latency diagnosis.
 """
 
@@ -42,8 +42,7 @@ def report(owner: object) -> Optional[str]:
     if len(store) < 2:
         return None
     base = store[0][1]
-    parts = [f"{stage}=+{(stamp - base) / 1e6:.1f}ms"
-             for stage, stamp in store]
+    parts = [f"{stage}=+{(stamp - base) / 1e6:.1f}ms" for stage, stamp in store]
     parts.extend(_notes.get(id(owner), []))
     return " ".join(parts)
 

@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Abstract interface for the Python language support system.
 """
 
@@ -12,6 +12,7 @@ from .domain_models import (
     HoverDetails,
     PythonContext,
 )
+
 
 class IJediAdapter(ABC):
     """An abstract class bridge isolation interface."""

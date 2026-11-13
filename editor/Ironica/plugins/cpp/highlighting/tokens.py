@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 libclang semantic overlay for C++ buffers.
 """
 
@@ -94,9 +94,24 @@ _REFERENCE_KINDS = frozenset(
 
 _CALL_KEYWORDS = frozenset(
     {
-        "if", "for", "while", "switch", "catch", "return", "sizeof",
-        "decltype", "typeid", "static_assert", "requires", "co_await",
-        "co_return", "co_yield", "new", "delete", "throw", "using",
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "return",
+        "sizeof",
+        "decltype",
+        "typeid",
+        "static_assert",
+        "requires",
+        "co_await",
+        "co_return",
+        "co_yield",
+        "new",
+        "delete",
+        "throw",
+        "using",
     }
 )
 
@@ -389,10 +404,8 @@ def _fallback_ranges(
             if match:
                 name = match.group("name")
                 if name not in _CALL_KEYWORDS:
-                    after = line[match.end("name"):]
-                    category = (
-                        "definition" if "(" in after else "variable"
-                    )
+                    after = line[match.end("name") :]
+                    category = "definition" if "(" in after else "variable"
                     _emit(line_no, match.start("name"), name, category)
     try:
         out.extend(_include_ranges(source, line_offsets, colors))
@@ -508,7 +521,7 @@ def compute_highlights(
                 try:
                     after = raw_lines[line_1 - 1][
                         len(line_bytes[:column].decode("utf-8", "ignore"))
-                        + len(spelling):
+                        + len(spelling) :
                     ]
                 except Exception:
                     after = ""

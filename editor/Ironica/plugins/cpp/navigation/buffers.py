@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 GUI-thread snapshot of modified editor buffers for C++ navigation.
 
 The C++ navigation worker parses translation units off the GUI thread, so it
@@ -92,9 +92,7 @@ def _is_modified(editor) -> bool:
 def _normalise(path: str) -> str:
     """Return an absolute, canonical path for *path*."""
     try:
-        return os.path.normcase(
-            os.path.normpath(os.path.realpath(os.fspath(path)))
-        )
+        return os.path.normcase(os.path.normpath(os.path.realpath(os.fspath(path))))
     except (OSError, TypeError, ValueError):
         return str(path)
 

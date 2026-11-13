@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 Gizmo Microsystems Cooperation - All Rights Reserved
 Public API for the DreamStudio text editor.
 """
 
@@ -24,7 +24,6 @@ class EditorAPI:
         """Return the underlying ``QsciScintilla`` widget (escape hatch)."""
         return self._editor
 
-
     def cut(self) -> None:
         """Cut the current selection to the clipboard."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
@@ -36,7 +35,6 @@ class EditorAPI:
         """Copy the current selection to the clipboard."""
         if self._editor.hasSelectedText():
             self._editor.copy()
-
 
     def copy_as_plain_text(self) -> None:
         """Copy the current selection as plain text (no syntax highlighting)."""
@@ -65,7 +63,6 @@ class EditorAPI:
         text = self._editor.text(line)
         self._editor.insertAt(f"{text}\n", line + 1, 0)
 
-
     def duplicate_selection(self) -> None:
         """Duplicate the current selection on the line below it."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
@@ -78,11 +75,9 @@ class EditorAPI:
         self._editor.insertAt(text + "\n", line_to + 1, 0)
         self._editor.endUndoAction()
 
-
     def select_all(self) -> None:
         """Select all text in the editor."""
         self._editor.selectAll()
-
 
     def select_none(self) -> None:
         """Clear the current selection without moving the cursor."""
@@ -104,7 +99,6 @@ class EditorAPI:
         if end == -1:
             end = len(line_text)
         self._editor.setSelection(line, start, line, end)
-
 
     def move_up(self) -> None:
         """Move the cursor one line up, preserving column."""
@@ -160,7 +154,6 @@ class EditorAPI:
         self._editor.setCursorPosition(clamped_line, clamped_col)
         self._editor.ensureLineVisible(clamped_line)
 
-
     def goto_definition(self, line: int = None, col: int = None) -> None:
         """Resolve the symbol under the cursor and jump to its definition."""
         if hasattr(self._editor, "execute_goto_definition"):
@@ -175,7 +168,6 @@ class EditorAPI:
         """Jump to the implementation of the symbol under the cursor."""
         if hasattr(self._editor, "execute_goto_definition"):
             self._editor.execute_goto_definition(line, col)
-
 
     def undo(self) -> None:
         """Undo the last editing action, if available."""
@@ -237,7 +229,6 @@ class EditorAPI:
                 self._editor.removeSelectedText()
         self._editor.endUndoAction()
 
-
     def comment_line(self) -> None:
         """Comment out the line under the cursor (no selection required)."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
@@ -283,7 +274,6 @@ class EditorAPI:
             text = self._editor.selectedText()
             self._editor.replaceSelectedText(text.lower())
 
-
     def load_file(self, file_path: str) -> None:
         """Load a file into the editor."""
         if not file_path or not isinstance(file_path, str):
@@ -306,7 +296,6 @@ class EditorAPI:
         """Re-read the file from disk, discarding unsaved changes."""
         if self._editor.current_file_path:
             self._editor.load_from_file(self._editor.current_file_path)
-
 
     def find(self, text: str) -> bool:
         """Find the first occurrence of *text* from the current position."""
@@ -361,7 +350,6 @@ class EditorAPI:
         """Placeholder for future find-widget integration."""
         pass
 
-
     def zoom_in(self) -> None:
         """Increase the editor zoom level."""
         self._editor.zoomIn()
@@ -373,7 +361,6 @@ class EditorAPI:
     def reset_zoom(self) -> None:
         """Reset the editor zoom to the default level."""
         self._editor.zoomTo(0)
-
 
     def get_text(self) -> str:
         """Return the full text buffer as a string."""
@@ -404,7 +391,6 @@ class EditorAPI:
             return
         self._editor.clear()
 
-
     def is_dirty(self) -> bool:
         """Return ``True`` if the buffer has been modified since last save."""
         return self._editor.isModified()
@@ -420,7 +406,6 @@ class EditorAPI:
     def set_file_path(self, path: str) -> None:
         """Update the canonical file path."""
         self._editor.current_file_path = path
-
 
     def eol_mode(self) -> int:
         """Return the end-of-line mode constant."""
@@ -438,14 +423,12 @@ class EditorAPI:
         """Return the total number of lines in the buffer."""
         return self._editor.lines()
 
-
     def format_code(self) -> None:
         """Delegate formatting to the active language provider."""
         if getattr(self._editor, "isReadOnly", lambda: False)():
             return
         if hasattr(self._editor, "format_current_file"):
             self._editor.format_current_file()
-
 
     def fold_region(
         self,
@@ -477,9 +460,11 @@ class EditorAPI:
         fm = getattr(self._editor, "_fold_manager", None)
         if fm is None:
             return
-        pending = [region for region in fm.get_fold_regions()
-                   if region.kind in ("include", "import", "namespace")
-                   and not region.folded]
+        pending = [
+            region
+            for region in fm.get_fold_regions()
+            if region.kind in ("include", "import", "namespace") and not region.folded
+        ]
         if pending:
             for region in pending:
                 fm.collapse_region(region)
@@ -539,4 +524,3 @@ class EditorAPI:
         region = fm.get_region_at_line(line)
         if region is not None:
             fm.collapse_region(region)
-

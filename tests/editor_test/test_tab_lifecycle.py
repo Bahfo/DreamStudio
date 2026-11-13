@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for tab open/close/save lifecycle.
 """
@@ -62,7 +62,9 @@ class TestTabLifecycle:
         assert tabs.count() == 0
         assert tabs.opened_files == {}
 
-    def test_close_dirty_cancel_keeps_tab(self, qapp, tab_editor_parent, temp_workspace):
+    def test_close_dirty_cancel_keeps_tab(
+        self, qapp, tab_editor_parent, temp_workspace
+    ):
         """Cancelling the unsaved-changes prompt leaves the tab open."""
         from editor.Ironica.tab_editor import DreamTabbedEditor
 
@@ -101,7 +103,9 @@ class TestTabLifecycle:
         assert tabs.count() == 0
         assert "changed" in test_file.read_text()
 
-    def test_close_dirty_save_failure_keeps_tab(self, qapp, tab_editor_parent, temp_workspace):
+    def test_close_dirty_save_failure_keeps_tab(
+        self, qapp, tab_editor_parent, temp_workspace
+    ):
         """A failed save leaves the tab open so work is not lost."""
         from editor.Ironica.code_editor import CodeEditor
         from editor.Ironica.tab_editor import DreamTabbedEditor
@@ -123,7 +127,9 @@ class TestTabLifecycle:
 
         assert tabs.count() == 1
 
-    def test_save_all_saves_every_file_backed_editor(self, qapp, tab_editor_parent, temp_workspace):
+    def test_save_all_saves_every_file_backed_editor(
+        self, qapp, tab_editor_parent, temp_workspace
+    ):
         """save_all_files calls save() once per file-backed editor."""
         from editor.Ironica.code_editor import CodeEditor
         from editor.Ironica.tab_editor import DreamTabbedEditor

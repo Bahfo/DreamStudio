@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Stateless PythonLanguageProvider bridging the editor UI expectations to the Jedi isolation adapter.
 """
 
@@ -250,7 +250,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
         """Get or set the buffer path handed to the Jedi adapter."""
         self._file_path = value
 
-
     def _build_context(
         self,
         text: str,
@@ -269,7 +268,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
             file_path=effective_path,
             project_root=effective_root,
         )
-
 
     def get_hover_details(
         self,
@@ -374,7 +372,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
         self._cache.set(context, "definition", result)
         return result
 
-
     def get_completions(
         self,
         text: str,
@@ -425,7 +422,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
 
         invalidate_semantic_cache()
 
-
     def has_folding(self) -> bool:
         """Return ``True`` — the Python plugin provides fold regions."""
         return True
@@ -445,7 +441,6 @@ class PythonLanguageProvider(BaseLanguageProvider):
         from .jedi_worker import DiagnosticManager
 
         return DiagnosticManager(editor=editor, file_path=file_path, parent=parent)
-
 
     def has_outline(self) -> bool:
         """Return ``True`` — the Python plugin provides file outlines."""

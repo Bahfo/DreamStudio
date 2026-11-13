@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 High-Performance Virtual Minimap for DreamStudio.
 """
 
@@ -80,7 +80,6 @@ class VirtualMinimap(QWidget):
         self._line_import_color = token("IMPORT_COLOR", "#C586C0")
         self._line_number_color = token("NUMBER_COLOR", "#B5CEA8")
 
-
     def _font_key(self) -> str:
         """Return a hashable key for the current source editor font."""
         font = self._source.font()
@@ -101,7 +100,6 @@ class VirtualMinimap(QWidget):
         self._line_height = max(2.0, fm.height() * 0.25)
 
         self._line_width_cache.clear()
-
 
     def _source_line_count(self) -> int:
         """Return the total number of lines in the source editor."""
@@ -127,7 +125,6 @@ class VirtualMinimap(QWidget):
         """Clear the line text cache (called on text change)."""
         self._line_cache.clear()
         self._line_width_cache.clear()
-
 
     def _calculate_visible_range(self) -> None:
         """Determine which source lines are visible in the minimap viewport."""
@@ -164,7 +161,6 @@ class VirtualMinimap(QWidget):
         )
         self._visible_line_count = min(lines_per_viewport, total_source_lines)
 
-
     def _update_overlay(self) -> None:
         """Calculate the position and height of the overlay rectangle."""
         try:
@@ -181,7 +177,6 @@ class VirtualMinimap(QWidget):
 
         self._overlay_y = int(y)
         self._overlay_h = int(h)
-
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """Render only the visible chunk of the source document."""
@@ -249,7 +244,6 @@ class VirtualMinimap(QWidget):
 
         painter.end()
 
-
     def _on_source_scroll(self) -> None:
         """Debounced handler for source editor scroll changes."""
         self._scroll_debounce.start()
@@ -258,7 +252,6 @@ class VirtualMinimap(QWidget):
         """Invalidate cache and schedule repaint on text change."""
         self._invalidate_cache()
         self._scroll_debounce.start()
-
 
     def _scroll_source_to_y(self, y: int) -> None:
         """Translate a minimap Y coordinate to a source editor scroll."""
@@ -358,7 +351,9 @@ class MiniMapHostWidget(QWidget):
         main_layout.setSpacing(0)
 
         # File browser widget
-        self._file_browser = FileBrowser(self, opened_file=getattr(editor, "current_file_path", "") or "")
+        self._file_browser = FileBrowser(
+            self, opened_file=getattr(editor, "current_file_path", "") or ""
+        )
         main_layout.addWidget(self._file_browser)
 
         # Connect to file path changes
@@ -460,7 +455,6 @@ class MiniMapHostWidget(QWidget):
         """Return the ``VirtualMinimap`` instance."""
         return self._minimap
 
-
     def _scroll_up(self) -> None:
         """Scroll the source editor up one step."""
         sb = self._editor.verticalScrollBar()
@@ -473,7 +467,6 @@ class MiniMapHostWidget(QWidget):
         if sb:
             sb.setValue(sb.value() + sb.singleStep())
 
-
     def set_minimap_visible(self, visible: bool) -> None:
         """Show or hide the minimap panel."""
         self._minimap_visible = visible
@@ -485,7 +478,6 @@ class MiniMapHostWidget(QWidget):
     def toggle_minimap(self) -> None:
         """Flip minimap visibility."""
         self.set_minimap_visible(not self._minimap_visible)
-
 
     def __getattr__(self, name: str):
         return getattr(self._editor, name)

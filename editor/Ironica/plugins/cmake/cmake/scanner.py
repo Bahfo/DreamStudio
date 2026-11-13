@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 ``CMakeLists.txt`` scanner for the DreamStudio CMake plugin.
 """
 
@@ -217,9 +217,7 @@ def _expand(value: str, variables: dict) -> str:
     result = re.sub(r"\$<INSTALL_INTERFACE:[^>]*>", "", result)
     result = _GENEX_RE.sub("", result)
     for _ in range(5):
-        expanded = _VAR_RE.sub(
-            lambda match: variables.get(match.group(1), ""), result
-        )
+        expanded = _VAR_RE.sub(lambda match: variables.get(match.group(1), ""), result)
         if expanded == result:
             break
         result = expanded
@@ -284,7 +282,9 @@ class _ProjectScanner:
         scope["CMAKE_CURRENT_BINARY_DIR"] = os.path.abspath(directory)
         self._scan_file(entry, scope, depth, 0)
 
-    def _scan_file(self, path: str, variables: dict, depth: int, include_depth: int) -> None:
+    def _scan_file(
+        self, path: str, variables: dict, depth: int, include_depth: int
+    ) -> None:
         """Scan one CMake script, mutating *variables* in place."""
         key = os.path.normcase(os.path.abspath(path))
         if key in self._visited_files or include_depth > _MAX_INCLUDE_DEPTH:
@@ -375,8 +375,16 @@ class _ProjectScanner:
         values = [
             item
             for item in args[1:]
-            if item.upper() not in ("CACHE", "PARENT_SCOPE", "BOOL", "STRING",
-                                    "PATH", "FILEPATH", "INTERNAL")
+            if item.upper()
+            not in (
+                "CACHE",
+                "PARENT_SCOPE",
+                "BOOL",
+                "STRING",
+                "PATH",
+                "FILEPATH",
+                "INTERNAL",
+            )
         ]
         variables[key] = ";".join(values)
         if key == "CMAKE_CXX_STANDARD" and values:
@@ -405,7 +413,9 @@ class _ProjectScanner:
                 _add_unique(deduped, item)
             current = deduped
         elif action == "INSERT":
-            position = int(args[2]) if len(args) > 2 and args[2].isdigit() else len(current)
+            position = (
+                int(args[2]) if len(args) > 2 and args[2].isdigit() else len(current)
+            )
             current[position:position] = args[3:]
         else:
             return
@@ -419,15 +429,13 @@ class _ProjectScanner:
         if action not in ("GLOB", "GLOB_RECURSE"):
             return
         key = args[1]
-        patterns = [
-            item
-            for item in args[2:]
-            if item.upper() not in _IGNORED_ARGUMENTS
-        ]
+        patterns = [item for item in args[2:] if item.upper() not in _IGNORED_ARGUMENTS]
         base = variables.get("CMAKE_CURRENT_SOURCE_DIR", self.root)
         matches: list = []
         for pattern in patterns:
-            candidate = pattern if os.path.isabs(pattern) else os.path.join(base, pattern)
+            candidate = (
+                pattern if os.path.isabs(pattern) else os.path.join(base, pattern)
+            )
             found = glob.glob(candidate, recursive=action == "GLOB_RECURSE")
             for path in found[:_MAX_GLOB_MATCHES]:
                 if os.path.isfile(path):
@@ -454,15 +462,15 @@ class _ProjectScanner:
             return
         variables[args[1]] = ";".join(matches)
 
-    def _handle_include(self, args: list, variables: dict, depth: int, include_depth: int) -> None:
+    def _handle_include(
+        self, args: list, variables: dict, depth: int, include_depth: int
+    ) -> None:
         """Scan an included ``.cmake`` script in the current scope."""
         if not args:
             return
         base = variables.get("CMAKE_CURRENT_LIST_DIR", self.root)
         module_dirs = [
-            item
-            for item in variables.get("CMAKE_MODULE_PATH", "").split(";")
-            if item
+            item for item in variables.get("CMAKE_MODULE_PATH", "").split(";") if item
         ]
         target = args[0]
         candidates: list = []
@@ -477,7 +485,9 @@ class _ProjectScanner:
                 self._scan_file(candidate, variables, depth, include_depth + 1)
                 return
             if os.path.isfile(candidate + ".cmake"):
-                self._scan_file(candidate + ".cmake", variables, depth, include_depth + 1)
+                self._scan_file(
+                    candidate + ".cmake", variables, depth, include_depth + 1
+                )
                 return
 
     def _handle_subdirectory(self, args: list, variables: dict, depth: int) -> None:
@@ -519,7 +529,13 @@ class _ProjectScanner:
         base = variables.get("CMAKE_CURRENT_SOURCE_DIR", self.root)
         rest = args[1:]
         if rest and rest[0].upper() in (
-            "STATIC", "SHARED", "MODULE", "OBJECT", "INTERFACE", "UNKNOWN", "IMPORTED",
+            "STATIC",
+            "SHARED",
+            "MODULE",
+            "OBJECT",
+            "INTERFACE",
+            "UNKNOWN",
+            "IMPORTED",
             "ALIAS",
         ):
             rest = rest[1:]
@@ -660,7 +676,10 @@ class _ProjectScanner:
                         if definition not in target.definitions:
                             target.definitions.append(definition)
                             changed = True
-                        if definition not in target.public_definitions and target.kind == "library":
+                        if (
+                            definition not in target.public_definitions
+                            and target.kind == "library"
+                        ):
                             target.public_definitions.append(definition)
                             changed = True
                     if linked.public_include_dirs:
@@ -691,7 +710,9 @@ def scan_cmake_text(
     cleaned = _strip_comments(text)
     commands: list = []
     for name, args, line_number in _iter_commands(cleaned):
-        expanded = [item for arg in args for item in _expand(arg, variables).split(";") if item]
+        expanded = [
+            item for arg in args for item in _expand(arg, variables).split(";") if item
+        ]
         if name == "set" and len(expanded) >= 2:
             variables[expanded[0]] = " ".join(expanded[1:])
         commands.append((name, expanded, line_number))

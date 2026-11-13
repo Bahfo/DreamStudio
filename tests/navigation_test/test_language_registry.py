@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Tests for language registration and extension resolution.
 """
@@ -26,7 +26,9 @@ class TestLanguageRegistry:
         assert LanguageRegistry.register_language_dict(self._config())
         try:
             assert LanguageRegistry.get_language_by_extension(".testnav") == "testnav"
-            assert LanguageRegistry.get_language_for_file("/tmp/file.testnav") == "testnav"
+            assert (
+                LanguageRegistry.get_language_for_file("/tmp/file.testnav") == "testnav"
+            )
         finally:
             LanguageRegistry.unregister_language("testnav")
 
@@ -38,7 +40,10 @@ class TestLanguageRegistry:
         config["filenames"] = ["Special.testfile"]
         assert LanguageRegistry.register_language_dict(config)
         try:
-            assert LanguageRegistry.get_language_for_file("/tmp/special.testfile") == "testfile"
+            assert (
+                LanguageRegistry.get_language_for_file("/tmp/special.testfile")
+                == "testfile"
+            )
         finally:
             LanguageRegistry.unregister_language("testfile")
 

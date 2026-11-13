@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks
+(C) COPYRIGHT 2026 Gizmo Microsystems
 Terminal API for DreamStudio.
 """
 

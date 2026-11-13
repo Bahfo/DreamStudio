@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Minimal two-path Python highlighting pipeline for DreamStudio.
 """
 
@@ -144,6 +144,7 @@ def _iter_param_args(args: ast.arguments):
 
 class PythonSemanticProvider(ITokenProvider):
     """Two-path Python token provider."""
+
     def __init__(self) -> None:
         self._cache_text: str = ""
         self._cache_lexical: List[Token] = []
@@ -450,7 +451,10 @@ class PythonSemanticProvider(ITokenProvider):
                 )
                 if name_tok is not None:
                     start = _tokenize_char_to_byte(
-                        line_offsets, name_tok.line, name_tok.start[0], name_tok.start[1]
+                        line_offsets,
+                        name_tok.line,
+                        name_tok.start[0],
+                        name_tok.start[1],
                     )
                     length = len(name_tok.string.encode("utf-8"))
                     if (
@@ -459,7 +463,12 @@ class PythonSemanticProvider(ITokenProvider):
                         and not _in_exclusion(start, length, exclude)
                     ):
                         tokens.append(
-                            Token(start, length, self._get_styles()["function"], "function")
+                            Token(
+                                start,
+                                length,
+                                self._get_styles()["function"],
+                                "function",
+                            )
                         )
 
             for arg in _iter_param_args(node.args):

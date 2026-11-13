@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 Header-path completion for `#include` lines (project + system headers).
 """
 
@@ -119,9 +119,7 @@ def complete_include(
         return []
     search_dirs = project_include_dirs(file_path, compile_args)
     if open_char != '"':
-        search_dirs.extend(
-            d for d in system_include_dirs() if d not in search_dirs
-        )
+        search_dirs.extend(d for d in system_include_dirs() if d not in search_dirs)
     head, _, base = partial.rpartition("/")
     seen: set[str] = set()
     out: List[CppCompletion] = []

@@ -1,7 +1,7 @@
 """
-(C) COPYRIGHT - 2026 EXcellent TechStacks Cooperation - All Rights Reserved
+(C) COPYRIGHT - 2026 Gizmo Microsystems Cooperation - All Rights Reserved
 Developed and Maintained Mainly by DreamStudio Maintainers and Contributors,
-and Supervised by EXcellent TechStacks Co.
+and Supervised by Gizmo Microsystems Co.
 """
 
 from editor import *

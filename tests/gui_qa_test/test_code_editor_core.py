@@ -1,5 +1,5 @@
 """
-(C) COPYRIGHT 2026 EXcellent TechStacks - All Rights Reserved.
+(C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
 
 Code editor core live tests: typing, cursor keys, auto-indent, dirty/save,
 undo/redo, zoom, wrap mode, clipboard, and read-only mode.
@@ -110,9 +110,9 @@ class TestTypingAndCursor:
         assert cursor_position(editor)[1] == 0, "Home did not reach column 0"
         press_key(qapp, editor, QT.Qt.Key.Key_End)
         line_length = len(editor.text().split("\n")[2])
-        assert cursor_position(editor)[1] == line_length, (
-            f"End did not reach the line end: {cursor_position(editor)[1]}"
-        )
+        assert (
+            cursor_position(editor)[1] == line_length
+        ), f"End did not reach the line end: {cursor_position(editor)[1]}"
 
     def test_backspace_and_delete_remove_text(self, qapp, qa_window, sample_tree):
         """Backspace and Delete remove characters around the cursor."""
@@ -128,7 +128,9 @@ class TestTypingAndCursor:
         """Ctrl+Left and Ctrl+Right jump by word."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.setCursorPosition(0, 0)
-        press_key(qapp, editor, QT.Qt.Key.Key_Right, QT.Qt.KeyboardModifier.ControlModifier)
+        press_key(
+            qapp, editor, QT.Qt.Key.Key_Right, QT.Qt.KeyboardModifier.ControlModifier
+        )
         assert cursor_position(editor)[1] > 0, "word jump did not move the cursor"
 
     def test_position_signal_reports_cursor(self, qapp, qa_window, sample_tree):
@@ -147,7 +149,10 @@ class TestTypingAndCursor:
         pump(qapp, 200)
         assert positions, "no position signal was emitted"
         line, column = cursor_position(editor)
-        assert (line, column) in positions, (
+        assert (
+            line,
+            column,
+        ) in positions, (
             f"position payload {positions[-1]} does not match cursor ({line}, {column})"
         )
 
@@ -163,9 +168,9 @@ class TestAutoIndent:
         press_key(qapp, editor, QT.Qt.Key.Key_Return)
         pump(qapp, 150)
         lines = editor.text().split("\n")
-        assert lines[1].startswith("    "), (
-            f"auto-indent missing after def: {lines[1]!r}"
-        )
+        assert lines[1].startswith(
+            "    "
+        ), f"auto-indent missing after def: {lines[1]!r}"
 
     def test_tab_indents_the_current_line(self, qapp, qa_window, sample_tree):
         """Tab increases the indentation of the current line."""
@@ -174,9 +179,9 @@ class TestAutoIndent:
         editor.setCursorPosition(0, 0)
         press_key(qapp, editor, QT.Qt.Key.Key_Tab)
         pump(qapp, 150)
-        assert editor.text().split("\n")[0].startswith("    "), (
-            f"Tab did not indent: {editor.text().split(chr(10))[0]!r}"
-        )
+        assert (
+            editor.text().split("\n")[0].startswith("    ")
+        ), f"Tab did not indent: {editor.text().split(chr(10))[0]!r}"
 
     def test_shift_tab_unindents_the_current_line(self, qapp, qa_window, sample_tree):
         """Shift+Tab removes one indentation level."""
@@ -187,9 +192,9 @@ class TestAutoIndent:
             qapp, editor, QT.Qt.Key.Key_Backtab, QT.Qt.KeyboardModifier.ShiftModifier
         )
         pump(qapp, 150)
-        assert not editor.text().split("\n")[0].startswith("    "), (
-            "Shift+Tab did not unindent"
-        )
+        assert (
+            not editor.text().split("\n")[0].startswith("    ")
+        ), "Shift+Tab did not unindent"
 
 
 class TestDirtyAndSave:
@@ -289,7 +294,9 @@ class TestDirtyAndSave:
 class TestZoomAndFonts:
     """Zoom and font controls work on the live editor."""
 
-    def test_set_editor_font_size_changes_the_font_size(self, qapp, qa_window, sample_tree):
+    def test_set_editor_font_size_changes_the_font_size(
+        self, qapp, qa_window, sample_tree
+    ):
         """set_editor_font_size() updates the reported font size."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         base = editor.font_size
@@ -308,7 +315,9 @@ class TestZoomAndFonts:
         pump(qapp, 100)
         assert _zoom_level(editor) == base, "zoomOut did not lower the zoom level"
 
-    def test_reset_zoom_restores_the_base_zoom_level(self, qapp, qa_window, sample_tree):
+    def test_reset_zoom_restores_the_base_zoom_level(
+        self, qapp, qa_window, sample_tree
+    ):
         """reset_zoom_level() returns the editor to zoom level zero."""
         editor = _open_editor(qapp, qa_window, sample_tree)
         base = _zoom_level(editor)
@@ -318,9 +327,9 @@ class TestZoomAndFonts:
         assert _zoom_level(editor) > base, "the zoom level never rose"
         editor.reset_zoom_level()
         pump(qapp, 100)
-        assert _zoom_level(editor) == base, (
-            f"zoom reset left the level at {_zoom_level(editor)} (base {base})"
-        )
+        assert (
+            _zoom_level(editor) == base
+        ), f"zoom reset left the level at {_zoom_level(editor)} (base {base})"
 
     def test_is_zoomed_reports_the_state(self, qapp, qa_window, sample_tree):
         """is_zoomed() tells the caller whether the editor is zoomed.
@@ -334,14 +343,14 @@ class TestZoomAndFonts:
         editor = _open_editor(qapp, qa_window, sample_tree)
         editor.reset_zoom_level()
         pump(qapp, 100)
-        assert editor.is_zoomed() is False, (
-            f"is_zoomed() reported {editor.is_zoomed()!r} at the base zoom level"
-        )
+        assert (
+            editor.is_zoomed() is False
+        ), f"is_zoomed() reported {editor.is_zoomed()!r} at the base zoom level"
         editor.zoomIn()
         pump(qapp, 100)
-        assert editor.is_zoomed() is True, (
-            f"is_zoomed() reported {editor.is_zoomed()!r} while zoomed in"
-        )
+        assert (
+            editor.is_zoomed() is True
+        ), f"is_zoomed() reported {editor.is_zoomed()!r} while zoomed in"
 
     def test_set_editor_font_applies_a_font(self, qapp, qa_window, sample_tree):
         """Applying a custom font does not break the editor."""
@@ -387,7 +396,9 @@ class TestClipboardAndSelection:
         editor.selectAll()
         pump(qapp, 100)
         assert editor.hasSelectedText(), "select all selected nothing"
-        assert editor.selectedText() == editor.text(), "selection does not cover the text"
+        assert (
+            editor.selectedText() == editor.text()
+        ), "selection does not cover the text"
 
     def test_copy_selection_as_plain_text(self, qapp, qa_window, sample_tree):
         """copy_selection_as_plain_text() places the text on the clipboard."""
