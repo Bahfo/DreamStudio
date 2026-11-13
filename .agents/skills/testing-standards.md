@@ -28,6 +28,11 @@ tests/
 └── navigation_test/          # Navigation/go-to-definition tests
     ├── README.md
     └── test_*.py
+├── gui_qa_test/              # Live-window GUI QA walk (every widget/service/feature)
+    ├── README.md
+    ├── harness.py            # Shared QTest primitives and sweep/race helpers
+    ├── conftest.py           # Phase-8-style window fixture, sample tree, git repo
+    └── test_*.py
 ```
 
 **Rules:**
