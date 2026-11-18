@@ -14,5 +14,21 @@
         "size":[40, 40],
         "icon_size":[27, 27],
         "callback": "_toggle_todo_search"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/menus/browser.png",
+        "tooltip":"Server Explorer",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": "_toggle_server_explorer"
+    },
+    {
+        "id":"btn",
+        "icon_path":"assets/menus/testing.png",
+        "tooltip":"Unit Testing",
+        "size":[40, 40],
+        "icon_size":[27, 27],
+        "callback": false
     }
 ]
