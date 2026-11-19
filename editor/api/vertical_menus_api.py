@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from editor import *
 
+
 class VerticalMenusAPI(QObject):
     """Panel activation/deactivation controller."""
 
@@ -25,7 +26,6 @@ class VerticalMenusAPI(QObject):
         self._tab_managers: dict[str, QWidget] = {}
         self._splitters: dict[str, tuple] = {}
 
-
     def register_panel(
         self,
         panel_id: str,
@@ -42,11 +42,16 @@ class VerticalMenusAPI(QObject):
         self._tab_managers[panel_id] = tab_manager
         self._splitters[panel_id] = (splitter, splitter_index, default_width, side)
 
-
     def activate_panel(self, panel_id: str) -> None:
         """Show the panel:"""
         tm = self._tab_managers.get(panel_id)
         if tm is None:
+            return
+
+        widget = self._widgets.get(panel_id)
+        if widget is not None and getattr(widget, "is_floating", False):
+            self._raise_float_window(widget)
+            self.panel_visibility_changed.emit(panel_id, True)
             return
 
         if panel_id not in tm._panel_ids:
@@ -75,11 +80,36 @@ class VerticalMenusAPI(QObject):
 
         self.panel_visibility_changed.emit(panel_id, True)
 
+    def _raise_float_window(self, widget: QWidget) -> None:
+        """Bring a floating panel's window to the front.
+
+        Args:
+            widget: The panel shell that owns the floating window.
+        """
+        window = getattr(widget, "_float_window", None)
+        if window is None:
+            return
+        try:
+            window.show()
+            window.raise_()
+            window.activateWindow()
+        except RuntimeError:
+            pass
+
     def deactivate_panel(self, panel_id: str) -> None:
         """Hide the panel tab."""
         tm = self._tab_managers.get(panel_id)
         if tm is None or panel_id not in tm._panel_ids:
             return
+
+        widget = self._widgets.get(panel_id)
+        if widget is not None and getattr(widget, "is_floating", False):
+            dock = getattr(widget, "_dock_panel", None)
+            if callable(dock):
+                try:
+                    dock()
+                except RuntimeError:
+                    pass
 
         idx = tm._panel_ids.index(panel_id)
         tm._tab_bar.setTabVisible(idx, False)
@@ -94,9 +124,7 @@ class VerticalMenusAPI(QObject):
             1 for i in range(tm._tab_bar.count()) if tm._tab_bar.isTabVisible(i)
         )
         if visible_tabs == 0:
-            splitter, sidx, _, _ = self._splitters.get(
-                panel_id, (None, 0, 250, "")
-            )
+            splitter, sidx, _, _ = self._splitters.get(panel_id, (None, 0, 250, ""))
             if splitter is not None and sidx < len(splitter.sizes()):
                 sizes = splitter.sizes()
                 tm.setVisible(False)

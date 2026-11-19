@@ -146,6 +146,17 @@ class WorkspaceContainer(QWidget):
                 splitter_index=idx,
                 default_width=width,
             )
+            # Pass registration info to panel for float/dock support
+            if hasattr(widget, "set_registration_info"):
+                widget.set_registration_info(
+                    panel_id,
+                    manager,
+                    side,
+                    self._top_horizontal_splitter,
+                    idx,
+                    width,
+                    self._vertical_menus_api,
+                )
 
         for mgr in (self._left_utils_manager, self._right_utils_manager):
             mgr.panel_close_requested.connect(

@@ -62,3 +62,15 @@
 - **Console**: `tests/reports/runs/20261113T090559Z-98fc239-dirty/console.log`
 - **Summary**: `tests/reports/runs/20261113T090559Z-98fc239-dirty/summary.json`
 
+## 20261118T210857Z-13306b6-dirty
+
+- **Timestamp**: 2026-11-18T21:08:57Z
+- **Suites**: gui_qa
+- **Git**: 13306b6 (dirty)
+- **Duration**: 1261s
+- **Verdict**: FAILED
+- **Passed**: 356 | **Failed**: 13 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- **Report**: `tests/reports/runs/20261118T210857Z-13306b6-dirty/report.md`
+- **Console**: `tests/reports/runs/20261118T210857Z-13306b6-dirty/console.log`
+- **Summary**: `tests/reports/runs/20261118T210857Z-13306b6-dirty/summary.json`
+

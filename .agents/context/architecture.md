@@ -99,9 +99,11 @@ The window owns exactly one signal: `ui_ready = pyqtSignal()` (line 22), emitted
 `WorkspaceContainer` (line 28) is the **panel registry**. It:
 - builds the splitter tree (`_main_vertical_splitter` → `_top_horizontal_splitter` → left / center / right),
 - instantiates every side panel (`_populate_panels()`, line 296),
-- registers each panel with `VerticalMenusAPI` (registration table, lines 81-148),
+- registers each panel with `VerticalMenusAPI` (registration table, lines 81-148) and hands each `PanelShell` its slot through `set_registration_info(...)`,
 - routes `problemActivated` → `_goto_problem` (line 165),
 - remembers user splitter widths across minimize/restore (`_restore_user_sizes`, line 249).
+
+`PanelShell` (`editor/utils/panel_shell.py`) owns the **float/dock** lifecycle of a side panel: the float button detaches the panel into a standalone top-level window, and the same button (or a window-manager close) docks it back into the exact slot it was registered in. A panel is never drag-docked anywhere else.
 
 ### 3.4 `editor/Ironica/` — The Code Editor
 
@@ -233,7 +235,8 @@ Every menu command in `editor/api/menus_api.py` calls one of these. The full lis
 | `ui_ready` | `DreamStudio` | `ui_build.py:22` |
 | `panel_visibility_changed(str, bool)` | `VerticalMenusAPI` | `editor/api/vertical_menus_api.py:10` |
 | `panel_changed(str)` / `panel_close_requested(str)` | `UtilityTabManager` | `editor/utils/utils_tabmanager.py:65-66` |
-| `close_requested()` | `PanelShell` | `editor/utils/panel_shell.py:7` |
+| `close_requested()` | `PanelShell` | `editor/utils/panel_shell.py:24` |
+| `float_requested(bool)` | `PanelShell` | `editor/utils/panel_shell.py:25` |
 | `close_requested()` | `TerminalPanel` | `editor/terminal/Emulator/terminal_ui.py:333` |
 | `bootstrap_done(bool)` | `StatusBar` | `editor/base/statusBar.py:54` |
 | `symbol_clicked(int)` | `TreeOutline` | `editor/utils/file_properties/tree_outline.py:34` |

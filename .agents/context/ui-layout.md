@@ -54,6 +54,8 @@ WorkspaceContainer
 
 Registration is done with `VerticalMenusAPI.register_panel(panel_id, widget, manager, side, splitter=..., splitter_index=..., default_width=...)` (`editor/api/vertical_menus_api.py`).
 
+Immediately after `register_panel`, `WorkspaceContainer` calls `widget.set_registration_info(panel_id, manager, side, splitter, splitter_index, width, api)` on every `PanelShell` subclass. That call is what gives each panel the coordinates it needs to float and to dock back into its original slot — a panel without it cannot float.
+
 ### 2.2 `UtilityTabManager` — the side stacks
 
 `editor/utils/utils_tabmanager.py`. Each side has **one** `UtilityTabManager` holding a stack of panels as tabs. It emits:
@@ -90,6 +92,22 @@ UtilsContainer
 > **Load-bearing coupling:** `EditorAPI._toggle_lower_panel` (`editor/api/editor_api.py:23`) reaches directly into `container._stack` to switch between the terminal and the Problems panel. There is no public API for this. If you restructure `UtilsContainer._stack`, the toggle silently breaks.
 
 `TerminalPanel.close_requested` is wired to `UtilsContainer._hide_show_terminal`, which hides the whole lower widget and collapses the vertical splitter to `[1, 0]`.
+
+### 2.5 Panel float / dock
+
+Every `PanelShell` header carries a **float button** (`PanelUndockButton`, icon `🗖`). Pressing it detaches the panel into a standalone top-level window; pressing it again — or closing that window — docks the panel back into **the exact slot it was registered in**. There is no drag-to-dock: a panel can only ever be in its original side stack.
+
+| Aspect | Behaviour |
+|---|---|
+| Float window | `QFrame` with object name `FloatingPanelFrame`, `Qt.WindowType.Window`, parented to the IDE's top-level widget so the global QSS keeps cascading into it. |
+| What moves | Only `PanelShell._frame` (header + body) is reparented. The `PanelShell` widget itself stays in the side stack, so the stack index never changes. |
+| Tab state | The side tab is hidden while floating and restored on dock. |
+| Button | Icon and tooltip flip between `🗖` / "Float Tool Window" and `🗗` / "Dock Tool Window". |
+| Signals | `PanelShell.float_requested(bool)` — `True` on float, `False` on dock. |
+| Public API | `PanelShell.is_floating` (property), `PanelShell.toggle_float()`, `PanelShell.set_registration_info(...)`. |
+| Window-manager close | Caught by `PanelShell.eventFilter` → the panel is docked back instead of being lost. |
+| Header close (`✕`) | Docks the panel first, then emits `close_requested`, so a floating panel is never orphaned. |
+| API interaction | `VerticalMenusAPI.activate_panel` raises the floating window instead of switching the docked stack; `deactivate_panel` docks the panel back before hiding its tab. |
 
 ---
 
@@ -277,6 +295,9 @@ All 23 keys are required — a missing key means the token falls back to a hard-
 2. Instantiate it in `WorkspaceContainer._populate_panels()` (`workspace_container.py:296`).
 3. Register it in the table at `workspace_container.py:81-148` with a unique `panel_id`.
 4. Add a toggle method (`_toggle_<panel>`) on the window and wire it into a bar JSON.
+5. Float/dock comes for free — `WorkspaceContainer` calls `set_registration_info(...)` right after `register_panel`, and `PanelShell` supplies the float button.
+
+> Do **not** re-implement the float button in the subclass: `PanelShell._build_header_row` already creates `undock_btn` and wires it to `toggle_float`. Override `_header_right_widgets()` for extra header widgets instead.
 
 ### 6.4 A new bottom-dock tab
 

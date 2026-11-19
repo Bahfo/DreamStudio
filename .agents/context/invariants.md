@@ -58,6 +58,7 @@
 | U1 | There is exactly **one** top-level window: `DreamStudio`. Dialogs are transient children. | `ui_build.py:19` |
 | U2 | `WorkspaceContainer` is the **single panel registry**. A new panel is registered there, not by a second registry. | `editor/workspace_container.py:81-148` |
 | U3 | Every side panel is a `PanelShell` subclass and exposes `close_requested`. | `editor/utils/panel_shell.py:7` |
+| U3a | A panel may only ever be docked in **the slot it was registered in**. There is no drag-to-dock; `PanelShell` remembers its manager and splitter index from `set_registration_info(...)`. | `editor/utils/panel_shell.py:63` |
 | U4 | The bottom dock is `UtilsContainer._stack` (a `QStackedWidget`). `EditorAPI._toggle_lower_panel` reaches into it directly — **this private access is load-bearing** until a public API exists. | `editor/api/editor_api.py:23` |
 | U5 | `VerticalMenusAPI` owns the "which panel is visible" state and emits `panel_visibility_changed(str, bool)`. | `editor/api/vertical_menus_api.py:10` |
 | U6 | Toolbar/menu items are declared in JSON (`editor/base/json/*.json`) and resolved to `set_<name>` callbacks on the window. Adding a menu item means editing JSON, not code. | `editor/base/json/menus.json` |
@@ -191,7 +192,7 @@ Run through this before declaring any change done:
 - [ ] Did I touch the **dirty flag**? → Verify the tab marker mirrors it and `rebuild_dirty_indices()` is called.
 - [ ] Did I add a **signal**? → Connect it on the GUI thread and disconnect on teardown.
 - [ ] Did I add a **provider capability**? → Use `getattr` defaults so old providers keep working.
-- [ ] Did I add a **panel**? → Register it in `WorkspaceContainer` *and* in `VerticalMenusAPI`.
+- [ ] Did I add a **panel**? → Register it in `WorkspaceContainer` *and* in `VerticalMenusAPI`, and call `set_registration_info(...)` so it can float.
 - [ ] Did I add a **menu/button**? → Declare it in `editor/base/json/*.json` and implement `set_<name>` on the window.
 - [ ] Did I change a **theme**? → Update both the `.qss` and the matching `editor/Ironica/themes/<name>.json`.
 - [ ] Did I change **startup**? → Keep phase order intact and keep `bootstrap/` free of `editor/` imports.

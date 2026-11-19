@@ -7,6 +7,7 @@ Live end-to-end quality-assurance walk of the real DreamStudio window: every wid
 - The real `DreamStudio` main window is built exactly the way startup phase 8 builds it (`config/phases.py::phase_main_window`): session `qapp` only, `ServiceRegistry` with `config`, `theme_content`, `resource_manager`, `base_dir`, and `WorkspaceService`, `setEnabled(True)`, `show()`, and one `ui_ready` emission after show.
 - Each test class gets its own window so one crash cannot poison the next class.
 - Coverage spans the shell chrome (title bar, options bar, sidebars, status bar), all registered side panels, the tab editor, the bottom dock (terminal / Problems), `menus.json` actions, find & replace, the source-control service against a real git repo in the temp workspace, every service on the registry, and the full code-editor feature surface (keys, dirty/save, zoom, breakpoints, debug markers, color swatches, occurrences, brace highlight, navigation, context menu, hover, snippets, completion stack, minimap, diagnostics ruler, folding, languages, retheme, analysis overlays).
+- Side-panel float/dock is covered by `test_panel_float.py`: a panel must open in a standalone top-level window, keep its content working while detached, and return to the exact slot it was registered in when the float button is pressed again (or when the floating window is closed).
 - Every custom widget in `editor/widgets/` is built, painted, and driven through its public API.
 - Adversarial combos and race probes (rapid toggles, typing while panels toggle, open/close storms, resize stress) assert consistent end states.
 
@@ -25,17 +26,24 @@ Live end-to-end quality-assurance walk of the real DreamStudio window: every wid
 ## Phases
 1. **Scaffolding** — `harness.py` primitives, suite `conftest.py` fixtures, window smoke tests.
 2. **Shell & layout** — `test_shell_chrome.py`, `test_layout_glitches.py`.
-3. **Panels, editor, dock, menus** — `test_side_panels.py`, `test_editor_interaction.py`, `test_bottom_dock.py`, `test_menus.py`.
+3. **Panels, editor, dock, menus** — `test_side_panels.py`, `test_panel_float.py`, `test_editor_interaction.py`, `test_bottom_dock.py`, `test_menus.py`.
 4. **Services** — `test_services.py`, `test_search_service.py`, `test_source_control.py`, `test_explorer_flow.py`.
 5. **Editor batteries** — `test_code_editor_core.py`, `test_code_editor_markers.py`, `test_code_editor_navigation.py`, `test_code_editor_completion.py`, `test_code_editor_dressing.py`.
 6. **Races & widget battery** — `test_race_conditions.py`, `test_widget_battery.py`, README finalization.
 
 ## Latest Run
 
+- **Run ID**: 20261118T210857Z-13306b6-dirty
+- **Timestamp**: 2026-11-18T21:08:57Z
+- **Verdict**: FAILED
+- **Passed**: 356 | **Failed**: 13 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- [Report](../reports/runs/20261118T210857Z-13306b6-dirty/report.md)
+
 ## Historical Runs
 
 | Run ID | Timestamp | Verdict | Passed | Failed | Errors | Skipped | Blocked | Report |
 |--------|-----------|---------|--------|--------|--------|---------|---------|--------|
+| 20261118T210857Z-13306b6-dirty | 2026-11-18T21:08:57Z | FAILED | 356 | 13 | 0 | 1 | 0 | [Report](../reports/runs/20261118T210857Z-13306b6-dirty/report.md) |
 
 ## Known Product Findings
 The failures below are real product defects. They are deliberately left as failing tests; the product code is **not** patched by this suite.
@@ -66,4 +74,5 @@ Or a single module / test directly with pytest:
 ```bash
 QT_QPA_PLATFORM=offscreen ./venv/bin/python -m pytest tests/gui_qa_test/test_menus.py -v --tb=long
 QT_QPA_PLATFORM=offscreen ./venv/bin/python -m pytest "tests/gui_qa_test/test_menus.py::TestMenuActionContract::test_every_menu_action_exists_on_window" -v --tb=long
+QT_QPA_PLATFORM=offscreen ./venv/bin/python -m pytest tests/gui_qa_test/test_panel_float.py -v --tb=long
 ```

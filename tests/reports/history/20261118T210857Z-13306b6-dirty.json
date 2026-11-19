@@ -1,0 +1,19 @@
+{
+  "run_id": "20261118T210857Z-13306b6-dirty",
+  "timestamp": "2026-11-18T21:08:57Z",
+  "suites": [
+    "gui_qa"
+  ],
+  "git_revision": "13306b6",
+  "dirty": true,
+  "duration_seconds": 1261,
+  "exit_code": 1,
+  "verdict": "FAILED",
+  "counts": {
+    "passed": 356,
+    "failed": 13,
+    "skipped": 1,
+    "blocked": 0,
+    "errors": 0
+  }
+}
