@@ -47,12 +47,9 @@ class SettingsPanel(QWidget):
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(14)
 
-        heading = QLabel("Settings and Preferences")
-        heading.setObjectName("SettingsPageTitle")
-        layout.addWidget(heading)
-
         section = QLabel("Appearance")
         section.setObjectName("SettingsSectionTitle")
+        section.setStyleSheet("font-size: 16px;")
         layout.addWidget(section)
 
         form = QFormLayout()
