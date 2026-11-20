@@ -1,0 +1,353 @@
+./startup.py:52:    from PyQt6.QtCore import QTimer
+./startup.py:95:    from PyQt6.QtCore import Qt
+./startup.py:96:    from PyQt6.QtWidgets import QApplication
+./startup.py:104:    from PyQt6.QtGui import QIcon
+./startup.py:139:            from PyQt6.QtWidgets import QMessageBox
+./ui_build.py:338:        from PyQt6.QtCore import QTimer
+./config/splash.py:7:from PyQt6.QtCore import Qt, QRectF
+./config/splash.py:8:from PyQt6.QtGui import (
+./config/splash.py:16:from PyQt6.QtSvg import QSvgRenderer
+./config/splash.py:17:from PyQt6.QtWidgets import QSplashScreen, QApplication
+./config/splash.py:182:        from PyQt6.QtCore import QElapsedTimer, QEventLoop, QTimer
+./tests/conftest.py:84:    from PyQt6.QtCore import Qt
+./tests/conftest.py:85:    from PyQt6.QtWidgets import QApplication
+./tests/conftest.py:139:    from PyQt6.QtWidgets import QWidget
+./config/phases.py:13:from PyQt6.QtWidgets import QApplication
+./config/phases.py:356:    from PyQt6.QtCore import QEventLoop
+./config/manager.py:10:from PyQt6.QtCore import QTimer
+./config/manager.py:182:        from PyQt6.QtWidgets import QApplication
+./config/recovery.py:7:from PyQt6.QtCore import Qt
+./config/recovery.py:8:from PyQt6.QtGui import QFont, QPainter
+./config/recovery.py:9:from PyQt6.QtSvg import QSvgRenderer
+./config/recovery.py:10:from PyQt6.QtWidgets import (
+./editor/api/menus_api.py:182:        from PyQt6.QtWidgets import QApplication
+./editor/api/menus_api.py:693:            "<p>Built with PyQt6 and QScintilla.</p>",
+./editor/api/editor_api.py:230:        from PyQt6.QtWidgets import QFileDialog
+./editor/Ironica/api.py:17:    def __init__(self, editor: QsciScintilla) -> None:
+./editor/Ironica/api.py:23:    def editor(self) -> QsciScintilla:
+./editor/Ironica/api.py:24:        """Return the underlying ``QsciScintilla`` widget (escape hatch)."""
+./editor/Ironica/api.py:196:            self._editor.SendScintilla(QsciScintilla.SCI_TAB)
+./editor/Ironica/api.py:207:            self._editor.SendScintilla(QsciScintilla.SCI_BACKTAB)
+./editor/Ironica/api.py:339:            match_pos = self._editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+./editor/Ironica/api.py:342:            after_pos = self._editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+./editor/Ironica/api.py:344:                self._editor.SendScintilla(QsciScintilla.SCI_CHARRIGHT)
+./editor/Ironica/plugins/cpp/autocompletion/completion.py:15:from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
+./editor/Ironica/plugins/cpp/navigation/buffers.py:15:from PyQt6.QtCore import QObject
+./editor/Ironica/plugins/cpp/navigation/popup.py:5:from PyQt6.QtCore import QEvent, QPoint, QRect, QSize, Qt, pyqtSignal
+./editor/Ironica/plugins/cpp/navigation/popup.py:6:from PyQt6.QtGui import QColor, QCursor, QFontMetrics, QPainter, QStandardItem
+./editor/Ironica/plugins/cpp/navigation/popup.py:7:from PyQt6.QtWidgets import (
+./editor/Ironica/plugins/cpp/navigation/service.py:15:from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
+./tests/gui_qa_test/test_side_panels.py:187:        from PyQt6.QtWidgets import QTreeWidget
+./tests/gui_qa_test/test_side_panels.py:202:        from PyQt6.QtWidgets import QTreeWidget
+./tests/gui_qa_test/test_side_panels.py:227:        from PyQt6.QtWidgets import QTreeView
+./tests/gui_qa_test/test_side_panels.py:239:        from PyQt6.QtWidgets import QTreeView
+./editor/Ironica/plugins/cpp/provider.py:11:from PyQt6.QtCore import QObject
+./tests/python_test/conftest.py:18:from PyQt6.QtCore import QObject, pyqtSignal
+./tests/gui_qa_test/harness.py:8:only on PyQt6.QtTest.QTest, so no operating-system pointer is moved.
+./tests/gui_qa_test/harness.py:17:from PyQt6.QtCore import QPoint, Qt
+./tests/gui_qa_test/harness.py:18:from PyQt6.QtTest import QTest
+./tests/gui_qa_test/harness.py:19:from PyQt6.QtWidgets import (
+./tests/gui_qa_test/harness.py:184:    The PyQt6 Scintilla binding only exposes ``getCursorPosition()``.
+./tests/gui_qa_test/harness.py:229:    from PyQt6.QtCore import QTimer
+./tests/gui_qa_test/harness.py:230:    from PyQt6.QtWidgets import QMenu
+./tests/gui_qa_test/harness.py:564:    from PyQt6.QtCore import QRect
+./tests/gui_qa_test/harness.py:892:    from PyQt6.QtGui import QColor
+./tests/gui_qa_test/harness.py:893:    from PyQt6.QtWidgets import (
+./tests/gui_qa_test/harness.py:1237:    from PyQt6.QtCore import QThread
+./tests/gui_qa_test/test_code_editor_dressing.py:25:QT = pytest.importorskip("PyQt6.QtCore")
+./tests/navigation_test/test_editor_api_navigation.py:60:        from PyQt6.Qsci import QsciScintilla
+./tests/navigation_test/test_editor_api_navigation.py:64:        api = EditorAPI(QsciScintilla())
+./tests/navigation_test/test_navigation_popup_focus.py:7:from PyQt6.QtCore import QPoint, Qt
+./tests/navigation_test/test_navigation_popup_focus.py:8:from PyQt6.QtTest import QTest
+./tests/navigation_test/test_navigation_popup_focus.py:9:from PyQt6.QtWidgets import QMainWindow
+./tests/navigation_test/test_navigation_popup_focus.py:10:from PyQt6.Qsci import QsciScintilla
+./tests/navigation_test/test_navigation_popup_focus.py:33:def _make_editor(qapp) -> tuple[QMainWindow, QsciScintilla]:
+./tests/navigation_test/test_navigation_popup_focus.py:36:    editor = QsciScintilla(window)
+./tests/gui_qa_test/test_search_service.py:43:    from PyQt6.QtWidgets import QApplication
+./tests/gui_qa_test/test_shell_chrome.py:313:        from PyQt6.QtWidgets import QWidget
+./tests/gui_qa_test/test_explorer_flow.py:52:    from PyQt6.QtWidgets import QApplication
+./tests/gui_qa_test/test_explorer_flow.py:191:        from PyQt6.QtWidgets import QPushButton
+./tests/gui_qa_test/test_explorer_flow.py:205:        from PyQt6.QtWidgets import QApplication
+./tests/gui_qa_test/test_code_editor_completion.py:24:QT = pytest.importorskip("PyQt6.QtCore")
+./tests/gui_qa_test/test_code_editor_completion.py:277:        from PyQt6.QtWidgets import QStyleOptionViewItem
+./editor/Ironica/plugins/cpp/intellisense/index.py:14:from PyQt6.QtCore import QObject, pyqtSignal
+./tests/gui_qa_test/test_code_editor_markers.py:23:QT = pytest.importorskip("PyQt6.QtCore")
+./tests/gui_qa_test/test_code_editor_markers.py:252:        from PyQt6.QtGui import QColor
+./tests/gui_qa_test/test_code_editor_navigation.py:27:QT = pytest.importorskip("PyQt6.QtCore")
+./tests/gui_qa_test/test_menus.py:121:        from PyQt6.QtWidgets import QMenu
+./tests/gui_qa_test/test_menus.py:212:        from PyQt6.QtWidgets import QMenu
+./editor/Ironica/tab_editor.py:997:        from PyQt6.Qsci import QsciScintilla
+./editor/Ironica/tab_editor.py:1000:        if eol_mode == QsciScintilla.EolMode.EolWindows:
+./editor/Ironica/tab_editor.py:1002:        elif eol_mode == QsciScintilla.EolMode.EolMac:
+./tests/gui_qa_test/test_panel_float.py:233:        from PyQt6.QtWidgets import QTreeView
+./tests/gui_qa_test/test_panel_float.py:265:        from PyQt6.QtGui import QPalette
+./tests/gui_qa_test/test_source_control.py:80:    from PyQt6.QtWidgets import QApplication
+./editor/Ironica/plugins/python/jedi_worker.py:10:from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
+./editor/Ironica/regex.py:101:class IronicaLexer(QsciLexerCustom):
+./editor/Ironica/regex.py:213:        from PyQt6.Qsci import QsciScintilla
+./editor/Ironica/regex.py:228:                editor.SendScintilla(QsciScintilla.SCI_COLOURISE, 0, -1)
+./editor/Ironica/regex.py:371:        doc_len = editor.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+./editor/Ironica/regex.py:579:            QsciScintilla.SCI_GETTEXTRANGE, start, end, buffer
+./tests/gui_qa_test/test_widget_battery.py:10:from PyQt6.QtWidgets import QWidget
+./tests/gui_qa_test/test_widget_battery.py:23:QT = pytest.importorskip("PyQt6.QtCore")
+./tests/gui_qa_test/test_widget_battery.py:110:        from PyQt6.QtGui import QColor
+./tests/gui_qa_test/test_widget_battery.py:152:        from PyQt6.QtWidgets import QLabel
+./tests/gui_qa_test/test_widget_battery.py:589:        from PyQt6.QtGui import QColor
+./tests/gui_qa_test/test_widget_battery.py:623:        from PyQt6.QtWidgets import QWidget
+./tests/gui_qa_test/test_widget_battery.py:674:        from PyQt6.QtWidgets import QWidget
+./tests/gui_qa_test/test_widget_battery.py:766:        from PyQt6.QtGui import QAction
+./tests/gui_qa_test/test_widget_battery.py:805:        from PyQt6.QtWidgets import QMenu
+./editor/Ironica/retheme.py:164:    from PyQt6.QtGui import QColor
+./tests/gui_qa_test/test_code_editor_core.py:26:QT = pytest.importorskip("PyQt6.QtCore")
+./tests/gui_qa_test/test_code_editor_core.py:38:    from PyQt6.Qsci import QsciScintilla
+./tests/gui_qa_test/test_code_editor_core.py:40:    return int(editor.SendScintilla(QsciScintilla.SCI_GETZOOM))
+./tests/gui_qa_test/test_code_editor_core.py:357:        from PyQt6.QtGui import QFont
+./tests/gui_qa_test/test_code_editor_core.py:405:        from PyQt6.QtWidgets import QApplication
+./editor/utils/solution/QScafoldController.py:8:from PyQt6.QtWidgets import QMessageBox
+./editor/utils/node_editor/preview.py:14:from PyQt6.QtWidgets import QApplication, QMainWindow
+./editor/Ironica/supportive/web_browser.py:8:from PyQt6.QtWebEngineWidgets import QWebEngineView
+./editor/utils/solution/startup_window.py:1088:    from PyQt6.QtCore import QEventLoop
+./editor/Ironica/language_engine.py:15:class LanguageLexer(QsciLexerCustom):
+./editor/utils/node_editor/node/nodeGUI.py:1:from PyQt6.QtWidgets import *
+./editor/utils/node_editor/node/nodeGUI.py:2:from PyQt6.QtCore import *
+./editor/utils/node_editor/node/nodeGUI.py:3:from PyQt6.QtGui import *
+./editor/Ironica/utils/completion.py:706:    """Connects completion behavior to QsciScintilla with debouncing."""
+./editor/Ironica/utils/completion.py:708:    def __init__(self, editor: QsciScintilla) -> None:
+./editor/Ironica/utils/completion.py:894:        pos = self.editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+./editor/Ironica/utils/completion.py:1556:        pos = self.editor.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+./editor/Ironica/utils/completion.py:1558:        x = self.editor.SendScintilla(QsciScintilla.SCI_POINTXFROMPOSITION, 0, pos)
+./editor/Ironica/utils/completion.py:1559:        y = self.editor.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, pos)
+./editor/Ironica/utils/completion.py:1560:        line_index = self.editor.SendScintilla(QsciScintilla.SCI_LINEFROMPOSITION, pos)
+./editor/Ironica/utils/completion.py:1562:            QsciScintilla.SCI_TEXTHEIGHT, line_index
+./editor/utils/solution/theme.py:7:from PyQt6.QtWidgets import QApplication, QWidget
+./editor/Ironica/utils/highlighting_api.py:17:    """Maps a semantic token type to a QScintilla style index and foreground colour."""
+./editor/Ironica/utils/folding.py:29:    """Language-agnostic fold region manager for a QsciScintilla editor."""
+./editor/Ironica/utils/folding.py:36:    def __init__(self, editor: QsciScintilla) -> None:
+./editor/Ironica/utils/folding.py:49:        e.setMarginType(margin, QsciScintilla.MarginType.SymbolMargin)
+./editor/Ironica/utils/folding.py:52:        e.setMarginMarkerMask(margin, QsciScintilla.SC_MASK_FOLDERS)
+./editor/Ironica/utils/folding.py:55:            QsciScintilla.SC_MARKNUM_FOLDERSUB,
+./editor/Ironica/utils/folding.py:56:            QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL,
+./editor/Ironica/utils/folding.py:57:            QsciScintilla.SC_MARKNUM_FOLDERTAIL,
+./editor/Ironica/utils/folding.py:59:            e.markerDefine(QsciScintilla.MarkerSymbol.VerticalLine, marker)
+./editor/Ironica/utils/folding.py:119:    def _apply_theme_colours(self, e: QsciScintilla, bg: QColor) -> None:
+./editor/Ironica/utils/folding.py:132:            QsciScintilla.SC_MARKNUM_FOLDER,
+./editor/Ironica/utils/folding.py:133:            QsciScintilla.SC_MARKNUM_FOLDEROPEN,
+./editor/Ironica/utils/folding.py:134:            QsciScintilla.SC_MARKNUM_FOLDEREND,
+./editor/Ironica/utils/folding.py:135:            QsciScintilla.SC_MARKNUM_FOLDEROPENMID,
+./editor/Ironica/utils/folding.py:136:            QsciScintilla.SC_MARKNUM_FOLDERSUB,
+./editor/Ironica/utils/folding.py:137:            QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL,
+./editor/Ironica/utils/folding.py:138:            QsciScintilla.SC_MARKNUM_FOLDERTAIL,
+./editor/Ironica/utils/folding.py:142:        e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERSUB)
+./editor/Ironica/utils/folding.py:143:        e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERMIDTAIL)
+./editor/Ironica/utils/folding.py:144:        e.setMarkerForegroundColor(line_colour, QsciScintilla.SC_MARKNUM_FOLDERTAIL)
+./editor/Ironica/utils/folding.py:147:            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+./editor/Ironica/utils/folding.py:148:            QsciScintilla.SC_MARKNUM_FOLDER,
+./editor/Ironica/utils/folding.py:152:            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+./editor/Ironica/utils/folding.py:153:            QsciScintilla.SC_MARKNUM_FOLDEROPEN,
+./editor/Ironica/utils/folding.py:157:            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+./editor/Ironica/utils/folding.py:158:            QsciScintilla.SC_MARKNUM_FOLDEREND,
+./editor/Ironica/utils/folding.py:162:            QsciScintilla.SCI_MARKERDEFINEPIXMAP,
+./editor/Ironica/utils/folding.py:163:            QsciScintilla.SC_MARKNUM_FOLDEROPENMID,
+./editor/Ironica/utils/folding.py:169:    def _apply_colours(self, e: QsciScintilla) -> None:
+./editor/Ironica/utils/folding.py:236:        BASE = QsciScintilla.SC_FOLDLEVELBASE
+./editor/Ironica/utils/folding.py:237:        HEADER = QsciScintilla.SC_FOLDLEVELHEADERFLAG
+./editor/Ironica/utils/folding.py:252:        set_mask = getattr(QsciScintilla, "SCI_SETMODEVENTMASK", None)
+./editor/Ironica/utils/folding.py:253:        get_mask = getattr(QsciScintilla, "SCI_GETMODEVENTMASK", None)
+./editor/Ironica/utils/folding.py:268:                e.SendScintilla(QsciScintilla.SCI_SETFOLDLEVEL, ln, level)
+./editor/Ironica/utils/folding.py:279:                    QsciScintilla.SCI_GETFOLDEXPANDED, region.start_line
+./editor/Ironica/utils/folding.py:282:                    e.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, region.start_line)
+./editor/Ironica/utils/folding.py:287:        self._editor.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, region.start_line)
+./editor/Ironica/utils/folding.py:293:        self._editor.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, region.start_line)
+./editor/widgets/QCustomLabels.py:64:        from PyQt6.QtGui import QPen, QBrush
+./editor/Ironica/utils/documentation_flayout.py:12:from PyQt6.QtCore import QEvent, QPoint, QTimer, Qt, QSize, pyqtSignal
+./editor/Ironica/utils/documentation_flayout.py:13:from PyQt6.QtGui import (
+./editor/Ironica/utils/documentation_flayout.py:20:from PyQt6.QtWidgets import (
+./editor/Ironica/utils/diagnostics_ruler.py:94:            return int(self._source.SendScintilla(QsciScintilla.SCI_GETLENGTH) or 0)
+./editor/Ironica/utils/diagnostics_ruler.py:116:                QsciScintilla.SCI_POSITIONFROMLINE, max(0, int(line))
+./editor/Ironica/utils/diagnostics_ruler.py:135:                QsciScintilla.SCI_LINEFROMPOSITION, position
+./editor/utils/git_control/diff_view.py:10:from PyQt6.Qsci import QsciScintilla
+./editor/utils/git_control/diff_view.py:11:from PyQt6.QtCore import Qt
+./editor/utils/git_control/diff_view.py:12:from PyQt6.QtGui import QColor
+./editor/utils/git_control/diff_view.py:13:from PyQt6.QtWidgets import QLabel, QSplitter, QVBoxLayout, QWidget
+./editor/utils/git_control/diff_view.py:85:    editor.markerDefine(QsciScintilla.MarkerSymbol.Background, marker)
+./editor/utils/git_control/diff_view.py:99:    editor.markerDefine(QsciScintilla.MarkerSymbol.Background, marker)
+./editor/Ironica/utils/hover_controller.py:10:from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QTimer, Qt
+./editor/Ironica/utils/hover_controller.py:11:from PyQt6.QtGui import QCursor
+./editor/Ironica/utils/hover_controller.py:12:from PyQt6.QtWidgets import QApplication, QWidget
+./editor/Ironica/code_editor.py:25:class CodeEditor(QsciScintilla):
+./editor/Ironica/code_editor.py:100:        self.SendScintilla(QsciScintilla.SCI_SETENDATLASTLINE, 0)
+./editor/Ironica/code_editor.py:429:        length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+./editor/Ironica/code_editor.py:432:            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, ind)
+./editor/Ironica/code_editor.py:433:            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
+./editor/Ironica/code_editor.py:453:                    QsciScintilla.SCI_INDICSETSTYLE, slot, QsciScintilla.INDIC_TEXTFORE
+./editor/Ironica/code_editor.py:456:                    QsciScintilla.SCI_INDICSETFORE,
+./editor/Ironica/code_editor.py:469:            first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+./editor/Ironica/code_editor.py:470:            on_screen = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+./editor/Ironica/code_editor.py:472:                QsciScintilla.SCI_POSITIONFROMLINE, max(0, first_visible)
+./editor/Ironica/code_editor.py:475:                QsciScintilla.SCI_POSITIONFROMLINE,
+./editor/Ironica/code_editor.py:485:            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+./editor/Ironica/code_editor.py:491:                        QsciScintilla.SCI_INDICATORFILLRANGE, start, end - start
+./editor/Ironica/code_editor.py:514:                    self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+./editor/Ironica/code_editor.py:517:                    QsciScintilla.SCI_INDICATORFILLRANGE, start, token_len
+./editor/Ironica/code_editor.py:545:        return self.SendScintilla(QsciScintilla.SCI_GETZOOM)
+./editor/Ironica/code_editor.py:622:        self.SendScintilla(QsciScintilla.SCI_SETINDENTATIONGUIDES, 3)
+./editor/Ironica/code_editor.py:636:        self.setMarginType(margin, QsciScintilla.MarginType.SymbolMargin)
+./editor/Ironica/code_editor.py:656:            self.MARGIN_LINENUMBER, QsciScintilla.MarginType.NumberMargin
+./editor/Ironica/code_editor.py:673:            QsciScintilla.MarkerSymbol.FullRectangle,
+./editor/Ironica/code_editor.py:677:            QsciScintilla.MarkerSymbol.FullRectangle,
+./editor/Ironica/code_editor.py:681:            QsciScintilla.MarkerSymbol.FullRectangle,
+./editor/Ironica/code_editor.py:709:        self.SendScintilla(QsciScintilla.SCI_SETMARGINLEFT, 0, 10)
+./editor/Ironica/code_editor.py:713:        from PyQt6.QtGui import QColor
+./editor/Ironica/code_editor.py:736:        self.SendScintilla(QsciScintilla.SCI_FOLDDISPLAYTEXTSETSTYLE, 1)
+./editor/Ironica/code_editor.py:746:            QsciScintilla.SCI_STYLESETFORE,
+./editor/Ironica/code_editor.py:747:            QsciScintilla.STYLE_FOLDDISPLAYTEXT,
+./editor/Ironica/code_editor.py:751:            QsciScintilla.SCI_STYLESETBACK,
+./editor/Ironica/code_editor.py:752:            QsciScintilla.STYLE_FOLDDISPLAYTEXT,
+./editor/Ironica/code_editor.py:762:        was_expanded = bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
+./editor/Ironica/code_editor.py:766:            bool(self.SendScintilla(QsciScintilla.SCI_GETFOLDEXPANDED, line))
+./editor/Ironica/code_editor.py:769:            self.SendScintilla(QsciScintilla.SCI_TOGGLEFOLD, line)
+./editor/Ironica/code_editor.py:775:        self.setEdgeMode(QsciScintilla.EdgeMode.EdgeLine)
+./editor/Ironica/code_editor.py:781:        self.setWrapMode(QsciScintilla.WrapMode.WrapNone)
+./editor/Ironica/code_editor.py:786:        self.setBraceMatching(QsciScintilla.BraceMatch.NoBraceMatch)
+./editor/Ironica/code_editor.py:792:            QsciScintilla.WrapMode.WrapNone
+./editor/Ironica/code_editor.py:794:            else QsciScintilla.WrapMode.WrapWord
+./editor/Ironica/code_editor.py:841:            QsciScintilla.SCI_INDICSETSTYLE,
+./editor/Ironica/code_editor.py:843:            QsciScintilla.INDIC_ROUNDBOX,
+./editor/Ironica/code_editor.py:846:            QsciScintilla.SCI_INDICSETFORE,
+./editor/Ironica/code_editor.py:851:            QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_HL_SLOT, match_alpha
+./editor/Ironica/code_editor.py:854:            QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_HL_SLOT, outline
+./editor/Ironica/code_editor.py:856:        self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_HL_SLOT, 0)
+./editor/Ironica/code_editor.py:859:            QsciScintilla.SCI_INDICSETSTYLE,
+./editor/Ironica/code_editor.py:861:            QsciScintilla.INDIC_ROUNDBOX,
+./editor/Ironica/code_editor.py:864:            QsciScintilla.SCI_INDICSETFORE,
+./editor/Ironica/code_editor.py:869:            QsciScintilla.SCI_INDICSETALPHA, self.BRACKET_BAD_SLOT, bad_alpha
+./editor/Ironica/code_editor.py:872:            QsciScintilla.SCI_INDICSETOUTLINEALPHA, self.BRACKET_BAD_SLOT, outline
+./editor/Ironica/code_editor.py:874:        self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.BRACKET_BAD_SLOT, 0)
+./editor/Ironica/code_editor.py:879:            length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+./editor/Ironica/code_editor.py:885:                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+./editor/Ironica/code_editor.py:886:                self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, length)
+./editor/Ironica/code_editor.py:895:                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+./editor/Ironica/code_editor.py:897:                    self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, p, n)
+./editor/Ironica/code_editor.py:899:        length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+./editor/Ironica/code_editor.py:902:        pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+./editor/Ironica/code_editor.py:908:                ch = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, cand)
+./editor/Ironica/code_editor.py:916:        match = self.SendScintilla(QsciScintilla.SCI_BRACEMATCH, active, 0)
+./editor/Ironica/code_editor.py:918:            match_ch = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, match)
+./editor/Ironica/code_editor.py:921:                    QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_HL_SLOT
+./editor/Ironica/code_editor.py:924:                    self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, p, 1)
+./editor/Ironica/code_editor.py:927:        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self.BRACKET_BAD_SLOT)
+./editor/Ironica/code_editor.py:928:        self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, active, 1)
+./editor/Ironica/code_editor.py:960:            QsciScintilla.SCI_INDICSETSTYLE,
+./editor/Ironica/code_editor.py:962:            QsciScintilla.INDIC_ROUNDBOX,
+./editor/Ironica/code_editor.py:965:            QsciScintilla.SCI_INDICSETFORE,
+./editor/Ironica/code_editor.py:970:            QsciScintilla.SCI_INDICSETALPHA, self.OCCURRENCE_HL_SLOT, alpha
+./editor/Ironica/code_editor.py:973:            QsciScintilla.SCI_INDICSETOUTLINEALPHA,
+./editor/Ironica/code_editor.py:977:        self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, self.OCCURRENCE_HL_SLOT, 0)
+./editor/Ironica/code_editor.py:991:            QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT
+./editor/Ironica/code_editor.py:994:            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, pos, length)
+./editor/Ironica/code_editor.py:1024:            sel_start = self.SendScintilla(QsciScintilla.SCI_GETSELECTIONSTART)
+./editor/Ironica/code_editor.py:1025:            sel_end = self.SendScintilla(QsciScintilla.SCI_GETSELECTIONEND)
+./editor/Ironica/code_editor.py:1059:            QsciScintilla.SCI_SETINDICATORCURRENT, self.OCCURRENCE_HL_SLOT
+./editor/Ironica/code_editor.py:1062:            self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, pos, length)
+./editor/Ironica/code_editor.py:1283:        w0 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 0)
+./editor/Ironica/code_editor.py:1284:        w1 = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 1)
+./editor/Ironica/code_editor.py:1293:            pos = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, x, y)
+./editor/Ironica/code_editor.py:1295:                line = self.SendScintilla(QsciScintilla.SCI_LINEFROMPOSITION, pos)
+./editor/Ironica/code_editor.py:1316:            position = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, px, py)
+./editor/Ironica/code_editor.py:1466:        line_y = self.SendScintilla(QsciScintilla.SCI_POINTYFROMPOSITION, 0, char_pos)
+./editor/Ironica/code_editor.py:1467:        line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT, line_idx)
+./editor/Ironica/code_editor.py:1598:        visible_count = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+./editor/Ironica/code_editor.py:2194:        from PyQt6.QtGui import QColor
+./editor/Ironica/code_editor.py:2317:        from PyQt6.QtWidgets import QFileDialog
+./editor/Ironica/code_editor.py:2522:                    w = self.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, m)
+./editor/Ironica/code_editor.py:2634:                self.SendScintilla(QsciScintilla.SCI_SETUNDOCOLLECTION, 0)
+./editor/Ironica/code_editor.py:2659:                self.setWrapMode(QsciScintilla.WrapMode.WrapNone)
+./editor/Ironica/code_editor.py:2699:            self.SendScintilla(QsciScintilla.SCI_SETUNDOCOLLECTION, 1)
+./editor/Ironica/code_editor.py:2741:                    QsciScintilla.SCI_GETFIRSTVISIBLELINE
+./editor/Ironica/code_editor.py:2773:                self.SendScintilla(QsciScintilla.SCI_SETFIRSTVISIBLELINE, first_visible)
+./editor/Ironica/code_editor.py:2777:    _INDIC_SQUIGGLE = getattr(QsciScintilla, "INDIC_SQUIGGLE", 1)
+./editor/Ironica/code_editor.py:2841:                QsciScintilla.SCI_INDICSETSTYLE, slot, self._INDIC_SQUIGGLE
+./editor/Ironica/code_editor.py:2843:            self.SendScintilla(QsciScintilla.SCI_INDICSETFORE, slot, colour)
+./editor/Ironica/code_editor.py:2845:                QsciScintilla.SCI_INDICSETHOVERSTYLE, slot, self._INDIC_SQUIGGLE
+./editor/Ironica/code_editor.py:2847:            self.SendScintilla(QsciScintilla.SCI_INDICSETHOVERFORE, slot, colour)
+./editor/Ironica/code_editor.py:2849:                QsciScintilla.SCI_INDICSETALPHA, slot, self._DIAGNOSTIC_ALPHA
+./editor/Ironica/code_editor.py:2852:                QsciScintilla.SCI_INDICSETOUTLINEALPHA,
+./editor/Ironica/code_editor.py:2856:            self.SendScintilla(QsciScintilla.SCI_INDICSETUNDER, slot, 1)
+./editor/Ironica/code_editor.py:2897:        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+./editor/Ironica/code_editor.py:2899:            QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_end - byte_start
+./editor/Ironica/code_editor.py:2907:        line_start = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
+./editor/Ironica/code_editor.py:2950:                self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+./editor/Ironica/code_editor.py:2957:                        QsciScintilla.SCI_INDICATORFILLRANGE,
+./editor/Ironica/code_editor.py:3025:    _INDIC_TEXTFORE = getattr(QsciScintilla, "INDIC_TEXTFORE", 17)
+./editor/Ironica/code_editor.py:3050:                QsciScintilla.SCI_INDICSETSTYLE,
+./editor/Ironica/code_editor.py:3055:                QsciScintilla.SCI_INDICSETFORE,
+./editor/Ironica/code_editor.py:3060:                QsciScintilla.SCI_INDICSETALPHA, self._DEEMPHASIS_SLOT, 255
+./editor/Ironica/code_editor.py:3063:                QsciScintilla.SCI_INDICSETUNDER, self._DEEMPHASIS_SLOT, 0
+./editor/Ironica/code_editor.py:3066:                QsciScintilla.SCI_SETINDICATORCURRENT, self._DEEMPHASIS_SLOT
+./editor/Ironica/code_editor.py:3074:                    QsciScintilla.SCI_INDICATORFILLRANGE,
+./editor/Ironica/code_editor.py:3088:        doc_length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+./editor/Ironica/code_editor.py:3091:        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self._DEEMPHASIS_SLOT)
+./editor/Ironica/code_editor.py:3092:        self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, doc_length)
+./editor/Ironica/code_editor.py:3143:            line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT) or (
+./editor/Ironica/code_editor.py:3146:            first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+./editor/Ironica/code_editor.py:3207:        get_width = getattr(QsciScintilla, "SCI_GETMARGINWIDTHN", 2242)
+./editor/Ironica/code_editor.py:3225:            probed = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMPOINT, middle, y)
+./editor/Ironica/code_editor.py:3271:        doc_length = self.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+./editor/Ironica/code_editor.py:3278:            self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, slot)
+./editor/Ironica/code_editor.py:3279:            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, doc_length)
+./editor/Ironica/code_editor.py:3333:            line_height = self.SendScintilla(QsciScintilla.SCI_TEXTHEIGHT) or (
+./editor/Ironica/code_editor.py:3336:            first_visible = self.SendScintilla(QsciScintilla.SCI_GETFIRSTVISIBLELINE)
+./editor/Ironica/code_editor.py:3337:            lines_on_screen = self.SendScintilla(QsciScintilla.SCI_LINESONSCREEN) or 1
+./editor/Ironica/code_editor.py:3370:            QsciScintilla.SCI_STYLESETFORE, style_id, self._scintilla_rgb(color_hex)
+./editor/Ironica/code_editor.py:3377:            self.SendScintilla(QsciScintilla.SCI_STYLESETBACK, style_id, paper)
+./editor/Ironica/code_editor.py:3381:                QsciScintilla.SCI_STYLESETFONT,
+./editor/Ironica/code_editor.py:3386:            QsciScintilla.SCI_STYLESETSIZE, style_id, self._font.pointSize()
+./editor/Ironica/code_editor.py:3390:            QsciScintilla.SCI_ANNOTATIONSETTEXT, line, text.encode("utf-8")
+./editor/Ironica/code_editor.py:3392:        self.SendScintilla(QsciScintilla.SCI_ANNOTATIONSETSTYLE, line, style_id)
+./editor/Ironica/code_editor.py:3395:            QsciScintilla.SCI_ANNOTATIONSETVISIBLE, QsciScintilla.ANNOTATION_STANDARD
+./editor/Ironica/code_editor.py:3402:        self.SendScintilla(QsciScintilla.SCI_ANNOTATIONSETTEXT, line, b"")
+./editor/Ironica/code_editor.py:3406:        self.SendScintilla(QsciScintilla.SCI_ANNOTATIONCLEARALL)
+./editor/__init__.py:60:from PyQt6.QtCore import *
+./editor/__init__.py:61:from PyQt6.QtGui import *
+./editor/__init__.py:62:from PyQt6.QtWidgets import *
+./editor/__init__.py:63:from PyQt6.QtSvg import *
+./editor/__init__.py:64:from PyQt6.Qsci import *
+./editor/utils/explorer/explorer.py:29:        from PyQt6 import sip
+./tests/editor_test/test_editor_api.py:15:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:22:        editor = QsciScintilla()
+./tests/editor_test/test_editor_api.py:28:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:32:        editor = QsciScintilla()
+./tests/editor_test/test_editor_api.py:48:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:52:        api = EditorAPI(QsciScintilla())
+./tests/editor_test/test_editor_api.py:67:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:71:        api = EditorAPI(QsciScintilla())
+./tests/editor_test/test_editor_api.py:78:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:82:        api = EditorAPI(QsciScintilla())
+./tests/editor_test/test_editor_api.py:99:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:103:        api = EditorAPI(QsciScintilla())
+./tests/editor_test/test_editor_api.py:114:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:118:        api = EditorAPI(QsciScintilla())
+./tests/editor_test/test_editor_api.py:131:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:135:        api = EditorAPI(QsciScintilla())
+./tests/editor_test/test_editor_api.py:142:        from PyQt6.Qsci import QsciScintilla
+./tests/editor_test/test_editor_api.py:146:        api = EditorAPI(QsciScintilla())
+./editor/utils/icons.py:32:    from PyQt6.QtGui import QIcon
+./tests/editor_test/test_tab_bar_dirty.py:27:        from PyQt6.QtWidgets import QWidget
+./tests/editor_test/test_tab_bar_dirty.py:49:        from PyQt6.QtWidgets import QWidget
+./dreamcli/ui/DayDream.py:6:from PyQt6.QtWidgets import *
+./dreamcli/ui/DayDream.py:7:from PyQt6.QtCore import *
+./dreamcli/ui/DayDream.py:8:from PyQt6.QtGui import *
+./tests/support/fixtures.py:18:        patch("PyQt6.QtWidgets.QApplication.instance", return_value=None),
+./tests/support/fixtures.py:19:        patch("PyQt6.QtWidgets.QApplication") as mock_app_class,
+./tests/support/fixtures.py:108:    from PyQt6.Qsci import QsciScintilla
+./tests/support/fixtures.py:110:    editor = MagicMock(spec=QsciScintilla)
+./dreamcli/ui/DayDreamTabBar.py:1:from PyQt6.QtWidgets import QTabBar, QToolButton
+./dreamcli/ui/DayDreamTabBar.py:2:from PyQt6.QtGui import (
+./dreamcli/ui/DayDreamTabBar.py:9:from PyQt6.QtCore import Qt, QSize, QRect
+./dreamcli/ui/DayTerminal.py:36:from PyQt6.QtCore import Qt, pyqtSignal, QObject
+./dreamcli/ui/DayTerminal.py:37:from PyQt6.QtGui import (
+./dreamcli/ui/DayTerminal.py:45:from PyQt6.QtWidgets import QPlainTextEdit, QFrame
+./tests/terminal_test/test_terminal_ui.py:43:                "PyQt6.QtGui", fromlist=["QTextCursor"]
+./tests/terminal_test/test_terminal_display.py:10:from PyQt6.QtCore import Qt
+./tests/terminal_test/test_terminal_display.py:11:from PyQt6.QtWidgets import QApplication
+./tests/terminal_test/test_shell_emulator.py:12:from PyQt6.QtCore import Qt
