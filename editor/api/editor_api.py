@@ -13,14 +13,18 @@ class EditorAPI:
     operations, clipboard actions, status updates, etc.)."""
 
     def _toggle_panel(self, panel_id: str, manager) -> None:
-        """Toggle a side panel:"""
-        api = self.hero_window._vertical_menus_api
-        if api.is_visible(panel_id):
-            manager.set_current_panel(panel_id)
-        else:
-            api.activate_panel(panel_id)
+        """Toggle a side panel on or off.
 
-    def _toggle_lower_panel(self, target_attr: str, switch_tab: bool = False) -> None:
+        Args:
+            panel_id: Registered panel identifier.
+            manager: Utility tab manager that owns the panel (unused; kept for
+                call-site compatibility).
+        """
+        self.hero_window._vertical_menus_api.toggle_panel(panel_id)
+
+    def _toggle_lower_panel(
+        self, target_attr: str, switch_tab: bool = False, tab_index: int = 0
+    ) -> None:
         """Toggle a bottom-panel target inside _lower_widget."""
         container = self.hero_window._lower_widget
         splitter = self.hero_window._main_vertical_splitter
@@ -32,13 +36,13 @@ class EditorAPI:
             else:
                 container._stack.setCurrentWidget(target)
                 if switch_tab:
-                    target.switch_tab(0)
+                    target.switch_tab(tab_index)
         else:
             container._stack.setCurrentWidget(target)
             container.setVisible(True)
             splitter.setSizes([600, 400])
             if switch_tab:
-                target.switch_tab(0)
+                target.switch_tab(tab_index)
 
     def _toggle_file_explorer(self) -> None:
         self._toggle_panel("solution_explorer", self.hero_window._left_utils_manager)
@@ -67,6 +71,36 @@ class EditorAPI:
     def _toggle_terminal(self) -> None:
         self._toggle_lower_panel("terminal_window", switch_tab=True)
 
+    def _toggle_python_process_output(self) -> None:
+        """Show the terminal dock on its captured-output tab."""
+        from editor.terminal.Emulator.terminal_ui import TAB_OUTPUT
+
+        self._toggle_lower_panel(
+            "terminal_window", switch_tab=True, tab_index=TAB_OUTPUT
+        )
+
+    def _toggle_outputs_window(self) -> None:
+        """Show the captured stdout/stderr view inside the terminal dock."""
+        self._toggle_python_process_output()
+
+    def _toggle_python_packages(self) -> None:
+        """Open the Python package manager for the active workspace."""
+        from editor.utils.explorer.packages import DependenciesView
+
+        tabs = self.hero_window._text_editor_center.tabs
+        tabs.add_new_tab(DependenciesView, "Python Packages")
+        view = tabs.currentWidget()
+        if hasattr(view, "set_workspace"):
+            view.set_workspace(getattr(self.title_bar, "directory", "") or "")
+
+    def _toggle_system_monitor(self) -> None:
+        """Open the live system monitor in a new tab."""
+        from editor.utils.tools.system_monitor import SystemMonitor
+
+        self.hero_window._text_editor_center.tabs.add_new_tab(
+            SystemMonitor, "System Monitor"
+        )
+
     def _toggle_python_console(self):
         self.hero_window._text_editor_center._tabs.add_new_tab(
             PythonShell, "Python Shell"
@@ -83,7 +117,20 @@ class EditorAPI:
         )
 
     def _toggle_settings_window(self):
-        self.hero_window._text_editor_center.tabs.add_new_tab(QWidget, "Settings")
+        """Open or focus the Settings and Preferences tab."""
+        from editor.utils.tools.settings_dialog import SettingsPanel
+
+        tabs = self.hero_window._text_editor_center.tabs
+        for index in range(tabs.count()):
+            try:
+                widget = tabs.widget(index)
+            except RuntimeError:
+                continue
+            if isinstance(widget, SettingsPanel):
+                tabs.setCurrentIndex(index)
+                return
+
+        tabs.add_new_tab(SettingsPanel, "Settings and Preferences")
 
     def _toggle_problems(self) -> None:
         """Open/close the Problems panel, unfiltered."""
@@ -122,24 +169,27 @@ class EditorAPI:
         except Exception:
             self._toggle_lower_panel("problems_window")
 
-    def _toggle_search_widget(self) -> None:
-        if (
-            not hasattr(self, "_find_replace_window")
-            or self._find_replace_window is None
-        ):
-            self._find_replace_window = FindReplace(
+    def _ensure_search_widget(self):
+        """Return the Find/Replace popup bound to the active workspace."""
+        widget = getattr(self, "_find_replace_window", None)
+        if widget is None:
+            widget = FindReplace(
                 parent=self,
                 hanging_widget=self.title_bar._ide_search,
                 current_directory=self.title_bar.directory,
             )
-            self._find_replace_window.setStyleSheet(self.styleSheet())
+            widget.setStyleSheet(self.styleSheet())
+            self._find_replace_window = widget
         else:
-            self._find_replace_window.current_directory = self.title_bar.directory
+            widget.current_directory = self.title_bar.directory
+        return widget
 
-        if self._find_replace_window.isVisible():
-            self._find_replace_window.hide()
+    def _toggle_search_widget(self) -> None:
+        widget = self._ensure_search_widget()
+        if widget.isVisible():
+            widget.hide()
         else:
-            self._find_replace_window._show()
+            widget._show()
 
     def _update_left_button_state(self, active_id: str) -> None:
         buttons = self.left_sidebar.findChildren(QPushButton)
@@ -326,6 +376,27 @@ class EditorAPI:
         self.hero_window._lower_widget.terminal_window.set_theme(
             self._qss_bg, self._qss_fg, self._qss_sel
         )
+        self._retheme_tabs()
+
+    def _retheme_tabs(self) -> None:
+        """Propagate the current palette to tab widgets that opt in."""
+        try:
+            tabs = self.hero_window._text_editor_center.tabs
+        except Exception:
+            return
+
+        for index in range(tabs.count()):
+            try:
+                widget = tabs.widget(index)
+            except RuntimeError:
+                continue
+            handler = getattr(widget, "apply_theme", None)
+            if not callable(handler):
+                continue
+            try:
+                handler(self._qss_bg, self._qss_fg, self._qss_sel)
+            except Exception:
+                pass
 
     def _retheme_editors(self) -> None:
         """Re-colour every open code editor to match the current theme."""
@@ -435,6 +506,10 @@ class EditorAPI:
         """Run the active Python file in a new integrated terminal session."""
         self._get_run_menu_controller().run_current_file()
 
+    def _run_and_debug_file(self) -> None:
+        """Run the active Python file and attach the debugger."""
+        self._debug_current_file()
+
     def _config_run_options(self) -> None:
         """Open the run-configuration editor dialog."""
         self._get_run_menu_controller().open_config_dialog()
@@ -533,6 +608,13 @@ class EditorAPI:
 
         session = DebugSession(file_path, breakpoints, self)
         self._active_debug_session = session
+        for signal in (
+            session.session_started,
+            session.session_paused,
+            session.session_ended,
+            session.session_error,
+        ):
+            signal.connect(self._on_debug_state_changed)
 
         self._debug_btn_ref = getattr(self.options_menu, "_debug_button", None)
 
@@ -568,6 +650,10 @@ class EditorAPI:
         active = getattr(self, "_active_debug_session", None)
         if active is not None and active.is_running():
             active.step_out()
+
+    def _on_debug_state_changed(self, *_args) -> None:
+        """Refresh menu gating whenever the debug session changes state."""
+        self._refresh_titlebar_state()
 
     def stop_all_debug_utils(self) -> None:
         """Terminate any active debug session and reset all debug UI."""

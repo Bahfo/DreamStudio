@@ -315,6 +315,46 @@ class RunMenuController:
                 pass
         return raw
 
+    def run_with_configured_arguments(self) -> None:
+        """Run the active file using one of the saved run configurations."""
+        path = self.current_file_path()
+        if not is_runnable_python_file(path):
+            self._notify_error(
+                "Run with Configured Arguments",
+                "No saved Python file is currently active.",
+            )
+            return
+
+        configs = self._load_config_files()
+        if not configs:
+            self._notify_error(
+                "Run with Configured Arguments",
+                "No run configuration is saved yet. Configure the arguments first.",
+            )
+            self.open_config_dialog()
+            return
+
+        if len(configs) == 1:
+            self.run_configuration(configs[0][1])
+            return
+
+        names = [name for name, _path, _options in configs]
+        choice, accepted = QInputDialog.getItem(
+            self._window,
+            "Run with Configured Arguments",
+            "Run configuration:",
+            names,
+            0,
+            False,
+        )
+        if not accepted:
+            return
+
+        for name, config_path, _options in configs:
+            if name == choice:
+                self.run_configuration(config_path)
+                return
+
     def run_configuration(self, config_path: str) -> None:
         """Execute a saved run configuration inside a new terminal."""
         try:

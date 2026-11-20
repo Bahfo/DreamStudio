@@ -272,6 +272,6 @@
         "tooltip":"Find in File",
         "size":[30, 30],
         "icon_size":[22, 22],
-        "callback": "_toggle_nodes_editor"
+        "callback": "_toggle_search_widget"
     }
 ]

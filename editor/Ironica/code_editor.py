@@ -106,6 +106,8 @@ class CodeEditor(QsciScintilla):
 
         self._hovered_breakpoint_line = None
 
+        self._disabled_breakpoints: set[int] = set()
+
         self._is_zoomed = False
 
         self.shortcut_reset = QShortcut(QKeySequence("Ctrl+0"), self)

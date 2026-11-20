@@ -183,6 +183,181 @@ class TestSafeMenuActions:
         assert editor.text() != before, "duplicate action did not change the text"
 
 
+class TestMenuGating:
+    """Menu actions are enabled only while their precondition holds."""
+
+    @staticmethod
+    def _action(window, name):
+        """Return the tracked QAction for *name* after refreshing its state.
+
+        Args:
+            window: The live DreamStudio main window.
+            name: Action name as declared in ``menus.json``.
+
+        Returns:
+            The QAction that the title bar tracks for gating.
+        """
+        window.title_bar.refresh_action_states()
+        action = window.title_bar._menu_actions.get(name)
+        assert action is not None, f"menu action '{name}' is not gated"
+        return action
+
+    @staticmethod
+    def _leaf_actions(window):
+        """Yield ``(text, action)`` for every leaf action of the menu bar.
+
+        Args:
+            window: The live DreamStudio main window.
+        """
+        from PyQt6.QtWidgets import QMenu
+
+        for menu in window.title_bar.menubar.findChildren(QMenu):
+            for action in menu.actions():
+                if action.isSeparator() or action.menu() is not None:
+                    continue
+                yield action.text(), action
+
+    def test_editor_actions_are_disabled_without_an_open_editor(self, qapp, qa_window):
+        """Editor-only actions stay greyed out until a code tab is active."""
+        window = qa_window
+        for name in (
+            "set_cut",
+            "set_copy",
+            "set_paste",
+            "set_undo",
+            "set_redo",
+            "set_select_all",
+            "set_format_code",
+            "set_comment_current_line",
+            "set_toggle_breakpoint",
+            "set_run_current_file",
+            "set_expand_all_folds",
+        ):
+            assert not self._action(
+                window, name
+            ).isEnabled(), f"'{name}' is enabled without an open editor"
+
+    def test_selection_actions_follow_the_selection(self, qapp, qa_window, sample_tree):
+        """Cut/copy are enabled only while text is selected."""
+        window = qa_window
+        _open_sample(qapp, window, sample_tree)
+        editor = code_editor(window.hero_window._text_editor_center.current_editor())
+
+        editor.setCursorPosition(0, 0)
+        pump(qapp, 100)
+        for name in (
+            "set_cut",
+            "set_copy",
+            "set_delete_selection",
+            "set_search_in_selected",
+        ):
+            assert not self._action(
+                window, name
+            ).isEnabled(), f"'{name}' is enabled without a selection"
+
+        assert self._action(window, "set_select_all").isEnabled()
+        assert self._action(window, "set_comment_current_line").isEnabled()
+
+        editor.setSelection(0, 0, 0, 5)
+        pump(qapp, 100)
+        for name in ("set_cut", "set_copy", "set_delete_selection"):
+            assert self._action(
+                window, name
+            ).isEnabled(), f"'{name}' stays disabled with a selection"
+
+        editor.setCursorPosition(0, 0)
+        pump(qapp, 100)
+        assert not self._action(window, "set_cut").isEnabled()
+
+    def test_run_actions_require_a_python_file(self, qapp, qa_window, sample_tree):
+        """Run/debug actions unlock only for an on-disk Python file."""
+        window = qa_window
+        assert not self._action(window, "set_run_current_file").isEnabled()
+
+        _open_sample(qapp, window, sample_tree)
+        for name in (
+            "set_run_current_file",
+            "set_run_without_debugging",
+            "set_run_with_arguments",
+            "_debug_current_file",
+        ):
+            assert self._action(
+                window, name
+            ).isEnabled(), f"'{name}' stays disabled for a Python file"
+
+    def test_breakpoint_actions_follow_breakpoints(self, qapp, qa_window, sample_tree):
+        """Enable/disable/remove-all unlock only when breakpoints exist."""
+        window = qa_window
+        _open_sample(qapp, window, sample_tree)
+
+        for name in (
+            "set_enable_all_breakpoints",
+            "set_disable_all_breakpoints",
+            "set_remove_all_breakpoints",
+        ):
+            assert not self._action(
+                window, name
+            ).isEnabled(), f"'{name}' is enabled without breakpoints"
+
+        window.set_toggle_breakpoint()
+        pump(qapp, 100)
+        for name in (
+            "set_enable_all_breakpoints",
+            "set_disable_all_breakpoints",
+            "set_remove_all_breakpoints",
+        ):
+            assert self._action(
+                window, name
+            ).isEnabled(), f"'{name}' stays disabled with a breakpoint"
+
+        window.set_remove_all_breakpoints()
+        pump(qapp, 100)
+        assert not self._action(window, "set_enable_all_breakpoints").isEnabled()
+
+    def test_unavailable_actions_are_disabled(self, qapp, qa_window):
+        """Every action marked unavailable is greyed out with an explanation."""
+        from editor.utils.resource_path import resource_path
+
+        window = qa_window
+        unavailable = window.title_bar._UNAVAILABLE_ACTIONS
+        tooltip = window.title_bar._UNAVAILABLE_TOOLTIP
+
+        with open(resource_path("editor/base/json/menus.json"), encoding="utf-8") as fh:
+            data = json.load(fh)
+
+        texts: set[str] = set()
+
+        def walk(items: list) -> None:
+            """Collect the labels of unavailable actions.
+
+            Args:
+                items: Menu entries to inspect.
+            """
+            for entry in items:
+                if not entry:
+                    continue
+                if entry.get("submenu"):
+                    walk(entry["submenu"])
+                    continue
+                if entry.get("action") in unavailable:
+                    texts.add(entry.get("text"))
+
+        for items in data.values():
+            walk(items)
+
+        by_text: dict[str, list] = {}
+        for text, action in self._leaf_actions(window):
+            by_text.setdefault(text, []).append(action)
+
+        assert texts, "menus.json declares no unavailable actions"
+        for text in texts:
+            actions = by_text.get(text) or []
+            assert actions, f"unavailable action '{text}' is missing from the menu bar"
+            for action in actions:
+                assert not action.isEnabled(), f"unavailable action '{text}' is enabled"
+                assert action.toolTip() == tooltip
+
+
 class TestDialogMenuActions:
     """Dialog-producing actions run only with native dialogs stubbed."""
 

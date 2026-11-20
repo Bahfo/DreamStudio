@@ -32,7 +32,17 @@ class DreamStudioTitleBar(QWidget):
     _OPTIONS_BAR_HIDE_TEXT = "Hide Options Bar"
     _OPTIONS_BAR_SHOW_TEXT = "Show Options Bar"
 
+    _UNAVAILABLE_ACTIONS = frozenset(
+        {
+            "generic_callback",
+            "set_new_window",
+            "set_open_marketplace",
+        }
+    )
+    _UNAVAILABLE_TOOLTIP = "Not available in this release."
+
     _ACTION_REQUIREMENTS = {
+        # ---- Edit -----------------------------------------------------
         "set_undo": "undo",
         "set_redo": "redo",
         "set_cut": "selection",
@@ -44,7 +54,33 @@ class DreamStudioTitleBar(QWidget):
         "set_unselect_all": "editor",
         "set_indent_selection": "selection",
         "set_unindent_selection": "selection",
+        "set_find_replace": "workspace",
+        "set_find_replace_in_files": "workspace",
+        "set_search_in_selected": "selection",
+        "set_manage_indentation": "editor",
+        # ---- View -----------------------------------------------------
         _OPTIONS_BAR_ACTION: "always",
+        "set_toggle_left_bar": "always",
+        "set_toggle_right_bar": "always",
+        "set_toggle_sidebar_side": "always",
+        "set_reset_appearance": "always",
+        "set_full_screen": "always",
+        "set_zen_mode": "always",
+        # ---- Tools ----------------------------------------------------
+        "_show_command_window": "always",
+        "set_tasks_todo": "workspace",
+        "set_show_analysis_manager": "workspace",
+        "_toggle_notifications": "always",
+        "_toggle_ether_ai": "always",
+        "_toggle_python_console": "always",
+        "_toggle_python_packages": "workspace",
+        "_toggle_python_process_output": "always",
+        "_toggle_outputs_window": "always",
+        "_toggle_problems": "always",
+        "_toggle_system_monitor": "always",
+        "_toggle_git_source_control": "repo",
+        "_toggle_server_explorer": "workspace",
+        # ---- Code -----------------------------------------------------
         "set_format_code": "editable",
         "set_comment_current_line": "editable",
         "set_comment_current_selection": "selection",
@@ -53,13 +89,37 @@ class DreamStudioTitleBar(QWidget):
         "set_duplicate_current_line": "editable",
         "set_duplicate_current_selection": "selection",
         "set_goto_definition": "provider",
-        "set_goto_declaration": "provider",
-        "set_goto_implementation": "provider",
+        "set_goto_declaration": "provider_declaration",
+        "set_goto_implementation": "provider_implementation",
+        "set_find_usages": "provider_references",
+        "set_goto_symbol": "editor",
+        "set_add_copyright": "editable",
+        "set_update_copyright": "editable",
         "set_expand_current_fold": "folds",
         "set_expand_all_folds": "folds",
         "set_collapse_current_fold": "folds",
         "set_collapse_all_folds": "folds",
         "set_collapse_includes": "folds",
+        # ---- Run ------------------------------------------------------
+        "set_run_current_file": "runnable",
+        "set_run_with_arguments": "runnable",
+        "set_run_without_debugging": "runnable",
+        "_debug_current_file": "runnable",
+        "_stop_debug": "debug_running",
+        "_restart_debug": "debug_running",
+        "_step_over": "debug_paused",
+        "_step_into": "debug_paused",
+        "_step_out": "debug_paused",
+        "_continue_debug": "debug_paused",
+        "set_toggle_breakpoint": "editable",
+        "set_enable_all_breakpoints": "breakpoints",
+        "set_disable_all_breakpoints": "breakpoints",
+        "set_remove_all_breakpoints": "breakpoints",
+        # ---- File / Help ----------------------------------------------
+        "set_import_configurations": "always",
+        "set_export_configurations": "always",
+        "set_open_settings": "always",
+        "set_show_about": "always",
     }
 
     def __init__(self, parent, directory):
@@ -170,8 +230,9 @@ class DreamStudioTitleBar(QWidget):
             menu.setObjectName("TitleBarMenu")
             self._build_menu_items(menu, items)
 
-        for menu in self._refresh_menus:
+        for menu in self.menubar.findChildren(QMenu):
             try:
+                menu.setToolTipsVisible(True)
                 menu.aboutToShow.connect(self.refresh_action_states)
             except (TypeError, RuntimeError):
                 pass
@@ -214,6 +275,12 @@ class DreamStudioTitleBar(QWidget):
                     )
                     if target:
                         action.triggered.connect(target)
+                    elif action_str in self._UNAVAILABLE_ACTIONS:
+                        action.triggered.connect(self._on_unavailable_action)
+
+                if action_str in self._UNAVAILABLE_ACTIONS:
+                    action.setEnabled(False)
+                    action.setToolTip(self._UNAVAILABLE_TOOLTIP)
 
                 if action_str in self._EDITOR_MENU_ACTIONS or (
                     action_str in self._ACTION_REQUIREMENTS
@@ -223,6 +290,12 @@ class DreamStudioTitleBar(QWidget):
                         self._refresh_menus.append(parent_menu)
 
                 parent_menu.addAction(action)
+
+    def _on_unavailable_action(self, _checked: bool = False) -> None:
+        """Log a trigger of a menu entry that has no implementation yet."""
+        sender = self.sender()
+        label = sender.text() if sender is not None else "(unknown)"
+        logger.info("Unavailable menu action triggered: %s", label)
 
     def _update_menu_state(self, has_tabs: bool) -> None:
         """Enable or disable editor-dependent menu actions."""
@@ -245,7 +318,7 @@ class DreamStudioTitleBar(QWidget):
         self._sync_options_bar_action()
 
     def _editor_action_flags(self) -> dict[str, bool]:
-        """Return the live capability flags of the active editor."""
+        """Return the live capability flags of the active editor and workspace."""
         flags = {
             "always": True,
             "editor": False,
@@ -256,7 +329,16 @@ class DreamStudioTitleBar(QWidget):
             "undo": False,
             "redo": False,
             "provider": False,
+            "provider_declaration": False,
+            "provider_implementation": False,
+            "provider_references": False,
             "folds": False,
+            "breakpoints": False,
+            "workspace": bool(self._workspace_path()),
+            "repo": self._has_git_repository(),
+            "runnable": self._active_file_is_runnable(),
+            "debug_running": self._debug_is_running(),
+            "debug_paused": self._debug_is_paused(),
         }
 
         editor = self._active_code_editor()
@@ -273,9 +355,102 @@ class DreamStudioTitleBar(QWidget):
         flags["paste"] = not readonly and bool(self._clipboard_text())
         flags["undo"] = not readonly and bool(editor.isUndoAvailable())
         flags["redo"] = not readonly and bool(editor.isRedoAvailable())
-        flags["provider"] = getattr(editor, "current_provider", None) is not None
         flags["folds"] = getattr(editor, "_fold_manager", None) is not None
+        flags["breakpoints"] = self._has_breakpoints(editor)
+
+        provider = getattr(editor, "current_provider", None)
+        if provider is not None:
+            flags["provider"] = True
+            flags["provider_declaration"] = bool(
+                getattr(provider, "supports_declaration", lambda: False)()
+            )
+            flags["provider_implementation"] = bool(
+                getattr(provider, "supports_implementation", lambda: False)()
+            )
+            flags["provider_references"] = bool(
+                getattr(provider, "supports_references", lambda: False)()
+            )
         return flags
+
+    def _workspace_path(self) -> str:
+        """Return the active workspace root, or an empty string."""
+        path = getattr(self._title_parent, "title_bar", None)
+        directory = getattr(path, "directory", "") if path is not None else ""
+        if directory:
+            return str(directory)
+
+        registry = getattr(self._title_parent, "_registry", None)
+        if registry is not None and registry.has("workspace"):
+            return str(getattr(registry.get("workspace"), "current_path", "") or "")
+        return ""
+
+    def _has_git_repository(self) -> bool:
+        """Return ``True`` when the active workspace is a git repository."""
+        path = self._workspace_path()
+        if not path or not os.path.isdir(path):
+            return False
+
+        cached = getattr(self, "_repo_cache", None)
+        if cached is not None and cached[0] == path:
+            return cached[1]
+
+        try:
+            from editor.utils.git_control.git_control import return_repository
+
+            result = return_repository(path) is not None
+        except Exception:
+            result = False
+
+        self._repo_cache = (path, result)
+        return result
+
+    def _active_file_is_runnable(self) -> bool:
+        """Return ``True`` when the active tab holds a runnable Python file."""
+        controller = getattr(self._title_parent, "_run_menu", None)
+        if controller is None:
+            return False
+        try:
+            from editor.debugger.run.run_menu import is_runnable_python_file
+
+            return is_runnable_python_file(controller.current_file_path())
+        except Exception:
+            return False
+
+    def _debug_session(self):
+        """Return the active debug session, or ``None``."""
+        return getattr(self._title_parent, "_active_debug_session", None)
+
+    def _debug_is_running(self) -> bool:
+        """Return ``True`` while a debug session is alive."""
+        session = self._debug_session()
+        if session is None:
+            return False
+        try:
+            return bool(session.is_running())
+        except Exception:
+            return False
+
+    def _debug_is_paused(self) -> bool:
+        """Return ``True`` while a debug session is stopped on a breakpoint."""
+        session = self._debug_session()
+        if session is None:
+            return False
+        try:
+            return bool(session.is_paused())
+        except Exception:
+            return False
+
+    @staticmethod
+    def _has_breakpoints(editor) -> bool:
+        """Return ``True`` when the editor holds armed or disabled breakpoints."""
+        if editor is None:
+            return False
+        try:
+            if editor.get_breakpoint_lines():
+                return True
+        except Exception:
+            pass
+        return bool(getattr(editor, "_disabled_breakpoints", None))
 
     def _active_code_editor(self):
         """Return the ``CodeEditor`` of the active tab, or ``None``."""
@@ -482,5 +657,13 @@ class DreamStudioTitleBar(QWidget):
         return QColor(red, green, blue)
 
     def show_welcome(self) -> None:
-        """Open the IDE welcome / start page window."""
-        self._title_parent._on_welcome_btn_click()
+        """Open the IDE welcome / start page tab."""
+        handler = getattr(self._title_parent, "show_welcome", None)
+        if callable(handler):
+            handler()
+            return
+
+        center = getattr(self._title_parent, "_text_editor_center", None)
+        tabs = getattr(center, "tabs", None)
+        if tabs is not None:
+            tabs.open_welcome_window()

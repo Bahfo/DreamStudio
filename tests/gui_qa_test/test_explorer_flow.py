@@ -183,6 +183,20 @@ class TestExplorerTree:
         assert not issues, "zero-size visible widgets:\n" + "\n".join(issues)
 
 
+class TestExplorerShell:
+    """The solution explorer only hosts the file tree now."""
+
+    def test_explorer_has_no_packages_section(self, qapp, qa_window):
+        """Packages live in the Python Packages tab, not the explorer."""
+        from PyQt6.QtWidgets import QPushButton
+
+        explorer = _explorer(qa_window)
+        assert not hasattr(explorer, "btn_packages")
+        assert not hasattr(explorer, "packages_view")
+        labels = [button.text() for button in explorer.findChildren(QPushButton)]
+        assert "Packages" not in labels, labels
+
+
 class TestExplorerActions:
     """Explorer actions behave and destructive ones stay guarded."""
 

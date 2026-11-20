@@ -179,23 +179,23 @@
         {
           "text": "Show Left Bar",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_toggle_left_bar"
         },
         {
           "text": "Show Terminals",
           "icon": null,
-          "action": "generic_callback"
+          "action": "_toggle_terminal"
         },
         {
           "text": "Show Services Right Bar",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_toggle_right_bar"
         },
         null,
         {
           "text": "Move Sidebar to Right",
           "icon": null,
-          "action": "generic_callback"
+          "action": "set_toggle_sidebar_side"
         },
         {
           "text": "Hide Options Bar",
@@ -207,7 +207,84 @@
     {
       "text": "Themes",
       "icon": null,
-      "action": "generic_callback"
+      "submenu": [
+        {
+          "text": "Dark",
+          "icon": null,
+          "action": "_set_theme_dark"
+        },
+        {
+          "text": "Light",
+          "icon": null,
+          "action": "_set_theme_light"
+        },
+        {
+          "text": "Moses",
+          "icon": null,
+          "action": "_set_theme_moses"
+        },
+        {
+          "text": "Davy",
+          "icon": null,
+          "action": "_set_theme_davy"
+        },
+        {
+          "text": "Tokyo Night",
+          "icon": null,
+          "action": "_set_theme_tokyonight"
+        },
+        {
+          "text": "Solarized Dark",
+          "icon": null,
+          "action": "_set_theme_solarized_dark"
+        },
+        {
+          "text": "Solarized Light",
+          "icon": null,
+          "action": "_set_theme_solarized_light"
+        },
+        {
+          "text": "Monokai",
+          "icon": null,
+          "action": "_set_theme_monokai"
+        },
+        {
+          "text": "Dark High Contrast",
+          "icon": null,
+          "action": "_set_theme_dark_hc"
+        },
+        {
+          "text": "Light High Contrast",
+          "icon": null,
+          "action": "_set_theme_light_hc"
+        },
+        {
+          "text": "Coffee Dark",
+          "icon": null,
+          "action": "_set_theme_coffee_dark"
+        },
+        {
+          "text": "Coffee Light",
+          "icon": null,
+          "action": "_set_theme_coffee_light"
+        },
+        {
+          "text": "Material Dark",
+          "icon": null,
+          "action": "_set_theme_material_dark"
+        },
+        {
+          "text": "Material Light",
+          "icon": null,
+          "action": "_set_theme_material_light"
+        },
+        null,
+        {
+          "text": "Custom Gradient...",
+          "icon": null,
+          "action": "_set_titlebar_gradient"
+        }
+      ]
     },
     null,
     {
@@ -234,7 +311,7 @@
     {
       "text": "Reset Appearance Settings",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_reset_appearance"
     }
   ],
   "Tools": [
@@ -256,35 +333,35 @@
     {
       "text": "Notifications",
       "icon": "assets/menus/notifications.png",
-      "action": "generic_callback"
+      "action": "_toggle_notifications"
     },
     null,
     {
       "text": "Ether AI Chat Window",
       "icon": "assets/menus/ai_chat.png",
-      "action": "generic_callback"
+      "action": "_toggle_ether_ai"
     },
     null,
     {
       "text": "Python Console",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_toggle_python_console"
     },
     {
       "text": "Python Packages",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_toggle_python_packages"
     },
     {
       "text": "Python Process Output",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_toggle_python_process_output"
     },
     null,
     {
       "text": "Code Analysis Manager",
       "icon": "assets/menus/analysis.png",
-      "action": "generic_callback"
+      "action": "set_show_analysis_manager"
     },
     {
       "text": "Code Snippets Manager",
@@ -299,7 +376,7 @@
     {
       "text": "Errors List",
       "icon": "assets/menus/error.png",
-      "action": "generic_callback"
+      "action": "_toggle_problems"
     },
     null,
     {
@@ -325,23 +402,23 @@
     {
       "text": "Outputs Window",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_toggle_outputs_window"
     },
     {
       "text": "System Monitor",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_toggle_system_monitor"
     },
     null,
     {
       "text": "Version Control",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_toggle_git_source_control"
     },
     {
       "text": "Server Explorer",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_toggle_server_explorer"
     },
     {
       "text": "SSH Connection Manager",
@@ -420,12 +497,12 @@
     {
       "text": "Find Usages and References in Current File",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_find_usages"
     },
     {
       "text": "Go to Symbol",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_goto_symbol"
     },
     null,
     {
@@ -490,86 +567,86 @@
     {
       "text": "Add a copyright",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_add_copyright"
     },
     {
       "text": "Update copyright",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_update_copyright"
     }
   ],
   "Run": [
     {
       "text": "Run Current File",
       "icon": "assets/menus/run.png",
-      "action": "generic_callback"
+      "action": "set_run_current_file"
     },
     {
       "text": "Run Current File with Configured Arguments",
       "icon": "assets/menus/run_args.png",
-      "action": "generic_callback"
+      "action": "set_run_with_arguments"
     },
     {
       "text": "Debug Current File",
       "icon": "assets/menus/testing.png",
-      "action": "generic_callback"
+      "action": "_debug_current_file"
     },
     {
       "text": "Run Current File without Debugging",
       "icon": "assets/menus/run_no_debug.png",
-      "action": "generic_callback"
+      "action": "set_run_without_debugging"
     },
     {
       "text": "Stop Current Execution",
       "icon": "assets/menus/stop.png",
-      "action": "generic_callback"
+      "action": "_stop_debug"
     },
     {
       "text": "Restart Debugging",
       "icon": "assets/menus/restart.png",
-      "action": "generic_callback"
+      "action": "_restart_debug"
     },
     null,
     {
       "text": "Step Over",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_step_over"
     },
     {
       "text": "Step Into",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_step_into"
     },
     {
       "text": "Step Out",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_step_out"
     },
     {
       "text": "Continue",
       "icon": null,
-      "action": "generic_callback"
+      "action": "_continue_debug"
     },
     null,
     {
       "text": "Add New Breakpoint at Current File",
       "icon": "assets/menus/breakpoint.png",
-      "action": "generic_callback"
+      "action": "set_toggle_breakpoint"
     },
     {
       "text": "Enable All Breakpoints",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_enable_all_breakpoints"
     },
     {
       "text": "Disable All Breakpoints",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_disable_all_breakpoints"
     },
     {
       "text": "Remove All Breakpoints",
       "icon": null,
-      "action": "generic_callback"
+      "action": "set_remove_all_breakpoints"
     },
     null,
     {
@@ -651,7 +728,7 @@
     {
       "text": "About",
       "icon": "assets/menus/info.png",
-      "action": "generic_callback"
+      "action": "set_show_about"
     }
   ]
 }

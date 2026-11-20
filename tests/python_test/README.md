@@ -5,16 +5,17 @@ Comprehensive coverage for the Python language plugin: domain models, interfaces
 
 ## Latest Run
 
-- **Run ID**: 20261104T133442Z-4e7098d-dirty
-- **Timestamp**: 2026-11-04T13:34:42Z
-- **Verdict**: PASSED
-- **Passed**: 591 | **Failed**: 0 | **Errors**: 0 | **Skipped**: 0 | **Blocked**: 0
-- [Report](../reports/runs/20261104T133442Z-4e7098d-dirty/report.md)
+- **Run ID**: 20261120T085847Z-69b0e25-dirty
+- **Timestamp**: 2026-11-20T08:58:47Z
+- **Verdict**: INFRASTRUCTURE ERROR
+- **Passed**: 0 | **Failed**: 0 | **Errors**: 8 | **Skipped**: 0 | **Blocked**: 0
+- [Report](../reports/runs/20261120T085847Z-69b0e25-dirty/report.md)
 
 ## Historical Runs
 
 | Run ID | Timestamp | Verdict | Passed | Failed | Errors | Skipped | Blocked | Report |
 |--------|-----------|---------|--------|--------|--------|---------|---------|--------|
+| 20261120T085847Z-69b0e25-dirty | 2026-11-20T08:58:47Z | INFRASTRUCTURE ERROR | 0 | 0 | 8 | 0 | 0 | [Report](../reports/runs/20261120T085847Z-69b0e25-dirty/report.md) |
 | 20261104T133442Z-4e7098d-dirty | 2026-11-04T13:34:42Z | PASSED | 591 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261104T133442Z-4e7098d-dirty/report.md) |
 | 20261104T131747Z-4e7098d-dirty | 2026-11-04T13:17:47Z | INTERRUPTED | 0 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261104T131747Z-4e7098d-dirty/report.md) |
 | 20261101T181925Z-c27e5eb-dirty | 2026-11-01T18:19:25Z | PASSED | 591 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261101T181925Z-c27e5eb-dirty/report.md) |

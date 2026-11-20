@@ -206,12 +206,12 @@ Persistence: `~/.dreamstudio/plugins/plugins.json` — the saved file owns **onl
 |---|---|
 | `Emulator/emulator.py` | `BasePty` (ABC), `UnixPty`, `WinPty` (needs `pywinpty`), `PtyReader(QObject)` (daemon thread), `ShellEmulator(QObject)` — `raw_output_received`, `process_started/finished/errored`. |
 | `Emulator/terminal_display.py` | pyte-backed screen buffer. |
-| `Emulator/terminal_ui.py` | `TerminalPanel` — tab constants `TAB_SYSTEM_SHELL=0`, `TAB_PROMPTX=1`, `TAB_OUTPUT=2`, `TAB_PORTS=3`; `set_theme(bg,fg,sel)`, `set_workspace()`, `close_requested`. |
+| `Emulator/terminal_ui.py` | `TerminalPanel` — tab constants `TAB_SYSTEM_SHELL=0`, `TAB_PROMPTX=1`, `TAB_OUTPUT=2`; `set_theme(bg,fg,sel)`, `set_workspace()`, `close_requested`. |
 | `Emulator/terminal_workspace.py` | `TerminalWorkspace` — multi-session shell. |
 | `DayDream/daydream.py` + `daydream_commands.py` | DreamScript console UI. |
 | `PythonConsole/console.py` | `PythonShell` — qtconsole/IPython kernel. |
 | `OutputsWidget/output_widget.py` | Captured stdout/stderr view. |
-| `ProcessesViewer/ports_widget.py` | Ports table (psutil + `ss` fallback). |
+| `ProcessesViewer/ports_widget.py` | `PortsWidget` — process/port table (psutil + `ss` fallback), hosted in the System Monitor tab. |
 
 ### 5.9 `editor/utils/` — Panels & Utilities (10 subpackages)
 
@@ -224,7 +224,7 @@ Persistence: `~/.dreamstudio/plugins/plugins.json` — the saved file owns **onl
 | `properties/` | `PropertiesExplorer(PanelShell)` (`properties.py:16`), `properties_dialog.py`, `env.py`, `project_data_engine.py`. |
 | `notifications/` | `NotificationManager(QObject)` (`notification_manager.py:47`), `NotificationsPanel` (`notifications_panel.py:101`). |
 | `find_replace/` | `FindReplace(QFrame)` (`find_replace.py:13`), `SearchWorker(QThread)` (`search_engine.py:36`). |
-| `tools/` | `TODOSearch(PanelShell)`, `CommandWindow(QMenu)`, `port_info.py`, `system_monitor.py` (`SystemMonitor`). |
+| `tools/` | `TODOSearch(PanelShell)`, `CommandWindow(QMenu)`, `port_info.py`, `system_monitor.py` (`SystemMonitor` — Performance + Processes & Ports tabs), `settings_dialog.py` (`SettingsPanel` editor tab). |
 | `server_explorer/` | `ServerExplorer`. |
 | `etherAI/` | `EtherAI`. |
 | — | `panel_shell.py` (`PanelShell` base for every side panel), `utils_tabmanager.py` (`UtilityTabManager`, `UtilityTabBar`), `theme.py`, `resource_path.py`, `icons.py`, `workspace.py`, `io.py`, `process.py`. |

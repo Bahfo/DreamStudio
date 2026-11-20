@@ -6,7 +6,6 @@ Terminal Emulator Logic for DreamStudio.
 from editor import *
 
 from editor.promptx import CommandLine, HELP
-from editor.terminal.ProcessesViewer.ports_widget import PortsWidget
 from editor.terminal.OutputsWidget.output_widget import OutputWidget
 from editor.promptx.highlight import PromptXHighlighter
 from editor.debugger.problems_widget import ProblemsWidget
@@ -18,7 +17,6 @@ logger = logging.getLogger(__name__)
 TAB_SYSTEM_SHELL = 0
 TAB_PROMPTX = 1
 TAB_OUTPUT = 2
-TAB_PORTS = 3
 
 
 from editor.utils.workspace import get_workspace_dir as _inherit_workspace
@@ -350,7 +348,6 @@ class TerminalPanel(QWidget):
         self.system_shell_tab = TerminalWorkspace(self)
         self.promptXShell_tab = PromptXTerminalWidget(self)
         self.output_tab = OutputWidget(self)
-        self.ports_tab = PortsWidget()
 
         self.system_shell_tab.close_requested.connect(self.close_requested.emit)
 
@@ -358,7 +355,6 @@ class TerminalPanel(QWidget):
             TAB_SYSTEM_SHELL: (self.system_shell_tab, "TERMINAL"),
             TAB_PROMPTX: (self.promptXShell_tab, "PROMPTX"),
             TAB_OUTPUT: (self.output_tab, "OUTPUT"),
-            TAB_PORTS: (self.ports_tab, "PORTS"),
         }
 
         for tab_id in sorted(self.tabs.keys()):

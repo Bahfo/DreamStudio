@@ -18,7 +18,6 @@ from editor.utils.explorer.gitignore import get_gitignore_service
 from editor.widgets.QToolBox import ExplorerToolbar, ToolbarButton
 from editor.utils.explorer.icons import DreamStudioIconProvider
 from editor.utils.explorer.vcs_colors import build_status_index
-from editor.utils.explorer.packages import DependenciesView
 from editor.utils.explorer.api import ExplorerAPI
 from editor.utils.panel_shell import PanelShell
 from editor.utils.workspace import get_workspace_dir as _inherit_workspace
@@ -130,31 +129,11 @@ class SolutionExplorer(PanelShell):
         self._main_layout.addWidget(self._frame)
 
         self._build_header_row()
-        self._build_tab_navigation()
 
         self.view_stack = QStackedWidget(self)
         self._build_explorer_page()
-        self._build_packages_page()
 
         self._frame_layout.addWidget(self.view_stack)
-
-    def _build_tab_navigation(self) -> None:
-        """Creates top-level tab buttons to switch between file and package subsystems."""
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
-
-        self.btn_files = QPushButton("Files", self)
-        self.btn_packages = QPushButton("Packages", self)
-
-        self.btn_files.clicked.connect(lambda: self.view_stack.setCurrentIndex(0))
-        self.btn_packages.clicked.connect(lambda: self.view_stack.setCurrentIndex(1))
-
-        layout.addWidget(self.btn_files)
-        layout.addWidget(self.btn_packages)
-        layout.addStretch(1)
-
-        self._frame_layout.addLayout(layout)
 
     def _build_explorer_page(self) -> None:
         """Constructs the primary file workspace navigator page for the stacked view layout."""
@@ -213,18 +192,6 @@ class SolutionExplorer(PanelShell):
         self.tree_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.tree_view.setSortingEnabled(True)
         layout.addWidget(self.tree_view)
-
-        self.view_stack.addWidget(page)
-
-    def _build_packages_page(self) -> None:
-        """Constructs the runtime metadata dependencies page view for the stacked widget."""
-        page = QWidget(self)
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        self.packages_view = DependenciesView(page)
-        layout.addWidget(self.packages_view)
 
         self.view_stack.addWidget(page)
 
@@ -504,11 +471,6 @@ class SolutionExplorer(PanelShell):
             get_gitignore_service().set_root(self._root_path)
         except Exception:
             pass
-        if hasattr(self, "packages_view") and self.packages_view is not None:
-            try:
-                self.packages_view.set_workspace(self._root_path)
-            except Exception as exc:
-                logger.warning("Packages explorer re-point failed: %s", exc)
         try:
             ExplorerAPI.clear_clipboard_for_workspace(self._root_path)
         except Exception:

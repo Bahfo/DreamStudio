@@ -1,0 +1,19 @@
+{
+  "run_id": "20261120T085847Z-69b0e25-dirty",
+  "timestamp": "2026-11-20T08:58:47Z",
+  "suites": [
+    "python"
+  ],
+  "git_revision": "69b0e25",
+  "dirty": true,
+  "duration_seconds": 3,
+  "exit_code": 2,
+  "verdict": "INFRASTRUCTURE ERROR",
+  "counts": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "errors": 8
+  }
+}

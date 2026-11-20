@@ -227,9 +227,14 @@ def close_popups_soon(
         exclude: Widget whose popup window must stay open.
     """
     from PyQt6.QtCore import QTimer
+    from PyQt6.QtWidgets import QMenu
 
     def closer() -> None:
         """Close and release the currently active popup widget.
+
+        Only ``QMenu`` popups are closed: they run a nested ``exec()`` loop
+        that would otherwise block the test. Non-menu popups such as the
+        find/replace frame are non-blocking and must stay observable.
 
         Returns:
             None.
@@ -238,6 +243,8 @@ def close_popups_soon(
         if popup is None:
             return
         if exclude is not None and (popup is exclude or popup.isAncestorOf(exclude)):
+            return
+        if not isinstance(popup, QMenu):
             return
         popup.close()
 

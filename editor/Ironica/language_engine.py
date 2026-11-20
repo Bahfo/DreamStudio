@@ -194,6 +194,24 @@ class BaseLanguageProvider(ABC):
         """Return list of `(file_path, line, col, display_name)` for references."""
         return []
 
+    def supports_declaration(self) -> bool:
+        """Return ``True`` when this provider resolves declarations."""
+        return (
+            type(self).get_declaration_location
+            is not BaseLanguageProvider.get_declaration_location
+        )
+
+    def supports_implementation(self) -> bool:
+        """Return ``True`` when this provider resolves implementations."""
+        return (
+            type(self).get_implementation_location
+            is not BaseLanguageProvider.get_implementation_location
+        )
+
+    def supports_references(self) -> bool:
+        """Return ``True`` when this provider resolves symbol references."""
+        return type(self).get_references is not BaseLanguageProvider.get_references
+
     @abstractmethod
     def format_source(self, source_code: str) -> str:
         """Format *source_code* and return the formatted text."""

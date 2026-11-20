@@ -1,0 +1,19 @@
+{
+  "run_id": "20261120T085755Z-69b0e25-dirty",
+  "timestamp": "2026-11-20T08:57:55Z",
+  "suites": [
+    "editor"
+  ],
+  "git_revision": "69b0e25",
+  "dirty": true,
+  "duration_seconds": 5,
+  "exit_code": 1,
+  "verdict": "FAILED",
+  "counts": {
+    "passed": 43,
+    "failed": 1,
+    "skipped": 1,
+    "blocked": 0,
+    "errors": 0
+  }
+}

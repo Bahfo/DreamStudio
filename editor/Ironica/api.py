@@ -161,13 +161,18 @@ class EditorAPI:
 
     def goto_declaration(self, line: int = None, col: int = None) -> None:
         """Jump to the declaration of the symbol under the cursor."""
-        if hasattr(self._editor, "execute_goto_definition"):
-            self._editor.execute_goto_definition(line, col)
+        if hasattr(self._editor, "execute_goto_declaration"):
+            self._editor.execute_goto_declaration(line, col)
 
     def goto_implementation(self, line: int = None, col: int = None) -> None:
         """Jump to the implementation of the symbol under the cursor."""
-        if hasattr(self._editor, "execute_goto_definition"):
-            self._editor.execute_goto_definition(line, col)
+        if hasattr(self._editor, "execute_goto_implementation"):
+            self._editor.execute_goto_implementation(line, col)
+
+    def find_usages(self, line: int = None, col: int = None) -> None:
+        """Find every reference to the symbol under the cursor."""
+        if hasattr(self._editor, "execute_find_references"):
+            self._editor.execute_find_references(line, col)
 
     def undo(self) -> None:
         """Undo the last editing action, if available."""
@@ -418,6 +423,13 @@ class EditorAPI:
     def uses_tabs(self) -> bool:
         """Return ``True`` when tabs are used for indentation."""
         return self._editor.indentationsUseTabs()
+
+    def set_indentation(self, width: int, use_tabs: bool) -> None:
+        """Apply an indentation width and tab policy to the buffer."""
+        width = max(1, int(width))
+        self._editor.setIndentationWidth(width)
+        self._editor.setTabWidth(width)
+        self._editor.setIndentationsUseTabs(bool(use_tabs))
 
     def lines(self) -> int:
         """Return the total number of lines in the buffer."""

@@ -143,3 +143,18 @@ class VerticalMenusAPI(QObject):
             return False
         idx = tm._panel_ids.index(panel_id)
         return tm._tab_bar.isTabVisible(idx)
+
+    def is_active(self, panel_id: str) -> bool:
+        """Return ``True`` when *panel_id* is the visible, current panel."""
+        tm = self._tab_managers.get(panel_id)
+        if tm is None or panel_id not in tm._panel_ids or not tm.isVisible():
+            return False
+        idx = tm._panel_ids.index(panel_id)
+        return tm._tab_bar.isTabVisible(idx) and tm._tab_bar.currentIndex() == idx
+
+    def toggle_panel(self, panel_id: str) -> None:
+        """Show *panel_id*, or hide it when it is already the active panel."""
+        if self.is_active(panel_id):
+            self.deactivate_panel(panel_id)
+        else:
+            self.activate_panel(panel_id)

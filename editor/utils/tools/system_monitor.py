@@ -3,12 +3,14 @@ import psutil
 
 
 from editor.widgets.QSystemGraphWidget import SystemGraphUtil
-from editor.utils.tools.port_info import fetch_pid_to_ports, service_name
+from editor.terminal.ProcessesViewer.ports_widget import PortsWidget
 
 from assets.fonts.font_strapper import Fonts
 
 
 class SystemMonitor(QWidget):
+    """Live performance graphs plus the process/port table."""
+
     def __init__(self, _parent=None):
         super().__init__(_parent)
         self._theme = None
@@ -20,10 +22,13 @@ class SystemMonitor(QWidget):
         self._first_net = True
         self._first_disk = True
 
-        self._bg_color = "#1E1E1E"
-        self._grid_color = "#2A2D30"
-        self._text_color = "#999999"
-        self._window_bg = "#1E1E1E"
+        bg, fg, sel = self._palette_from_window(_parent)
+        self._bg_color = bg
+        self._fg_color = fg
+        self._grid_color = self._blend(bg, fg, 0.14)
+        self._text_color = self._blend(bg, fg, 0.68)
+        self._window_bg = bg
+        self._accent_color = sel
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(8, 6, 8, 6)
@@ -31,19 +36,13 @@ class SystemMonitor(QWidget):
 
         main_layout.addSpacing(10)
         self.label = QLabel("SYSTEM MONITOR")
-        self.label.setStyleSheet(
-            "color: #969696; font-size: 11px; font-weight: bold; "
-            "letter-spacing: 1px; padding: 4px 8px;"
-        )
         main_layout.addWidget(self.label)
         main_layout.addSpacing(10)
 
         self.tabs = QTabWidget()
-        self._apply_tab_styling()
         main_layout.addWidget(self.tabs)
 
         self.perf_tab = QWidget()
-        self.perf_tab.setStyleSheet(f"background-color: {self._window_bg};")
         perf_layout = QVBoxLayout(self.perf_tab)
         perf_layout.setContentsMargins(5, 5, 5, 5)
 
@@ -60,9 +59,6 @@ class SystemMonitor(QWidget):
         for i in range(self._num_cores):
             lbl = QLabel(f"Core {i}")
             lbl.setFont(Fonts.inter(8))
-            lbl.setStyleSheet(
-                f"color: {self._text_color}; background-color: transparent;"
-            )
 
             bar = QProgressBar()
             bar.setTextVisible(False)
@@ -99,37 +95,12 @@ class SystemMonitor(QWidget):
         perf_scroll.setWidgetResizable(True)
         perf_scroll.setWidget(self.perf_tab)
 
-        self.proc_tab = QWidget()
-        self.proc_tab.setStyleSheet(f"background-color: {self._window_bg};")
-        proc_layout = QVBoxLayout(self.proc_tab)
-        proc_layout.setContentsMargins(5, 5, 5, 5)
-
-        self.process_table = QTableWidget(0, 6)
-        self.process_table.setHorizontalHeaderLabels(
-            ["PID", "Name", "CPU %", "RAM (MB)", "Disk R/W", "Internet"]
-        )
-        self.process_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
-        self.process_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.ResizeToContents
-        )
-        self.process_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeMode.Interactive
-        )
-        self.process_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.process_table.setSelectionBehavior(
-            QTableWidget.SelectionBehavior.SelectRows
-        )
-        self.process_table.setShowGrid(False)
-        self.process_table.setFont(Fonts.inter(9))
-        self._apply_table_styling()
-        proc_layout.addWidget(self.process_table)
-
-        self._process_items = {}
+        self.ports_view = PortsWidget(self)
 
         self.tabs.addTab(perf_scroll, "Performance")
-        self.tabs.addTab(self.proc_tab, "Processes")
+        self.tabs.addTab(self.ports_view, "Processes & Ports")
+
+        self.apply_theme(self._bg_color, self._fg_color, self._accent_color)
 
         try:
             psutil.cpu_percent(interval=None)
@@ -143,8 +114,110 @@ class SystemMonitor(QWidget):
 
         QTimer.singleShot(100, self._collect)
 
-    def _apply_tab_styling(self):
-        """Style the inner QTabWidget to match the monitor palette."""
+    # ------------------------------------------------------------------
+    # Theming
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _palette_from_window(parent) -> tuple[str, str, str]:
+        """Read the active IDE theme colours from the owning main window."""
+        window = None
+        try:
+            window = parent.window() if parent is not None else None
+        except RuntimeError:
+            window = None
+
+        bg = getattr(window, "_qss_bg", None) or "#1E1E1E"
+        fg = getattr(window, "_qss_fg", None) or "#D4D4D4"
+        sel = getattr(window, "_qss_sel", None) or "#61AFEF"
+
+        if not QColor(bg).isValid():
+            bg = "#1E1E1E"
+        if not QColor(fg).isValid():
+            fg = "#D4D4D4"
+        if not QColor(sel).isValid() or sel.lower() == bg.lower():
+            sel = "#61AFEF"
+        return bg, fg, sel
+
+    @staticmethod
+    def _blend(base: str, other: str, ratio: float) -> str:
+        """Blend two hex colours, returning the result as ``#RRGGBB``."""
+        first = QColor(base)
+        second = QColor(other)
+        if not first.isValid():
+            first = QColor("#1E1E1E")
+        if not second.isValid():
+            second = QColor("#D4D4D4")
+
+        ratio = max(0.0, min(1.0, ratio))
+        red = round(first.red() + (second.red() - first.red()) * ratio)
+        green = round(first.green() + (second.green() - first.green()) * ratio)
+        blue = round(first.blue() + (second.blue() - first.blue()) * ratio)
+        return QColor(red, green, blue).name()
+
+    def apply_theme(self, bg: str, fg: str, sel: str = "") -> None:
+        """Re-colour every monitor surface for the active IDE theme."""
+        if QColor(bg).isValid():
+            self._bg_color = bg
+            self._window_bg = bg
+        if QColor(fg).isValid():
+            self._fg_color = fg
+        if QColor(sel).isValid() and sel.lower() != self._bg_color.lower():
+            self._accent_color = sel
+
+        self._text_color = self._blend(self._bg_color, self._fg_color, 0.68)
+        self._grid_color = self._blend(self._bg_color, self._fg_color, 0.14)
+
+        self.label.setStyleSheet(
+            f"color: {self._text_color}; font-size: 11px; font-weight: bold; "
+            "letter-spacing: 1px; padding: 4px 8px; background-color: transparent;"
+        )
+
+        self.perf_tab.setStyleSheet(
+            f"""
+            QWidget {{
+                background-color: {self._bg_color};
+                color: {self._text_color};
+            }}
+            QProgressBar {{
+                background-color: {self._grid_color};
+                border: none;
+                border-radius: 3px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {self._accent_color};
+                border-radius: 3px;
+            }}
+            """
+        )
+
+        for lbl in self._core_labels:
+            lbl.setStyleSheet(
+                f"color: {self._text_color}; background-color: transparent;"
+            )
+
+        for graph in (
+            self._cpu_graph,
+            self._ram_graph,
+            self._net_graph,
+            self._disk_graph,
+        ):
+            graph.bg = QColor(self._bg_color)
+            graph.grid_color = QColor(self._grid_color)
+            graph.text_color = QColor(self._text_color)
+            graph.border_color = QColor(
+                self._blend(self._bg_color, self._fg_color, 0.25)
+            )
+            graph.update()
+
+        self._apply_tab_styling()
+
+        if hasattr(self.ports_view, "apply_theme"):
+            self.ports_view.apply_theme(
+                self._bg_color, self._fg_color, self._accent_color
+            )
+
+    def _apply_tab_styling(self) -> None:
+        """Style the inner QTabWidget to match the active theme."""
         self.tabs.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: 1px solid {self._grid_color};
@@ -158,41 +231,19 @@ class SystemMonitor(QWidget):
                 border-bottom: none;
             }}
             QTabBar::tab:selected {{
-                color: #D4D4D4;
-                border-bottom: 2px solid #61AFEF;
-            }}
-            """)
-
-    def _apply_table_styling(self):
-        """Style the process table to match the monitor palette."""
-        self.process_table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {self._bg_color};
-                alternate-background-color: {self._grid_color};
-                color: #D4D4D4;
-                gridline-color: {self._grid_color};
-                border: none;
-            }}
-            QHeaderView::section {{
-                background-color: {self._grid_color};
                 color: {self._text_color};
-                border: none;
-                padding: 4px;
-            }}
-            QTableWidget::item:selected {{
-                background-color: #3A3F44;
+                border-bottom: 2px solid {self._accent_color};
             }}
             """)
 
+    # ------------------------------------------------------------------
+    # Sampling
+    # ------------------------------------------------------------------
     def _collect(self):
         self._collect_cpu()
         self._collect_ram()
         self._collect_net()
         self._collect_disk()
-
-        if self.tabs.currentIndex() == 1:
-            self._collect_processes()
-
         self.update()
 
     def _collect_cpu(self):
@@ -240,96 +291,3 @@ class SystemMonitor(QWidget):
         self._prev_disk = (disk.read_bytes, disk.write_bytes)
         self._prev_disk_time = now
         self._first_disk = False
-
-    def _collect_processes(self):
-        self.process_table.setSortingEnabled(False)
-        current_pids = set()
-        pid_to_ports = fetch_pid_to_ports(listen_only=True)
-
-        for proc in psutil.process_iter(
-            ["pid", "name", "cpu_percent", "memory_info", "io_counters"]
-        ):
-            try:
-                pid = proc.info["pid"]
-                current_pids.add(pid)
-
-                name = proc.info["name"] or ""
-                cpu = (
-                    f"{proc.info['cpu_percent']:.1f}"
-                    if proc.info["cpu_percent"] is not None
-                    else "0.0"
-                )
-
-                ram = "0.0"
-                if proc.info["memory_info"]:
-                    ram = f"{(proc.info['memory_info'].rss / (1024**2)):.1f}"
-
-                disk = "N/A"
-                if proc.info["io_counters"]:
-                    reads = proc.info["io_counters"].read_bytes / (1024**2)
-                    writes = proc.info["io_counters"].write_bytes / (1024**2)
-                    disk = f"{reads:.1f} / {writes:.1f} MB"
-
-                internet = self._format_internet(pid_to_ports.get(pid))
-
-                if pid in self._process_items:
-                    row = self._process_items[pid]
-                    self.process_table.item(row, 2).setText(cpu)
-                    self.process_table.item(row, 3).setText(ram)
-                    self.process_table.item(row, 4).setText(disk)
-                    self.process_table.item(row, 5).setText(internet)
-                else:
-                    row = self.process_table.rowCount()
-                    self.process_table.insertRow(row)
-                    self.process_table.setItem(row, 0, QTableWidgetItem(str(pid)))
-                    self.process_table.setItem(row, 1, QTableWidgetItem(name))
-                    self.process_table.setItem(row, 2, QTableWidgetItem(cpu))
-                    self.process_table.setItem(row, 3, QTableWidgetItem(ram))
-                    self.process_table.setItem(row, 4, QTableWidgetItem(disk))
-                    self.process_table.setItem(row, 5, QTableWidgetItem(internet))
-                    self._process_items[pid] = row
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                pass
-
-        dead_pids = set(self._process_items.keys()) - current_pids
-        for pid in dead_pids:
-            row = self._process_items.get(pid)
-            if row is None or row >= self.process_table.rowCount():
-                self._process_items.pop(pid, None)
-                continue
-            try:
-                item_pid = self.process_table.item(row, 0)
-                if item_pid is None or int(item_pid.text()) != pid:
-                    found = -1
-                    for r in range(self.process_table.rowCount()):
-                        it = self.process_table.item(r, 0)
-                        if it and it.text() == str(pid):
-                            found = r
-                            break
-                    if found == -1:
-                        self._process_items.pop(pid, None)
-                        continue
-                    row = found
-                self.process_table.removeRow(row)
-            except (ValueError, RuntimeError, AttributeError):
-                pass
-            self._process_items.pop(pid, None)
-        if dead_pids:
-            self._process_items = {
-                int(self.process_table.item(r, 0).text()): r
-                for r in range(self.process_table.rowCount())
-                if self.process_table.item(r, 0) is not None
-            }
-
-        self.process_table.setSortingEnabled(True)
-
-    def _format_internet(self, port_entries) -> str:
-        """Render a process's listening ports for the Internet column."""
-        if not port_entries:
-            return "-"
-        ordered = sorted(port_entries, key=lambda e: int(e[0]))
-        labels = []
-        for port, proto in ordered:
-            resolved = service_name(port, proto)
-            labels.append(f"{port} ({resolved})" if resolved != "-" else port)
-        return ", ".join(labels)

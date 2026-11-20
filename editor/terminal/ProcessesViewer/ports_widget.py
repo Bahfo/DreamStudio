@@ -1,6 +1,6 @@
 """
 (C) COPYRIGHT 2026 Gizmo Microsystems - All Rights Reserved.
-Ports tab widget for the terminal panel.
+Process and listening-port table for the system monitor.
 """
 
 import psutil
@@ -8,7 +8,6 @@ import psutil
 from editor import *
 
 from editor.utils.tools.port_info import fetch_pid_to_ports, service_name
-from editor.utils.tools.system_monitor import SystemMonitor
 
 _ACTIVE_STATUSES = {
     psutil.STATUS_RUNNING,
@@ -23,21 +22,19 @@ _STOPPED_STATUSES = {
 
 
 class PortsWidget(QWidget):
-    """Full process table, port monitor, and embedded system monitor."""
+    """Process and listening-port table with filtering and process controls."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self._bg_color = "#1E1E1E"
+        self._fg_color = "#D4D4D4"
+        self._grid_color = "#2A2D30"
+        self._accent_color = "#61AFEF"
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        self._tabs = QTabWidget(self)
-        self._tabs.setDocumentMode(True)
-
-        ports_page = QWidget(self)
-        ports_layout = QVBoxLayout(ports_page)
-        ports_layout.setContentsMargins(10, 10, 10, 10)
-        ports_layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
 
         self.table_headers = [
             "PID",
@@ -57,7 +54,6 @@ class PortsWidget(QWidget):
         self.search_bar.setMaximumWidth(350)
         self.search_bar.setPlaceholderText("Search PID, Name, Port, or Service...")
         self.search_bar.textChanged.connect(self.refresh_data)
-        self.search_bar.setStyleSheet("padding: 5px; border-radius: 4px;")
 
         self.sortByDropDown = QComboBox(self)
         self.sortByDropDown.setEditable(True)
@@ -65,7 +61,6 @@ class PortsWidget(QWidget):
         self.sortByDropDown.setMinimumWidth(160)
         options = ["All Processes", "Active Processes", "Stopped Processes"]
         self.sortByDropDown.addItems(options)
-        self.sortByDropDown.setStyleSheet("padding: 4px; border-radius: 4px;")
         self.sortByDropDown.currentTextChanged.connect(self.refresh_data)
         self.sortByDropDown.lineEdit().textChanged.connect(self.refresh_data)
 
@@ -83,24 +78,6 @@ class PortsWidget(QWidget):
 
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
-        self.table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #444;
-                border-radius: 4px;
-                background-color: transparent;
-            }
-            QTableWidget::item {
-                padding: 4px;
-                border-bottom: 1px solid #333;
-            }
-            QHeaderView::section {
-                background-color: #2b2b2b;
-                padding: 6px;
-                border: none;
-                border-bottom: 2px solid #555;
-                font-weight: bold;
-            }
-        """)
 
         self.table.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeMode.Stretch
@@ -117,14 +94,10 @@ class PortsWidget(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(28)
         self.table.verticalHeader().setVisible(False)
 
-        ports_layout.addLayout(top_controls_layout)
-        ports_layout.addWidget(self.table)
+        layout.addLayout(top_controls_layout)
+        layout.addWidget(self.table)
 
-        self._tabs.addTab(ports_page, "Processes & Ports")
-        self._monitor = None
-        self._tabs.currentChanged.connect(self._ensure_monitor)
-
-        layout.addWidget(self._tabs)
+        self._apply_styles()
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_data)
@@ -132,18 +105,72 @@ class PortsWidget(QWidget):
 
         self.refresh_data()
 
-    def _ensure_monitor(self, index: int) -> None:
-        """Create the embedded system monitor lazily on first open."""
-        if self._monitor is not None or index != 1:
-            return
-        try:
-            self._monitor = SystemMonitor()
-            self._tabs.addTab(self._monitor, "System Monitor")
-        except Exception:
-            label = QLabel("System monitor is unavailable.")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._tabs.addTab(label, "System Monitor")
-            self._monitor = label
+    @staticmethod
+    def _blend(base: str, other: str, ratio: float) -> str:
+        """Blend two hex colours, returning the result as ``#RRGGBB``."""
+        first = QColor(base)
+        second = QColor(other)
+        if not first.isValid():
+            first = QColor("#1E1E1E")
+        if not second.isValid():
+            second = QColor("#D4D4D4")
+
+        ratio = max(0.0, min(1.0, ratio))
+        red = round(first.red() + (second.red() - first.red()) * ratio)
+        green = round(first.green() + (second.green() - first.green()) * ratio)
+        blue = round(first.blue() + (second.blue() - first.blue()) * ratio)
+        return QColor(red, green, blue).name()
+
+    def apply_theme(self, bg: str, fg: str, sel: str = "") -> None:
+        """Re-colour the process table for the active IDE theme."""
+        if QColor(bg).isValid():
+            self._bg_color = bg
+        if QColor(fg).isValid():
+            self._fg_color = fg
+        if QColor(sel).isValid() and sel.lower() != self._bg_color.lower():
+            self._accent_color = sel
+        self._grid_color = self._blend(self._bg_color, self._fg_color, 0.14)
+        self._apply_styles()
+
+    def _apply_styles(self) -> None:
+        """Apply the current theme palette to the table and controls."""
+        alt = self._blend(self._bg_color, self._fg_color, 0.08)
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                border: 1px solid {self._grid_color};
+                border-radius: 4px;
+                background-color: {self._bg_color};
+                alternate-background-color: {alt};
+                color: {self._fg_color};
+            }}
+            QTableWidget::item {{
+                padding: 4px;
+                border-bottom: 1px solid {self._grid_color};
+            }}
+            QTableWidget::item:selected {{
+                background-color: {self._accent_color};
+                color: {self._bg_color};
+            }}
+            QHeaderView::section {{
+                background-color: {alt};
+                color: {self._fg_color};
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid {self._grid_color};
+                font-weight: bold;
+            }}
+        """)
+
+        control_style = (
+            f"background-color: {alt}; color: {self._fg_color}; "
+            f"border: 1px solid {self._grid_color}; padding: 5px; "
+            "border-radius: 4px;"
+        )
+        self.search_bar.setStyleSheet(control_style)
+        self.sortByDropDown.setStyleSheet(control_style)
+        self.listen_only_check.setStyleSheet(
+            f"color: {self._fg_color}; background-color: transparent;"
+        )
 
     @staticmethod
     def _passes_filters(

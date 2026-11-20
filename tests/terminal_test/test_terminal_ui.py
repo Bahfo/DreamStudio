@@ -60,7 +60,8 @@ class TestPromptXTerminalWidget:
 class TestTerminalPanel:
     def test_tab_count(self, qapp):
         panel = TerminalPanel()
-        assert panel.tab_bar.count() == 4
+        # The former PORTS tab now lives inside the System Monitor tab.
+        assert panel.tab_bar.count() == 3
         panel.deleteLater()
         qapp.processEvents()
 

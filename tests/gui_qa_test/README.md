@@ -33,16 +33,20 @@ Live end-to-end quality-assurance walk of the real DreamStudio window: every wid
 
 ## Latest Run
 
-- **Run ID**: 20261118T210857Z-13306b6-dirty
-- **Timestamp**: 2026-11-18T21:08:57Z
+- **Run ID**: 20261120T084800Z-69b0e25-dirty
+- **Timestamp**: 2026-11-20T08:48:00Z
 - **Verdict**: FAILED
-- **Passed**: 356 | **Failed**: 13 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
-- [Report](../reports/runs/20261118T210857Z-13306b6-dirty/report.md)
+- **Passed**: 368 | **Failed**: 9 | **Errors**: 0 | **Skipped**: 1 | **Blocked**: 0
+- [Report](../reports/runs/20261120T084800Z-69b0e25-dirty/report.md)
 
 ## Historical Runs
 
 | Run ID | Timestamp | Verdict | Passed | Failed | Errors | Skipped | Blocked | Report |
 |--------|-----------|---------|--------|--------|--------|---------|---------|--------|
+| 20261120T084800Z-69b0e25-dirty | 2026-11-20T08:48:00Z | FAILED | 368 | 9 | 0 | 1 | 0 | [Report](../reports/runs/20261120T084800Z-69b0e25-dirty/report.md) |
+| 20261120T082016Z-69b0e25-dirty | 2026-11-20T08:20:16Z | INTERRUPTED | 0 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261120T082016Z-69b0e25-dirty/report.md) |
+| 20261120T075846Z-69b0e25-dirty | 2026-11-20T07:58:46Z | FAILED | 363 | 12 | 0 | 1 | 0 | [Report](../reports/runs/20261120T075846Z-69b0e25-dirty/report.md) |
+| 20261120T075124Z-69b0e25-dirty | 2026-11-20T07:51:24Z | INTERRUPTED | 0 | 0 | 0 | 0 | 0 | [Report](../reports/runs/20261120T075124Z-69b0e25-dirty/report.md) |
 | 20261118T210857Z-13306b6-dirty | 2026-11-18T21:08:57Z | FAILED | 356 | 13 | 0 | 1 | 0 | [Report](../reports/runs/20261118T210857Z-13306b6-dirty/report.md) |
 
 ## Known Product Findings

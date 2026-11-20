@@ -100,9 +100,14 @@ class DebugSession(QObject):
 
         self._process = None
         self._is_running = False
+        self._is_paused = False
 
     def is_running(self):
         return self._is_running
+
+    def is_paused(self):
+        """Return ``True`` while the session is stopped on a breakpoint."""
+        return self._is_paused
 
     def start(self):
         """Start the debug session:"""
@@ -111,6 +116,7 @@ class DebugSession(QObject):
 
         start_debugger(self)
         self._is_running = True
+        self._is_paused = False
 
         self.main_window.status_bar.set_debug_background()
 
@@ -146,6 +152,7 @@ class DebugSession(QObject):
                 )
         self._process = None
         self._is_running = False
+        self._is_paused = False
 
         self._cleanup_ui()
         self.session_ended.emit()
@@ -159,6 +166,8 @@ class DebugSession(QObject):
         """Handle the debugger pausing at a given line."""
         if self.target_editor is None:
             return
+
+        self._is_paused = True
 
         try:
             self.target_editor.set_execution_line_highlight(line)

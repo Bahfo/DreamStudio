@@ -326,15 +326,26 @@ class TestSidebarToggles:
             titles.count("Python Shell") == 1
         ), f"duplicate Python Shell tabs: {titles}"
 
-    def test_settings_toggle_adds_tab(self, qapp, qa_window):
-        """The Settings button adds a 'Settings' tab without raising."""
+    def test_settings_toggle_opens_tab(self, qapp, qa_window):
+        """The Settings button opens preferences as an editor tab."""
+        from editor.utils.tools.settings_dialog import SettingsPanel
+
         window = qa_window
         tabs = window.hero_window._text_editor_center.tabs
-        before = tabs.count()
         click(qapp, find_button(window, "Settings"))
-        assert tabs.count() == before + 1, "Settings tab not added"
-        titles = [tabs.tabText(i) for i in range(tabs.count())]
-        assert "Settings" in titles, f"Settings tab missing: {titles}"
+
+        panel = tabs.currentWidget()
+        assert isinstance(panel, SettingsPanel), "Settings tab was not opened"
+        assert tabs.tabText(tabs.currentIndex()) == "Settings and Preferences"
+        assert panel.theme_combo.count() > 0, "Settings tab has no themes"
+
+        click(qapp, find_button(window, "Settings"))
+        count = sum(
+            1
+            for index in range(tabs.count())
+            if isinstance(tabs.widget(index), SettingsPanel)
+        )
+        assert count == 1, "Settings tab was duplicated"
 
 
 class TestStatusBarToggles:
@@ -379,6 +390,30 @@ class TestStatusBarToggles:
         poke(qapp, qa_window.status_bar, sweep)
         sweep.finish()
         assert_alive(qapp, qa_window)
+
+
+class TestSystemMonitor:
+    """The System Monitor tab hosts the ports table and follows the theme."""
+
+    def test_monitor_hosts_ports_and_follows_theme(self, qapp, qa_window):
+        """Switching themes recolours the monitor and its ports table."""
+        from editor.utils.tools.system_monitor import SystemMonitor
+
+        window = qa_window
+        tabs = window.hero_window._text_editor_center.tabs
+        window._toggle_system_monitor()
+        pump(qapp, 100)
+
+        monitor = tabs.currentWidget()
+        assert isinstance(monitor, SystemMonitor), "System Monitor tab was not opened"
+        titles = [monitor.tabs.tabText(i) for i in range(monitor.tabs.count())]
+        assert titles == ["Performance", "Processes & Ports"], titles
+        assert monitor._bg_color.lower() == window._qss_bg.lower()
+
+        window._set_theme_by_name("light")
+        pump(qapp, 100)
+        assert monitor._bg_color.lower() == window._qss_bg.lower()
+        assert monitor.ports_view._bg_color.lower() == window._qss_bg.lower()
 
 
 if __name__ == "__main__":
