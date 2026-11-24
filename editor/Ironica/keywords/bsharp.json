@@ -1,0 +1,64 @@
+{
+    "lang": "bsharp",
+    "display_name": "BSharp",
+    "badge_color": "#3572A5",
+    "comment_style": "c",
+    "extensions": ["bsharp", "b#"],
+    "styles": {
+        "keyword": "KEYWORD_COLOR",
+        "builtin": "BUILTIN_COLOR",
+        "definition": "DEFINITION_COLOR",
+        "string": "STRING_COLOR",
+        "number": "NUMBER_COLOR",
+        "comment": "COMMENT_COLOR",
+        "operator": "OPERATOR_COLOR",
+        "bracket": "BRACKET_COLOR",
+        "bracket_2": "BRACKET2_COLOR",
+        "bracket_3": "BRACKET3_COLOR",
+        "exception": "EXCEPTION_COLOR",
+        "import": "IMPORT_COLOR",
+        "variable": "VARIABLE_COLOR"
+    },
+    "palette": {
+        "KEYWORD_COLOR": "#C586C0",
+        "BUILTIN_COLOR": "#E06B96",
+        "DEFINITION_COLOR": "#DCDCAA",
+        "CLASS_COLOR": "#4EC9B0",
+        "STRING_COLOR": "#CE9178",
+        "NUMBER_COLOR": "#B5CEA8",
+        "COMMENT_COLOR": "#898989",
+        "DECORATOR_COLOR": "#D7BA7D",
+        "ADDITIONAL_COLOR": "#569CD6",
+        "OPERATOR_COLOR": "#D4D4D4",
+        "BRACKET_COLOR": "#FFD700",
+        "BRACKET2_COLOR": "#C678DD",
+        "BRACKET3_COLOR": "#61AFEF",
+        "EXCEPTION_COLOR": "#FF6B6B",
+        "VARIABLE_COLOR": "#9CDCFE"
+    },
+    "keywords": {
+        "keyword": [
+            "is", "do", "or", "if", "fn", "try", "var", "for", "and",
+            "not", "inf", "nan", "else", "elif", "then", "none", "pass",
+            "true", "Char", "Long", "false", "catch", "using", "break",
+            "const", "while", "return", "struct", "pragma", "continue",
+            "function", "container", "self"
+        ],
+        "builtin": [
+            "__writeln", "__readln", "__write", "__read", "__format", 
+            "__is_String", "__is_Char", "__is_Numeric", "__is_Short", 
+            "__is_Single", "__is_Integer", "__is_Long", "__is_Float", 
+            "__is_Double", "__is_Empty", "__is_Bool", "__to_Long",
+            "__to_Double", "__to_String", "__time__"
+        ],
+        "definition": [
+            "Inf", "NaN", "List", "Bool", "Long", "Char", 
+            "Empty", "Tuple", "Short", "Float", "Single", "Double", 
+            "String", "Integer", "Function"
+        ],
+        "string": [],
+        "number": [],
+        "comment": [],
+        "operator": []
+    }
+}
